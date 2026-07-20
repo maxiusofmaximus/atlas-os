@@ -1,0 +1,8 @@
+# skill.toml — `prompt-clarify` (RFC 23 §7.2)
+
+id = "prompt-clarify"
+version = "0.1.0"
+description = "Annotates a user prompt with clarification questions when the Prompt Understanding Pipeline confidence is MEDIUM/LOW/BLOCK."
+capabilities = ["prompt_understanding", "clarification"]
+requires_sandbox = false
+verified = true

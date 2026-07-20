@@ -1,0 +1,14 @@
+{
+  "$schema": "https://schema.tauri.app/config/2/capability",
+  "identifier": "default",
+  "description": "Default capabilities for the OpenCode OS desktop webview. Phase 0 surface: only what the landing HUD uses (core IPC + opener/os/process/dialog/clipboard). Filesystem and shell-open are intentionally absent — Phase 1+ adds scoped capabilities per RFC as engines come online.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "dialog:default",
+    "process:default",
+    "clipboard-manager:default",
+    "opener:default",
+    "os:default"
+  ]
+}

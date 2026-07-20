@@ -1,0 +1,11 @@
+OpenCode OS/
+.skills/
+src-tauri/target/
+node_modules/
+build/
+.svelte-kit/
+pnpm-lock.yaml
+*.lock
+AGENTS.md
+"Harness Enginering del Editor de Código.md"
+app-icon.png

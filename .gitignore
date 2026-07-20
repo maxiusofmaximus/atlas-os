@@ -1,0 +1,93 @@
+# ——— Rust / Cargo ———
+target/
+**/*.rs.bk
+Cargo.lock.bak
+*.pdb
+*.exe
+*.dll
+*.lib
+
+# Tauri build artifacts
+src-tauri/target/
+src-tauri/gen/
+src-tauri/WixTools/
+src-tauri/.cargo/
+
+# ——— Node / pnpm / SvelteKit ———
+node_modules/
+.pnp.*
+.svelte-kit/
+build/
+dist/
+.vite/
+.turbo/
+*.tsbuildinfo
+.vitest-cache/
+coverage/
+.nyc_output/
+
+# Lockfiles — generated, never commit manually (see AGENTS.md §4)
+# pnpm-lock.yaml IS committed (it's the canonical lockfile); npm/yarn equivalents are not.
+package-lock.json
+yarn.lock
+bun.lockb
+
+# ——— Environment & secrets ———
+.env
+.env.*
+!.env.example
+*.local
+.envrc
+.opencode/
+.opencode-cache/
+!/.opencode/mcp.json.example
+
+# ——— Editors & OS ———
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# ——— Rust profile output / perf ———
+*.flamegraph
+*.svg-perf
+perf.data*
+
+# ——— SQLite local journals (one per profile lives in ~/.opencode, but in-tree test artifacts) ———
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+
+# ——— fastembed / ONNX model cache downloaded on first use ———
+*.onnx
+*.gguf
+*.bin
+cache/
+emb_cache/
+
+# ——— Tauri icons staging ———
+app-icon-src.png
+
+# ——— Logs, runtime HUD port file, in-tree ———
+*.log
+hud_port.txt
+
+# ——— Misc ———
+.cache/
+*.bak
+*-bak/
+
+# ——— Personal notes — not part of the Atlas OS distribution ———
+Harness Enginering del Editor de Código.md
+Contexto de lo que se quiere conseguir.txt
+Harness Ing del Editor de Código.md
