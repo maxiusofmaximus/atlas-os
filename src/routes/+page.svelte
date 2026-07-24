@@ -1,21 +1,98 @@
 <script lang="ts">
-  // OpenCode OS — HUD Mission Control landing page (Phase 0).
-  // See RFC 24 for the full design. Phase 0 only shows:
-  //  - HUD URL (where the axum WS server is bound)
-  //  - Latest journal entries (live stream from kernel bus)
-  //  - Profile + version info
+  // OpenCode OS — HUD Mission Control landing page (Phase 1).
+  // See RFC 24 for the full design. Phase 1 renders:
+  //  - HUD URL + WS status (where the axum WS server is bound)
+  //  - Live journal stream (kernel bus events)
+  //  - Nine tail boxes polling the axum tail routes (RFC 24 §2)
+  //    every 5s. Each box shows the latest 20 rows; clicking a row
+  //    opens the JSON payload in a side drawer (Phase 2).
   import { onMount } from 'svelte';
-  import { hud } from '$stores/hud';
+  import { hud, fetchTail, type TailKind } from '$stores/hud';
   import type { PageData } from './$types';
 
   const { data } = $props<{ data: PageData }>();
+
+  type TailBox = {
+    kind: TailKind;
+    title: string;
+    rows: Array<Record<string, unknown>>;
+    loading: boolean;
+    error: string | null;
+  };
+
+  // Order mirrors the RFC 24 §3 left-to-right reading order of the
+  // Mission Control deck: prompt → planning → coding → validation →
+  // repair → learning → supervisor → skills.
+  const tailKinds: Array<{ kind: TailKind; title: string }> = [
+    { kind: 'verdicts', title: 'Prompt verdicts' },
+    { kind: 'consolidated', title: 'Consolidated missions' },
+    { kind: 'plans', title: 'Plans' },
+    { kind: 'diffs', title: 'Code diffs' },
+    { kind: 'validation_reports', title: 'Validation reports' },
+    { kind: 'repairs', title: 'Repair runs' },
+    { kind: 'patterns', title: 'Learned patterns' },
+    { kind: 'checkpoints', title: 'Mission checkpoints' },
+    { kind: 'skills', title: 'Skill manifests' },
+  ];
+
+  let tails = $state<Record<string, TailBox>>(
+    Object.fromEntries(
+      tailKinds.map((t) => [
+        t.kind,
+        { kind: t.kind, title: t.title, rows: [], loading: false, error: null } satisfies TailBox,
+      ]),
+    ),
+  );
+
+  let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+  async function refreshOne(box: TailBox): Promise<TailBox> {
+    if (!data.hudUrl) return { ...box, error: 'no HUD URL yet' };
+    try {
+      const rows = await fetchTail<Record<string, unknown>>(data.hudUrl, box.kind, 20);
+      return { ...box, rows, loading: false, error: null };
+    } catch (err) {
+      return { ...box, loading: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
+  async function refreshAll() {
+    const entries = await Promise.all(
+      Object.values(tails).map(async (box) => {
+        const next = await refreshOne({ ...box, loading: true });
+        return [box.kind, next] as const;
+      }),
+    );
+    tails = Object.fromEntries(entries) as Record<string, TailBox>;
+  }
 
   onMount(() => {
     if (data.hudUrl) {
       hud.connect(data.hudUrl);
     }
-    return () => hud.disconnect();
+    void refreshAll();
+    pollTimer = setInterval(() => void refreshAll(), 5000);
+    return () => {
+      hud.disconnect();
+      if (pollTimer) clearInterval(pollTimer);
+    };
   });
+
+  function rowId(row: Record<string, unknown>): string {
+    return String(
+      row.id ??
+        row.mission_id ??
+        row.learn_id ??
+        row.skill_id ??
+        row.event_id ??
+        Object.keys(row).join('|'),
+    );
+  }
+
+  function rowSummary(row: Record<string, unknown>): string {
+    const pick = row.label ?? row.prompt ?? row.summary ?? row.phase ?? row.kind ?? row.title ?? '';
+    return String(pick).slice(0, 80);
+  }
 </script>
 
 <main>
@@ -39,7 +116,7 @@
   </section>
 
   <section class="journal">
-    <h2>Journal tail</h2>
+    <h2>Journal tail (live)</h2>
     {#if $hud.events.length === 0}
       <p class="empty">No events yet. Try: <code>opencode mission new "hello world"</code>.</p>
     {:else}
@@ -53,6 +130,34 @@
         {/each}
       </ul>
     {/if}
+  </section>
+
+  <section class="tails">
+    <h2>Pipeline tails</h2>
+    <div class="tails-grid">
+      {#each Object.values(tails) as box (box.kind)}
+        <article class="tail-box" data-kind={box.kind}>
+          <header>
+            <h3>{box.title}</h3>
+            <span class="count">{box.rows.length}</span>
+          </header>
+          {#if box.error}
+            <p class="error">{box.error}</p>
+          {:else if box.rows.length === 0}
+            <p class="empty">No rows yet.</p>
+          {:else}
+            <ul>
+              {#each box.rows as row (rowId(row))}
+                <li>
+                  <code>{rowId(row).slice(0, 8)}</code>
+                  <span>{rowSummary(row)}</span>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </article>
+      {/each}
+    </div>
   </section>
 </main>
 
@@ -137,5 +242,53 @@
   }
   .empty {
     opacity: 0.6;
+  }
+  .tails-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.75rem;
+  }
+  .tail-box {
+    border: 1px solid #30363d;
+    background: #0d1117;
+    border-radius: 6px;
+    padding: 0.6rem 0.75rem;
+    min-height: 140px;
+  }
+  .tail-box header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin: 0 0 0.4rem 0;
+  }
+  .tail-box h3 {
+    font-size: 0.85rem;
+    color: #79c0ff;
+    margin: 0;
+  }
+  .tail-box .count {
+    font-family: 'Fira Code', monospace;
+    font-size: 0.7rem;
+    opacity: 0.6;
+  }
+  .tail-box ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.72rem;
+  }
+  .tail-box li {
+    display: flex;
+    gap: 0.4rem;
+    padding: 0.18rem 0;
+    border-bottom: 1px solid #161b22;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tail-box .error {
+    color: #f85149;
+    font-size: 0.75rem;
   }
 </style>

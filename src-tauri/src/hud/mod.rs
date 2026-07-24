@@ -4,6 +4,7 @@
 // spawned by the desktop binary.
 
 pub mod server;
+pub mod tail;
 pub mod ws;
 
 pub use server::serve;

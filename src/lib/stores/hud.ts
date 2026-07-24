@@ -45,7 +45,7 @@ let reconnBackoff = 1000;
  * Convert an HTTP HUD URL (e.g. `http://localhost:57457/`) into the
  * corresponding WebSocket URL the axum server expects (`ws://localhost:57457/ws`).
  *
- * - Strips the trailing slash so appending `/ws` always lands.
+ * - Strips the trailing slash so appending `/ws` always land.
  * - Preserves an existing `/ws` suffix so calling `toWsUrl(toWsUrl(x))`
  *   is idempotent.
  * - Replaces the `http`/`https` scheme with `ws`/`wss`.
@@ -56,6 +56,54 @@ let reconnBackoff = 1000;
  */
 export function toWsUrl(url: string): string {
   return url.replace(/^http/, 'ws').replace(/\/$/, '') + (url.endsWith('/ws') ? '' : '/ws');
+}
+
+// ────────────── RFC 24 §2 — tail artefact kinds ──────────────
+//
+// Phase 1 exposes nine tail routes on the axum HUD server:
+//
+//   /tail/journal            /tail/missions          /tail/verdicts
+//   /tail/consolidated       /tail/plans             /tail/diffs
+//   /tail/validation_reports /tail/repairs            /tail/patterns
+//   /tail/checkpoints        /tail/skills
+//
+// Each returns the latest N rows (default 20, max 200) as a JSON array.
+// The store exposes a generic `fetchTail(kind, last?)` helper plus a
+// type map so Mission Control components can weed by `kind` without
+// re-defining the row shapes.
+
+export type TailKind =
+  | 'journal'
+  | 'missions'
+  | 'verdicts'
+  | 'consolidated'
+  | 'plans'
+  | 'diffs'
+  | 'validation_reports'
+  | 'repairs'
+  | 'patterns'
+  | 'checkpoints'
+  | 'skills';
+
+/**
+ * Fetch a tail. `hudUrl` is the HTTP root URL (no `/tail/` segment).
+ * `last` defaults to the server default (20) when omitted.
+ *
+ * Throws on HTTP failure or non-200 status so the caller can surface
+ * the error in the Mission Control UI (RFC 24 §3).
+ */
+export async function fetchTail<T = unknown>(
+  hudUrl: string,
+  kind: TailKind,
+  last?: number,
+): Promise<T[]> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const query = last ? `?last=${encodeURIComponent(last)}` : '';
+  const res = await fetch(`${trimmed}/tail/${kind}${query}`);
+  if (!res.ok) {
+    throw new Error(`HUD tail "${kind}" failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as T[];
 }
 
 function connectWs(target: string) {

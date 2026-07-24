@@ -4,7 +4,10 @@
 
 use clap::{Parser, Subcommand};
 
-use super::commands::{AuditCmd, HudCmd, JournalCmd, McpCmd, MissionCmd, ProfileCmd, SkillCmd};
+use super::commands::{
+    AuditCmd, ForkCmd, HudCmd, JournalCmd, McpCmd, MissionCmd, PlanCmd, ProfileCmd, ResumeCmd,
+    RunCmd, SkillCmd, SteerCmd,
+};
 
 #[derive(Parser, Debug)]
 #[command(name = "opencode", version, propagate_version = true)]
@@ -40,6 +43,16 @@ impl Cli {
 pub enum Commands {
     /// Create a new mission from a raw prompt.
     Mission(MissionCmd),
+    /// Generate Plan from a locked Mission (RFC 25 §3.9).
+    Plan(PlanCmd),
+    /// Execute the latest Plan for a mission (Coding → Validation → Repair).
+    Run(RunCmd),
+    /// Resume a mission from its latest checkpoint (RFC 19).
+    Resume(ResumeCmd),
+    /// Fork an existing session under a new mission id (Cursor pattern).
+    Fork(ForkCmd),
+    /// Inject a steer message mid-run.
+    Steer(SteerCmd),
     /// HUD server control.
     Hud(HudCmd),
     /// List/refresh MCP servers (RFC 07).

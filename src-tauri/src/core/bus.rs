@@ -92,6 +92,15 @@ pub enum BusEventKind {
     HudServed {
         hud_port: u16,
     },
+    /// User-stamped steer message (RFC 25 §3.9 `opencode steer`,
+    /// `SteerAgent` kernel command). The host process publishes this
+    /// event on the bus whenever the operator injects a steer mid-run;
+    /// the Execution Supervisor resets its DoomLoopDetector when it
+    /// observes the payload (RFC 19 §9.1).
+    MissionSteered {
+        mission_id: Uuid,
+        message: String,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -206,6 +215,54 @@ impl BusEventKind {
             BusEventKind::SkillActivated { .. } => "skill_activated",
             BusEventKind::ResearchCompleted { .. } => "research_completed",
             BusEventKind::HudServed { .. } => "hud_served",
+            BusEventKind::MissionSteered { .. } => "mission_steered",
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use uuid::Uuid;
+
+    #[test]
+    fn mission_steered_tag_is_stable() {
+        let task = BusEventKind::MissionSteered {
+            mission_id: Uuid::nil(),
+            message: "use a slice-buffer".into(),
+        };
+        assert_eq!(task.tag(), "mission_steered");
+    }
+
+    #[test]
+    fn bus_event_new_assigns_unique_id_and_key() {
+        let a = BusEvent::new(BusEventKind::HudServed { hud_port: 8080 });
+        let b = BusEvent::new(BusEventKind::HudServed { hud_port: 8080 });
+        assert_ne!(a.id, b.id);
+        assert_ne!(a.idempotency_key, b.idempotency_key);
+        assert_eq!(a.kind.tag(), "hud_served");
+    }
+
+    #[test]
+    fn every_tag_is_lowercase_snake_with_no_spaces() {
+        let samples = [
+            BusEventKind::TaskReceived {
+                raw_prompt: "x".into(),
+                session_id: Uuid::nil(),
+            },
+            BusEventKind::MissionSteered {
+                mission_id: Uuid::nil(),
+                message: "x".into(),
+            },
+            BusEventKind::HudServed { hud_port: 1 },
+        ];
+        for s in &samples {
+            let tag = s.tag();
+            assert!(
+                !tag.contains(char::is_whitespace),
+                "tag {tag:?} contains whitespace"
+            );
+            assert_eq!(tag, tag.to_lowercase());
         }
     }
 }

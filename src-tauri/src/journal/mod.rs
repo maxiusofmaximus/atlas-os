@@ -8,15 +8,20 @@ pub mod store;
 #[cfg(test)]
 mod tests;
 
-pub use store::{AuditEntry, JournalEntry, Mission};
+pub use store::{
+    AuditEntry, CheckpointRow, ConsolidatedRow, DiffRow, JournalEntry, Mission, PatternRow,
+    PlanRow, RepairRunRow, SkillRow, ValidationReportRow, VerdictRow,
+};
 
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 use parking_lot::Mutex;
 use rusqlite::Connection;
+use uuid::Uuid;
 
 use crate::core::bus::BusEvent;
+use crate::prompt::types::PublicUnderstandingVerdict;
 
 pub struct Journal {
     conn: Mutex<Connection>,
@@ -64,6 +69,30 @@ impl Journal {
             conn: Mutex::new(conn),
             db_path,
         })
+    }
+
+    /// Generic single-row payload fetch used by every `*_payload`
+    /// helper. `table` is the SQLite table, `id_col` is the column
+    /// the lookup is keyed on, and `id_str` is the stringified id
+    /// (UUIDs stringified via `to_string()`; skills pass their own
+    /// `skill_id` string). Returns `None` when no row matches.
+    fn payload_for(
+        &self,
+        table: &str,
+        id_col: &str,
+        id_str: &str,
+    ) -> anyhow::Result<Option<String>> {
+        let conn = self.conn.lock();
+        let sql = format!("SELECT payload FROM {table} WHERE {id_col} = ?1");
+        let mut stmt = conn.prepare(&sql)?;
+        let mut rows = stmt.query_map(rusqlite::params![id_str], |row| {
+            let payload: String = row.get(0)?;
+            Ok(payload)
+        })?;
+        if let Some(r) = rows.next().transpose()? {
+            return Ok(Some(r));
+        }
+        Ok(None)
     }
 
     pub fn publish(&self, event: &BusEvent) -> anyhow::Result<()> {
@@ -181,5 +210,977 @@ impl Journal {
             out.push(item);
         }
         Ok(out)
+    }
+
+    // ——— Prompt Understanding Pipeline persistence (RFC 23 §3-§4) ———
+    //
+    // The verdict JSON is the source of truth; the duplicated top-level
+    // columns exist purely for indexed tail queries / HUD live stream.
+    // `on conflict do nothing`: a re-persisted verdict (e.g. from a
+    // replay) never overwrites the original — the first one wins, matching
+    // the journal_events idempotency invariant from RFC 02 §3.1.2.
+
+    pub fn save_verdict(
+        &self,
+        verdict: &crate::prompt::types::PublicUnderstandingVerdict,
+        mission_id: Option<Uuid>,
+    ) -> anyhow::Result<()> {
+        let payload = serde_json::to_string(&verdict)?;
+        let rubric_mean = verdict.confidence_rubric.mean();
+        let gap_count: i64 = verdict.gaps.len().try_into().unwrap_or(i64::MAX);
+        let conn = self.conn.lock();
+        conn.execute(
+            "INSERT INTO prompt_verdicts
+                (verdict_id, session_id, mission_id, raw_prompt, ts, confidence,
+                 rubric_mean, recommended_mode, gap_count, payload)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+             ON CONFLICT(verdict_id) DO NOTHING",
+            rusqlite::params![
+                verdict.verdict_id.to_string(),
+                verdict.session_id.to_string(),
+                mission_id.map(|u| u.to_string()),
+                verdict.raw_prompt,
+                verdict.timestamp,
+                verdict.confidence.tag(),
+                rubric_mean,
+                verdict.recommended_mode.tag(),
+                gap_count,
+                payload,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn save_consolidated(
+        &self,
+        consolidated: &crate::prompt::types::MissionConsolidated,
+    ) -> anyhow::Result<()> {
+        let payload = serde_json::to_string(&consolidated)?;
+        let locked_int: i64 = if consolidated.locked { 1 } else { 0 };
+        let requires_research_int: i64 = if consolidated.requires_research_first {
+            1
+        } else {
+            0
+        };
+        let conn = self.conn.lock();
+        conn.execute(
+            "INSERT INTO mission_consolidated
+                (mission_id, verdict_id, generated_at, mission_statement,
+                 suggested_mode, locked, locked_at, locked_by,
+                 requires_research, payload)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+             ON CONFLICT(mission_id) DO UPDATE SET
+                verdict_id        = excluded.verdict_id,
+                generated_at      = excluded.generated_at,
+                mission_statement = excluded.mission_statement,
+                suggested_mode    = excluded.suggested_mode,
+                locked            = excluded.locked,
+                locked_at         = excluded.locked_at,
+                locked_by         = excluded.locked_by,
+                requires_research = excluded.requires_research,
+                payload           = excluded.payload",
+            rusqlite::params![
+                consolidated.mission_id.to_string(),
+                consolidated.verdict_id.to_string(),
+                consolidated.generated_at,
+                consolidated.mission_statement,
+                consolidated.suggested_mode.tag(),
+                locked_int,
+                consolidated.locked_at,
+                consolidated.locked_by.tag(),
+                requires_research_int,
+                payload,
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Return the raw JSON payload column for a verdict id, or `None`.
+    /// Used by the HUD when it needs the full `PublicUnderstandingVerdict`
+    /// (intent hypotheses, gaps, clarification questions, etc.).
+    pub fn verdict_payload(&self, verdict_id: Uuid) -> anyhow::Result<Option<String>> {
+        self.payload_for("prompt_verdicts", "verdict_id", &verdict_id.to_string())
+    }
+
+    /// Newest verdict row linked to a given mission, or `None`.
+    /// Used by `opencode plan <mission_id>` (RFC 25 §3.9) to recover the
+    /// upstream `PublicUnderstandingVerdict` without storing it in CLI
+    /// state.
+    pub fn latest_verdict_for_mission(
+        &self,
+        mission_id: Uuid,
+    ) -> anyhow::Result<Option<PublicUnderstandingVerdict>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT payload FROM prompt_verdicts
+             WHERE mission_id = ?1
+             ORDER BY ts DESC LIMIT 1",
+        )?;
+        let mut rows = stmt.query_map(rusqlite::params![mission_id.to_string()], |row| {
+            let payload: String = row.get(0)?;
+            Ok(payload)
+        })?;
+        if let Some(raw) = rows.next().transpose()? {
+            return Ok(Some(serde_json::from_str(&raw)?));
+        }
+        Ok(None)
+    }
+
+    /// Newest-first list of verdicts for the HUD tail (RFC 24 §3).
+    pub fn verdict_tail(&self, last: i64) -> anyhow::Result<Vec<VerdictRow>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT verdict_id, session_id, mission_id, raw_prompt, ts,
+                    confidence, rubric_mean, recommended_mode, gap_count
+             FROM prompt_verdicts ORDER BY ts DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![last], |row| {
+            let verdict_id_str: String = row.get(0)?;
+            let session_id_str: String = row.get(1)?;
+            let mission_id_str: Option<String> = row.get(2)?;
+            Ok(VerdictRow {
+                verdict_id: Uuid::parse_str(&verdict_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %verdict_id_str, "verdict_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                session_id: Uuid::parse_str(&session_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %session_id_str, "session_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                mission_id: mission_id_str
+                    .as_deref()
+                    .and_then(|s| Uuid::parse_str(s).ok()),
+                raw_prompt: row.get(3)?,
+                ts: row.get(4)?,
+                confidence: row.get(5)?,
+                rubric_mean: row.get(6)?,
+                recommended_mode: row.get(7)?,
+                gap_count: row.get(8)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for item in rows.flatten() {
+            out.push(item);
+        }
+        Ok(out)
+    }
+
+    pub fn consolidated_tail(&self, last: i64) -> anyhow::Result<Vec<ConsolidatedRow>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT mission_id, verdict_id, generated_at, mission_statement,
+                    suggested_mode, locked, locked_at, locked_by, requires_research
+             FROM mission_consolidated ORDER BY generated_at DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![last], |row| {
+            let mission_id_str: String = row.get(0)?;
+            let verdict_id_str: String = row.get(1)?;
+            let locked_int: i64 = row.get(5)?;
+            let req_int: i64 = row.get(8)?;
+            let locked_by_str: Option<String> = row.get(7)?;
+            Ok(ConsolidatedRow {
+                mission_id: Uuid::parse_str(&mission_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %mission_id_str, "mission_id parse failed");
+                    Uuid::nil()
+                }),
+                verdict_id: Uuid::parse_str(&verdict_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %verdict_id_str, "verdict_id parse failed");
+                    Uuid::nil()
+                }),
+                generated_at: row.get(2)?,
+                mission_statement: row.get(3)?,
+                suggested_mode: row.get(4)?,
+                locked: locked_int != 0,
+                locked_at: row.get(6)?,
+                locked_by: locked_by_str,
+                requires_research: req_int != 0,
+            })
+        })?;
+        let mut out = Vec::new();
+        for item in rows.flatten() {
+            out.push(item);
+        }
+        Ok(out)
+    }
+
+    /// Return the raw JSON payload column for a consolidated mission, or
+    /// `None`. Mirrors `verdict_payload`.
+    pub fn consolidated_payload(&self, mission_id: Uuid) -> anyhow::Result<Option<String>> {
+        self.payload_for(
+            "mission_consolidated",
+            "mission_id",
+            &mission_id.to_string(),
+        )
+    }
+
+    /// Newest consolidated mission for a given mission_id. `opencode plan
+    /// <mission_id>` uses this to recover the upstream `MissionConsolidated`
+    /// before invoking the Planning Engine (RFC 25 §3.9).
+    pub fn latest_consolidated_for_mission(
+        &self,
+        mission_id: Uuid,
+    ) -> anyhow::Result<Option<crate::prompt::types::MissionConsolidated>> {
+        let Some(raw) = self.consolidated_payload(mission_id)? else {
+            return Ok(None);
+        };
+        Ok(Some(serde_json::from_str(&raw)?))
+    }
+
+    // ——— Planning Engine persistence (RFC 12 §3) ———
+    //
+    // Same pattern as the Prompt Understanding artefacts: the JSON payload
+    // is the source of truth; the top-level columns are duplicated only where
+    // the SQL engine needs them for indexing / the Journal tail commands / the
+    // HUD live stream. `ON CONFLICT DO NOTHING`: a re-persisted plan (e.g.
+    // replayed from a snapshot) never overwrites the original — the first one
+    // wins, matching the `journal_events` idempotency invariant (RFC 02 §3.1.2).
+
+    pub fn save_plan(&self, plan: &crate::planning::types::Plan) -> anyhow::Result<()> {
+        let payload = serde_json::to_string(plan)?;
+        let blocker_count: i64 = plan.blocked.len().try_into().unwrap_or(i64::MAX);
+        let conn = self.conn.lock();
+        conn.execute(
+            "INSERT INTO plans
+                (plan_id, mission_id, verdict_id, generated_at, strategy,
+                 risk, impact, confidence, resume_point, blocker_count, payload)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+             ON CONFLICT(plan_id) DO NOTHING",
+            rusqlite::params![
+                plan.plan_id.to_string(),
+                plan.mission_id.to_string(),
+                plan.verdict_id.to_string(),
+                plan.generated_at,
+                plan.strategy.tag(),
+                plan.risk,
+                plan.impact.tag(),
+                plan.confidence,
+                plan.resume_point,
+                blocker_count,
+                payload,
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Return the raw JSON payload column for a plan id, or `None`.
+    pub fn plan_payload(&self, plan_id: Uuid) -> anyhow::Result<Option<String>> {
+        self.payload_for("plans", "plan_id", &plan_id.to_string())
+    }
+
+    /// Newest-first list of plans for the HUD tail (RFC 24 §3).
+    pub fn plan_tail(&self, last: i64) -> anyhow::Result<Vec<PlanRow>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT plan_id, mission_id, verdict_id, generated_at,
+                    strategy, risk, impact, confidence, resume_point, blocker_count
+             FROM plans ORDER BY generated_at DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![last], |row| {
+            let plan_id_str: String = row.get(0)?;
+            let mission_id_str: String = row.get(1)?;
+            let verdict_id_str: String = row.get(2)?;
+            Ok(PlanRow {
+                plan_id: Uuid::parse_str(&plan_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %plan_id_str, "plan_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                mission_id: Uuid::parse_str(&mission_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %mission_id_str, "mission_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                verdict_id: Uuid::parse_str(&verdict_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %verdict_id_str, "verdict_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                generated_at: row.get(3)?,
+                strategy: row.get(4)?,
+                risk: row.get(5)?,
+                impact: row.get(6)?,
+                confidence: row.get(7)?,
+                resume_point: row.get(8)?,
+                blocker_count: row.get(9)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for item in rows.flatten() {
+            out.push(item);
+        }
+        Ok(out)
+    }
+
+    /// Most recent `Plan` row for a given mission. The HUD renders this on
+    /// the Mission Control Kanban while a subagent is reading the full
+    /// payload via `plan_payload`.
+    pub fn latest_plan_for_mission(&self, mission_id: Uuid) -> anyhow::Result<Option<PlanRow>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT plan_id, mission_id, verdict_id, generated_at,
+                    strategy, risk, impact, confidence, resume_point, blocker_count
+             FROM plans WHERE mission_id = ?1
+             ORDER BY generated_at DESC LIMIT 1",
+        )?;
+        let mut rows = stmt.query_map(rusqlite::params![mission_id.to_string()], |row| {
+            let plan_id_str: String = row.get(0)?;
+            let mission_id_str: String = row.get(1)?;
+            let verdict_id_str: String = row.get(2)?;
+            Ok(PlanRow {
+                plan_id: Uuid::parse_str(&plan_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %plan_id_str, "plan_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                mission_id: Uuid::parse_str(&mission_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %mission_id_str, "mission_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                verdict_id: Uuid::parse_str(&verdict_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %verdict_id_str, "verdict_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                generated_at: row.get(3)?,
+                strategy: row.get(4)?,
+                risk: row.get(5)?,
+                impact: row.get(6)?,
+                confidence: row.get(7)?,
+                resume_point: row.get(8)?,
+                blocker_count: row.get(9)?,
+            })
+        })?;
+        if let Some(r) = rows.next().transpose()? {
+            return Ok(Some(r));
+        }
+        Ok(None)
+    }
+
+    // ——— Coding Engine persistence (RFC 13 §2, §8) ———
+    //
+    // Same pattern as the artefacts above: JSON payload is the source of
+    // truth; the top-level columns are duplicated only where the SQL
+    // engine needs them for indexing / HUD tail. `ON CONFLICT DO NOTHING`
+    // honours the RFC 02 §3.1.2 at-least-once invariant (first write wins).
+
+    pub fn save_diff(&self, diff: &crate::coding::types::Diff) -> anyhow::Result<()> {
+        let payload = serde_json::to_string(diff)?;
+        let lines_added: i64 = diff.files.iter().map(|f| f.lines_added() as i64).sum();
+        let lines_removed: i64 = diff.files.iter().map(|f| f.lines_removed() as i64).sum();
+        let file_count: i64 = diff.files.len() as i64;
+        let conn = self.conn.lock();
+        conn.execute(
+            "INSERT INTO diffs
+                (diff_id, plan_id, mission_id, step_id, agent_id,
+                 generated_at, lines_added, lines_removed, file_count, payload)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+             ON CONFLICT(diff_id) DO NOTHING",
+            rusqlite::params![
+                diff.diff_id.to_string(),
+                diff.plan_id.to_string(),
+                diff.mission_id.to_string(),
+                diff.step_id,
+                diff.agent_id.to_string(),
+                diff.generated_at,
+                lines_added,
+                lines_removed,
+                file_count,
+                payload,
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Return the raw JSON payload column for a diff id, or `None`.
+    pub fn diff_payload(&self, diff_id: Uuid) -> anyhow::Result<Option<String>> {
+        self.payload_for("diffs", "diff_id", &diff_id.to_string())
+    }
+
+    /// Newest-first list of diffs for the HUD tail (RFC 24 §3).
+    pub fn diff_tail(&self, last: i64) -> anyhow::Result<Vec<DiffRow>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT diff_id, plan_id, mission_id, step_id, agent_id,
+                    generated_at, lines_added, lines_removed, file_count
+             FROM diffs ORDER BY generated_at DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![last], |row| {
+            let diff_id_str: String = row.get(0)?;
+            let plan_id_str: String = row.get(1)?;
+            let mission_id_str: String = row.get(2)?;
+            let agent_id_str: String = row.get(4)?;
+            Ok(DiffRow {
+                diff_id: Uuid::parse_str(&diff_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %diff_id_str, "diff_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                plan_id: Uuid::parse_str(&plan_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %plan_id_str, "plan_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                mission_id: Uuid::parse_str(&mission_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %mission_id_str, "mission_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                step_id: row.get(3)?,
+                agent_id: Uuid::parse_str(&agent_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %agent_id_str, "agent_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                generated_at: row.get(5)?,
+                lines_added: row.get(6)?,
+                lines_removed: row.get(7)?,
+                file_count: row.get(8)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for item in rows.flatten() {
+            out.push(item);
+        }
+        Ok(out)
+    }
+
+    // ——— Validation Engine persistence (RFC 14 §3, §8) ———
+    //
+    // Same JSON-blob + duplicated-index pattern as the M1..M4 artefacts.
+    // `ON CONFLICT DO NOTHING` honours RFC 02 §3.1.2 at-least-once
+    // delivery with idempotent consumers (first write wins; a replayed
+    // report is silently dropped, NOT replaced).
+
+    pub fn save_report(
+        &self,
+        report: &crate::validation::types::ValidationReport,
+    ) -> anyhow::Result<()> {
+        let payload = serde_json::to_string(report)?;
+        let stage_count: i64 = report.stages.len().try_into().unwrap_or(i64::MAX);
+        let failed_stage = report.failed_stage().map(|k| k.tag().to_string());
+        let conn = self.conn.lock();
+        conn.execute(
+            "INSERT INTO validation_reports
+                (report_id, diff_id, plan_id, mission_id, generated_at,
+                 mode, outcome, failed_stage, stage_count, payload)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+             ON CONFLICT(report_id) DO NOTHING",
+            rusqlite::params![
+                report.report_id.to_string(),
+                report.diff_id.to_string(),
+                report.plan_id.to_string(),
+                report.mission_id.to_string(),
+                report.generated_at,
+                report.mode.tag(),
+                report.outcome.tag(),
+                failed_stage,
+                stage_count,
+                payload,
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Return the raw JSON payload column for a report id, or `None`.
+    pub fn report_payload(&self, report_id: Uuid) -> anyhow::Result<Option<String>> {
+        self.payload_for("validation_reports", "report_id", &report_id.to_string())
+    }
+
+    /// Newest-first list of validation reports for the HUD tail (RFC 24 §3)
+    /// and the Repair Engine (RFC 15).
+    pub fn report_tail(&self, last: i64) -> anyhow::Result<Vec<ValidationReportRow>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT report_id, diff_id, plan_id, mission_id, generated_at,
+                    mode, outcome, failed_stage, stage_count
+             FROM validation_reports ORDER BY generated_at DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![last], |row| {
+            let report_id_str: String = row.get(0)?;
+            let diff_id_str: String = row.get(1)?;
+            let plan_id_str: String = row.get(2)?;
+            let mission_id_str: String = row.get(3)?;
+            Ok(ValidationReportRow {
+                report_id: Uuid::parse_str(&report_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %report_id_str, "report_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                diff_id: Uuid::parse_str(&diff_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %diff_id_str, "diff_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                plan_id: Uuid::parse_str(&plan_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %plan_id_str, "plan_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                mission_id: Uuid::parse_str(&mission_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %mission_id_str, "mission_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                generated_at: row.get(4)?,
+                mode: row.get(5)?,
+                outcome: row.get(6)?,
+                failed_stage: row.get(7)?,
+                stage_count: row.get(8)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for item in rows.flatten() {
+            out.push(item);
+        }
+        Ok(out)
+    }
+
+    // ——— Repair Engine persistence (RFC 15 §6) ———
+    //
+    // Same JSON-blob + duplicated-index pattern as the M1..M5 artefacts.
+    // `ON CONFLICT DO NOTHING` honours RFC 02 §3.1.2 at-least-once
+    // delivery with idempotent consumers (first write wins; a replayed
+    // repair run is silently dropped, NOT replaced).
+
+    pub fn save_repair(&self, report: &crate::repair::types::RepairReport) -> anyhow::Result<()> {
+        let payload = serde_json::to_string(report)?;
+        let attempt_count: i64 = report.attempts.len().try_into().unwrap_or(i64::MAX);
+        let successful_attempt: Option<i64> = report.successful_attempt.map(|n| n as i64);
+        let conn = self.conn.lock();
+        conn.execute(
+            "INSERT INTO repair_runs
+                (repair_id, triggered_by_report_id, source_diff_id, plan_id,
+                 mission_id, generated_at, outcome, triggering_stage,
+                 attempt_count, successful_attempt, payload)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+             ON CONFLICT(repair_id) DO NOTHING",
+            rusqlite::params![
+                report.repair_id.to_string(),
+                report.triggered_by_report_id.to_string(),
+                report.source_diff_id.to_string(),
+                report.plan_id.to_string(),
+                report.mission_id.to_string(),
+                report.generated_at,
+                report.outcome.tag(),
+                report.triggering_stage.tag(),
+                attempt_count,
+                successful_attempt,
+                payload,
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Return the raw JSON payload column for a repair id, or `None`.
+    pub fn repair_payload(&self, repair_id: Uuid) -> anyhow::Result<Option<String>> {
+        self.payload_for("repair_runs", "repair_id", &repair_id.to_string())
+    }
+
+    /// Newest-first list of repair runs for the HUD tail (RFC 24 §3) and
+    /// the Learning Engine (RFC 16).
+    pub fn repair_tail(&self, last: i64) -> anyhow::Result<Vec<RepairRunRow>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT repair_id, triggered_by_report_id, source_diff_id, plan_id,
+                    mission_id, generated_at, outcome, triggering_stage,
+                    attempt_count, successful_attempt
+             FROM repair_runs ORDER BY generated_at DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![last], |row| {
+            let repair_id_str: String = row.get(0)?;
+            let report_id_str: String = row.get(1)?;
+            let diff_id_str: String = row.get(2)?;
+            let plan_id_str: String = row.get(3)?;
+            let mission_id_str: String = row.get(4)?;
+            Ok(RepairRunRow {
+                repair_id: Uuid::parse_str(&repair_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %repair_id_str, "repair_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                triggered_by_report_id: Uuid::parse_str(&report_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %report_id_str, "report_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                source_diff_id: Uuid::parse_str(&diff_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %diff_id_str, "diff_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                plan_id: Uuid::parse_str(&plan_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %plan_id_str, "plan_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                mission_id: Uuid::parse_str(&mission_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %mission_id_str, "mission_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                generated_at: row.get(5)?,
+                outcome: row.get(6)?,
+                triggering_stage: row.get(7)?,
+                attempt_count: row.get(8)?,
+                successful_attempt: row.get(9)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for item in rows.flatten() {
+            out.push(item);
+        }
+        Ok(out)
+    }
+
+    // ——— Learning Engine persistence (RFC 16 §2 / §3 / §4) ———
+    //
+    // `LearnOutcome` carries an `Option<Pattern>` (the rule draft) and
+    // a metrics bundle. We persist ONE row per `LearnOutcome` using the
+    // same JSON-blob + denormalised-index pattern: the `payload` column
+    // holds the full `LearnOutcome` (Pattern + metrics + evidence diff
+    // inline), and the denormalised columns back the HUD tail and the
+    // Skill Compressor's "find duplicate patterns" queries without a
+    // JSON parse.
+    //
+    // `ON CONFLICT DO NOTHING` honours RFC 02 §3.1.2 at-least-once
+    // delivery with idempotent consumers (first write wins).
+
+    pub fn save_pattern(
+        &self,
+        outcome: &crate::learning::types::LearnOutcome,
+    ) -> anyhow::Result<()> {
+        let payload = serde_json::to_string(outcome)?;
+        let conn = self.conn.lock();
+        // `pattern_id` is `Some` iff the outcome produced a Draft rule;
+        // `Uuid::nil()` otherwise. The PK is `learn_id` so one row per
+        // `LearnOutcome` (incl. NoPattern) — RFC 16 §6 audit tail.
+        let pattern_id_str = outcome
+            .pattern
+            .as_ref()
+            .map(|p| p.pattern_id.to_string())
+            .unwrap_or_else(|| Uuid::nil().to_string());
+        let rule_id = outcome
+            .pattern
+            .as_ref()
+            .map(|p| p.rule_id.clone())
+            .unwrap_or_else(|| format!("no-pattern-{}", outcome.learn_id));
+        let stage = outcome
+            .pattern
+            .as_ref()
+            .map(|p| p.when.stage.tag().to_string())
+            .unwrap_or_else(|| "none".into());
+        let strategy = outcome
+            .pattern
+            .as_ref()
+            .map(|p| p.then.strategy.tag().to_string())
+            .unwrap_or_else(|| "none".into());
+        let lifecycle = outcome
+            .pattern
+            .as_ref()
+            .map(|p| p.lifecycle.tag().to_string())
+            .unwrap_or_else(|| "none".into());
+        let priority: i64 = outcome
+            .pattern
+            .as_ref()
+            .map(|p| p.priority as i64)
+            .unwrap_or(0);
+        let confidence: f64 = outcome
+            .pattern
+            .as_ref()
+            .map(|p| p.confidence as f64)
+            .unwrap_or(0.0);
+        conn.execute(
+            "INSERT INTO pattern_runs
+                (learn_id, pattern_id, source_repair_id, source_mission_id,
+                 rule_id, stage, strategy, lifecycle, priority, confidence,
+                 was_correct, tests_passed, generated_at, payload)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+             ON CONFLICT(learn_id) DO NOTHING",
+            rusqlite::params![
+                outcome.learn_id.to_string(),
+                pattern_id_str,
+                outcome.source_repair_id.to_string(),
+                outcome.source_mission_id.to_string(),
+                rule_id,
+                stage,
+                strategy,
+                lifecycle,
+                priority,
+                confidence,
+                outcome.metrics.was_correct as i64,
+                outcome.metrics.tests_passed as i64,
+                outcome.generated_at,
+                payload,
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Return the raw JSON payload column for a learn id, or `None`.
+    pub fn pattern_payload(&self, learn_id: Uuid) -> anyhow::Result<Option<String>> {
+        self.payload_for("pattern_runs", "learn_id", &learn_id.to_string())
+    }
+
+    /// Newest-first list of pattern rows for the HUD tail (RFC 24 §3)
+    /// and the Skill Compressor (RFC 16 §5). The denormalised columns
+    /// let the Compressor group by `(stage, strategy)` to detect
+    /// duplicate patterns without parsing each payload.
+    pub fn pattern_tail(&self, last: i64) -> anyhow::Result<Vec<PatternRow>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT pattern_id, learn_id, source_repair_id, source_mission_id,
+                    rule_id, stage, strategy, lifecycle, priority, confidence,
+                    was_correct, tests_passed, generated_at
+             FROM pattern_runs ORDER BY generated_at DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![last], |row| {
+            let pattern_id_str: String = row.get(0)?;
+            let learn_id_str: String = row.get(1)?;
+            let repair_id_str: String = row.get(2)?;
+            let mission_id_str: String = row.get(3)?;
+            Ok(PatternRow {
+                pattern_id: Uuid::parse_str(&pattern_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %pattern_id_str, "pattern_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                learn_id: Uuid::parse_str(&learn_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %learn_id_str, "learn_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                source_repair_id: Uuid::parse_str(&repair_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %repair_id_str, "repair_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                source_mission_id: Uuid::parse_str(&mission_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %mission_id_str, "mission_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                rule_id: row.get(4)?,
+                stage: row.get(5)?,
+                strategy: row.get(6)?,
+                lifecycle: row.get(7)?,
+                priority: row.get(8)?,
+                confidence: row.get(9)?,
+                was_correct: row.get(10)?,
+                tests_passed: row.get(11)?,
+                generated_at: row.get(12)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for item in rows.flatten() {
+            out.push(item);
+        }
+        Ok(out)
+    }
+
+    // ——— Execution Supervisor persistence (RFC 19 §5) ———
+    //
+    // `MissionCheckpoint` carries the phase + budget tally + upstream
+    // ids needed for `Supervisor.resume(mission_id)`. The HUD renders
+    // the latest checkpoint per mission as the "where are we" tile.
+    // Same JSON-blob + denormalised-index pattern. ON CONFLICT DO
+    // NOTHING honours RFC 02 §3.1.2 replay idempotency.
+
+    pub fn save_checkpoint(
+        &self,
+        checkpoint: &crate::supervisor::types::MissionCheckpoint,
+    ) -> anyhow::Result<()> {
+        let payload = serde_json::to_string(checkpoint)?;
+        let tally = serde_json::to_string(&checkpoint.budget_tally)?;
+        let conn = self.conn.lock();
+        conn.execute(
+            "INSERT INTO mission_checkpoints
+                (checkpoint_id, mission_id, phase, budget_tally, generated_at, payload)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+             ON CONFLICT(checkpoint_id) DO NOTHING",
+            rusqlite::params![
+                checkpoint.checkpoint_id.to_string(),
+                checkpoint.mission_id.to_string(),
+                checkpoint.phase.tag(),
+                tally,
+                checkpoint.generated_at,
+                payload,
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Return the raw JSON payload column for a checkpoint, or `None`.
+    pub fn checkpoint_payload(&self, checkpoint_id: Uuid) -> anyhow::Result<Option<String>> {
+        self.payload_for(
+            "mission_checkpoints",
+            "checkpoint_id",
+            &checkpoint_id.to_string(),
+        )
+    }
+
+    /// Newest-first list of checkpoints for the HUD recent-checkpoints
+    /// panel (RFC 24 §3).
+    pub fn checkpoint_tail(&self, last: i64) -> anyhow::Result<Vec<CheckpointRow>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT checkpoint_id, mission_id, phase, generated_at
+             FROM mission_checkpoints ORDER BY generated_at DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![last], |row| {
+            let checkpoint_id_str: String = row.get(0)?;
+            let mission_id_str: String = row.get(1)?;
+            Ok(CheckpointRow {
+                checkpoint_id: Uuid::parse_str(&checkpoint_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %checkpoint_id_str, "checkpoint_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                mission_id: Uuid::parse_str(&mission_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %mission_id_str, "mission_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                phase: row.get(2)?,
+                generated_at: row.get(3)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for item in rows.flatten() {
+            out.push(item);
+        }
+        Ok(out)
+    }
+
+    /// RFC 19 §5 `Supervisor.resume(mission_id)` — return the newest
+    /// checkpoint row for a mission, or `None` when no checkpoint
+    /// exists yet (e.g. the mission was never started).
+    pub fn latest_checkpoint(&self, mission_id: Uuid) -> anyhow::Result<Option<CheckpointRow>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT checkpoint_id, mission_id, phase, generated_at
+             FROM mission_checkpoints WHERE mission_id = ?1
+             ORDER BY generated_at DESC LIMIT 1",
+        )?;
+        let mut rows = stmt.query_map(rusqlite::params![mission_id.to_string()], |row| {
+            let checkpoint_id_str: String = row.get(0)?;
+            let mission_id_str: String = row.get(1)?;
+            Ok(CheckpointRow {
+                checkpoint_id: Uuid::parse_str(&checkpoint_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %checkpoint_id_str, "checkpoint_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                mission_id: Uuid::parse_str(&mission_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %mission_id_str, "mission_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                phase: row.get(2)?,
+                generated_at: row.get(3)?,
+            })
+        })?;
+        if let Some(r) = rows.next().transpose()? {
+            return Ok(Some(r));
+        }
+        Ok(None)
+    }
+
+    // ——— Skill Graph persistence (RFC 06 §1 / §10) ———
+    //
+    // `SkillManifest` evolves over time (RFC 06 §5 compression, RFC 16
+    // §6 learning-engine rules). We use a composite PK `(skill_id,
+    // version)` so the HUD can render the full history of an id; a
+    // re-register of the SAME version is idempotent
+    // (`ON CONFLICT DO NOTHING`).
+
+    pub fn save_skill(&self, skill: &crate::skills::SkillManifest) -> anyhow::Result<()> {
+        let payload = serde_json::to_string(skill)?;
+        let conn = self.conn.lock();
+        conn.execute(
+            "INSERT INTO skill_manifests
+                (skill_id, version, engine, priority, domain, language, framework,
+                 confidence, auto_generated, verified, requires_sandbox, generated_at, payload)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+             ON CONFLICT(skill_id, version) DO NOTHING",
+            rusqlite::params![
+                skill.id,
+                skill.version,
+                skill.engine.tag(),
+                skill.priority as i64,
+                skill.domain.as_deref(),
+                skill.language.as_deref(),
+                skill.framework.as_deref(),
+                skill.confidence as f64,
+                skill.auto_generated as i64,
+                skill.verified as i64,
+                skill.requires_sandbox as i64,
+                chrono::Utc::now().to_rfc3339(),
+                payload,
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Return the raw JSON payload column for a `(skill_id, version)`,
+    /// or `None`.
+    pub fn skill_payload(&self, skill_id: &str, version: &str) -> anyhow::Result<Option<String>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn
+            .prepare("SELECT payload FROM skill_manifests WHERE skill_id = ?1 AND version = ?2")?;
+        let mut rows = stmt.query_map(rusqlite::params![skill_id, version], |row| {
+            let payload: String = row.get(0)?;
+            Ok(payload)
+        })?;
+        if let Some(r) = rows.next().transpose()? {
+            return Ok(Some(r));
+        }
+        Ok(None)
+    }
+
+    /// Newest-first list of skill rows for the HUD Skill Graph panel
+    /// (RFC 24 §3) and the §3 candidate pipeline. The denormalised
+    /// `priority` and `engine` columns cover the "ORDER BY priority"
+    /// path without a JSON parse.
+    pub fn skill_tail(&self, last: i64) -> anyhow::Result<Vec<SkillRow>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT skill_id, version, engine, priority, domain, language, framework,
+                    confidence, auto_generated, verified, requires_sandbox, generated_at
+             FROM skill_manifests ORDER BY generated_at DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![last], |row| {
+            let domain: Option<String> = row.get(4)?;
+            let language: Option<String> = row.get(5)?;
+            let framework: Option<String> = row.get(6)?;
+            Ok::<SkillRow, rusqlite::Error>(SkillRow {
+                skill_id: row.get(0)?,
+                version: row.get(1)?,
+                engine: row.get(2)?,
+                priority: row.get(3)?,
+                domain,
+                language,
+                framework,
+                confidence: row.get(7)?,
+                auto_generated: row.get::<_, i64>(8)? != 0,
+                verified: row.get::<_, i64>(9)? != 0,
+                requires_sandbox: row.get::<_, i64>(10)? != 0,
+                generated_at: row.get(11)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for item in rows.flatten() {
+            out.push(item);
+        }
+        Ok(out)
+    }
+
+    /// Return the newest version row for a skill id (or `None` when
+    /// the id is unknown). Used by the Learning Engine (RFC 16 §5) to
+    /// supersede an old skill with a fused one.
+    pub fn latest_skill(&self, skill_id: &str) -> anyhow::Result<Option<SkillRow>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT skill_id, version, engine, priority, domain, language, framework,
+                    confidence, auto_generated, verified, requires_sandbox, generated_at
+             FROM skill_manifests WHERE skill_id = ?1
+             ORDER BY generated_at DESC LIMIT 1",
+        )?;
+        let mut rows = stmt.query_map(rusqlite::params![skill_id], |row| {
+            let domain: Option<String> = row.get(4)?;
+            let language: Option<String> = row.get(5)?;
+            let framework: Option<String> = row.get(6)?;
+            Ok::<SkillRow, rusqlite::Error>(SkillRow {
+                skill_id: row.get(0)?,
+                version: row.get(1)?,
+                engine: row.get(2)?,
+                priority: row.get(3)?,
+                domain,
+                language,
+                framework,
+                confidence: row.get(7)?,
+                auto_generated: row.get::<_, i64>(8)? != 0,
+                verified: row.get::<_, i64>(9)? != 0,
+                requires_sandbox: row.get::<_, i64>(10)? != 0,
+                generated_at: row.get(11)?,
+            })
+        })?;
+        if let Some(r) = rows.next().transpose()? {
+            return Ok(Some(r));
+        }
+        Ok(None)
     }
 }

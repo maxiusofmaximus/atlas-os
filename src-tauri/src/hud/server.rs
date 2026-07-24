@@ -50,6 +50,28 @@ pub async fn serve(state: Arc<AppState>, shutdown: CancellationToken) {
     let app = Router::new()
         .route("/health", get(health))
         .route("/ws", get(super::ws::ws_handler))
+        // Phase 1 — nine tail endpointes (RFC 24 §2/§3) plus the raw
+        // payload drill-down used by the Audit view. Each tail returns
+        // the latest N rows as JSON; defaults configured in `tail.rs`.
+        .route("/tail/journal", get(super::tail::tail_journal))
+        .route("/tail/missions", get(super::tail::tail_missions))
+        .route("/tail/verdicts", get(super::tail::tail_verdicts))
+        .route("/tail/consolidated", get(super::tail::tail_consolidated))
+        .route("/tail/plans", get(super::tail::tail_plans))
+        .route("/tail/diffs", get(super::tail::tail_diffs))
+        .route(
+            "/tail/validation_reports",
+            get(super::tail::tail_validation_reports),
+        )
+        .route("/tail/repairs", get(super::tail::tail_repairs))
+        .route("/tail/patterns", get(super::tail::tail_patterns))
+        .route("/tail/checkpoints", get(super::tail::tail_checkpoints))
+        .route("/tail/skills", get(super::tail::tail_skills))
+        .route("/payload/:kind/:id", get(super::tail::payload))
+        .route(
+            "/payload/skill/:skill_id/:version",
+            get(super::tail::payload_skill),
+        )
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
         .with_state(state);
