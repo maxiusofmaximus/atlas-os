@@ -35,8 +35,9 @@
 | 24 | [HUD Mission Control](./24%20-%20HUD%20Mission%20Control.md) | 35.9 KB | Panel HUD. Layout maestro + 8 views (Kanban/Canvas/Outline/Timeline/Cost&Res/Health KPIs/Audit/Worktrees). Tarjeta por subagent con 15+ campos. WebSocket events tipados. Approvals queue con batch/scope/pauserule. Skill/MCP drag-drop en caliente. Audit timeline append-only hash-chained. Demos over diffs estilo Loom. Worktrees visuales. Mobile OIDC. Reporter de approve. Integra Hermes HUD + Jira/Linear + Cursor + Notion + n8n. |
 | 25 | [Stack Técnico Multiplataforma](./25%20-%20Stack%20T%C3%A9cnico%20Multiplataforma.md) | 25.9 KB | Tauri 2 + Rust 1.84+ + SvelteKit 2 + SQLite/`sqlite-vec` + `fastembed-rs` + Tower-LSP + axum WebSocket + sandbox Docker/Podman/Firejail/Job-Object + OS keychain + 13 model providers HTTP (3 locales + 10 free cloud + paid tier) + `opencode` CLI Rust. Multi-OS binario único 30-45 MB. Justificación vs Electron/AionUI. Tamaños y performance budgets. |
 | 26 | [Index & Cross-References](./26%20-%20Index%20&%20Cross-References.md) | este archivo | Mapa maestro. |
+| 27 | [Orchestration Fundamentals](./27%20-%20Orchestration%20Fundamentals.md) | 13.5 KB | Audit comparativo vs `tmux-orchestrator`, `orca`, `herdr`, `traycer`. Extrae 6 principios fundacionales (worktree isolation, at-a-glance state, remote attach, reflexivity, BYOA, spec-first) y cataloga 8 brechas (A–H) contra los fundamentos, con priorización Phase 2+. |
 
-**Total: 27 RFCs, ~245 KB** de especificación.
+**Total: 28 RFCs, ~259 KB** de especificación.
 
 ---
 
