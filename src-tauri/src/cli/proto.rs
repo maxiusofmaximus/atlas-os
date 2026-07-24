@@ -5,8 +5,8 @@
 use clap::{Parser, Subcommand};
 
 use super::commands::{
-    AuditCmd, ForkCmd, HudCmd, JournalCmd, McpCmd, MissionCmd, PlanCmd, ProfileCmd, ResumeCmd,
-    RunCmd, SkillCmd, SteerCmd, SwapModelCmd,
+    AuditCmd, ExecCmd, ForkCmd, HudCmd, JournalCmd, McpCmd, MissionCmd, PlanCmd, ProfileCmd,
+    ResumeCmd, RunCmd, SkillCmd, SteerCmd, SwapModelCmd,
 };
 
 #[derive(Parser, Debug)]
@@ -55,6 +55,8 @@ pub enum Commands {
     Steer(SteerCmd),
     /// Hot-swap the model driving a mission (RFC 27 §B).
     SwapModel(SwapModelCmd),
+    /// LLM-driver Phase 2 entrypoints (RFC 27 §F).
+    Exec(ExecCmd),
     /// HUD server control.
     Hud(HudCmd),
     /// List/refresh MCP servers (RFC 07).

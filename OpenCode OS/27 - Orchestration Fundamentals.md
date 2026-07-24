@@ -142,11 +142,11 @@ Las 8 brechas concretas que el audit identifica. Cada una está entrada como `(p
 
 **Propuesta:** Añadir `hud/annotate.rs` con endpoints `POST /diff/{id}/annotation` y `GET /diff/{id}/annotations`. Persist en nueva tabla `diff_annotations` (M11) con `id, diff_id, line_no, body, author, ts`. El HUD renderiza inline en el drawer del diff. El siguiente `run` o `resume` recoge las annotations como contexto adicional del Coding Engine.
 
-### §3.F — API CLI auto-programable **(P0, S, CLI)**
+### §3.F — API CLI auto-programable **(P0, S, CLI) — IMPLEMENTADO Phase 1**
 
 **Patrón:** §2.4 orca CLI + herdr socket API.
 
-**Status:** `opencode mission new / run / resume / fork / steer` son operator-facing. No hay `opencode spawn-step`, `opencode wait-step`, `opencode read-tail`, etc. para que un LLM-driven Phase 2 pueda drivear el orquestador.
+**Status:** ✅ **Implementado en Phase 1.** Nuevo sub-comando `opencode exec` namespace en `src-tauri/src/cli/commands/exec.rs` con cuatro acciones: `step <plan_id> <step_id>` (run único via `run_single_step`), `wait <diff_id>` (lookup validation report row), `tail <kind> <N>` (replay de 9 tipos de tail), `publish <kind> <payload>` (bus event persist en journal). Refactor: `run_single_step` extraído de `run_steps_loop` en `mission.rs`, compartido con `exec step`.
 
 **Propuesta:** Añadir sub-comandos del namespace `opencode exec` que el LLM puede invocar desde un step. Subset inicial: `opencode exec step <plan_id> <step_id>` (run único), `opencode exec wait <diff_id>` (block hasta report), `opencode exec tail <kind> <N>` (readJournal tail), `opencode exec publish <kind> <payload>` (emite BusEvent). Sin necesidad de orchestration loop — el LLM lo hace. Documentar en `08 CLI` §A.
 

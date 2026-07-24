@@ -2,6 +2,7 @@
 // Path: `src-tauri/src/cli/bin/opencode.rs` uses this `commands/` dir.
 
 pub mod audit;
+pub mod exec;
 pub mod fork;
 pub mod hud;
 pub mod journal;
@@ -16,6 +17,7 @@ pub mod steer;
 pub mod swap_model;
 
 pub use audit::AuditCmd;
+pub use exec::ExecCmd;
 pub use fork::ForkCmd;
 pub use hud::HudCmd;
 pub use journal::JournalCmd;
@@ -42,6 +44,7 @@ pub async fn dispatch(cmd: Commands, profile: &str) -> Result<()> {
         Commands::Fork(c) => fork::run(c, profile).await,
         Commands::Steer(c) => steer::run(c, profile).await,
         Commands::SwapModel(c) => swap_model::run(c, profile).await,
+        Commands::Exec(c) => exec::run(c, profile).await,
         Commands::Hud(c) => hud::run(c, profile).await,
         Commands::Mcp(c) => mcp::run(c, profile).await,
         Commands::Skill(c) => skill::run(c, profile).await,
