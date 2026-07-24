@@ -9,6 +9,7 @@ pub mod hud;
 pub mod journal;
 pub mod learning;
 pub mod lsp;
+pub mod orchestrator;
 pub mod planning;
 pub mod profiles;
 pub mod prompt;

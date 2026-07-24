@@ -28,6 +28,48 @@ export interface HudState {
   events: HudEvent[];
 }
 
+// ────────────── RFC 27 §B / §G — typed tail rows ──────────────
+//
+// Mirror the Rust `ModelSwapRow` and `StepStateRow` so the Mission
+// Control UI renders colour-coded step pills and a swap timeline
+// without an `unknown` cast.
+
+export interface ModelSwapRow {
+  swap_id: string;
+  mission_id: string;
+  prev_model_id: string;
+  new_model_id: string;
+  initiator: 'user' | 'auto';
+  occurred_at: string;
+}
+
+export interface StepStateRow {
+  mission_id: string;
+  plan_id: string;
+  step_id: string;
+  phase: StepPhaseTag;
+  updated_at: string;
+}
+
+export type StepPhaseTag = 'pending' | 'executing' | 'verifying' | 'done' | 'blocked';
+
+/** RFC 27 §G — colour token for a step pill. Mirrors the planner's
+ * `StepPhase` enum so the UI never has to guess. */
+export function phaseColor(phase: StepPhaseTag): string {
+  switch (phase) {
+    case 'pending':
+      return 'grey';
+    case 'executing':
+      return 'blue';
+    case 'verifying':
+      return 'amber';
+    case 'done':
+      return 'green';
+    case 'blocked':
+      return 'red';
+  }
+}
+
 const MAX_EVENTS = 200;
 const initialState: HudState = {
   connected: false,
@@ -65,7 +107,8 @@ export function toWsUrl(url: string): string {
 //   /tail/journal            /tail/missions          /tail/verdicts
 //   /tail/consolidated       /tail/plans             /tail/diffs
 //   /tail/validation_reports /tail/repairs            /tail/patterns
-//   /tail/checkpoints        /tail/skills
+//   /tail/checkpoints        /tail/skills            /tail/model_swaps
+//   /tail/step_states
 //
 // Each returns the latest N rows (default 20, max 200) as a JSON array.
 // The store exposes a generic `fetchTail(kind, last?)` helper plus a
@@ -83,7 +126,9 @@ export type TailKind =
   | 'repairs'
   | 'patterns'
   | 'checkpoints'
-  | 'skills';
+  | 'skills'
+  | 'model_swaps'
+  | 'step_states';
 
 /**
  * Fetch a tail. `hudUrl` is the HTTP root URL (no `/tail/` segment).

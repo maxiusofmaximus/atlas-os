@@ -180,3 +180,28 @@ pub struct SkillRow {
     pub requires_sandbox: bool,
     pub generated_at: String,
 }
+
+/// Row projection of `model_swaps` (M10) for the HUD tail (RFC 24 §3)
+/// and the operator "show me every swap on mission X" CLI query. The
+/// full `ModelSwapped` bus event is preserved in `payload` for replay.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ModelSwapRow {
+    pub swap_id: Uuid,
+    pub mission_id: Uuid,
+    pub prev_model_id: String,
+    pub new_model_id: String,
+    pub initiator: String,
+    pub occurred_at: String,
+}
+
+/// Row projection of `step_states` (M11) for the HUD step pills (RFC 27
+/// §G). One row per `(mission_id, plan_id, step_id)` — the latest phase
+/// the supervisor observed for that step.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct StepStateRow {
+    pub mission_id: Uuid,
+    pub plan_id: Uuid,
+    pub step_id: String,
+    pub phase: String,
+    pub updated_at: String,
+}

@@ -99,9 +99,20 @@ pub(crate) fn run_steps_loop(
     agent_id: Uuid,
     _started: &std::time::Instant,
 ) -> anyhow::Result<StepsResult> {
+    use crate::planning::types::StepPhase;
     use crate::supervisor::types::MissionPhase;
 
     journal.save_checkpoint(&build_checkpoint(plan, MissionPhase::Executing, None, None))?;
+
+    // Mark every non-read-only step as Pending so the HUD has a baseline
+    // before the loop flips each one to Executing. Read-only steps are
+    // skipped entirely (they produce no diff to validate).
+    for step in &plan.steps {
+        if step.read_only {
+            continue;
+        }
+        journal.set_step_phase(plan.mission_id, plan.plan_id, &step.id, StepPhase::Pending)?;
+    }
 
     let mut last_diff_id: Option<Uuid> = None;
     let mut last_validation_report_id: Option<Uuid> = None;
@@ -114,6 +125,9 @@ pub(crate) fn run_steps_loop(
         if step.read_only {
             continue;
         }
+
+        publish_step_phase(journal, plan, &step.id, StepPhase::Executing)?;
+
         let coding_outcome = crate::coding::runner::run(&CodingInput {
             plan,
             step,
@@ -128,17 +142,21 @@ pub(crate) fn run_steps_loop(
             crate::coding::types::CodingOutcome::Emitted { diff } => *diff,
             crate::coding::types::CodingOutcome::Rejected { reason } => {
                 println!("step {} rejected: {reason:?} — skipping", step.id);
+                publish_step_phase(journal, plan, &step.id, StepPhase::Blocked)?;
                 continue;
             }
         };
         journal.save_diff(&diff).context("save_diff")?;
         last_diff_id = Some(diff.diff_id);
 
+        publish_step_phase(journal, plan, &step.id, StepPhase::Verifying)?;
+
         let report =
             run_validation(&ValidationInput::new(&diff).with_mode(ValidationMode::default()));
         journal.save_report(&report).context("save_report")?;
         last_validation_report_id = Some(report.report_id);
         if report.is_pass() {
+            publish_step_phase(journal, plan, &step.id, StepPhase::Done)?;
             continue;
         }
         report_ok = false;
@@ -154,11 +172,13 @@ pub(crate) fn run_steps_loop(
                 "step {} repaired after 1 attempt — Phase 1 heuristic did not re-validate yet (RFC 15 §4)",
                 step.id
             );
+            publish_step_phase(journal, plan, &step.id, StepPhase::Done)?;
         } else {
             println!(
                 "step {} repair yielded no diff — review `opencode journal -n 20`",
                 step.id
             );
+            publish_step_phase(journal, plan, &step.id, StepPhase::Blocked)?;
         }
     }
 
@@ -181,6 +201,29 @@ pub(crate) fn run_steps_loop(
         plan_id: plan.plan_id,
         mission_id: plan.mission_id,
     })
+}
+
+/// RFC 27 §G — persist a step phase change to the Journal's live-state
+/// table and publish a `StepPhaseChanged` bus event so the HUD renders
+/// the colour-coded pill. Best-effort: a publish failure logs but does
+/// NOT abort the supervisor loop — losing the live pill is preferable
+/// to discarding an in-flight step's diff.
+fn publish_step_phase(
+    journal: &crate::journal::Journal,
+    plan: &crate::planning::types::Plan,
+    step_id: &str,
+    phase: crate::planning::types::StepPhase,
+) -> anyhow::Result<()> {
+    journal.set_step_phase(plan.mission_id, plan.plan_id, step_id, phase)?;
+    let _ = journal.publish(&crate::core::bus::BusEvent::new(
+        crate::core::bus::BusEventKind::StepPhaseChanged {
+            mission_id: plan.mission_id,
+            plan_id: plan.plan_id,
+            step_id: step_id.to_string(),
+            phase,
+        },
+    ));
+    Ok(())
 }
 
 pub async fn run(cmd: MissionCmd, profile: &str) -> Result<()> {

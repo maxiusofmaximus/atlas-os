@@ -101,6 +101,38 @@ pub enum BusEventKind {
         mission_id: Uuid,
         message: String,
     },
+    /// RFC 27 §B — model hot-swap. Published whenever the operator (or
+    /// the auto-fail-over policy of the Model Orchestrator, RFC 04 §6)
+    /// replaces the model driving a mission mid-flight. The Execution
+    /// Supervisor reads `prev_model_id`/`new_model_id` to flush any
+    /// in-flight prompts and the HUD renders the swap as a card transition.
+    ModelSwapped {
+        mission_id: Uuid,
+        prev_model_id: String,
+        new_model_id: String,
+        initiator: SwapInitiator,
+    },
+    /// RFC 27 §G — step-level phase change. Published by the Coding
+    /// Engine when a `Step` enters a new phase (`Pending` → `Executing`
+    /// → `Verifying` → `Done`/`Blocked`). The HUD tail joins this with
+    /// the plan stream to render colour-coded pills.
+    StepPhaseChanged {
+        mission_id: Uuid,
+        plan_id: Uuid,
+        step_id: String,
+        phase: crate::planning::types::StepPhase,
+    },
+}
+
+/// RFC 27 §B — who triggered the model swap.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SwapInitiator {
+    /// Operator invoked `opencode swap-model` or clicked the HUD control.
+    User,
+    /// Model Orchestrator fail-over (RFC 04 §6) — previous model was
+    /// hard-down or over cost threshold.
+    Auto,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -216,6 +248,8 @@ impl BusEventKind {
             BusEventKind::ResearchCompleted { .. } => "research_completed",
             BusEventKind::HudServed { .. } => "hud_served",
             BusEventKind::MissionSteered { .. } => "mission_steered",
+            BusEventKind::ModelSwapped { .. } => "model_swapped",
+            BusEventKind::StepPhaseChanged { .. } => "step_phase_changed",
         }
     }
 }
@@ -254,6 +288,18 @@ mod tests {
                 mission_id: Uuid::nil(),
                 message: "x".into(),
             },
+            BusEventKind::ModelSwapped {
+                mission_id: Uuid::nil(),
+                prev_model_id: "gpt-4o".into(),
+                new_model_id: "claude-sonnet-4".into(),
+                initiator: SwapInitiator::User,
+            },
+            BusEventKind::StepPhaseChanged {
+                mission_id: Uuid::nil(),
+                plan_id: Uuid::nil(),
+                step_id: "s-1".into(),
+                phase: crate::planning::types::StepPhase::Done,
+            },
             BusEventKind::HudServed { hud_port: 1 },
         ];
         for s in &samples {
@@ -264,5 +310,13 @@ mod tests {
             );
             assert_eq!(tag, tag.to_lowercase());
         }
+    }
+
+    #[test]
+    fn swap_initiator_user_tag_roundtrips_through_serde() {
+        let json = serde_json::to_string(&SwapInitiator::User).unwrap();
+        assert_eq!(json, "\"user\"");
+        let back: SwapInitiator = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, SwapInitiator::User);
     }
 }

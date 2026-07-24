@@ -13,6 +13,7 @@ pub mod resume;
 pub mod run;
 pub mod skill;
 pub mod steer;
+pub mod swap_model;
 
 pub use audit::AuditCmd;
 pub use fork::ForkCmd;
@@ -26,6 +27,7 @@ pub use resume::ResumeCmd;
 pub use run::RunCmd;
 pub use skill::SkillCmd;
 pub use steer::SteerCmd;
+pub use swap_model::SwapModelCmd;
 
 use anyhow::Result;
 
@@ -39,6 +41,7 @@ pub async fn dispatch(cmd: Commands, profile: &str) -> Result<()> {
         Commands::Resume(c) => resume::run(c, profile).await,
         Commands::Fork(c) => fork::run(c, profile).await,
         Commands::Steer(c) => steer::run(c, profile).await,
+        Commands::SwapModel(c) => swap_model::run(c, profile).await,
         Commands::Hud(c) => hud::run(c, profile).await,
         Commands::Mcp(c) => mcp::run(c, profile).await,
         Commands::Skill(c) => skill::run(c, profile).await,

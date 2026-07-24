@@ -21,8 +21,8 @@ use serde_json::Value;
 
 use crate::core::state::AppState;
 use crate::journal::{
-    CheckpointRow, ConsolidatedRow, DiffRow, Mission, PatternRow, PlanRow, RepairRunRow, SkillRow,
-    ValidationReportRow, VerdictRow,
+    CheckpointRow, ConsolidatedRow, DiffRow, Mission, ModelSwapRow, PatternRow, PlanRow,
+    RepairRunRow, SkillRow, StepStateRow, ValidationReportRow, VerdictRow,
 };
 
 /// Default and maximum number of rows returned by any tail route.
@@ -126,6 +126,16 @@ impl TailRow for SkillRow {
         j.skill_tail(n)
     }
 }
+impl TailRow for ModelSwapRow {
+    fn fetch(j: &crate::journal::Journal, n: i64) -> anyhow::Result<Vec<Self>> {
+        j.model_swap_tail(n)
+    }
+}
+impl TailRow for StepStateRow {
+    fn fetch(j: &crate::journal::Journal, n: i64) -> anyhow::Result<Vec<Self>> {
+        j.step_state_tail(n)
+    }
+}
 
 // ── public route wrappers (kept thin so `hud/server.rs` keeps its
 // existing imports; the route registration table is unchanged). ─────
@@ -165,6 +175,12 @@ pub async fn tail_checkpoints(state: State<Arc<AppState>>, q: Query<TailQuery>) 
 }
 pub async fn tail_skills(state: State<Arc<AppState>>, q: Query<TailQuery>) -> TailResult {
     tail_of::<SkillRow>(state, q).await
+}
+pub async fn tail_model_swaps(state: State<Arc<AppState>>, q: Query<TailQuery>) -> TailResult {
+    tail_of::<ModelSwapRow>(state, q).await
+}
+pub async fn tail_step_states(state: State<Arc<AppState>>, q: Query<TailQuery>) -> TailResult {
+    tail_of::<StepStateRow>(state, q).await
 }
 
 // `tail_journal` and `tail_missions` keep dedicated handlers — the
@@ -282,6 +298,26 @@ mod tests {
         let tmp = tempfile::TempDir::new().expect("tmp");
         let journal = crate::journal::Journal::open(tmp.path()).expect("open");
         let rows = VerdictRow::fetch(&journal, 10).expect("fetch");
+        assert!(rows.is_empty());
+    }
+
+    /// RFC 27 §G/§B — freshly added tail kinds also resolve cleanly
+    /// against an empty Journal so the HUD's `/tail/model_swaps` and
+    /// `/tail/step_states` never panic before the operator has run
+    /// any mission.
+    #[test]
+    fn tail_of_step_states_against_empty_journal_yows_empty_vec() {
+        let tmp = tempfile::TempDir::new().expect("tmp");
+        let journal = crate::journal::Journal::open(tmp.path()).expect("open");
+        let rows = StepStateRow::fetch(&journal, 10).expect("fetch");
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn tail_of_model_swaps_against_empty_journal_yows_empty_vec() {
+        let tmp = tempfile::TempDir::new().expect("tmp");
+        let journal = crate::journal::Journal::open(tmp.path()).expect("open");
+        let rows = ModelSwapRow::fetch(&journal, 10).expect("fetch");
         assert!(rows.is_empty());
     }
 }

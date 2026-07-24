@@ -1,0 +1,318 @@
+// OpenCode OS — Orchestrator module (RFC 27 §B).
+//
+// Hosts the model hot-swap primitive. The full Model Orchestrator
+// routing policy (RFC 04 §2 / §6) arrives in Phase 2; this Phase-1
+// shim exposes the one primitive RFC 27 §B elevates to a foundational
+// requirement: an operator (or the auto-fail-over policy) can swap the
+// model driving a mission mid-flight without losing the journal state
+// it already produced.
+//
+// The primitive is intentionally side-effect-light on the in-memory
+// struct side: it rewrites the `model_id` / `judge_model_id` fields of
+// the latest `PublicUnderstandingVerdict` for the mission and the
+// `model_id` field of the latest `Plan`, then persists both back via
+// the Journal and publishes a `BusEventKind::ModelSwapped` so the HUD
+// renders the transition. The persisted histories (`journal_events`,
+// `model_swaps`) keep the original values intact for the audit trail.
+
+use anyhow::Context;
+use uuid::Uuid;
+
+use crate::core::bus::{BusEvent, BusEventKind, SwapInitiator};
+use crate::journal::Journal;
+use crate::planning::types::Plan;
+
+/// Output of a successful `swap_model` call. The supervisor / HUD reads
+/// `swap_id` to render a toast, `verdict_id` to re-route the next prompt
+/// through the new model, and `plan_touched` to know whether to re-queue
+/// the Coding Engine (when the swap happened mid-Planning) or to keep it
+/// running (when the swap happened post-Planning).
+#[derive(Clone, Debug)]
+pub struct SwapOutcome {
+    pub swap_id: Uuid,
+    pub mission_id: Uuid,
+    pub prev_model_id: String,
+    pub new_model_id: String,
+    /// Whether the latest `Plan` for the mission was rewritten in-place.
+    /// `false` when no plan exists yet (the swap happened mid-Prompt).
+    pub plan_touched: bool,
+}
+
+/// RFC 27 §B — swap the model driving a mission mid-flight.
+///
+/// Re-serialises the latest `PublicUnderstandingVerdict` for the
+/// mission with `model_id = new_model_id` (also `judge_model_id` when
+/// present, so a judge model is hot-swapped in lock-step) and the
+/// latest `Plan` with `model_id = new_model_id`. Persists both back via
+/// the Journal (UPSERT on `mission_id` / `plan_id`). Records a
+/// `model_swaps` row and publishes a `BusEventKind::ModelSwapped`.
+///
+/// Returns `Err` when no verdict exists for the mission (the mission
+/// never passed step 7 of the Prompt Understanding Pipeline) — there is
+/// nothing to swap onto. Returns `Ok` with `plan_touched == false`
+/// when a verdict exists but no plan yet (typical mid-Prompt swap).
+///
+/// `initiator` distinguishes operator-driven swaps from
+/// orchestrator-auto-fail-over swaps (RFC 04 §6) so the HUD tail can
+/// filter "auto swaps" without parsing the JSON payload.
+pub fn swap_model(
+    journal: &Journal,
+    mission_id: Uuid,
+    new_model_id: &str,
+    initiator: SwapInitiator,
+) -> anyhow::Result<SwapOutcome> {
+    let mut verdict = journal
+        .latest_verdict_for_mission(mission_id)?
+        .context("no verdict for mission; the mission never passed step 7")?;
+    let prev_model_id = verdict.model_id.clone();
+    // Hot-swap keeps the original verdict immutable (RFC 02 §3.1.2 —
+    // append-only idempotency). We mint a fresh `verdict_id` and bump
+    // `timestamp` so the new row is row-of-record via `ORDER BY ts DESC`.
+    verdict.verdict_id = Uuid::new_v4();
+    verdict.timestamp = chrono::Utc::now().to_rfc3339();
+    verdict.model_id = new_model_id.to_string();
+    if verdict.judge_model_id.is_some() {
+        verdict.judge_model_id = Some(new_model_id.to_string());
+    }
+    journal.save_verdict(&verdict, Some(mission_id))?;
+
+    let plan_row = journal.latest_plan_for_mission(mission_id)?;
+    let plan_touched = if let Some(row) = plan_row {
+        let payload = journal
+            .plan_payload(row.plan_id)?
+            .context("plan row exists but payload missing — schema inconsistency")?;
+        let mut plan: Plan = serde_json::from_str(&payload)?;
+        // Hot-swap keeps the original plan immutable (RFC 02 §3.1.2 —
+        // append-only idempotency). We mint a fresh `plan_id` and bump
+        // `generated_at` so the swapped plan becomes the row-of-record
+        // via `ORDER BY generated_at DESC`. The original plan remains in
+        // the journal as historical provenance.
+        plan.plan_id = Uuid::new_v4();
+        plan.generated_at = chrono::Utc::now().to_rfc3339();
+        plan.model_id = new_model_id.to_string();
+        journal.save_plan(&plan)?;
+        true
+    } else {
+        false
+    };
+
+    let occurred_at = chrono::Utc::now();
+    let swap_id = journal.save_model_swap(
+        mission_id,
+        &prev_model_id,
+        new_model_id,
+        &initiator,
+        occurred_at,
+    )?;
+
+    let event = BusEvent::new(BusEventKind::ModelSwapped {
+        mission_id,
+        prev_model_id: prev_model_id.clone(),
+        new_model_id: new_model_id.to_string(),
+        initiator,
+    });
+    journal.publish(&event)?;
+
+    Ok(SwapOutcome {
+        swap_id,
+        mission_id,
+        prev_model_id,
+        new_model_id: new_model_id.to_string(),
+        plan_touched,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::journal::Journal;
+    use crate::planning::types::{
+        Impact, Milestone, ModelRef, ModelTier, Objective, Plan, RRRef, SkillRef, Step, StepAction,
+        Strategy, VerificationCriterion, VerificationKind,
+    };
+    use crate::prompt::types::{
+        ConfidenceLevel, ConfidenceRubric, DesiredAction, Domain, IntentHypothesis, NamedEntity,
+        PublicUnderstandingVerdict, RecommendedMode, Scope,
+    };
+    use tempfile::TempDir;
+    use uuid::Uuid;
+
+    fn fresh_journal() -> (TempDir, Journal) {
+        let dir = TempDir::new().unwrap();
+        let journal = Journal::open(dir.path()).unwrap();
+        (dir, journal)
+    }
+
+    fn seed_verdict(journal: &Journal, mission_id: Uuid, model_id: &str) -> Uuid {
+        let verdict_id = Uuid::new_v4();
+        let verdict = PublicUnderstandingVerdict {
+            verdict_id,
+            session_id: Uuid::new_v4(),
+            raw_prompt: "swap me".into(),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            intent: "adiós gpt-4o".into(),
+            intent_hypotheses: vec![IntentHypothesis {
+                rank: 1,
+                text: "swap the model driving this mission mid-flight".into(),
+                feasibility_score: 0.7,
+                rejection_reason: None,
+            }],
+            keys: vec!["swap-model".into()],
+            named_entities: vec![NamedEntity {
+                text: model_id.into(),
+                r#type: "model".into(),
+                in_kb: false,
+            }],
+            domain: Domain::Backend,
+            technology: vec!["rust".into()],
+            desired_action: DesiredAction::Create,
+            scope: Scope::Module,
+            implicit_signals: vec![],
+            gaps: vec![],
+            similar_missions: vec![],
+            clarification_questions: vec![],
+            confidence: ConfidenceLevel::Medium,
+            confidence_rubric: ConfidenceRubric {
+                intent_clarity: 0.7,
+                scope_clarity: 0.7,
+                feasibility_clarity: 0.7,
+                context_clarity: 0.7,
+            },
+            observations: vec![],
+            recommended_mode: RecommendedMode::Context,
+            model_id: model_id.into(),
+            judge_model_id: Some(model_id.into()),
+            elapsed_ms: 0,
+        };
+        journal.save_verdict(&verdict, Some(mission_id)).unwrap();
+        verdict_id
+    }
+
+    fn seed_plan(journal: &Journal, mission_id: Uuid, verdict_id: Uuid, model_id: &str) -> Uuid {
+        let plan_id = Uuid::new_v4();
+        let plan = Plan {
+            plan_id,
+            mission_id,
+            verdict_id,
+            generated_at: chrono::Utc::now().to_rfc3339(),
+            mission: "swap me".into(),
+            objectives: vec![Objective {
+                id: "o-1".into(),
+                statement: "objective".into(),
+                verifiable_via: vec![VerificationCriterion {
+                    kind: VerificationKind::Test,
+                    description: "tests pass".into(),
+                }],
+                depends_on: vec![],
+            }],
+            steps: vec![Step {
+                id: "s-1".into(),
+                milestone_id: "m-1".into(),
+                statement: "edit".into(),
+                action: StepAction::Modify,
+                depends_on: vec![],
+                skills: vec![SkillRef {
+                    skill_id: "rust-tdd".into(),
+                    version: "0.1".into(),
+                }],
+                models: vec![ModelRef {
+                    model_id: model_id.into(),
+                    provider: "openai".into(),
+                    tier: ModelTier::Paid,
+                }],
+                read_only: false,
+            }],
+            strategy: Strategy::Incremental,
+            risk: 0.2,
+            impact: Impact::Minor,
+            roadmap: vec![Milestone {
+                id: "m-1".into(),
+                label: "milestone".into(),
+                objectives: vec!["o-1".into()],
+                depends_on: vec![],
+            }],
+            skills_used: vec![],
+            models_needed: vec![],
+            research_runs: vec![RRRef {
+                research_run_id: Uuid::nil(),
+                outcome_tag: "n/a".into(),
+            }],
+            confidence: 0.8,
+            resume_point: "n/a".into(),
+            blocked: vec![],
+            model_id: model_id.into(),
+            elapsed_ms: 0,
+        };
+        journal.save_plan(&plan).unwrap();
+        plan_id
+    }
+
+    #[test]
+    fn swap_rewrites_verdict_and_plan_model_ids() {
+        let (_dir, journal) = fresh_journal();
+        let mission_id = Uuid::new_v4();
+        let verdict_id = seed_verdict(&journal, mission_id, "gpt-4o");
+        let _orig_plan_id = seed_plan(&journal, mission_id, verdict_id, "gpt-4o");
+
+        let outcome = swap_model(&journal, mission_id, "claude-sonnet-4", SwapInitiator::User)
+            .expect("swap should succeed");
+
+        assert_eq!(outcome.prev_model_id, "gpt-4o");
+        assert_eq!(outcome.new_model_id, "claude-sonnet-4");
+        assert!(outcome.plan_touched);
+        assert_ne!(outcome.swap_id, Uuid::nil());
+
+        let refreshed_verdict = journal
+            .latest_verdict_for_mission(mission_id)
+            .unwrap()
+            .unwrap();
+        assert_eq!(refreshed_verdict.model_id, "claude-sonnet-4");
+        assert_eq!(
+            refreshed_verdict.judge_model_id.as_deref(),
+            Some("claude-sonnet-4")
+        );
+
+        // The original plan stays immutable; a new plan row is the latest.
+        let latest_row = journal
+            .latest_plan_for_mission(mission_id)
+            .unwrap()
+            .unwrap();
+        let latest_payload = journal.plan_payload(latest_row.plan_id).unwrap().unwrap();
+        let refreshed_plan: Plan = serde_json::from_str(&latest_payload).unwrap();
+        assert_eq!(refreshed_plan.model_id, "claude-sonnet-4");
+        assert_ne!(refreshed_plan.plan_id, Uuid::nil());
+        assert_ne!(refreshed_plan.plan_id, _orig_plan_id);
+
+        let swaps = journal.model_swaps_for_mission(mission_id).unwrap();
+        assert_eq!(swaps.len(), 1);
+        assert_eq!(swaps[0].prev_model_id, "gpt-4o");
+        assert_eq!(swaps[0].new_model_id, "claude-sonnet-4");
+        assert_eq!(swaps[0].initiator, "user");
+    }
+
+    #[test]
+    fn swap_without_plan_only_touches_verdict() {
+        let (_dir, journal) = fresh_journal();
+        let mission_id = Uuid::new_v4();
+        seed_verdict(&journal, mission_id, "gpt-4o");
+
+        let outcome = swap_model(&journal, mission_id, "llama-3.1-70b", SwapInitiator::Auto)
+            .expect("swap should succeed");
+
+        assert!(!outcome.plan_touched);
+        let swaps = journal.model_swaps_for_mission(mission_id).unwrap();
+        assert_eq!(swaps.len(), 1);
+        assert_eq!(swaps[0].initiator, "auto");
+    }
+
+    #[test]
+    fn swap_fails_when_no_verdict_for_mission() {
+        let (_dir, journal) = fresh_journal();
+        let mission_id = Uuid::new_v4();
+        let err = swap_model(&journal, mission_id, "claude", SwapInitiator::User).unwrap_err();
+        assert!(
+            format!("{err:#}").contains("no verdict"),
+            "unexpected error: {err:#}"
+        );
+    }
+}

@@ -157,6 +157,41 @@ impl StepAction {
     }
 }
 
+/// RFC 27 §G — phase of a single `Step` inside the execution lifecycle.
+/// Surfaced as a colour-coded pill in the HUD (`pending` grey, `executing`
+/// blue, `verifying` amber, `done` green, `blocked` red).
+///
+/// `Default` is `Pending` so a freshly-emitted plan starts every step in
+/// the same state and the Coding Engine flips each one as it dispatches.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StepPhase {
+    #[default]
+    Pending,
+    Executing,
+    Verifying,
+    Done,
+    Blocked,
+}
+
+impl StepPhase {
+    pub fn tag(&self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Executing => "executing",
+            Self::Verifying => "verifying",
+            Self::Done => "done",
+            Self::Blocked => "blocked",
+        }
+    }
+
+    /// Whether the phase is terminal (no further transitions allowed).
+    /// Used by the supervisor to prune finished steps from the live view.
+    pub fn is_terminal(self) -> bool {
+        matches!(self, Self::Done | Self::Blocked)
+    }
+}
+
 /// RFC 12 §3 — `SkillRef`: a pointer to a Skill Graph node. Full Skill
 /// manifest lives in the Skills module (RFC 06); the Plan only stores the
 /// id + version so a replayed plan can detect a skill drift.

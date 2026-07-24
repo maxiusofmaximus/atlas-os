@@ -113,10 +113,10 @@ Las 8 brechas concretas que el audit identifica. Cada una está entrada como `(p
 
 **Propuesta:** Añadir `core/worktree.rs` con `Worktree::spawn(mission_id, step_id) -> PathBuf` que crea `~/.opencode/{profile}/worktrees/{mission_id}/{step_id}/`. El Coding Engine escribe ahí. El Supervisor (RFC 19) borra/consolida al Done. Esto desbloquea el patrón orca "5 agents → 5 worktrees → merge winner", clave para evaluar múltiples estrategias en paralelo.
 
-### §3.B — Hot-swap de modelo in-place **(P0, S, Model Orchestrator)**
+### §3.B — Hot-swap de modelo in-place **(P0, S, Model Orchestrator) — IMPLEMENTADO Phase 1**
 
 **Patrón:** traycer unified context (model switch sin perder context window).
-**Status:** RFC 04 fija provider por profile. Una Mission no puede cambiar de provider en medio sin perder el prompt elaborado.
+**Status:** ✅ **Implementado en Phase 1.** `src-tauri/src/orchestrator/mod.rs::swap_model()` mints un nuevo `verdict_id` + `plan_id` (append-only, no muta originales) y emite `BusEvent::ModelSwapped`. Persist en `model_swaps` table (M10). CLI sub-command `opencode swap-model <mission_id> <model_id>`.
 
 **Propuesta:** Añadir `ModelOrchestrator::swap_model(mission_id, new_model) -> Result<()>` que serialice el PromptPayload actual y lo re-instantiate con el nuevo provider. Cero pérdida de contexto. Esto es estructuralmente factible porque `PromptPayload` ya es `Serialize + Deserialize`. La recompensa: el operador puede empezar con un modelo barato (Haiku/Ice) y escalar a Sonnet/Opus solo para pasos críticos.
 
@@ -150,11 +150,11 @@ Las 8 brechas concretas que el audit identifica. Cada una está entrada como `(p
 
 **Propuesta:** Añadir sub-comandos del namespace `opencode exec` que el LLM puede invocar desde un step. Subset inicial: `opencode exec step <plan_id> <step_id>` (run único), `opencode exec wait <diff_id>` (block hasta report), `opencode exec tail <kind> <N>` (readJournal tail), `opencode exec publish <kind> <payload>` (emite BusEvent). Sin necesidad de orchestration loop — el LLM lo hace. Documentar en `08 CLI` §A.
 
-### §3.G — State-color at-a-glance en HUD **(P0, S, HUD)**
+### §3.G — State-color at-a-glance en HUD **(P0, S, HUD) — IMPLEMENTADO Phase 1**
 
 **Patrón:** §2.2 visibilidad. herdr 3-4 colores por agente.
 
-**Status:** HUD Phase 1 tiene tail boxes por artefacto. No tiene códigos de color por step state. La Mission card muestra rojo/verde al final, no por estado vivo.
+**Status:** ✅ **Implementado en Phase 1.** `StepPhase` enum (`Pending, Executing, Verifying, Done, Blocked`) en `planning/types.rs`. `cli/commands/mission.rs::run_steps_loop` instrumenta cada step con `publish_step_phase()`. Persist en `step_states` (M11, UPSERT). HUD tails `/tail/step_states` + `/tail/model_swaps`. Frontend `phaseColor()` pinta pills (grey/blue/amber/green/red) en `+page.svelte`.
 
 **Propuesta:** Añadir `StepPhase` enum análogo a `MissionPhase` (RFC 19): `Pending, Blocked, Working, Done, Halted`. HUD lo muestra con una pill por step. Mission-card mira el agregado: si todos `Done`→verde, si alguno `Blocked`→rojo, si todos `Pending`→gris, si mezcla→amarillo polling.
 

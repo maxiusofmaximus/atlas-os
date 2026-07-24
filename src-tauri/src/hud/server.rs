@@ -67,6 +67,8 @@ pub async fn serve(state: Arc<AppState>, shutdown: CancellationToken) {
         .route("/tail/patterns", get(super::tail::tail_patterns))
         .route("/tail/checkpoints", get(super::tail::tail_checkpoints))
         .route("/tail/skills", get(super::tail::tail_skills))
+        .route("/tail/model_swaps", get(super::tail::tail_model_swaps))
+        .route("/tail/step_states", get(super::tail::tail_step_states))
         .route("/payload/:kind/:id", get(super::tail::payload))
         .route(
             "/payload/skill/:skill_id/:version",

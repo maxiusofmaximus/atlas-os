@@ -7,7 +7,7 @@
   //    every 5s. Each box shows the latest 20 rows; clicking a row
   //    opens the JSON payload in a side drawer (Phase 2).
   import { onMount } from 'svelte';
-  import { hud, fetchTail, type TailKind } from '$stores/hud';
+  import { hud, fetchTail, phaseColor, type TailKind, type StepPhaseTag } from '$stores/hud';
   import type { PageData } from './$types';
 
   const { data } = $props<{ data: PageData }>();
@@ -22,7 +22,8 @@
 
   // Order mirrors the RFC 24 §3 left-to-right reading order of the
   // Mission Control deck: prompt → planning → coding → validation →
-  // repair → learning → supervisor → skills.
+  // repair → learning → supervisor → skills. RFC 27 §B/§G add the
+  // two orchestration boxes (model swaps + step pills) at the tail.
   const tailKinds: Array<{ kind: TailKind; title: string }> = [
     { kind: 'verdicts', title: 'Prompt verdicts' },
     { kind: 'consolidated', title: 'Consolidated missions' },
@@ -33,6 +34,8 @@
     { kind: 'patterns', title: 'Learned patterns' },
     { kind: 'checkpoints', title: 'Mission checkpoints' },
     { kind: 'skills', title: 'Skill manifests' },
+    { kind: 'model_swaps', title: 'Model swaps' },
+    { kind: 'step_states', title: 'Step pills' },
   ];
 
   let tails = $state<Record<string, TailBox>>(
@@ -93,6 +96,14 @@
     const pick = row.label ?? row.prompt ?? row.summary ?? row.phase ?? row.kind ?? row.title ?? '';
     return String(pick).slice(0, 80);
   }
+
+  /// RFC 27 §G — color lookup for a step pill. `row.phase` is typed as
+  /// `unknown` (it came through the generic tail), so funnel through a
+  /// narrowing guard instead of a `as StepPhaseTag` cast that Svelte's
+  /// template parser rejects.
+  function pillColor(row: Record<string, unknown>): string {
+    return phaseColor(typeof row.phase === 'string' ? (row.phase as StepPhaseTag) : 'pending');
+  }
 </script>
 
 <main>
@@ -145,6 +156,22 @@
             <p class="error">{box.error}</p>
           {:else if box.rows.length === 0}
             <p class="empty">No rows yet.</p>
+          {:else if box.kind === 'step_states'}
+            {#each box.rows as row (rowId(row))}
+              <p class="step-row">
+                <code>{String(row.step_id ?? '').slice(0, 8)}</code>
+                <span class="pill" data-phase={pillColor(row)}>{row.phase}</span>
+              </p>
+            {/each}
+          {:else if box.kind === 'model_swaps'}
+            {#each box.rows as row (rowId(row))}
+              <p class="swap-row">
+                <code>{row.prev_model_id}</code>
+                <span aria-hidden="true">→</span>
+                <code class="swap-new">{row.new_model_id}</code>
+                <span class="swap-init" data-by={row.initiator}>{row.initiator}</span>
+              </p>
+            {/each}
           {:else}
             <ul>
               {#each box.rows as row (rowId(row))}

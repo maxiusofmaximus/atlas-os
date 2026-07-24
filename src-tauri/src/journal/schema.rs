@@ -402,5 +402,68 @@ pub fn migrate(conn: &Connection) -> Result<()> {
             rusqlite::params![9, chrono::Utc::now().to_rfc3339()],
         )?;
     }
+    if current < 10 {
+        // M10 — Model hot-swap artefacts (RFC 27 §B).
+        //   model_swaps : one row per `ModelSwapped` bus event. Each swap
+        //   is an INSERT (append-only); the audit trail must survive
+        //   re-opens so we never UPDATE or DELETE. The denormalised
+        //   `initiator` column lets the HUD tail filter "auto fail-over"
+        //   vs "user-initiated" swaps without parsing the JSON payload.
+        //
+        // `prev_model_id` is denormalised so the operator can grep "which
+        // missions ran on gpt-4o before they were swapped off it" with
+        // a single index scan.
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS model_swaps (
+                swap_id        TEXT PRIMARY KEY,
+                mission_id     TEXT NOT NULL,
+                prev_model_id  TEXT NOT NULL,
+                new_model_id   TEXT NOT NULL,
+                initiator      TEXT NOT NULL,
+                occurred_at    TEXT NOT NULL,
+                payload        TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_model_swaps_mission   ON model_swaps(mission_id);
+            CREATE INDEX IF NOT EXISTS idx_model_swaps_prev      ON model_swaps(prev_model_id);
+            CREATE INDEX IF NOT EXISTS idx_model_swaps_new       ON model_swaps(new_model_id);
+            CREATE INDEX IF NOT EXISTS idx_model_swaps_occurred  ON model_swaps(occurred_at);",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![10, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
+    if current < 11 {
+        // M11 — Step-state artefacts (RFC 27 §G).
+        //   step_states : one row per `(mission_id, plan_id, step_id)`
+        //   phase observation. The PK is `(mission_id, plan_id, step_id)`
+        //   and `phase` is UPSERTed (`ON CONFLICT DO UPDATE`) because the
+        //   latest phase is the live state — the HUD colour-coded pill
+        //   always reflects the most recent observation, not the first
+        //   one (in contrast with the append-only `model_swaps`).
+        //
+        // Each phase transition ALSO publishes a `StepPhaseChanged` bus
+        // event (append-only in `journal_events`) for the audit trail;
+        // `step_states` is the rolled-up live view.
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS step_states (
+                mission_id  TEXT NOT NULL,
+                plan_id     TEXT NOT NULL,
+                step_id     TEXT NOT NULL,
+                phase       TEXT NOT NULL,
+                updated_at  TEXT NOT NULL,
+                PRIMARY KEY (mission_id, plan_id, step_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_step_states_mission  ON step_states(mission_id);
+            CREATE INDEX IF NOT EXISTS idx_step_states_plan     ON step_states(plan_id);
+            CREATE INDEX IF NOT EXISTS idx_step_states_phase    ON step_states(phase);",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![11, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
     Ok(())
 }

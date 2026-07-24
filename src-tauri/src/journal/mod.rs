@@ -9,8 +9,8 @@ pub mod store;
 mod tests;
 
 pub use store::{
-    AuditEntry, CheckpointRow, ConsolidatedRow, DiffRow, JournalEntry, Mission, PatternRow,
-    PlanRow, RepairRunRow, SkillRow, ValidationReportRow, VerdictRow,
+    AuditEntry, CheckpointRow, ConsolidatedRow, DiffRow, JournalEntry, Mission, ModelSwapRow,
+    PatternRow, PlanRow, RepairRunRow, SkillRow, StepStateRow, ValidationReportRow, VerdictRow,
 };
 
 use std::path::{Path, PathBuf};
@@ -1182,5 +1182,220 @@ impl Journal {
             return Ok(Some(r));
         }
         Ok(None)
+    }
+
+    // ——— Model hot-swap persistence (RFC 27 §B, schema M10) ———
+    //
+    // `model_swaps` is append-only by design: every swap is a fresh
+    // `BusEventKind::ModelSwapped` row, and the audit trail must survive
+    // re-opens / replays. `ON CONFLICT DO NOTHING` is keyed on `swap_id`
+    // (a fresh UUID per swap) so a replayed event is silently dropped
+    // rather than producing a ghost duplicate (RFC 02 §3.1.2).
+
+    pub fn save_model_swap(
+        &self,
+        mission_id: Uuid,
+        prev_model_id: &str,
+        new_model_id: &str,
+        initiator: &crate::core::bus::SwapInitiator,
+        occurred_at: chrono::DateTime<chrono::Utc>,
+    ) -> anyhow::Result<Uuid> {
+        let swap_id = Uuid::new_v4();
+        let payload = serde_json::json!({
+            "mission_id": mission_id.to_string(),
+            "prev_model_id": prev_model_id,
+            "new_model_id": new_model_id,
+            "initiator": initiator,
+            "occurred_at": occurred_at.to_rfc3339(),
+        })
+        .to_string();
+        let conn = self.conn.lock();
+        conn.execute(
+            "INSERT INTO model_swaps
+                (swap_id, mission_id, prev_model_id, new_model_id, initiator,
+                 occurred_at, payload)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+             ON CONFLICT(swap_id) DO NOTHING",
+            rusqlite::params![
+                swap_id.to_string(),
+                mission_id.to_string(),
+                prev_model_id,
+                new_model_id,
+                match initiator {
+                    crate::core::bus::SwapInitiator::User => "user",
+                    crate::core::bus::SwapInitiator::Auto => "auto",
+                },
+                occurred_at.to_rfc3339(),
+                payload,
+            ],
+        )?;
+        Ok(swap_id)
+    }
+
+    /// Newest-first list of model-swap rows for the HUD tail (RFC 24 §3)
+    /// and the operator CLI (`opencode swaps <mission_id>`).
+    pub fn model_swap_tail(&self, last: i64) -> anyhow::Result<Vec<ModelSwapRow>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT swap_id, mission_id, prev_model_id, new_model_id, initiator, occurred_at
+             FROM model_swaps ORDER BY occurred_at DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![last], |row| {
+            let swap_id_str: String = row.get(0)?;
+            let mission_id_str: String = row.get(1)?;
+            Ok(ModelSwapRow {
+                swap_id: Uuid::parse_str(&swap_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %swap_id_str, "swap_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                mission_id: Uuid::parse_str(&mission_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %mission_id_str, "mission_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                prev_model_id: row.get(2)?,
+                new_model_id: row.get(3)?,
+                initiator: row.get(4)?,
+                occurred_at: row.get(5)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for item in rows.flatten() {
+            out.push(item);
+        }
+        Ok(out)
+    }
+
+    /// Every swap row for a given mission (oldest-first) — the audit
+    /// trail view the operator pulls up before a steering intervention.
+    pub fn model_swaps_for_mission(&self, mission_id: Uuid) -> anyhow::Result<Vec<ModelSwapRow>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT swap_id, mission_id, prev_model_id, new_model_id, initiator, occurred_at
+             FROM model_swaps WHERE mission_id = ?1
+             ORDER BY occurred_at ASC",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![mission_id.to_string()], |row| {
+            let swap_id_str: String = row.get(0)?;
+            let mission_id_str: String = row.get(1)?;
+            Ok(ModelSwapRow {
+                swap_id: Uuid::parse_str(&swap_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %swap_id_str, "swap_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                mission_id: Uuid::parse_str(&mission_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %mission_id_str, "mission_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                prev_model_id: row.get(2)?,
+                new_model_id: row.get(3)?,
+                initiator: row.get(4)?,
+                occurred_at: row.get(5)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for item in rows.flatten() {
+            out.push(item);
+        }
+        Ok(out)
+    }
+
+    // ——— Step-state persistence (RFC 27 §G, schema M11) ———
+    //
+    // `step_states` is UPSERTed (not append-only): the latest phase
+    // observation replaces the previous row because the HUD pill renders
+    // the live state, not a history. Each transition ALSO publishes a
+    // `StepPhaseChanged` bus event into `journal_events` so the audit
+    // trail survives in the append-only `journal_events`.
+
+    pub fn set_step_phase(
+        &self,
+        mission_id: Uuid,
+        plan_id: Uuid,
+        step_id: &str,
+        phase: crate::planning::types::StepPhase,
+    ) -> anyhow::Result<()> {
+        let now = chrono::Utc::now().to_rfc3339();
+        let conn = self.conn.lock();
+        conn.execute(
+            "INSERT INTO step_states
+                (mission_id, plan_id, step_id, phase, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(mission_id, plan_id, step_id) DO UPDATE SET
+                phase      = excluded.phase,
+                updated_at = excluded.updated_at",
+            rusqlite::params![
+                mission_id.to_string(),
+                plan_id.to_string(),
+                step_id,
+                phase.tag(),
+                now,
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// All step-state rows for a plan, newest-first by `updated_at`. The
+    /// HUD joins this with the plan payload to render colour-coded pills
+    /// alongside each `Step.id`.
+    pub fn step_states_for_plan(&self, plan_id: Uuid) -> anyhow::Result<Vec<StepStateRow>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT mission_id, plan_id, step_id, phase, updated_at
+             FROM step_states WHERE plan_id = ?1
+             ORDER BY updated_at DESC",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![plan_id.to_string()], |row| {
+            let mission_id_str: String = row.get(0)?;
+            let plan_id_str: String = row.get(1)?;
+            Ok(StepStateRow {
+                mission_id: Uuid::parse_str(&mission_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %mission_id_str, "mission_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                plan_id: Uuid::parse_str(&plan_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %plan_id_str, "plan_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                step_id: row.get(2)?,
+                phase: row.get(3)?,
+                updated_at: row.get(4)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for item in rows.flatten() {
+            out.push(item);
+        }
+        Ok(out)
+    }
+
+    /// Newest-first list across all plans — the HUD live-stream view.
+    pub fn step_state_tail(&self, last: i64) -> anyhow::Result<Vec<StepStateRow>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT mission_id, plan_id, step_id, phase, updated_at
+             FROM step_states ORDER BY updated_at DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![last], |row| {
+            let mission_id_str: String = row.get(0)?;
+            let plan_id_str: String = row.get(1)?;
+            Ok(StepStateRow {
+                mission_id: Uuid::parse_str(&mission_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %mission_id_str, "mission_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                plan_id: Uuid::parse_str(&plan_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %plan_id_str, "plan_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                step_id: row.get(2)?,
+                phase: row.get(3)?,
+                updated_at: row.get(4)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for item in rows.flatten() {
+            out.push(item);
+        }
+        Ok(out)
     }
 }
