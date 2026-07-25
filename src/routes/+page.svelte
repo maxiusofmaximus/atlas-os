@@ -7,7 +7,16 @@
   //    every 5s. Each box shows the latest 20 rows; clicking a row
   //    opens the JSON payload in a side drawer (Phase 2).
   import { onMount } from 'svelte';
-  import { hud, fetchTail, phaseColor, type TailKind, type StepPhaseTag } from '$stores/hud';
+  import {
+    hud,
+    fetchTail,
+    fetchAnnotations,
+    postAnnotation,
+    phaseColor,
+    type TailKind,
+    type StepPhaseTag,
+    type DiffAnnotation,
+  } from '$stores/hud';
   import type { PageData } from './$types';
 
   const { data } = $props<{ data: PageData }>();
@@ -48,6 +57,121 @@
   );
 
   let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+  // ────────────── RFC 27 §E — annotation drawer state ──────────────
+  type DrawerState = {
+    open: boolean;
+    diffId: string | null;
+    diffLabel: string;
+    annotations: DiffAnnotation[];
+    loading: boolean;
+    error: string | null;
+    submitting: boolean;
+    submitError: string | null;
+    draftBody: string;
+    draftAuthor: string;
+    draftFilePath: string;
+    draftLineNo: string;
+  };
+
+  let drawer = $state<DrawerState>({
+    open: false,
+    diffId: null,
+    diffLabel: '',
+    annotations: [],
+    loading: false,
+    error: null,
+    submitting: false,
+    submitError: null,
+    draftBody: '',
+    draftAuthor: '',
+    draftFilePath: '',
+    draftLineNo: '',
+  });
+
+  async function openAnnotationDrawer(row: Record<string, unknown>): Promise<void> {
+    const diffId = row.id != null ? String(row.id) : null;
+    const hudUrl = data.hudUrl;
+    if (!diffId || !hudUrl) return;
+    drawer = {
+      ...drawer,
+      open: true,
+      diffId,
+      diffLabel: rowId(row).slice(0, 8),
+      loading: true,
+      error: null,
+      annotations: [],
+      submitting: false,
+      submitError: null,
+    };
+    try {
+      const ann = await fetchAnnotations(hudUrl, diffId);
+      drawer = { ...drawer, annotations: ann, loading: false };
+    } catch (err) {
+      drawer = {
+        ...drawer,
+        loading: false,
+        error: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  function closeDrawer(): void {
+    drawer = {
+      ...drawer,
+      open: false,
+      diffId: null,
+      diffLabel: '',
+      annotations: [],
+      loading: false,
+      error: null,
+      submitting: false,
+      submitError: null,
+      draftBody: '',
+      draftAuthor: '',
+      draftFilePath: '',
+      draftLineNo: '',
+    };
+  }
+
+  async function submitAnnotation(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const diffId = drawer.diffId;
+    const hudUrl = data.hudUrl;
+    if (!diffId || !hudUrl) return;
+    const body = drawer.draftBody.trim();
+    const author = drawer.draftAuthor.trim();
+    if (!body || !author) {
+      drawer = { ...drawer, submitError: 'body and author are required' };
+      return;
+    }
+    const input: Parameters<typeof postAnnotation>[2] = { body, author };
+    const fp = drawer.draftFilePath.trim();
+    if (fp) input.file_path = fp;
+    const ln = Number(drawer.draftLineNo);
+    if (drawer.draftLineNo.trim() !== '' && Number.isFinite(ln) && ln > 0) {
+      input.line_no = ln;
+    }
+    drawer = { ...drawer, submitting: true, submitError: null };
+    try {
+      await postAnnotation(hudUrl, diffId, input);
+      const ann = await fetchAnnotations(hudUrl, diffId);
+      drawer = {
+        ...drawer,
+        annotations: ann,
+        submitting: false,
+        draftBody: '',
+        draftFilePath: '',
+        draftLineNo: '',
+      };
+    } catch (err) {
+      drawer = {
+        ...drawer,
+        submitting: false,
+        submitError: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
 
   async function refreshOne(box: TailBox): Promise<TailBox> {
     if (!data.hudUrl) return { ...box, error: 'no HUD URL yet' };
@@ -178,6 +302,17 @@
                 <li>
                   <code>{rowId(row).slice(0, 8)}</code>
                   <span>{rowSummary(row)}</span>
+                  {#if box.kind === 'diffs'}
+                    <button
+                      type="button"
+                      class="annotate-btn"
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        void openAnnotationDrawer(row);
+                      }}
+                      aria-label="Annotate diff">✎</button
+                    >
+                  {/if}
                 </li>
               {/each}
             </ul>
@@ -186,6 +321,81 @@
       {/each}
     </div>
   </section>
+
+  {#if drawer.open}
+    <aside class="drawer" data-open>
+      <header>
+        <h3>Annotate diff <code>{drawer.diffLabel}</code></h3>
+        <button type="button" class="drawer-close" onclick={closeDrawer} aria-label="Close"
+          >×</button
+        >
+      </header>
+
+      <section class="drawer-ann">
+        <h4>Annotations</h4>
+        {#if drawer.loading}
+          <p class="empty">Loading…</p>
+        {:else if drawer.error}
+          <p class="error">{drawer.error}</p>
+        {:else if drawer.annotations.length === 0}
+          <p class="empty">No annotations yet.</p>
+        {:else}
+          <ul>
+            {#each drawer.annotations as ann (ann.id)}
+              <li>
+                <div class="ann-head">
+                  <span class="ann-author">{ann.author}</span>
+                  <time>{ann.created_at}</time>
+                </div>
+                <div class="ann-loc">
+                  {#if ann.file_path}<code>{ann.file_path}</code>{:else}<span class="dim"
+                      >diff-level</span
+                    >{/if}
+                  {#if ann.line_no != null}<span class="pill pill-loc">L{ann.line_no}</span>{/if}
+                </div>
+                <p class="ann-body">{ann.body}</p>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </section>
+
+      <form class="drawer-form" onsubmit={(e) => void submitAnnotation(e as SubmitEvent)}>
+        <h4>Add annotation</h4>
+        <label>
+          <span>Author</span>
+          <input bind:value={drawer.draftAuthor} placeholder="max" required />
+        </label>
+        <label>
+          <span>Body</span>
+          <textarea
+            bind:value={drawer.draftBody}
+            placeholder="Suggestion, question, fix hint…"
+            rows="3"
+            required
+          ></textarea>
+        </label>
+        <div class="form-row">
+          <label>
+            <span>File path (opt.)</span>
+            <input bind:value={drawer.draftFilePath} placeholder="src/lib.rs" />
+          </label>
+          <label>
+            <span>Line no (opt.)</span>
+            <input type="number" min="1" bind:value={drawer.draftLineNo} placeholder="42" />
+          </label>
+        </div>
+        {#if drawer.submitError}
+          <p class="error">{drawer.submitError}</p>
+        {/if}
+        <div class="form-actions">
+          <button type="submit" disabled={drawer.submitting || !data.hudUrl}>
+            {drawer.submitting ? 'Posting…' : 'Post'}
+          </button>
+        </div>
+      </form>
+    </aside>
+  {/if}
 </main>
 
 <style>
@@ -317,5 +527,168 @@
   .tail-box .error {
     color: #f85149;
     font-size: 0.75rem;
+  }
+  .annotate-btn {
+    background: transparent;
+    color: #79c0ff;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    padding: 0 0.35rem;
+    cursor: pointer;
+    font-size: 0.75rem;
+    line-height: 1.2;
+  }
+  .annotate-btn:hover {
+    background: #161b22;
+  }
+  .drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 380px;
+    max-width: 90vw;
+    height: 100vh;
+    background: #0d1117;
+    border-left: 1px solid #30363d;
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.5);
+    padding: 1rem 1.25rem;
+    overflow-y: auto;
+    z-index: 50;
+  }
+  .drawer header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    border: 0;
+    background: transparent;
+    padding: 0;
+  }
+  .drawer h3 {
+    font-size: 0.95rem;
+    margin: 0;
+    color: #58a6ff;
+  }
+  .drawer-close {
+    background: transparent;
+    color: #c9d1d9;
+    border: 0;
+    font-size: 1.3rem;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .drawer-ann h4,
+  .drawer-form h4 {
+    font-size: 0.8rem;
+    color: #79c0ff;
+    margin: 0 0 0.5rem 0;
+  }
+  .drawer-ann {
+    margin-bottom: 1.25rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  .drawer-ann ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .drawer-ann li {
+    border: 1px solid #21262d;
+    border-radius: 6px;
+    padding: 0.5rem 0.6rem;
+    background: #161b22;
+  }
+  .ann-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.25rem;
+    font-size: 0.7rem;
+    font-family: 'Fira Code', monospace;
+  }
+  .ann-author {
+    color: #58a6ff;
+  }
+  .ann-head time {
+    opacity: 0.5;
+  }
+  .ann-loc {
+    display: flex;
+    gap: 0.4rem;
+    align-items: baseline;
+    margin-bottom: 0.35rem;
+    font-size: 0.7rem;
+  }
+  .ann-loc .dim {
+    opacity: 0.55;
+  }
+  .pill-loc {
+    color: #f0883e;
+    border: 1px solid #f0883e;
+  }
+  .ann-body {
+    margin: 0;
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .drawer-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  .drawer-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    font-size: 0.7rem;
+  }
+  .drawer-form label span {
+    color: #8b949e;
+  }
+  .drawer-form input,
+  .drawer-form textarea {
+    background: #161b22;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    padding: 0.35rem 0.5rem;
+    font-family: 'Fira Code', 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    resize: vertical;
+  }
+  .drawer-form .form-row {
+    display: flex;
+    gap: 0.6rem;
+  }
+  .drawer-form .form-row label {
+    flex: 1;
+  }
+  .drawer-form .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.4rem;
+  }
+  .drawer-form button {
+    background: #238636;
+    color: #fff;
+    border: 1px solid #2ea043;
+    border-radius: 4px;
+    padding: 0.4rem 0.9rem;
+    cursor: pointer;
+    font-size: 0.8rem;
+  }
+  .drawer-form button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
 </style>

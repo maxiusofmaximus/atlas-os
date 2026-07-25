@@ -119,13 +119,15 @@ pub(crate) fn run_single_step(
 
     publish_step_phase(journal, plan, &step.id, StepPhase::Executing)?;
 
+    let narrative = build_step_narrative(journal, plan, &step.id, step.action.tag())?;
+
     let coding_outcome = run_coding(&CodingInput {
         plan,
         step,
         agent_id,
         approved_skills: Vec::new(),
         workspace_files: Vec::<WorkspaceFile>::new(),
-        narrative: format!("heuristic step {} ({})", step.id, step.action.tag()),
+        narrative,
         research_refs: Vec::new(),
     })
     .context("coding::run failed")?;
@@ -307,6 +309,63 @@ fn latest_report_for_diff(
         .rev()
         .find(|r| r.diff_id == target)
         .map(|r| r.report_id))
+}
+
+/// Best-effort: find the most-recent `diff_id` produced for the given
+/// `(plan_id, step_id)` tuple. Used by `run_single_step` to recover the
+/// previous diff for a step so its reviewer annotations can be injected
+/// as context into the next Coding Engine invocation (RFC 27 §3.E).
+fn latest_diff_for_step(
+    journal: &crate::journal::Journal,
+    plan_id: Uuid,
+    step_id: &str,
+) -> anyhow::Result<Option<Uuid>> {
+    let tail = journal.diff_tail(64)?;
+    Ok(tail
+        .into_iter()
+        .find(|d| d.plan_id == plan_id && d.step_id == step_id)
+        .map(|d| d.diff_id))
+}
+
+/// Compose the Coding Engine narrative for `step_id`. Always carries
+/// the base "heuristic step N (tag)" line. When a previous diff for
+/// this `(plan_id, step_id)` carries reviewer annotations (RFC 27 §3.E
+/// — annotate-diff), they are appended as `\n[review-hint]` lines so
+/// the Phase 2 LLM-driven coder receives them as additional hints
+/// while the Phase 1 heuristic runner simply persists them verbatim in
+/// the Diff narrative.
+fn build_step_narrative(
+    journal: &crate::journal::Journal,
+    plan: &crate::planning::types::Plan,
+    step_id: &str,
+    tag: &str,
+) -> anyhow::Result<String> {
+    let mut narrative = format!("heuristic step {} ({})", step_id, tag);
+    let Some(prev_diff_id) = latest_diff_for_step(journal, plan.plan_id, step_id)? else {
+        return Ok(narrative);
+    };
+    let annotations = journal
+        .diff_annotations_for_diff(prev_diff_id)
+        .unwrap_or_default();
+    if annotations.is_empty() {
+        return Ok(narrative);
+    }
+    narrative.push_str("\n[review-hints]");
+    for ann in annotations {
+        narrative.push_str("\n[review-hint] ");
+        if let Some(fp) = ann.file_path {
+            if let Some(line) = ann.line_no {
+                narrative.push_str(&format!("{}:{} — ", fp, line));
+            } else {
+                narrative.push_str(&format!("{} — ", fp));
+            }
+        }
+        // One-line body to keep the narrative readable; full body lives
+        // in the `diff_annotations` row.
+        let one_line = ann.body.lines().next().unwrap_or("").trim();
+        narrative.push_str(&format!("{} (by {})", one_line, ann.author));
+    }
+    Ok(narrative)
 }
 
 pub async fn run(cmd: MissionCmd, profile: &str) -> Result<()> {

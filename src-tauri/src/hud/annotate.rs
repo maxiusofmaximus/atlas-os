@@ -187,4 +187,51 @@ mod tests {
         let res = app.oneshot(req).await.unwrap();
         assert_eq!(res.status(), StatusCode::BAD_REQUEST);
     }
+
+    #[tokio::test]
+    async fn get_returns_annotations_in_asc_created_at_order() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let state = fresh_state(&tmp);
+        let app = app(state);
+        let diff_id = Uuid::new_v4();
+
+        let bodies = ["first comment", "second comment", "third comment"];
+        for (i, body) in bodies.iter().enumerate() {
+            let req_body = serde_json::json!({
+                "body": body,
+                "author": format!("author{i}"),
+            });
+            let req = Request::builder()
+                .method("POST")
+                .uri(format!("/diff/{diff_id}/annotation"))
+                .header("content-type", "application/json")
+                .body(axum::body::Body::from(req_body.to_string()))
+                .unwrap();
+            let res = app.clone().oneshot(req).await.unwrap();
+            assert_eq!(res.status(), StatusCode::OK);
+            std::thread::sleep(std::time::Duration::from_millis(15));
+        }
+
+        let req = Request::builder()
+            .method("GET")
+            .uri(format!("/diff/{diff_id}/annotation"))
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        let bytes = to_bytes(res.into_body(), 8192).await.unwrap();
+        let rows: Vec<DiffAnnotationRow> = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(rows.len(), bodies.len());
+        assert_eq!(rows[0].body, "first comment");
+        assert_eq!(rows[1].body, "second comment");
+        assert_eq!(rows[2].body, "third comment");
+        for pair in rows.windows(2) {
+            assert!(
+                pair[0].created_at <= pair[1].created_at,
+                "ASC order violated: {} > {}",
+                pair[0].created_at,
+                pair[1].created_at
+            );
+        }
+    }
 }

@@ -70,6 +70,69 @@ export function phaseColor(phase: StepPhaseTag): string {
   }
 }
 
+// ────────────── RFC 27 §E — diff annotation drawer helpers ──────────────
+//
+// Mirror the Rust `DiffAnnotationRow` returned by `GET /diff/{id}/annotation`
+// and the POST echo (`AnnotationPosted`) so the Svelte drawer avoids
+// `unknown` casts. `exactOptionalPropertyTypes: true` is honoured:
+// optionals are typed `T | null` and only sent when non-null.
+
+export interface DiffAnnotation {
+  id: string;
+  diff_id: string;
+  file_path: string | null;
+  line_no: number | null;
+  body: string;
+  author: string;
+  created_at: string;
+}
+
+export interface AnnotationPosted {
+  id: string;
+  diff_id: string;
+  created_at: string;
+}
+
+export interface AnnotationPostInput {
+  body: string;
+  author: string;
+  file_path?: string | null;
+  line_no?: number | null;
+}
+
+export async function fetchAnnotations(hudUrl: string, diffId: string): Promise<DiffAnnotation[]> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const res = await fetch(`${trimmed}/diff/${encodeURIComponent(diffId)}/annotation`);
+  if (!res.ok) {
+    throw new Error(`HUD annotations GET failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as DiffAnnotation[];
+}
+
+export async function postAnnotation(
+  hudUrl: string,
+  diffId: string,
+  input: AnnotationPostInput,
+): Promise<AnnotationPosted> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const payload: Record<string, unknown> = { body: input.body, author: input.author };
+  if (input.file_path != null && input.file_path.trim() !== '') {
+    payload.file_path = input.file_path;
+  }
+  if (input.line_no != null && Number.isFinite(input.line_no) && input.line_no > 0) {
+    payload.line_no = input.line_no;
+  }
+  const res = await fetch(`${trimmed}/diff/${encodeURIComponent(diffId)}/annotation`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(`HUD annotations POST failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as AnnotationPosted;
+}
+
 const MAX_EVENTS = 200;
 const initialState: HudState = {
   connected: false,

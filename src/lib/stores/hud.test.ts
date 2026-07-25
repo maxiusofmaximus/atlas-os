@@ -6,7 +6,7 @@
 // Control tail boxes hit the right axum route.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { get } from 'svelte/store';
-import { hud, toWsUrl, fetchTail, type TailKind } from './hud';
+import { hud, toWsUrl, fetchTail, fetchAnnotations, postAnnotation, type TailKind } from './hud';
 
 describe('hud store', () => {
   it('starts disconnected', () => {
@@ -97,5 +97,105 @@ describe('fetchTail', () => {
     expect(fetchMock).toHaveBeenCalledTimes(kinds.length);
     const urls = fetchMock.mock.calls.map((c) => c[0] as string);
     expect(new Set(urls).size).toBe(kinds.length);
+  });
+});
+
+describe('fetchAnnotations', () => {
+  const fetchMock = vi.fn();
+  const ok = (body: unknown) => ({ ok: true, status: 200, json: async () => body });
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('GETs /diff/<id>/annotation and returns rows', async () => {
+    const ann = [{ id: 'a1', diff_id: 'd1', body: 'hi', author: 'max' }];
+    fetchMock.mockResolvedValueOnce(ok(ann));
+    const rows = await fetchAnnotations('http://localhost:57457/', 'd1');
+    expect(rows).toEqual(ann);
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:57457/diff/d1/annotation');
+  });
+
+  it('throws on non-OK status', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 500, statusText: 'ERR' });
+    await expect(fetchAnnotations('http://x/', 'd1')).rejects.toThrow();
+  });
+});
+
+describe('postAnnotation', () => {
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('POSTs minimal body with body+author only', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ id: 'a1', diff_id: 'd1', created_at: 'now' }),
+    });
+    const posted = await postAnnotation('http://localhost:57457', 'd1', {
+      body: 'note',
+      author: 'max',
+    });
+    expect(posted.id).toBe('a1');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const call = fetchMock.mock.calls[0]!;
+    expect(call[0]).toBe('http://localhost:57457/diff/d1/annotation');
+    const init = call[1] as RequestInit;
+    expect(init.method).toBe('POST');
+    const payload = JSON.parse(String(init.body)) as Record<string, unknown>;
+    expect(payload.body).toBe('note');
+    expect(payload.author).toBe('max');
+    expect('file_path' in payload).toBe(false);
+    expect('line_no' in payload).toBe(false);
+  });
+
+  it('includes file_path and line_no when provided', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ id: 'a2', diff_id: 'd1', created_at: 'now' }),
+    });
+    await postAnnotation('http://h', 'd1', {
+      body: 'fix',
+      author: 'max',
+      file_path: 'src/lib.rs',
+      line_no: 42,
+    });
+    const init = fetchMock.mock.calls[0]![1] as RequestInit;
+    const payload = JSON.parse(String(init.body)) as Record<string, unknown>;
+    expect(payload.file_path).toBe('src/lib.rs');
+    expect(payload.line_no).toBe(42);
+  });
+
+  it('omits file_path when empty string', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ id: 'a3', diff_id: 'd1', created_at: 'now' }),
+    });
+    await postAnnotation('http://h', 'd1', {
+      body: 'fix',
+      author: 'max',
+      file_path: '   ',
+    });
+    const init = fetchMock.mock.calls[0]![1] as RequestInit;
+    const payload = JSON.parse(String(init.body)) as Record<string, unknown>;
+    expect('file_path' in payload).toBe(false);
+  });
+
+  it('throws on non-OK status', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 422, statusText: 'UP' });
+    await expect(postAnnotation('http://h', 'd1', { body: 'x', author: 'y' })).rejects.toThrow();
   });
 });
