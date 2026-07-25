@@ -9,8 +9,9 @@ pub mod store;
 mod tests;
 
 pub use store::{
-    AuditEntry, CheckpointRow, ConsolidatedRow, DiffRow, JournalEntry, Mission, ModelSwapRow,
-    PatternRow, PlanRow, RepairRunRow, SkillRow, StepStateRow, ValidationReportRow, VerdictRow,
+    AuditEntry, CheckpointRow, ConsolidatedRow, DiffAnnotationRow, DiffRow, JournalEntry, Mission,
+    ModelSwapRow, PatternRow, PlanRow, RepairRunRow, SkillRow, StepStateRow, ValidationReportRow,
+    VerdictRow,
 };
 
 use std::path::{Path, PathBuf};
@@ -1390,6 +1391,68 @@ impl Journal {
                 step_id: row.get(2)?,
                 phase: row.get(3)?,
                 updated_at: row.get(4)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for item in rows.flatten() {
+            out.push(item);
+        }
+        Ok(out)
+    }
+
+    /// RFC 27 §E — persist an annotation on a diff. Append-only: each
+    /// call inserts a fresh `id` (caller mints it). On success the
+    /// annotation is immediately visible via `diff_annotations_for_diff`
+    /// and through the HUD tail drawer.
+    pub fn save_diff_annotation(&self, row: &DiffAnnotationRow) -> anyhow::Result<()> {
+        let conn = self.conn.lock();
+        conn.execute(
+            "INSERT INTO diff_annotations
+                (id, diff_id, file_path, line_no, body, author, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+             ON CONFLICT(id) DO NOTHING",
+            rusqlite::params![
+                row.id.to_string(),
+                row.diff_id.to_string(),
+                row.file_path,
+                row.line_no,
+                row.body,
+                row.author,
+                row.created_at,
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// RFC 27 §E — annotations for a single diff, oldest-first (the
+    /// drawer renders them in chronological order so the reviewer can
+    /// follow the conversation).
+    pub fn diff_annotations_for_diff(
+        &self,
+        diff_id: Uuid,
+    ) -> anyhow::Result<Vec<DiffAnnotationRow>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT id, diff_id, file_path, line_no, body, author, created_at
+             FROM diff_annotations WHERE diff_id = ?1 ORDER BY created_at ASC",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![diff_id.to_string()], |row| {
+            let id_str: String = row.get(0)?;
+            let diff_id_str: String = row.get(1)?;
+            Ok(DiffAnnotationRow {
+                id: Uuid::parse_str(&id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %id_str, "annotation id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                diff_id: Uuid::parse_str(&diff_id_str).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, raw = %diff_id_str, "annotation diff_id parse failed; using nil");
+                    Uuid::nil()
+                }),
+                file_path: row.get(2)?,
+                line_no: row.get(3)?,
+                body: row.get(4)?,
+                author: row.get(5)?,
+                created_at: row.get(6)?,
             })
         })?;
         let mut out = Vec::new();

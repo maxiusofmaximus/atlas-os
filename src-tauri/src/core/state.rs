@@ -119,6 +119,25 @@ impl AppState {
         *self.inner.journal.lock() = new_journal;
         Ok(())
     }
+
+    /// Test-and-HUD-integration-only constructor that wraps a pre-built
+    /// Journal in an AppState without going through profile bootstrap.
+    /// The profile id is `default` and the profile_root is a sentinel —
+    /// only the journal matters for HUD route handlers that read the
+    /// journal. Non-production callers should prefer `bootstrap()`.
+    #[allow(dead_code)]
+    pub(crate) fn from_journal(journal: Journal) -> Self {
+        let (bus_tx, _) = broadcast::channel(1024);
+        Self {
+            inner: Arc::new(Inner {
+                profile_id: RwLock::new(ProfileId::default()),
+                profile_root: RwLock::new(PathBuf::new()),
+                journal: Mutex::new(journal),
+                bus_tx,
+                hud_port: AtomicU16::new(0),
+            }),
+        }
+    }
 }
 
 // Re-exports

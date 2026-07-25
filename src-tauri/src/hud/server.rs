@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::Router;
 use tokio_util::sync::CancellationToken;
 use tower_http::cors::CorsLayer;
@@ -69,6 +69,10 @@ pub async fn serve(state: Arc<AppState>, shutdown: CancellationToken) {
         .route("/tail/skills", get(super::tail::tail_skills))
         .route("/tail/model_swaps", get(super::tail::tail_model_swaps))
         .route("/tail/step_states", get(super::tail::tail_step_states))
+        .route(
+            "/diff/:id/annotation",
+            post(super::annotate::post_annotation).get(super::annotate::get_annotations),
+        )
         .route("/payload/:kind/:id", get(super::tail::payload))
         .route(
             "/payload/skill/:skill_id/:version",

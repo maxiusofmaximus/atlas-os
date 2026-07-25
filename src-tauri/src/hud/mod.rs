@@ -3,6 +3,7 @@
 // Survives webview crashes (RFC 25 §2): runs in a dedicated Tokio runtime
 // spawned by the desktop binary.
 
+pub mod annotate;
 pub mod server;
 pub mod tail;
 pub mod ws;

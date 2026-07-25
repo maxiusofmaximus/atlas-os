@@ -135,10 +135,11 @@ Las 8 brechas concretas que el audit identifica. Cada una está entrada como `(p
 
 **Propuesta:** Añadir `core/swarm_mailbox.rs` con `AgentMailbox` que persist (SQLite table `agent_messages`, M10) mensajes entre agentes. Cada subagente tiene un `agent_id`. Commands: `delegate(target_agent_id, task)`, `ask_for_review(target_agent_id, diff_id)`, `negotiate(target_agent_id, position)`. Capacidad matrix documenta qué may/what may not (ver traycer).
 
-### §3.E — Annotate-diff UI **(P1, S, HUD)**
+### §3.E — Annotate-diff UI **(P1, S, HUD) — IMPLEMENTADO Phase 1**
 
 **Patrón:** orca "annotate AI diffs" + traycer space comentarios.
-**Status:** RFC 24 §6 "card actions" menciona el concepto pero no está implementado. HUD Phase 1 solo muestra las colas, no permite comentarios.
+
+**Status:** ✅ **Implementado en Phase 1.** `hud/annotate.rs` con `POST /diff/:id/annotation` (valida UUID + body no vacío → 422/400) y `GET /diff/:id/annotation` (lista ordenada ASC por `created_at`). Persist en `diff_annotations` (M12, schema `id, diff_id, file_path?, line_no?, body, author, created_at`). `DiffAnnotationRow` exported desde `journal`. Constructor `AppState::from_journal` añadido para tests HUD. 3 tests (round-trip, 422 empty, 400 bad-uuid). Faltante para Done total: drawer en frontend Svelte, inyección de annotations como contexto del Coding Engine.
 
 **Propuesta:** Añadir `hud/annotate.rs` con endpoints `POST /diff/{id}/annotation` y `GET /diff/{id}/annotations`. Persist en nueva tabla `diff_annotations` (M11) con `id, diff_id, line_no, body, author, ts`. El HUD renderiza inline en el drawer del diff. El siguiente `run` o `resume` recoge las annotations como contexto adicional del Coding Engine.
 

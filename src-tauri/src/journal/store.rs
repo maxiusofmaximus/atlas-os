@@ -205,3 +205,16 @@ pub struct StepStateRow {
     pub phase: String,
     pub updated_at: String,
 }
+
+/// Row projection of `diff_annotations` (M12) for the HUD drawer (RFC 27
+/// §E). Append-only; one row per annotation posted against a diff.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DiffAnnotationRow {
+    pub id: Uuid,
+    pub diff_id: Uuid,
+    pub file_path: Option<String>,
+    pub line_no: Option<i64>,
+    pub body: String,
+    pub author: String,
+    pub created_at: String,
+}

@@ -465,5 +465,36 @@ pub fn migrate(conn: &Connection) -> Result<()> {
             rusqlite::params![11, chrono::Utc::now().to_rfc3339()],
         )?;
     }
+
+    if current < 12 {
+        // M12 — Diff annotations (RFC 27 §E).
+        //   diff_annotations : one append-only row per annotation posted
+        //   against a diff. The HUD drawer renders them inline next to
+        //   the changed line; the next Coding Engine run reads them as
+        //   additional context so the human reviewer's comments steer
+        //   the agent's next attempt (cursor-style).
+        //
+        // `line_no` is 1-indexed within the file the annotation refers
+        // to; `file_path` is the in-repo path of that file (NULL is
+        // allowed for diff-level comments).
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS diff_annotations (
+                id          TEXT PRIMARY KEY,
+                diff_id     TEXT NOT NULL,
+                file_path   TEXT,
+                line_no     INTEGER,
+                body        TEXT NOT NULL,
+                author      TEXT NOT NULL,
+                created_at  TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_diff_annotations_diff   ON diff_annotations(diff_id);
+            CREATE INDEX IF NOT EXISTS idx_diff_annotations_author ON diff_annotations(author);",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![12, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
     Ok(())
 }
