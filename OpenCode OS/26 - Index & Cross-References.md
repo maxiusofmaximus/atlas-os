@@ -36,8 +36,9 @@
 | 25 | [Stack Técnico Multiplataforma](./25%20-%20Stack%20T%C3%A9cnico%20Multiplataforma.md) | 25.9 KB | Tauri 2 + Rust 1.84+ + SvelteKit 2 + SQLite/`sqlite-vec` + `fastembed-rs` + Tower-LSP + axum WebSocket + sandbox Docker/Podman/Firejail/Job-Object + OS keychain + 13 model providers HTTP (3 locales + 10 free cloud + paid tier) + `opencode` CLI Rust. Multi-OS binario único 30-45 MB. Justificación vs Electron/AionUI. Tamaños y performance budgets. |
 | 26 | [Index & Cross-References](./26%20-%20Index%20&%20Cross-References.md) | este archivo | Mapa maestro. |
 | 27 | [Orchestration Fundamentals](./27%20-%20Orchestration%20Fundamentals.md) | 13.5 KB | Audit comparativo vs `tmux-orchestrator`, `orca`, `herdr`, `traycer`. Extrae 6 principios fundacionales (worktree isolation, at-a-glance state, remote attach, reflexivity, BYOA, spec-first) y cataloga 8 brechas (A–H) contra los fundamentos, con priorización Phase 2+. |
+| 28 | [External Tool Integration](./28%20-%20External%20Tool%20Integration.md) | 13.6 KB | 4 superficies: §A Karpathy autoresearch loop (Hill-climbing con métrica medible, M13 `autoresearch_runs`); §B Microsoft Intelligent Terminal ACP server (M14 `agent_session_events`, slash commands `/opencode fix` `/restart`); §C graphify pattern adoption (M15 `mission_graph` + `petgraph`+`tree-sitter`, `<GraphView>` HUD, skills como graph templates, Planner DAG); §D AuditLog YAML-on-disk export formato posting (cierra Brecha H). Fase 1.5 orden §D→§A→§C→§B. Research internos en `OpenCode OS/research/`. |
 
-**Total: 28 RFCs, ~259 KB** de especificación.
+**Total: 29 RFCs, ~272 KB** de especificación.
 
 ---
 
