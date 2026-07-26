@@ -268,6 +268,8 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Architecture Memory` | 02 §3.4 |
 | `Audit timeline hash chain` | 24 §10 |
 | `Audit YAML export (posting-format)` | 24 §10.1; 28 §D |
+| `Autoresearch loop` (Karpathy hill-climbing) | 19 §11; 28 §A |
+| `Autoresearch cancel HUD endpoint` | 28 §A (Phase 1.5b §A-3) |
 | `BgeBaseEnV15` embeddings | 25 §3.5 |
 | `Capabilities` del Registry | 04 §3 |
 | `Capability Resolver` | 02 §3.3 |

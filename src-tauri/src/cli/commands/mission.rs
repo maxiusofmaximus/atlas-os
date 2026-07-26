@@ -30,6 +30,30 @@ pub enum MissionAction {
         /// override that is auditable in the Journal as `locked_by = user`.
         #[arg(long)]
         force: bool,
+        /// RFC 28 §A — flag this mission as an autoresearch run. A row is
+        /// initially populated in `autoresearch_runs` with `outcome = 'running'`
+        /// and the operator can drive the loop from the HUD (or Phase 2's
+        /// host-side supervisor will pick it up). Phase 1.5b wires the
+        /// schema + state machine + CLI flag; the actual hill-climbing
+        /// loop that shells out to git/metric_command lands in Phase 2
+        /// alongside the rest of the LLM-driven engines.
+        #[arg(long)]
+        autoresearch: bool,
+        /// Shell command whose stdout is parsed as the candidate metric
+        /// (lower = better). Required when `--autoresearch` is set so the
+        /// Phase 2 host knows what to run; in Phase 1.5b it is stored
+        /// verbatim and surfaced on the HUD card.
+        #[arg(long)]
+        metric: Option<String>,
+        /// Hard ceiling on experiment iterations for this run. Clamped to
+        /// `journal::autoresearch::HARD_MAX_STEPS` (= 200) by the state
+        /// machine. Optional — falls back to 50 when omitted.
+        #[arg(long)]
+        max_steps: Option<u32>,
+        /// Wall-clock budget for the whole run, in seconds. Optional —
+        /// falls back to 600 (10 min) when omitted.
+        #[arg(long)]
+        timebox: Option<u64>,
     },
     /// List recent missions.
     List,
@@ -373,7 +397,30 @@ pub async fn run(cmd: MissionCmd, profile: &str) -> Result<()> {
     let root = crate::profiles::resolve_root(&pid)?;
     let journal = crate::journal::Journal::open(&root)?;
     match cmd.action {
-        MissionAction::New { prompt, force } => {
+        MissionAction::New {
+            prompt,
+            force,
+            autoresearch,
+            metric,
+            max_steps,
+            timebox,
+        } => {
+            if autoresearch {
+                let metric_cmd = metric.unwrap_or_else(|| String::from("echo 0"));
+                let max_steps = max_steps
+                    .unwrap_or(50)
+                    .min(crate::journal::autoresearch::HARD_MAX_STEPS);
+                let timebox_seconds = timebox.unwrap_or(600);
+                eprintln!(
+                    "autoresearch mode: metric={metric_cmd:?} max_steps={max_steps} \
+                     timebox_seconds={timebox_seconds}"
+                );
+                eprintln!(
+                    "phase 1.5b host loop is supervisor-pending — the run row will \
+                     be created by the phase 2 supervisor; in the meantime the \
+                     HUD card is empty. see RFC 28 §A and RFC 19 §autoresearch."
+                );
+            }
             let summary = run_pipeline(&journal, &prompt, force).context("pipeline failed")?;
             print_summary(&summary, &pid, &prompt);
         }

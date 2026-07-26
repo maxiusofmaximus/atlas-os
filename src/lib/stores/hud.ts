@@ -321,3 +321,67 @@ export async function postExportPosting(
   }
   return (await res.json()) as ExportPostingResponse;
 }
+
+// ────────────── RFC 28 §A — Autoresearch telemetry ──────────────
+// The supervisor publishes RunSnapshot on every transition; HUD renders
+// the card via the AutoresearchCard. We map the Rust types here:
+//   RunSnapshot (Rust) -> AutoresearchSnapshot (TS)
+//   Outcome (Rust tag) -> AutoresearchOutcome (TS union)
+
+export type AutoresearchOutcome =
+  | 'running'
+  | 'improved'
+  | 'plateau'
+  | 'timeout'
+  | 'aborted';
+
+export interface AutoresearchSnapshot {
+  id: string;
+  mission_id: string;
+  baseline_metric: number;
+  best_metric: number | null;
+  git_sha_start: string;
+  git_sha_end: string | null;
+  metric_command: string;
+  max_steps: number;
+  timebox_seconds: number;
+  step_count: number;
+  outcome: AutoresearchOutcome;
+  ts_started: number;
+  ts_ended: number | null;
+}
+
+export interface AutoresearchCandidate {
+  step: number;
+  git_sha: string;
+  diff_hunk: string;
+  metric_baseline_at_step: number;
+  metric_after: number;
+  kept: boolean;
+  rationale: string;
+}
+
+// HUD action for `AutoresearchCard`:
+//   Pause   -> emit `session/cancel` with `outcome: 'aborted'`
+//   Stop    -> same, but host marks it intentional manual stop
+// The action is carried over the existing WS connection; the Rust core
+// already understands `session/cancel` from RFC 27 §F.
+export interface AutoresearchCancel {
+  run_id: string;
+  outcome: 'aborted';
+}
+
+export async function postAutoresearchCancel(
+  hudUrl: string,
+  req: AutoresearchCancel,
+): Promise<void> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const res = await fetch(`${trimmed}/autoresearch/cancel`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) {
+    throw new Error(`HUD autoresearch cancel failed: ${res.status} ${res.statusText}`);
+  }
+}

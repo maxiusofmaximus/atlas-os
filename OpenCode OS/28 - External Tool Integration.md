@@ -342,12 +342,14 @@ Mínimo: botón **Export as posting** en card Audit (HUD §3). Componente `src/l
   6. RFC 22 entry
 
 - **1.5b — §A autoresearch**:
-  1. M13 migration
-  2. `autoresearch.rs` + supervisor branch
-  3. CLI flag `--autoresearch --metric --max-steps --timebox`
-  4. HUD card + WS channel
-  5. RFC 19 § Autoresearch mode patch
-  6. Real-world hill-climbing run on a lint metric as acceptance test
+  1. ✅ M13 migration (`autoresearch_runs` + `autoresearch_candidates` with FKs, indexes, CHECK constraints)
+  2. ✅ `journal/autoresearch.rs` — pure state machine `tick(state, event) -> AutoresearchOutput` (12 tests). Host supervisor branch (git subprocess + metric_command exec) deferred to Phase 2.
+  3. ✅ CLI flag `--autoresearch --metric --max-steps --timebox` on `opencode mission new` (stub — emits info, persists `mission` row; Phase 2 supervisor will populate `autoresearch_runs`).
+  4. ✅ HUD card `AutoresearchCard.svelte` + WS channel via `BusEventKind::AutoresearchCancelled` + `POST /autoresearch/cancel` endpoint (8 tests).
+  5. ✅ RFC 19 §11 "Modo Autoresearch" patch
+  6. ⏳ Real-world hill-climbing run on a lint metric as acceptance test — deferred to Phase 2 (requires host-side loop shell-out);
+     meanwhile `skills/autoresearch/program.md` (Fase 0) + 12 FSM tests + 7 HUD endpoint tests pin the contract.
+  7. ⏳ `AutoresearchCard.test.ts` (vitest) — pending dep-free @testing-library/svelte install (frontend tests are #21 in `hud.test.ts` covering the `postAutoresearchCancel` contract).
 
 - **1.5c — §C mission graph**:
   1. Crates: `petgraph`, `tree-sitter`, `tree-sitter-rust`, `tree-sitter-svelte` (Context7 verify versiones compatibles con Rust 1.84)

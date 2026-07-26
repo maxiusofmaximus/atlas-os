@@ -19,6 +19,7 @@
     type DiffAnnotation,
     type ExportPostingResponse,
   } from '$stores/hud';
+  import AutoresearchCard from '$lib/components/AutoresearchCard.svelte';
   import type { PageData } from './$types';
 
   const { data } = $props<{ data: PageData }>();
@@ -351,6 +352,19 @@
     {/if}
   </section>
 
+  <section class="autoresearch">
+    <h2>Autoresearch loop</h2>
+    <p class="hint">
+      RFC 28 §A. Greedy hill-climbing on git commits; supervisor-owned keep
+      verdict. Card waits for telemetry from <code>opencode mission new --autoresearch</code>.
+    </p>
+    <AutoresearchCard
+      snapshot={null}
+      candidates={[]}
+      hudUrl={data.hudUrl}
+    />
+  </section>
+
   <section class="journal">
     <h2>Journal tail (live)</h2>
     {#if $hud.events.length === 0}
@@ -651,6 +665,18 @@
   .audit-export .snap-files {
     list-style: square;
     padding-left: 1.25rem;
+  }
+  .autoresearch {
+    margin-top: 1rem;
+  }
+  .autoresearch h2 {
+    font-size: 1rem;
+    margin: 0 0 0.25rem 0;
+  }
+  .autoresearch .hint {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.85rem;
+    color: #8b949e;
   }
   .tails-grid {
     display: grid;

@@ -122,6 +122,17 @@ pub enum BusEventKind {
         step_id: String,
         phase: crate::planning::types::StepPhase,
     },
+    /// RFC 28 §A — autoresearch run cancelled/paused from the HUD.
+    /// Forwarded over the bus so the Execution Supervisor host (Phase
+    /// 2) can break the experiment loop, persist the terminal outcome
+    /// in `autoresearch_runs.outcome`, and emit a downstream
+    /// `JournalCheckpoint`. `outcome` mirrors the supervisor's
+    /// `Outcome` enum (`aborted` for now — `paused` may arrive later
+    /// for the `/autoresearch/pause` route).
+    AutoresearchCancelled {
+        run_id: String,
+        outcome: String,
+    },
 }
 
 /// RFC 27 §B — who triggered the model swap.
@@ -250,6 +261,7 @@ impl BusEventKind {
             BusEventKind::MissionSteered { .. } => "mission_steered",
             BusEventKind::ModelSwapped { .. } => "model_swapped",
             BusEventKind::StepPhaseChanged { .. } => "step_phase_changed",
+            BusEventKind::AutoresearchCancelled { .. } => "autoresearch_cancelled",
         }
     }
 }

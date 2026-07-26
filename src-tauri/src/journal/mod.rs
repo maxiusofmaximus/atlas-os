@@ -2,6 +2,7 @@
 // WAL mode, single file per profile: `~/.opencode/profiles/<id>/journal.db`.
 // Schema is minimal in Phase 0 — Roadmap §Fase 0; expanded in later phases.
 
+pub mod autoresearch;
 pub mod export;
 pub mod schema;
 pub mod store;

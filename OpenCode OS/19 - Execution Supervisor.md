@@ -189,3 +189,38 @@ El Journal expone logs en un panel web:
 - aprobaciones pendientes.
 
 Es la columna vertebral de la transparencia total mencionada en `01 - Core Principles.md`.
+
+## 11. Modo Autoresearch (RFC 28 §A)
+
+Karpathy autoresearch loop — hill-climbing greedy sobre commits de git, con keep verdict del supervisor (no del modelo). Añadido por RFC 28 §A; el host loop completo aterriza en Phase 2 (motores LLM-driven), pero el state machine, la persistencia en SQLite y la telemetría HUD ya son canónicas.
+
+### 11.1 Modo de mission
+
+`opencode mission new --autoresearch --metric "<cmd>" [--max-steps N] [--timebox Ss] "<prompt>"`:
+
+- Inicializa una row en `autoresearch_runs` con `outcome = 'running'`, `metric_command`, `max_steps` (clampado a `HARD_MAX_STEPS = 200`), `timebox_seconds` y `git_sha_start`.
+- El host supervisor itera: genera diff candidato, mide con `metric_command`, decide keep (estricto `<` vs `best_metric`), persiste en `autoresearch_candidates`, emite `autoresearch:<run_id>` telemetry a la HUD.
+- Termina cuando: `step_count ≥ max_steps` (`Outcome::Timeout`), 3 resets consecutivos (`Outcome::Plateau`), `timebox_seconds` agotado (también `Timeout`), o `Outcome::Aborted` desde la HUD.
+
+### 11.2 State machine pura
+
+`journal::autoresearch::tick(state, event) -> AutoresearchOutput` — FSM pura, sin IO, alineada con §6.1:
+
+```
+running ──Start──> recording ──CandidateRecorded──> (kept | reset)
+                                                          │
+                                                          ├── plateau (3 resets)
+                                                          ├── timeout (step budget)
+                                                          └── aborted (HUD cancel)
+```
+
+`Outcome` (terminal): `Improved | Plateau | Timeout | Aborted`. `kept` es estricto `<` (empate → reset, ver RFC 28 §A Riesgos). `HARD_MAX_STEPS = 200` es techo anti-doom-loop.
+
+### 11.3 Cancel desde la HUD
+
+`POST /autoresearch/cancel { run_id, outcome }` → publica `BusEventKind::AutoresearchCancelled` en el Kernel Bus. El supervisor host escucha y transiciona a `Outcome::Aborted`, persiste, emite `JournalCheckpoint`. En Phase 1.5b el endpoint sólo es transporte: persiste el evento pero no corre el loop (todavía no hay host).
+
+### 11.4 Atribución
+
+El algoritmo deriva de `karpathy/autoresearch program.md` (MIT, Copyright (c) 2025-2026). Texto verbatim en `skills/autoresearch/program.md`; invariantes en `skills/autoresearch/NEVER_STOP.md`. Ver apéndice de atribución obligatoria en RFC 28.
+

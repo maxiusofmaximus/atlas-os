@@ -77,6 +77,10 @@ pub async fn serve(state: Arc<AppState>, shutdown: CancellationToken) {
             "/audit/export-posting",
             post(super::export::post_export_posting),
         )
+        .route(
+            "/autoresearch/cancel",
+            post(super::autoresearch::post_autoresearch_cancel),
+        )
         .route("/payload/:kind/:id", get(super::tail::payload))
         .route(
             "/payload/skill/:skill_id/:version",

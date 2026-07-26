@@ -496,5 +496,64 @@ pub fn migrate(conn: &Connection) -> Result<()> {
             rusqlite::params![12, chrono::Utc::now().to_rfc3339()],
         )?;
     }
+    if current < 13 {
+        // M13 — Autoresearch loop (RFC 28 �A, derived from
+        //   karpathy/autoresearch program.md, MIT).
+        //
+        //   autoresearch_runs     : one row per asked `opencode mission
+        //     --autoresearch`. Carries the metric_command (deterministic
+        //     shell pipeline whose stdout is parsed to a REAL), the
+        //     baseline, the best metric observed, git SHA bookends, the
+        //     step budget, the wall-clock budget, and the final outcome.
+        //   autoresearch_candidates: one row per experiment iteration.
+        //     Each candidate has its own git_sha (committed diff_hunk),
+        //     the metric recorded BEFORE the candidate ran (so we can
+        //     regress against the prior step too), the metric AFTER,
+        //     the keep/discarded verdict, and a free-form rationale blob
+        //     for the LLM/audit trail.
+        //
+        // Per RFC 28 �A Riesgos, autoresearch_runs has a hard ceiling
+        // of 200 candidates enforced at the supervisor level (the runner
+        // aborts with outcome=timeout when step_count hits max_steps or
+        // 200, whichever is smaller); the SQL schema does not encode the
+        // ceiling to allow future tuning.
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS autoresearch_runs (
+                id              TEXT PRIMARY KEY,
+                mission_id      TEXT NOT NULL REFERENCES missions(id) ON DELETE CASCADE,
+                baseline_metric REAL NOT NULL,
+                best_metric     REAL,
+                git_sha_start   TEXT NOT NULL,
+                git_sha_end     TEXT,
+                metric_command  TEXT NOT NULL,
+                max_steps       INTEGER NOT NULL,
+                timebox_seconds INTEGER NOT NULL,
+                step_count      INTEGER NOT NULL DEFAULT 0,
+                outcome         TEXT NOT NULL CHECK (outcome IN ('running','improved','plateau','timeout','aborted')),
+                ts_started      INTEGER NOT NULL,
+                ts_ended        INTEGER
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_ar_runs_mission ON autoresearch_runs(mission_id);
+
+            CREATE TABLE IF NOT EXISTS autoresearch_candidates (
+                id                     TEXT PRIMARY KEY,
+                run_id                 TEXT NOT NULL REFERENCES autoresearch_runs(id) ON DELETE CASCADE,
+                step                   INTEGER NOT NULL,
+                git_sha                TEXT NOT NULL,
+                diff_hunk              TEXT NOT NULL,
+                metric_baseline_at_step REAL NOT NULL,
+                metric_after           REAL NOT NULL,
+                kept                   INTEGER NOT NULL CHECK (kept IN (0,1)),
+                rationale              TEXT
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_ar_candidates_run ON autoresearch_candidates(run_id, step);",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![13, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
     Ok(())
 }

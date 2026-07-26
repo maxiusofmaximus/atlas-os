@@ -199,3 +199,81 @@ describe('postAnnotation', () => {
     await expect(postAnnotation('http://h', 'd1', { body: 'x', author: 'y' })).rejects.toThrow();
   });
 });
+
+// ────────────── RFC 28 §A — Autoresearch telemetry helpers ──────────────
+import {
+  postAutoresearchCancel,
+  type AutoresearchSnapshot,
+} from './hud';
+
+describe('postAutoresearchCancel', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    globalThis.fetch = vi.fn() as unknown as typeof fetch;
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('posts to /autoresearch/cancel and resolves on 200', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200 } as Response);
+    await expect(
+      postAutoresearchCancel('http://h/', {
+        run_id: '00000000-0000-0000-0000-000000000abc',
+        outcome: 'aborted',
+      }),
+    ).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const args = fetchMock.mock.calls[0]!;
+    const [url, init] = args;
+    expect(String(url)).toBe('http://h/autoresearch/cancel');
+    expect(init?.method).toBe('POST');
+  });
+
+  it('accepts 204 No Content (canonical stub response)', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 204 } as Response);
+    await expect(
+      postAutoresearchCancel('http://h', { run_id: 'x', outcome: 'aborted' }),
+    ).resolves.toBeUndefined();
+  });
+
+  it('rejects on 4xx validation error (400/422)', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 400, statusText: 'BR' } as Response);
+    await expect(
+      postAutoresearchCancel('http://h', { run_id: 'x', outcome: 'aborted' }),
+    ).rejects.toThrow(/400/);
+  });
+
+  it('rejects on 5xx (real error, not "not wired")', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 500, statusText: 'ISE' } as Response);
+    await expect(
+      postAutoresearchCancel('http://h', { run_id: 'x', outcome: 'aborted' }),
+    ).rejects.toThrow(/500/);
+  });
+});
+
+describe('AutoresearchSnapshot type', () => {
+  it('accepts canonical shape produced by the Rust supervisor', () => {
+    const snap: AutoresearchSnapshot = {
+      id: '00000000-0000-0000-0000-000000000abc',
+      mission_id: '00000000-0000-0000-0000-000000000001',
+      baseline_metric: 1.0,
+      best_metric: 0.95,
+      git_sha_start: 'abc1234',
+      git_sha_end: 'def5678',
+      metric_command: "rg -c 'error' src",
+      max_steps: 50,
+      timebox_seconds: 600,
+      step_count: 12,
+      outcome: 'running',
+      ts_started: 1722000000,
+      ts_ended: null,
+    };
+    expect(snap.outcome).toBe('running');
+    expect(snap.best_metric).toBeLessThan(snap.baseline_metric);
+  });
+});
