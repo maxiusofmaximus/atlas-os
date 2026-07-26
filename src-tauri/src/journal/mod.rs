@@ -4,6 +4,7 @@
 
 pub mod schema;
 pub mod store;
+pub mod yaml_format;
 
 #[cfg(test)]
 mod tests;

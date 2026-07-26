@@ -1,0 +1,15 @@
+# skill.toml — `autoresearch` (RFC 28 §A / RFC 23 §7.2)
+
+id = "autoresearch"
+version = "0.1.0"
+description = "Karpathy hill-climbing greedy loop on git commits. The agent proposes edits; the supervisor scores a deterministic metric and keeps/discards. NEVER STOP rewind-sparingly guards enforced in Rust, not in prompt."
+capabilities = ["autoresearch", "experiment_loop", "git_checkpoint"]
+requires_sandbox = false
+verified = false
+
+[source]
+repo = "karpathy/autoresearch"
+url = "https://github.com/karpathy/autoresearch"
+license = "MIT"
+copyright_holder = "Andrej Karpathy"
+attribution_text = "Includes verbatim text from karpathy/autoresearch program.md (MIT). Copyright Andrej Karpathy."

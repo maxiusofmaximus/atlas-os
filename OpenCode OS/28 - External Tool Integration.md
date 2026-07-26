@@ -7,7 +7,28 @@
 
 **Scope:** Adds four loosely-coupled integration surfaces (§A–§D) on top of RFCs 02–27, using migrations **M13/M14/M15** (free per preamble). No new external runtime dependency is bundled — three new crates, all single-binary-safe. Karpathy tweet and graphify URL honesty preserved (§C claims no first-hand tweet fetch).
 
+### Source-derivation map (inventario portabilidad — `OpenCode OS/research/28 - portable inventory.md`)
+
+Every algorithm, file format, or pattern implemented in this RFC is derived verbatim or via translation from one of four MIT/Apache-2.0 source repos. Public attribution appears in each module's module-level prose. **No code is taken from non-OSS sources; no runtime dep on any of them stays in the binary.**
+
+| Section | Source repo | Portable item IDs reused (full table in research file) |
+|---|---|---|
+| §A Autoresearch | `karpathy/autoresearch` (MIT) | AR-001 (program.md verbatim skill), AR-002/005/008/010 (constants/BPB/schedules/log format), AR-011 (results.tsv schema), AR-012 (NEVER_STOP guard) |
+| §B IT ACP server | `microsoft/intelligent-terminal` (MIT) | IT-001 installer pattern, IT-002 exit-0 trap discipline, IT-003 hooks.json mapping, IT-004 OSC 9001 spec, IT-005 wtcli subcommand layout, IT-013 main.rs clap pattern, IT-014 event envelope struct |
+| §C Mission graph | `safishamsi/graphify` (Apache-2.0) | GR-001 Leiden (deferred to v2), GR-003 report generator, GR-004 atomic write, GR-006 tree-sitter extractors, GR-007 affected.py SHA256 cache, GR-009 skill templates |
+| §D YAML export | `darrenburns/posting` (Apache-2.0) | PT-001 RequestModel, PT-002 Collection, PT-003 str_presenter, PT-006 test_curl_export canónico, PT-010 variables.py, PT-012 urls.py |
+
+Phase 0 (XS items, copy_uso + port trivial) batches the cheapest of these first — see "Orden recomendado" § below.
+
 ## §A — Karpathy autoresearch loop
+
+### Source items
+
+Derived from [`karpathy/autoresearch`](https://github.com/karpathy/autoresearch) (MIT, Copyright Andrej Karpathy):
+- **AR-001** `program.md` — verbatim skill template (520 LOC markdown). Copiado 1:1 a `skills/autoresearch/program.md`. Attribution header required.
+- **AR-002, AR-005, AR-008, AR-010** — constants block (`MAX_SEQ_LEN`, `TIME_BUDGET=300`, etc.), `evaluate_bpb` fixed metric, hyperparams schedules (warmup 0%, warmdown linear 50%), structured log format `---` delimiter + `grep "^val_bpb:"` parser.
+- **AR-011** — `results.tsv` 5-col schema (commit, val_bpb, memory_gb, status, description).
+- **AR-012** — `program.md` "NEVER STOP" guard + "rewind sparingly" hard rules + pacing prose.
 
 ### Objetivos
 
@@ -78,6 +99,17 @@ Nuevo componente `src/lib/components/AutoresearchCard.svelte` subscripto a `hudS
 
 ## §B — Microsoft Intelligent Terminal ACP server
 
+### Source items
+
+Derived from [`microsoft/intelligent-terminal`](https://github.com/microsoft/intelligent-terminal) (MIT, Copyright Microsoft Corporation). **MS trademark policy**: do not brand features "Intelligent Terminal" in user-facing surfaces — call them "agent pane integration" or "ACP".
+- **IT-001** `tools/wta/src/agent_hooks_installer.rs` (~7000 LOC) — idempotent installer pattern (env override → exe-dir walk → embedded `include_str!` blobs). Port shallow: copy ergonomic patterns only.
+- **IT-002** `wt-agent-hooks/<cli>/wt-agent-hooks/hooks/send-event.ps1` (~250 LOC, byte-identical across subtrees) — **exit-0 trap discipline**: `trap { exit 0 }` + outer try/catch. Stdio is prompt-injection vector. 5MB diagnostic rotation threshold. CLI-source detection via args. Copy_uso verbatim of PowerShell script + our own emit-event cargo bin.
+- **IT-003** `wt-agent-hooks/<cli>/hooks.json` (~70 LOC) — 10-hook domain → WTA topic mapping table. Copy_uso of schema; generate per-CLI variants programmatically.
+- **IT-004** `doc/specs/llm-agent-event-integration.md` (~400 LOC) — **OSC 9001 in-band zero-dep event envelope** spec + 7 standard agent event types. Cited verbatim as spec basis.
+- **IT-005** `doc/wtcli-commands.md` (~150 LOC) — 17 wtcli subcommands. Used as clap-derive enum inspiration for `opencode` CLI.
+- **IT-013** `tools/wta/src/main.rs` (~4500 LOC) — `clap` subcommand dispatch reference, idiomatic `anyhow::Result` patterns.
+- **IT-014** `tools/wta/src/event.rs` (~200 LOC) — `Event { r#type, method, params: serde_json::Map }` struct. **Direct port hint** — 1:1 schema with §D OSC envelope.
+
 ### Objetivos
 
 Hacer que `opencode` sea un **ACP agent de primera clase** detectable por Intelligent Terminal 0.1+ (autodetecta OpenCode en PATH, README §Get Started). El usuario arrastra `/opencode fix`, `/opencode restart`, `/opencode exec step` en el pane. HUD Mission Control sigue siendo el surface visual canonical; el pane es *entrada ligera diaria*.
@@ -135,6 +167,16 @@ Persistido por worker Rust que consume `wtcli listen --event "agent.*" --json` (
 ---
 
 ## §C — graphify pattern adoption
+
+### Source items
+
+Derived from [`safishamsi/graphify`](https://github.com/Graphify-Labs/graphify) (Apache-2.0, Copyright Graphify Labs):
+- **GR-001** `cluster.py` (260 LOC) — Leiden via graspologic with Louvain fallback + oversized split >25% + cohesion re-split <0.05 + hub exclusion percentile. **Deferred to RFC v2** — no mature Rust Leiden impl (would require FFI to `leidenalg` C or building impl O(N log N)); §C uses `petgraph` union-find for connected components until Leiden port unblocks.
+- **GR-003** `report.py` (180 LOC) — `GRAPH_REPORT.md` generator with tagged `EXTRACTED`/`INFERRED`/`AMBIGUOUS` provenance sections. Ported as `src-tauri/src/graph/report.rs`.
+- **GR-004** `paths.py` (200 LOC) — atomic write (temp+rename, Windows fallback copy), test-path classifier (regex), tiebreaker disambiguate (bare-call by test/non-test + path proximity). Ported as `src-tauri/src/journal/atomic.rs`.
+- **GR-006** `extract.py` (244K, ~6000 LOC) — tree-sitter bindings (Python/TS/JS/Go/Rust/Java/C/C++/Ruby/C#) AST→call-graph, cross-file resolution, `find_import_cycles`. Ported to Rust using `tree-sitter` + `tree-sitter-rust` + `tree-sitter-svelte` crates. **Scoped down**: AST + cycle detector only; callflow_html deferred to v2.
+- **GR-007** `affected.py` (250 LOC) — SHA256 file cache + re-extract only changed + merge into existing graph. Ported as `src-tauri/src/graph/cache.rs`.
+- **GR-009** `skill-agents.md` + `skill-claw.md` (20K Markdown each) — skill templates for 6 CLIs. **Copy_uso** as base templates for `skills/graphify/<cli>.md` (RFC 23 §7).
 
 ### Objetivos
 
@@ -211,6 +253,16 @@ CREATE INDEX IF NOT EXISTS idx_lg_sig ON learning_graphs(intent_signature);
 
 ## §D — AuditLog YAML-on-disk export (posting format)
 
+### Source items
+
+Derived from [`darrenburns/posting`](https://github.com/darrenburns/posting) (Apache-2.0, Copyright Darren Burns):
+- **PT-001** `src/posting/collection.py:1-260` `RequestModel` (+ `Auth`, `Header`, `QueryParam`, `Cookie`, `Options`, `RequestBody`, `Scripts`) — schema completo `.posting.yaml`. Ported via `serde` + `serde_yaml` with `Option<T>` fields + `#[serde(default)]`. `apply_template` (string.Template vars), `to_httpx`, `to_curl`, `save_to_disk`.
+- **PT-002** `collection.py::Collection.from_openapi_spec/from_directory/save_to_disk` (80 LOC) — OpenAPI 3.0 import → Collection tree. **Not needed for §D export** — defer to future if we ever import external collections (security boundary AGENTS.md §6).
+- **PT-003** `src/posting/yaml.py:1-26` `str_presenter` — YAML scalar representer: if string has `\n`, emit as literal block `|` with `rstrip()` per line. **Oro puro** — explains diff-friendliness. Ported as `src-tauri/src/journal/yaml_format.rs::literal_block`. `serde_yaml` does not support custom representers directly → wrapper impl manual.
+- **PT-006** `tests/test_curl_export.py` (7.7K) + `tests/test_curl_import.py` (8.5K) — canonical tests round-trip curl→RequestModel→curl, edge cases (URL with query, form_data with [[]], auth basic/digest, empty body). Ported directly as `#[cfg(test)] mod tests` in `request_model.rs` — same edge cases.
+- **PT-010** `src/posting/variables.py` (150 LOC) — `${name}` substitution with clear `SubstitutionError` when missing. env override semantics. Ported as `src-tauri/src/profiles/variables.rs`.
+- **PT-012** `src/posting/urls.py` (80 LOC) — `ensure_protocol` (prepend `http://` if missing), `substitute_path_params` (`:param` replaced in URL path). Ported into `request_model.rs::ensure_protocol`.
+
 ### Objetivos
 
 Cerrar **Brecha H** (RFC 27 §3.H — Audit log retention/ttl). Export entries a `.posting.yaml` antes de purgar SQLite. **NO hay dependencia runtime a posting**; solo formato. El usuario abre el yaml con `posting --collection ./snapshots/` si tiene posting, o lo versiona en git como YAML crudo.
@@ -253,19 +305,33 @@ Mínimo: botón **Export as posting** en card Audit (HUD §3). Componente `src/l
 
 ## Orden recomendado — Phase 1.5
 
-**Recomendado (justificado):** Start con **§D primero**, §A segundo, §C tercero, §B cuarto.
+**Recomendado (justificado):** Start con **Fase 0 (XS copy_uso batch)**, luego **§D primero**, §A segundo, §C tercero, §B cuarto.
 
 ### Razón
 
-1. **§D AuditLog export** (Phase 1.5a, 1–2 sprints): crate packaging más pequeño (`serde_yaml`), número más bajo de archivos tocados, cierra Brecha H sin tocar engines. Deployable primero, reduce riesgo. Tests fáciles. Confidence builder.
+0. **Fase 0 — batch de ítems XS (1–2 días, copy_uso + ports triviales)**: Antes de tocar ninguna sección en serio, este batch sienta las bases legales+contractuales para todos los portados posteriores. Total ~3h trabajo efectivo. **NO toca Cargo.toml**: sólo añade archivos Markdown / constantes Rust puras / YAML / scripts PowerShell en subdirectorios sin dependencias cruzadas. Items:
+   - **AR-001** `skills/autoresearch/program.md` (copiar verbatim Karpathy's program.md con header de atribución)
+   - **AR-012** `skills/autoresearch/NEVER_STOP.md` (extraer el guard `NEVER STOP` + "rewind sparingly" prose del program.md — para citar por separado en skills de autonomía)
+   - **IT-003** `src-tauri/hooks/<cli>/hooks.json` — copy_uso de la tabla mapping 10 hooks → WTA topics (con variants por CLI generadas programáticamente)
+   - **IT-004** `src-tauri/specs/osc-9001.md` — copy_uso verbatim del spec `doc/specs/llm-agent-event-integration.md` (referenciado por §B pero NO requiere código aún)
+   - **PT-003** `src-tauri/src/journal/yaml_format.rs::literal_block` (26 LOC port — el str_presenter de posting a Rust). **NO toca aún el emisor YAML**, sólo escribe la función standalone + tests unitarios.
 
-2. **§A Autoresearch loop** (Phase 1.5b, 2–3 sprints): extiende RFC 19 supervisor sin tocar arquitectura. Schema M13 aislada, un branch de modo. Requiere `git` subprocess (ya tenemos via CLI bin, no nuevo crate). HUD card incremental. No depende de §B/§C. **Si el ACP server retrasa, autoresearch es demo-ready standalone.**
+1. **§D AuditLog export** (Phase 1.5a, 1–2 sprints): crate packaging más pequeño (`serde_yaml`), número más bajo de archivos tocados, cierra Brecha H sin tocar engines. Deployable primero, reduce riesgo. Tests fáciles. Confidence builder. Reusa Fase 0's `literal_block`.
+
+2. **§A Autoresearch loop** (Phase 1.5b, 2–3 sprints): extiende RFC 19 supervisor sin tocar arquitectura. Schema M13 aislada, un branch de modo. Requiere `git` subprocess (ya tenemos via CLI bin, no nuevo crate). HUD card incremental. No depende de §B/§C. **Si el ACP server retrasa, autoresearch es demo-ready standalone.** Reusa Fase 0's `program.md`.
 
 3. **§C Mission graph M15** (Phase 1.5c, 3–4 sprints): el más disruptivo. Toca Planner, Skills, Supervisor, Learning, HUD. Crates `petgraph`+`tree-sitter` son bump binario. Hacerlo **third** aumenta conocimiento del codebase por lo aprendido en §A/§D. **No deberíamos hacer §C primero**: el scope del refactor Planner es grande.
 
-4. **§B IT ACP server** (Phase 1.5d, 4–5 sprints): **último** porque depende de (a) el resto del sistema estable, (b) IT 0.1.x y ACP v2.0.0 son moving targets (`unstable_*` features), (c) prueba-target limitada a Windows, (d) si §C introduce DAG planner, la superficie `session/set_mode` mapping se beneficiará de tener states graph ya consolidado. Adicionalmente: el `exec step` de §A es el mismo `opencode exec step` que §B advertisea — armonizar antes de implementar §B reduce rework.
+4. **§B IT ACP server** (Phase 1.5d, 4–5 sprints): **último** porque depende de (a) el resto del sistema estable, (b) IT 0.1.x y ACP v2.0.0 son moving targets (`unstable_*` features), (c) prueba-target limitada a Windows, (d) si §C introduce DAG planner, la superficie `session/set_mode` mapping se beneficiará de tener states graph ya consolidado. Adicionalmente: el `exec step` de §A es el mismo `opencode exec step` que §B advertisea — armonizar antes de implementar §B reduce rework. Reusa Fase 0's IT-003/IT-004.
 
 ### Sub-enum Phase 1.5
+
+- **Fase 0 — batch XS (1-2 días)**:
+  1. `skills/autoresearch/program.md` — copy_uso verbatim de `karpathy/autoresearch/program.md` con header `<!-- Source: karpathy/autoresearch MIT -->`. Atribución + sin GitHub Actions check.
+  2. `skills/autoresearch/NEVER_STOP.md` — extracto de `program.md` con el guard `NEVER STOP` + "rewind sparingly, if ever" prose.
+  3. `src-tauri/hooks/<cli>/hooks.json` para `<cli> ∈ {claude, copilot, codex, gemini, opencode}` — copy_uso de schema de `microsoft/intelligent-terminal/wt-agent-hooks/<cli>/hooks.json`. Variantes programáticas vía generator script `tools/gen-hooks.ps1`.
+  4. `src-tauri/specs/osc-9001.md` — copy_uso verbatim de la sección OSC 9001 del spec `intelligent-terminal/doc/specs/llm-agent-event-integration.md`. Header de atribución.
+  5. `src-tauri/src/journal/yaml_format.rs::literal_block(s: &str) -> String` — port de `str_presenter` de `darrenburns/posting/src/posting/yaml.py`. 26 LOC + `#[cfg(test)] mod tests` con casos multilinea + senza newlines + trailing whitespace. Sin tocar `serde_yaml` aún.
 
 - **1.5a — §D snapshot export**:
   1. `serde_yaml` in Cargo.toml (Context7 verify)
@@ -346,7 +412,21 @@ Mínimo: botón **Export as posting** en card Audit (HUD §3). Componente `src/l
 
 ## Apéndice — Research sources internos
 
-- `OpenCode OS/27 - Research - graphify.md` (graphify.com pattern, Karpathy tweet corroboration)
-- `OpenCode OS/27 - Research - Posting TUI Integration.md` (posting.sh dev-only, hurl alternative rechazada)
-- `C:\Users\Max\AppData\Local\Temp\opencode\it-research-report.md` (Microsoft IT, ACP spec, 7 ideas)
-- Hallazgos automáticos de `karpathy/autoresearch`: prepare.py readonly + train.py editable + program.md skill. Hill-climbing greedy: baseline → edit → git commit → run → grep métrica → keep/reset --hard. Skill opencode local `~/.agents/skills/_agents/misc/autoresearch/SKILL.md`. Karpathy tweet 9 Mar 2026: "the goal is not to emulate a single PhD student, it is to emulate a research community" — multi-agente via branches (deferido a RFC 29).
+- `OpenCode OS/research/27 - graphify pattern.md` (graphify.com pattern, Karpathy tweet corroboration)
+- `OpenCode OS/research/27 - posting format.md` (posting.sh dev-only, hurl alternative rechazada)
+- `OpenCode OS/research/27 - intelligent terminal.md` (Microsoft IT, ACP spec, 7 ideas)
+- `OpenCode OS/research/28 - portable inventory.md` — **inventario exhaustivo de 30 ítems portables** (GR-001..012, PT-001..012, IT-001..014, AR-001..013) con URLs source exactas, LOCs, costes (XS/S/M/L), atribuciones jurídicas, y recomendación de portado por cost-benefit en 4 fases (0/1/2/3).
+- Hallazgos automáticos de `karpathy/autoresearch`: prepare.py readonly + train.py editable + program.md skill. Hill-climbing greedy: baseline → edit → git commit → run → grep métrica → keep/reset --hard. Karpathy tweet 9 Mar 2026: "the goal is not to emulate a single PhD student, it is to emulate a research community" — multi-agente via branches (deferido a RFC 29).
+
+## Apéndice — Atribución obligatoria por módulo
+
+Cada módulo Rust portado debe incluir module-level prose con atribución explícita (cumple AGENTS.md §4 "module-level prose OK"):
+- `src-tauri/src/journal/yaml_format.rs` — `"Derived from src/posting/yaml.py:str_presenter in darrenburns/posting (Apache-2.0). Copyright Darren Burns."`
+- `src-tauri/src/journal/export/posting.rs` — `"Format compatible with darrenburns/posting .posting.yaml schema (Apache-2.0). No runtime dependency on posting."`
+- `src-tauri/src/graph/{cluster,report,paths,extract,affected}.rs` — `"Pattern ported from safishamsi/graphify (Apache-2.0). Copyright Graphify Labs."`
+- `src-tauri/src/acp/{mod,commands,delegate}.rs` — `"Pattern ported from microsoft/intelligent-terminal (MIT). Copyright Microsoft Corporation. Does not use 'Intelligent Terminal' name in user-facing surfaces per MS trademark policy."`
+- `src-tauri/src/supervisor/loop.rs` (Autoresearch branch) — `"Loop template modeled on karpathy/autoresearch program.md (MIT). Copyright Andrej Karpathy."`
+- `skills/autoresearch/program.md` — verbatim copy with header `<!-- Verbatim from karpathy/autoresearch MIT; Copyright Andrej Karpathy. Do not remove this attribution. -->`
+- `src-tauri/hooks/<cli>/hooks.json` — `"Mapping schema copied from microsoft/intelligent-terminal wt-agent-hooks/<cli>/hooks.json (MIT)."`
+
+Cada distribución que incluya estos ports debe preservar `LICENSE` y `NOTICE` (Apache-2.0) o `LICENSE-MIT` según el caso.
