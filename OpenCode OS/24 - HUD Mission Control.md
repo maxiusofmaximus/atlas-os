@@ -352,6 +352,33 @@ Estilo block explorer. Cada acción sensible (sensible_action `18 - Security.md`
 
 Cualquier `SENSIBLE_ACTION` de `18 - Security.md` emite un entry. Non-sensible actions solo van al activity streamer sin hashear.
 
+### 10.1 YAML on-disk export (posting-format compatible)
+
+**Origen:** RFC 28 §D (Phase 1.5a). **Implementado en Phase 1.5a.**
+
+La Audit timeline del §10 puede exportarse a disco como colección de archivos `.posting.yaml` compatibles con el formato del CLI open-source `darrenburns/posting` (Apache-2.0). **No hay dependencia runtime a posting** — solo se replica el schema on-disk para portabilidad humana e inspección con `posting --collection ./snapshots/` (opcional). Versión de schema persistida en cada snapshot bundle.
+
+**Endpoints/UI:**
+- HUD botón **Export as posting** en la card Audit (RFC 24 §3) — llama `POST /audit/export-posting` con `{ last?, output_dir? }`.
+- CLI: `opencode audit --export-posting [DIR]` (default DIR = `<profile>/snapshots/`). Opcional `--snapshot-maybe` para forzar snapshot before purge.
+- Tauri save dialog nativo para elegir `output_dir` (no plugin extra).
+
+**Packing** (implementado en `src-tauri/src/journal/export/retention.rs::snapshot_entries`):
+- Day-bucketed: `<snapshot_root>/<YYYY-MM-DD>/audit_<n>.posting.yaml`.
+- Atomic write: `.tmp` + `rename` (no `.tmp` residuo en success).
+- Max 100 entries por archivo (split en chunks `audit_000.posting.yaml`, `audit_001.posting.yaml`, …).
+- Document separators (`---`) entre entries en un mismo archivo (modo collection).
+
+**Mapping audit entry → posting request** (`src-tauri/src/journal/export/posting.rs::entry_to_posting_yaml`):
+- HTTP entries (`action == "http_request"`) → typed fields: `method`, `url`, `headers`, `query_params`, `body`, `auth` (basic/digest/bearer_token).
+- Non-HTTP entries → campos `x-opencode-*` (extension keys) preservando `actor`, `action`, `inputs`, `outputs`, `previous_hash`, `this_hash`, `signature`, `timestamp` (mapeados desde `AuditEntry`).
+- Header fijo: `x-opencode-exported: RFC 28 §D` (campo `x_opcode_exported` en el struct, serializado con `serde(rename = "x-opencode-exported")`) como provenance-line del snapshot dir, self-describing para git review.
+- **Campo `scripts:` deliberadamente ausente** — security boundary AGENTS.md §6. Boundaries enforced en struct + reject de top-level `scripts:` en tests.
+
+**Compatibilidad:** parses clean con `yq` / `posting --collection` / `serde_yaml::from_str`. Snapshot bundle incluye `README.md` con versión de schema y `posting_version`.
+
+Referencias: RFC 28 §D para derivación de algoritmos y apéndice de atribución; `OpenCode OS/research/27 - posting format.md` para investigación de port del helper `str_presenter` → `literal_block`.
+
 ---
 
 ## 11. Mission activity log (streamercono colors)

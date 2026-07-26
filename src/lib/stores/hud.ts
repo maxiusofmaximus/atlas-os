@@ -286,3 +286,38 @@ export const hud: Readable<HudState> & {
     update((s) => ({ ...s, connected: false }));
   },
 };
+
+// ═══════════════════ RFC 28 §D — POST /audit/export-posting ═══════════════════
+//
+// HUD frontend helper for the "Export as posting" button on the Audit card.
+// Calls the axum route with optional `last` and `output_dir` and returns the
+// resolved list of written files. The caller prompts for `output_dir` via a
+// Tauri save dialog if desired (handled in +page.svelte).
+
+export interface ExportPostingRequest {
+  last?: number;
+  output_dir?: string;
+}
+
+export interface ExportPostingResponse {
+  files_written: string[];
+  entries_packed: number;
+  entries_purged: number;
+  snapshot_root: string;
+}
+
+export async function postExportPosting(
+  hudUrl: string,
+  req: ExportPostingRequest,
+): Promise<ExportPostingResponse> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const res = await fetch(`${trimmed}/audit/export-posting`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) {
+    throw new Error(`HUD audit export failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as ExportPostingResponse;
+}

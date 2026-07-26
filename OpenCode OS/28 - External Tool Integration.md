@@ -265,7 +265,7 @@ Derived from [`darrenburns/posting`](https://github.com/darrenburns/posting) (Ap
 
 ### Objetivos
 
-Cerrar **Brecha H** (RFC 27 §3.H — Audit log retention/ttl). Export entries a `.posting.yaml` antes de purgar SQLite. **NO hay dependencia runtime a posting**; solo formato. El usuario abre el yaml con `posting --collection ./snapshots/` si tiene posting, o lo versiona en git como YAML crudo.
+Cerrar el gap implícito de audit log retention/snapshot portability (mencionado en research como "Brecha H" — ver apéndice; RFC 27 §3.H real es "Spec document legible", no audit retention). Export entries a `.posting.yaml` antes de purgar SQLite. **NO hay dependencia runtime a posting**; solo formato. El usuario abre el yaml con `posting --collection ./snapshots/` si tiene posting, o lo versiona en git como YAML crudo.
 
 ### Cambios Rust
 
@@ -288,8 +288,8 @@ Mínimo: botón **Export as posting** en card Audit (HUD §3). Componente `src/l
 ### Actualizaciones a RFCs existentes
 
 - **RFC 24 §10 AuditLog**: añadir sección "YAML on-disk export (posting-format compatible)".
-- **RFC 27 §3.H Brecha H**: closing note.
-- **RFC 25 §3.4**: confirmar `serde_yaml = "0.9"` ya presente; si no, añadir (sin costo binario real).
+- **RFC 27 §3.H Brecha H**: este RFC originalmente listaba "Audit log retention/TTL" como el gap que §D cerraría. Al inspeccionar RFC 27 §3.H se observa que la brecha realmente documentada allí es "Spec document legible" (Prompt Understanding), no audit retention. Por tanto §D **NO cierra §3.H**; subsana un gap implícito (falta de un formato portable on-disk para el audit log) que no estaba formalizado como brecha. Se deja §3.H sin cerrar; se abre una **Brecha I** provisional en RFC 27 §3.J para formalizar "Audit log retention + on-disk portable export" si hace falta, con §D como su cierre — o bien se acepta que el gap era implícito y §D simplemente añade la capacidad sin invocar cierre formal.
+- **RFC 25 §3.4**: añadido `serde_yaml = "0.9"` en `src-tauri/Cargo.toml` (sección "Misc") — no rompe single-binary distribution; ~300 KB adicional. Crate pasivo (maintainer no añade features), ver §Riesgos §5 abajo para contingencia con `serde_yml`.
 - **RFC 23 §7.2**: skills pueden shippear `requests/*.posting.yaml` bundles — el parser RFC 23 **requiere reject del campo `scripts`** explícitamente (security boundary AGENTS.md §6).
 
 ### Riesgos
@@ -316,7 +316,7 @@ Mínimo: botón **Export as posting** en card Audit (HUD §3). Componente `src/l
    - **IT-004** `src-tauri/specs/osc-9001.md` — copy_uso verbatim del spec `doc/specs/llm-agent-event-integration.md` (referenciado por §B pero NO requiere código aún)
    - **PT-003** `src-tauri/src/journal/yaml_format.rs::literal_block` (26 LOC port — el str_presenter de posting a Rust). **NO toca aún el emisor YAML**, sólo escribe la función standalone + tests unitarios.
 
-1. **§D AuditLog export** (Phase 1.5a, 1–2 sprints): crate packaging más pequeño (`serde_yaml`), número más bajo de archivos tocados, cierra Brecha H sin tocar engines. Deployable primero, reduce riesgo. Tests fáciles. Confidence builder. Reusa Fase 0's `literal_block`.
+1. **§D AuditLog export** (Phase 1.5a, 1–2 sprints): crate packaging más pequeño (`serde_yaml`), número más bajo de archivos tocados, cierra el gap implícito de audit-log portable export sin tocar engines. Deployable primero, reduce riesgo. Tests fáciles. Confidence builder. Reusa Fase 0's `literal_block`.
 
 2. **§A Autoresearch loop** (Phase 1.5b, 2–3 sprints): extiende RFC 19 supervisor sin tocar arquitectura. Schema M13 aislada, un branch de modo. Requiere `git` subprocess (ya tenemos via CLI bin, no nuevo crate). HUD card incremental. No depende de §B/§C. **Si el ACP server retrasa, autoresearch es demo-ready standalone.** Reusa Fase 0's `program.md`.
 
@@ -338,7 +338,7 @@ Mínimo: botón **Export as posting** en card Audit (HUD §3). Componente `src/l
   2. `posting.rs` + tests contra sample canónico
   3. `retention.rs` SQLite hook + CLI flag
   4. HUD button + endpoint
-  5. RFC 24 §10 patch + RFC 27 Brecha H closed
+  5. RFC 24 §10 patch + RFC 28 apéndice clarificando confusión Brecha H
   6. RFC 22 entry
 
 - **1.5b — §A autoresearch**:

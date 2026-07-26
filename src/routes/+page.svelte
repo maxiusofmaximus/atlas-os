@@ -12,10 +12,12 @@
     fetchTail,
     fetchAnnotations,
     postAnnotation,
+    postExportPosting,
     phaseColor,
     type TailKind,
     type StepPhaseTag,
     type DiffAnnotation,
+    type ExportPostingResponse,
   } from '$stores/hud';
   import type { PageData } from './$types';
 
@@ -88,6 +90,46 @@
     draftFilePath: '',
     draftLineNo: '',
   });
+
+  // ────────────── RFC 28 §D — audit export state ──────────────
+  type ExportState = {
+    busy: boolean;
+    last: number;
+    outputDir: string;
+    result: ExportPostingResponse | null;
+    error: string | null;
+  };
+
+  let exportState = $state<ExportState>({
+    busy: false,
+    last: 50,
+    outputDir: '',
+    result: null,
+    error: null,
+  });
+
+  async function runExportPosting(): Promise<void> {
+    const hudUrl = data.hudUrl;
+    if (!hudUrl) {
+      exportState = { ...exportState, error: 'no HUD URL yet' };
+      return;
+    }
+    exportState = { ...exportState, busy: true, error: null, result: null };
+    try {
+      const req: { last?: number; output_dir?: string } = { last: exportState.last };
+      if (exportState.outputDir.trim() !== '') {
+        req.output_dir = exportState.outputDir.trim();
+      }
+      const result = await postExportPosting(hudUrl, req);
+      exportState = { ...exportState, busy: false, result, error: null };
+    } catch (err) {
+      exportState = {
+        ...exportState,
+        busy: false,
+        error: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
 
   async function openAnnotationDrawer(row: Record<string, unknown>): Promise<void> {
     const diffId = row.id != null ? String(row.id) : null;
@@ -248,6 +290,65 @@
       URL:
       <code>{$hud.url || data.hudUrl || 'waiting…'}</code>
     </p>
+  </section>
+
+  <section class="audit-export">
+    <h2>Audit export — posting format</h2>
+    <p class="hint">
+      Export the most recent audit-log entries to <code>.posting.yaml</code> snapshots under
+      <code>{'<profile>'}/snapshots/YYYY-MM-DD/</code>. Closes <em>RFC 27 §3.H Brecha H</em>.
+      Format compatible with <code>darrenburns/posting</code> (Apache-2.0), no runtime dep.
+      See <em>RFC 28 §D</em>.
+    </p>
+    <form
+      onsubmit={(e) => {
+        e.preventDefault();
+        runExportPosting();
+      }}
+    >
+      <label>
+        Last N
+        <input
+          type="number"
+          min="1"
+          max="10000"
+          bind:value={exportState.last}
+          disabled={exportState.busy}
+        />
+      </label>
+      <label>
+        Output dir (optional, defaults to <code>{'<profile>'}/snapshots/</code>)
+        <input
+          type="text"
+          placeholder="e.g. C:/snapshots or ./snap"
+          bind:value={exportState.outputDir}
+          disabled={exportState.busy}
+        />
+      </label>
+      <button type="submit" disabled={exportState.busy || !data.hudUrl}>
+        {exportState.busy ? 'exporting…' : 'Export as posting'}
+      </button>
+    </form>
+    {#if exportState.error}
+      <p class="error">Error: {exportState.error}</p>
+    {/if}
+    {#if exportState.result}
+      <p class="success">
+        Packed {exportState.result.entries_packed} entries into
+        {exportState.result.files_written.length} file(s)
+        {#if exportState.result.entries_purged > 0}
+          (purged {exportState.result.entries_purged})
+        {/if}
+      </p>
+      <p class="snap-root">Root: <code>{exportState.result.snapshot_root}</code></p>
+      {#if exportState.result.files_written.length > 0}
+        <ul class="snap-files">
+          {#each exportState.result.files_written as f}
+            <li><code>{f}</code></li>
+          {/each}
+        </ul>
+      {/if}
+    {/if}
   </section>
 
   <section class="journal">
@@ -479,6 +580,77 @@
   }
   .empty {
     opacity: 0.6;
+  }
+  .audit-export {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid #21262d;
+    border-radius: 6px;
+    background: #161b22;
+  }
+  .audit-export h2 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+  }
+  .audit-export .hint {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.85rem;
+    color: #8b949e;
+  }
+  .audit-export form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: flex-end;
+  }
+  .audit-export label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.78rem;
+    color: #8b949e;
+  }
+  .audit-export input[type='text'],
+  .audit-export input[type='number'] {
+    padding: 0.4rem 0.5rem;
+    background: #0d1117;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    min-width: 10rem;
+  }
+  .audit-export button[type='submit'] {
+    padding: 0.45rem 1rem;
+    background: #238636;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .audit-export button[type='submit']:disabled {
+    background: #21262d;
+    color: #8b949e;
+    cursor: not-allowed;
+  }
+  .audit-export .error {
+    margin-top: 0.5rem;
+    color: #f85149;
+    font-size: 0.85rem;
+  }
+  .audit-export .success {
+    margin-top: 0.5rem;
+    color: #56d364;
+    font-size: 0.85rem;
+  }
+  .audit-export .snap-root,
+  .audit-export .snap-files {
+    margin-top: 0.25rem;
+    font-size: 0.8rem;
+    color: #8b949e;
+  }
+  .audit-export .snap-files {
+    list-style: square;
+    padding-left: 1.25rem;
   }
   .tails-grid {
     display: grid;

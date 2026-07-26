@@ -73,6 +73,10 @@ pub async fn serve(state: Arc<AppState>, shutdown: CancellationToken) {
             "/diff/:id/annotation",
             post(super::annotate::post_annotation).get(super::annotate::get_annotations),
         )
+        .route(
+            "/audit/export-posting",
+            post(super::export::post_export_posting),
+        )
         .route("/payload/:kind/:id", get(super::tail::payload))
         .route(
             "/payload/skill/:skill_id/:version",
