@@ -37,7 +37,7 @@ dag_mode = ["dep:petgraph"]
 # linked statically) + 2 grammars (~1 MB). Off by default — major
 # binary size impact; enable when you want the meta-skill that maps
 # OpenCode OS's own Rust + Svelte sources into `mission_graph_*`.
-codebase-graph = ["dep:tree-sitter", "dep:tree-sitter-rust", "dep:tree-sitter-svelte"]
+codebase-graph = ["dep:tree-sitter", "dep:tree-sitter-rust", "dep:tree-sitter-svelte-next"]
 
 [dependencies]
 # Core async + errors
@@ -118,7 +118,7 @@ petgraph = { version = "0.8", optional = true, default-features = false, feature
 # RFC 28 Section C Riesgos for binary-size justification.
 tree-sitter = { version = "0.26", optional = true }
 tree-sitter-rust = { version = "0.24", optional = true }
-tree-sitter-svelte = { version = "0.10", optional = true }
+tree-sitter-svelte-next = { version = "0.1", optional = true }
 
 # Test
 tempfile = "3"

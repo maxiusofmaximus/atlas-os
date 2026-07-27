@@ -308,6 +308,9 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `MCP bridge stdio` | 07; 25 §5 |
 | `Memory tiers` (Letta) | 09; 16 |
 | `Mission Consolidated` | 23 §4; 12 §2 |
+| `Mission graph` (graphify pattern) | 28 §C (GR-001/003/004/006/007/009) |
+| `MissionGraph::traverse` (`shortest_path`, `god_nodes`, `community_partition`) | 28 §C; 28 §C item 3 (Phase 1.5c) |
+| `AST extractor` (`tree-sitter` + heuristic Svelte line-classifier) | 28 §C (GR-006); `src-tauri/src/graph/ast.rs` |
 | `Mobile remote access` | 24 §16 |
 | `Multi-key rotation` | 04 §3.1; 22 §2 |
 | `N8n canvas stile reasoning trail` | 24 §13 |

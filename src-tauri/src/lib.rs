@@ -5,6 +5,7 @@
 pub mod cli;
 pub mod coding;
 pub mod core;
+pub mod graph;
 pub mod hud;
 pub mod journal;
 pub mod learning;

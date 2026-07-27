@@ -3850,9 +3850,9 @@ dependencies = [
  "tower-lsp",
  "tracing",
  "tracing-subscriber",
- "tree-sitter 0.26.11",
+ "tree-sitter",
  "tree-sitter-rust",
- "tree-sitter-svelte",
+ "tree-sitter-svelte-next",
  "uuid",
 ]
 
@@ -6619,16 +6619,6 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter"
-version = "0.20.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e747b1f9b7b931ed39a548c1fae149101497de3c1fc8d9e18c62c1a66c683d3d"
-dependencies = [
- "cc",
- "regex",
-]
-
-[[package]]
-name = "tree-sitter"
 version = "0.26.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af1c71c1c4cc0920b20d6b0f6572e7682cd07a6a2faec71067a31fa394c586df"
@@ -6658,13 +6648,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "tree-sitter-svelte"
-version = "0.10.2"
+name = "tree-sitter-svelte-next"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "800f8ed6f5bdfee1f5444b653aefb6749bebed0ce58ac261dde64275c303e782"
+checksum = "56f88190d0743e897c3e148a7e241aba0a8844b8afe816943851426e3f7b9753"
 dependencies = [
  "cc",
- "tree-sitter 0.20.10",
+ "tree-sitter-language",
 ]
 
 [[package]]

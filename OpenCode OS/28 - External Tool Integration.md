@@ -352,15 +352,18 @@ Mínimo: botón **Export as posting** en card Audit (HUD §3). Componente `src/l
   7. ⏳ `AutoresearchCard.test.ts` (vitest) — pending dep-free @testing-library/svelte install (frontend tests are #21 in `hud.test.ts` covering the `postAutoresearchCancel` contract).
 
 - **1.5c — §C mission graph**:
-  1. ✅ Crates: `petgraph = "0.8"` (gated `dag_mode`), `tree-sitter = "0.26"`, `tree-sitter-rust = "0.24"`, `tree-sitter-svelte = "0.10"` (last 3 gated `codebase-graph`). Two features added to `Cargo.toml` (default off); `cargo check --features dag_mode` and `--features codebase-graph` both resolve clean against Rust 1.84.
-  2. M15 migration
-  3. `graph/{mod, traverse, ast}` módulos
-  4. Planner DAG emitter — detrás de feature flag `dag_mode`
-  5. Skills `graph.toml` loader
-  6. Learning graphs persist + retrieve por cosine
-  7. `GET /hud/graph/:id` + `<GraphView>` + tests
-  8. RFC 12/16/19/23/24 patches
-  9. RFC 22 entries (4 crates)
+  1. ✅ Crates: `petgraph = "0.8"` (gated `dag_mode`), `tree-sitter = "0.26"`, `tree-sitter-rust = "0.24"`, `tree-sitter-svelte-next = "0.1.1"` (last 3 gated `codebase-graph`). Two features added to `Cargo.toml` (default off); `cargo check --features dag_mode` and `--features codebase-graph` both resolve clean against Rust 1.84. (`tree-sitter-svelte = "0.10"` swaps in `tree-sitter-svelte-next` because 0.10 still pins tree-sitter 0.20 and lacks the `LANGUAGE` const required by 0.26.)
+  2. ✅ M15 migration (`mission_graph_nodes`, `mission_graph_edges`, `learning_graphs`); 8 schema tests in `journal::tests::mission_graph_schema_tests`.
+  3. ✅ `graph/{mod, traverse, ast}` modules built:
+     - `mod.rs` — canonical `Provenance`, `NodeKind`, `EdgeKind`, `NodeId`, `EdgeId`, `Node`, `Edge`, `MissionGraph` types; tag/parse round-trip; 7 tests.
+     - `traverse.rs` — `shortest_path` (BFS), `get_neighbors`, `god_nodes` (percentile), `community_partition` (union-find). Gated `dag_mode`; 9 tests gated `#[cfg(all(test, feature = "dag_mode"))]`.
+     - `ast.rs` — tree-sitter AST extractor (Rust) + heuristic Svelte extractor (grammar treats `<script>` as `raw_text` so we use a line-classifier for imports/functions) + Tarjan's SCC `find_import_cycles` + `report_to_graph`. Gated `codebase-graph`; 10 tests (`#[cfg(all(test, feature = "codebase-graph"))]`) + 3 fallback tests when feature is off.
+  4. ⏳ Planner DAG emitter — detrás de feature flag `dag_mode`
+  5. ⏳ Skills `graph.toml` loader
+  6. ⏳ Learning graphs persist + retrieve por cosine
+  7. ⏳ `GET /hud/graph/:id` + `<GraphView>` + tests
+  8. ⏳ RFC 12/16/19/23/24 patches
+  9. ⏳ RFC 22 entries (4 crates)
 
 - **1.5d — §B IT ACP**:
   1. Crates: `agent-client-protocol = "=2.0.0"`, `sacp-tokio` (Context7 verify; `unstable_*` features)
