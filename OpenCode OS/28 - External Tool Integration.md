@@ -362,7 +362,12 @@ Mínimo: botón **Export as posting** en card Audit (HUD §3). Componente `src/l
   5. ⏳ Skills `graph.toml` loader
   6. ⏳ Learning graphs persist + retrieve por cosine
   7. ⏳ `GET /hud/graph/:id` + `<GraphView>` + tests
-  8. ⏳ RFC 12/16/19/23/24 patches
+  8. ✅ RFC 12/16/19/23/24 patches:
+     - RFC 12 §3.1 — DAG mode emission contract behind `dag_mode`.
+     - RFC 16 §3 "Por grafo de misión exitoso" — learning_graphs structural graph diffing via cosine over `sqlite-vec` + `fastembed-rs`.
+     - RFC 19 §6.1.1 — State DAG behind `dag_mode`; doom-loop switcher = `shortest_path(current, healthy_state)` from `graph::shortest_path`.
+     - RFC 23 §7.3 — Skills gain 4th file `graph.toml` declaring sub-graph templates; loader inserts into M15 with `INFERRED` provenance (spec only; loader = item 5).
+     - RFC 24 §3.3 — Card types taxonomy: agent / autoresearch (live) / graph (planned, behind `dag_mode`).
   9. ✅ RFC 22 entries (4 crates) — §10 Round 3 añadida: petgraph, tree-sitter, tree-sitter-rust, tree-sitter-svelte-next con justificación single-binary-safe + binary-size budget + sustitución `tree-sitter-svelte` → `tree-sitter-svelte-next` justificada.
 
 - **1.5d — §B IT ACP**:

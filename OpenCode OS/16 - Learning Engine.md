@@ -68,6 +68,17 @@ Si un modelo en particular acierta el 90% en un dominio, el Model Orchestrator l
 ### Por consenso social
 Research Run Reports exitosos generan notas de Collective Engineering Intelligence (CEI), cacheadas en el Vector KB.
 
+### Por grafo de misión exitoso (RFC 28 §C — structural graph diffing)
+
+Persistimos **instancias exitosas de `mission_graph`** en la tabla M15 `learning_graphs` (`src-tauri/src/journal/schema.rs`), con key `(intent_signature, success)` y embedding de `intent_signature` generado por `fastembed-rs` (RFC 25 §3.5). En una nueva mission:
+
+1. retrieve top-k graphs por cosine en `intent_signature` sobre `sqlite-vec` (RFC 09).
+2. diff sus edges contra el DAG propuesto por el Planner (RFC 12 §3.1).
+3. **inyectar edges faltantes demostrados-exitosos** como hints `INFERRED` (tags provenance = `INFERRED` en `mission_graph_nodes`).
+4. Grafos de fallo se persisten mirrored con `outcome=failed` y sirven como anti-patterns (alertas al Planner para evitar la misma topología).
+
+Esto importa graphify's *"edges-as-first-class-objects"* a **trayectorias de agentes**, no código fuente. Detrás de feature `dag_mode` (default off) hasta validar el contrato contra runs reales. Setup visual en RFC 24 §13 Graph View (RFC 28 §C item 7).
+
 ## 4. Auto-reglas del harness
 
 El Learning Engine escribe:

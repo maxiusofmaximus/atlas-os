@@ -147,6 +147,12 @@ idle → planning → executing → verifying → recovering → halted → done
 
 Transiciones documentadas; cada una deja su traza en el Journal.
 
+### 6.1.1 State DAG (RFC 28 §C — behind `dag_mode`)
+
+Cuando `dag_mode=true` (feature default off), los estados por mission se persisten como un DAG en M15 `mission_graph_nodes` (kind=`engine_state`, provenance `EXTRACTED` para estados canónicos; `INFERRED` para derivados via Planner/Learning) y `mission_graph_edges` (kind=`transitions_to`, `precondition` JSON, `guard`, `visit_count`). El doom-loop switcher del supervisor se vuelve traversal: ante un retry, `shortest_path(current_state, nearest_healthy_state)` (`src-tauri/src/graph/traverse.rs`) en vez de la linear fallback `recovering → planning`. Cuando `dag_mode=false` la state machine permanece lineal, idéntica a v1.
+
+La tabla esporádica del M15 aloja estos grafos junto con los del Planner (§3.1 de RFC 12) y los EXTRACTED del AST del propio codebase (RFC 28 §C item 3). Un único store, query con `kind` + `mission_id`.
+
 ### 6.2 Políticas heredadas
 - Tras 2 reinicios consecutivos en el mismo step → marca `blocked`.
 - Tras 4 reinicios en la mission → escalar al usuario.

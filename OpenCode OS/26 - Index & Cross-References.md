@@ -273,6 +273,7 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `BgeBaseEnV15` embeddings | 25 §3.5 |
 | `Capabilities` del Registry | 04 §3 |
 | `Capability Resolver` | 02 §3.3 |
+| `Card types (agent/autoresearch/graph)` | 24 §3.3; 28 §A (autoresearch live), 28 §C (graph planned) |
 | `Checkpoints SOP` | 02 §3.1.1 |
 | `Clarification Questions` (STORM) | 23 §5 |
 | `Command Center` (legacy) | 17 §1 (remplazado por HUD) |
@@ -286,6 +287,7 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Cube mode` (CodeMirror) | 25 §3.3 |
 | `Demos over diffs` | 24 §9 |
 | `DoomLoopDetector` | 19; 03 §9.1; 21 §5.3 |
+| `dag_mode` feature flag (Planner DAG + State DAG + skills graph templates) | 12 §3.1; 19 §6.1.1; 23 §7.3; 28 §C |
 | `Edge-case tool` feasibility probe | 10 §11 |
 | `Execution Modes` (4) | 21 |
 | `Execution Journal` | 02 §3.4; 19 |
@@ -303,6 +305,7 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Kernel Bus` | 02 §3.1 |
 | `LanguageIdResolver` | 03 §9.3; 21 §2.2 |
 | `Launcher CLI` (`opencode`) | 08; 25 §3.9 |
+| `Learning graphs` (cosine retrieval of past successful `mission_graph`) | 16 §3 "Por grafo de misión exitoso"; 28 §C |
 | `Local models` (Ollama/LM Studio/llama-server) | 25 §3.8 |
 | `Lost in the Middle` | 11 (reordenar); 23 §1 C8 |
 | `MCP bridge stdio` | 07; 25 §5 |
@@ -338,6 +341,8 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Skill Graph` | 06 |
 | `Skill Picker` iluminado | 17 §4 |
 | `Skill refresh en caliente` | 24 §8.1 |
+| `Skills as graph templates` (`graph.toml`, 4th skill file) | 23 §7.3; 28 §C |
+| `State DAG` (RFC 19 supervisor as DAG) | 19 §6.1.1; 28 §C |
 | `SvelteKit CSR` | 25 §3.3 |
 | `sqlite-vec` | 25 §3.4; 09 |
 | `Stack technical` | 25 |

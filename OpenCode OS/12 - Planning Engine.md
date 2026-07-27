@@ -83,6 +83,12 @@ Plan {
 }
 ```
 
+### 3.1 DAG mode (RFC 28 §C, behind `dag_mode`)
+
+Cuando la feature `dag_mode` está activa (`Cargo.toml` feature, default off), el Planner puede emitir un **DAG** — no una lista lineal — en vez del `steps: [Step]` anterior. El DAG esPersistido en la tabla M15 `mission_graph_{nodes,edges}` (ver RFC 28 §C item 2) y respeta el mismo contrato de auditoría (`precondition` + `guard` + `visit_count` por edge, `provenance` EXTRACTED|INFERRED|AMBIGUOUS por node). El Coding Engine branchea cuando Múltiples paths válidos; el Validator puntúa cada rama; el Repair reescribe edges fallidos en vez de rehacer toda la cadena. Tags `AMBIGUOUS` (choices under confidence threshold) defieren al usuario via RFC 24 HUD "steer" button.
+
+**Migración gradual:** default-off, sólo opt-in por mission flag `dag_mode=true`. Sin este flag, la salida permanece como `steps: [Step]` lineal para no romper callers existentes (Codificación, Validación, supervisor). Esta sección es la **declaración espec**; el emitter vive en `src-tauri/src/planner/graph_emitter.rs` (RFC 28 §C item 4).
+
 ## 4. Cálculo de riesgo / impacto
 
 Riesgo proviene de:

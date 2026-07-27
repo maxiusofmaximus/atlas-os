@@ -293,6 +293,25 @@ Skill ubicada en `~/.opencode/skills/prompt-clarify/`. Se activa automáticament
 - button "Aceptar todas las auto-resoluciones",
 - toggle "Modo mentor" (avisa al detector de `user_knowledge_gap` para mostrar texto didáctico).
 
+### 7.3 Skills como graph templates (RFC 28 §C — behind `dag_mode`)
+
+Cuando la mission tiene `dag_mode=true`, una skill puede declarar un **4º archivo** `graph.toml` junto a su `skill.toml`/`program.md`/`tools.json`. Formato:
+
+```toml
+# ~/.opencode/skills/<skill>/graph.toml
+nodes = [
+  { id = "probe",     kind = "engine_state", label = "PromptUnd degap"     },
+  { id = "gap",       kind = "engine_state", label = "Classify gap_type"   },
+  { id = "refine",    kind = "engine_state", label = "Refine prompt"       },
+]
+edges = [
+  { from = "probe",  to = "gap",    kind = "transitions_to", precondition = "verdict.confidence < HIGH" },
+  { from = "gap",     to = "refine", kind = "transitions_to", guard = "gap_type != user_knowledge_gap" },
+]
+```
+
+Loader `src-tauri/src/skills/loader.rs` inserta el template en M15 `mission_graph_nodes`/`edges` con IDs fresh (prefijo `{skill_id}-{mission_id}-`). Tags provenance = `INFERRED` porque son spec de skill, no ingest AST (que sería `EXTRACTED`). Skills que ya existen (`prompt-clarify`, autoresearch `program.md`, etc.) podrán `graph.toml`-ar su state machine cuando el DAG mode estabilice en Phase 2; en Phase 1.5c esto es **sólo spec** — el loader es RFC 28 §C item 5 (pending).
+
 ---
 
 ## 8. Modos de uso (mapeo Aider-style)
