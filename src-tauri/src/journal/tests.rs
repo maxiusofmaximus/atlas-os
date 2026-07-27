@@ -1122,3 +1122,222 @@ mod journal_skill_tests {
         assert!(latest.is_none());
     }
 }
+
+#[cfg(test)]
+mod mission_graph_schema_tests {
+    use crate::journal::Journal;
+    use rusqlite::Connection;
+    use tempfile::TempDir;
+
+    fn fresh_conn() -> (TempDir, Connection) {
+        let tmp = TempDir::new().expect("tmp");
+        let _journal = Journal::open(tmp.path()).expect("open runs migrate");
+        let conn = Connection::open(tmp.path().join("journal.db")).expect("open raw conn");
+        (tmp, conn)
+    }
+
+    #[test]
+    fn m15_advances_schema_version_to_15() {
+        let (_tmp, conn) = fresh_conn();
+        let v: i64 = conn
+            .query_row("SELECT MAX(version) FROM schema_version", [], |r| r.get(0))
+            .expect("query");
+        assert_eq!(v, 15);
+    }
+
+    #[test]
+    fn m15_creates_mission_graph_nodes_and_edges_and_learning_graphs() {
+        let (_tmp, conn) = fresh_conn();
+        for table in [
+            "mission_graph_nodes",
+            "mission_graph_edges",
+            "learning_graphs",
+        ] {
+            let exists: i64 = conn
+                .query_row(
+                    &format!(
+                        "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='{table}'"
+                    ),
+                    [],
+                    |r| r.get(0),
+                )
+                .expect("query");
+            assert_eq!(exists, 1, "{table} should exist after M15");
+        }
+    }
+
+    #[test]
+    fn m15_node_kind_check_rejects_unknown_value() {
+        let (_tmp, conn) = fresh_conn();
+        // No missions row exists so we expect FK violation BEFORE the
+        // CHECK — guard around the FK first by inserting a mission.
+        conn.execute(
+            "INSERT INTO missions (id, label, status, created_at, updated_at)
+             VALUES ('00000000-0000-0000-0000-000000000001', 'l', 'received', '2026-07-26T00:00:00Z', '2026-07-26T00:00:00Z')",
+            [],
+        )
+        .expect("seed mission");
+        let err = conn
+            .execute(
+                "INSERT INTO mission_graph_nodes (id, mission_id, kind, label, provenance) \
+                 VALUES ('n1', '00000000-0000-0000-0000-000000000001', 'unknown_kind', 'x', 'EXTRACTED')",
+                [],
+            )
+            .expect_err("CHECK should reject");
+        let msg = err.to_string();
+        assert!(
+            msg.to_lowercase().contains("constraint") || msg.to_lowercase().contains("check"),
+            "expected CHECK constraint failure, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn m15_provenance_check_accepts_extracted_inferred_ambiguous() {
+        let (_tmp, conn) = fresh_conn();
+        conn.execute(
+            "INSERT INTO missions (id, label, status, created_at, updated_at)
+             VALUES ('00000000-0000-0000-0000-000000000001', 'l', 'received', '2026-07-26T00:00:00Z', '2026-07-26T00:00:00Z')",
+            [],
+        )
+        .expect("seed mission");
+        for (idx, p) in ["EXTRACTED", "INFERRED", "AMBIGUOUS"].iter().enumerate() {
+            conn.execute(
+                "INSERT INTO mission_graph_nodes (id, mission_id, kind, label, provenance) \
+                 VALUES (?1, '00000000-0000-0000-0000-000000000001', 'mission', ?2, ?3)",
+                rusqlite::params![format!("n{idx}"), format!("lbl{idx}"), p],
+            )
+            .expect("valid provenance");
+        }
+        let count: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM mission_graph_nodes WHERE mission_id = ?1",
+                rusqlite::params!["00000000-0000-0000-0000-000000000001"],
+                |r| r.get(0),
+            )
+            .expect("query");
+        assert_eq!(count, 3);
+    }
+
+    #[test]
+    fn m15_edge_kind_check_rejects_unknown_value() {
+        let (_tmp, conn) = fresh_conn();
+        conn.execute(
+            "INSERT INTO missions (id, label, status, created_at, updated_at)
+             VALUES ('00000000-0000-0000-0000-000000000001', 'l', 'received', '2026-07-26T00:00:00Z', '2026-07-26T00:00:00Z')",
+            [],
+        )
+        .expect("seed mission");
+        conn.execute(
+            "INSERT INTO mission_graph_nodes (id, mission_id, kind, label, provenance) \
+             VALUES ('n1', '00000000-0000-0000-0000-000000000001', 'mission', 'a', 'EXTRACTED'),
+                    ('n2', '00000000-0000-0000-0000-000000000001', 'mission', 'b', 'EXTRACTED')",
+            [],
+        )
+        .expect("seed nodes");
+        let err = conn
+            .execute(
+                "INSERT INTO mission_graph_edges (id, mission_id, src, dst, kind) \
+                 VALUES ('e1', '00000000-0000-0000-0000-000000000001', 'n1', 'n2', 'teleports_to')",
+                [],
+            )
+            .expect_err("CHECK should reject unknown edge kind");
+        let msg = err.to_string();
+        assert!(
+            msg.to_lowercase().contains("constraint") || msg.to_lowercase().contains("check"),
+            "expected CHECK constraint failure, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn m15_edge_visit_count_defaults_to_zero() {
+        let (_tmp, conn) = fresh_conn();
+        conn.execute(
+            "INSERT INTO missions (id, label, status, created_at, updated_at)
+             VALUES ('00000000-0000-0000-0000-000000000001', 'l', 'received', '2026-07-26T00:00:00Z', '2026-07-26T00:00:00Z')",
+            [],
+        )
+        .expect("seed mission");
+        conn.execute(
+            "INSERT INTO mission_graph_nodes (id, mission_id, kind, label, provenance) \
+             VALUES ('n1', '00000000-0000-0000-0000-000000000001', 'mission', 'a', 'EXTRACTED'),
+                    ('n2', '00000000-0000-0000-0000-000000000001', 'mission', 'b', 'EXTRACTED')",
+            [],
+        )
+        .expect("seed nodes");
+        conn.execute(
+            "INSERT INTO mission_graph_edges (id, mission_id, src, dst, kind) \
+             VALUES ('e1', '00000000-0000-0000-0000-000000000001', 'n1', 'n2', 'calls')",
+            [],
+        )
+        .expect("insert edge without visit_count");
+        let count: i64 = conn
+            .query_row(
+                "SELECT visit_count FROM mission_graph_edges WHERE id = 'e1'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("query");
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn m15_learning_graphs_accepts_zero_one_success() {
+        let (_tmp, conn) = fresh_conn();
+        conn.execute(
+            "INSERT INTO learning_graphs (id, intent_signature, success, graph_json, created_ts) \
+             VALUES ('g0', 'sig-0', 0, '{}'            , 100), \
+                    ('g1', 'sig-1', 1, '{\"a\":1}'     , 200)",
+            [],
+        )
+        .expect("insert both success variants");
+        let err = conn
+            .execute(
+                "INSERT INTO learning_graphs (id, intent_signature, success, graph_json, created_ts) \
+                 VALUES ('g2', 'sig-2', 2, '{}', 300)",
+                [],
+            )
+            .expect_err("CHECK should reject success=2");
+        let msg = err.to_string();
+        assert!(
+            msg.to_lowercase().contains("constraint") || msg.to_lowercase().contains("check"),
+            "expected CHECK constraint failure, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn m15_cascade_delete_removes_edges_and_nodes_children() {
+        let (_tmp, conn) = fresh_conn();
+        conn.execute(
+            "INSERT INTO missions (id, label, status, created_at, updated_at)
+             VALUES ('00000000-0000-0000-0000-000000000001', 'l', 'received', '2026-07-26T00:00:00Z', '2026-07-26T00:00:00Z')",
+            [],
+        )
+        .expect("seed mission");
+        conn.execute(
+            "INSERT INTO mission_graph_nodes (id, mission_id, kind, label, provenance) \
+             VALUES ('n1', '00000000-0000-0000-0000-000000000001', 'mission', 'a', 'EXTRACTED'), \
+                    ('n2', '00000000-0000-0000-0000-000000000001', 'mission', 'b', 'EXTRACTED')",
+            [],
+        )
+        .expect("seed nodes");
+        conn.execute(
+            "INSERT INTO mission_graph_edges (id, mission_id, src, dst, kind) \
+             VALUES ('e1', '00000000-0000-0000-0000-000000000001', 'n1', 'n2', 'calls')",
+            [],
+        )
+        .expect("seed edge");
+        conn.execute(
+            "DELETE FROM missions WHERE id = '00000000-0000-0000-0000-000000000001'",
+            [],
+        )
+        .expect("delete mission");
+        let nodes: i64 = conn
+            .query_row("SELECT count(*) FROM mission_graph_nodes", [], |r| r.get(0))
+            .expect("query");
+        let edges: i64 = conn
+            .query_row("SELECT count(*) FROM mission_graph_edges", [], |r| r.get(0))
+            .expect("query");
+        assert_eq!(nodes, 0);
+        assert_eq!(edges, 0);
+    }
+}

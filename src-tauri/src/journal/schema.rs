@@ -554,6 +554,76 @@ pub fn migrate(conn: &Connection) -> Result<()> {
             "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
             rusqlite::params![13, chrono::Utc::now().to_rfc3339()],
         )?;
+
+        // M15 — Mission graph (RFC 28 §C, derived from
+        //   safishamsi/graphify pattern, Apache-2.0). Three tables:
+        //
+        //   mission_graph_nodes : one row per graph node attached to a
+        //     mission. `kind` enumerates the node source: `engine_state`
+        //     (RFC 19 state-machine vertex), `mission` (the root), `skill`
+        //     (RFC 06 skill node), `external` (something the mission
+        //     depends on outside the kernel — a library, a file, a remote
+        //     MCP). `provenance` follows graphify's tagged tags:
+        //     EXTRACTED (parsed from source/AST, factual), INFERRED (LLM
+        //     / Planner deduced), AMBIGUOUS (low-confidence — operator
+        //     review pending).
+        //   mission_graph_edges : directed edges. `kind` ∈ {calls, imports,
+        //     transitions_to, depends_on, references}. `precondition` +
+        //     `guard` carry the RFC 19 DFA decorations for the
+        //     Execution Supervisor branch selection. `visit_count`
+        //     is bumped every time the supervisor traverses the edge —
+        //     feeds the doom-loop watcher.
+        //   learning_graphs      : cache of successful mission graphs keyed
+        //     by an `intent_signature` (a deterministic hash of the
+        //     consolidated mission prompt, per RFC 16 §6). Retrieved
+        //     top-k by cosine (sqlite-vec + fastembed-rs, RFC 09) to
+        //     feed *INFERRED* hints to the Planner on similar future
+        //     missions.
+        //
+        // All three tables are owned by RFC 28 §C migration; they are
+        // created unconditionally (no feature flag) because reading the
+        // graph is cheap even when the writer is gated. The DAG emitter
+        // (Planner) and the AST extractor are the gated parts — see
+        // features `dag_mode` and `codebase-graph` in Cargo.toml.
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS mission_graph_nodes (
+                id          TEXT PRIMARY KEY,
+                mission_id  TEXT NOT NULL REFERENCES missions(id) ON DELETE CASCADE,
+                kind        TEXT NOT NULL CHECK (kind IN ('engine_state','mission','skill','external')),
+                label       TEXT NOT NULL,
+                provenance  TEXT NOT NULL CHECK (provenance IN ('EXTRACTED','INFERRED','AMBIGUOUS')),
+                attrs_json  TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_mg_nodes_mission ON mission_graph_nodes(mission_id);
+
+            CREATE TABLE IF NOT EXISTS mission_graph_edges (
+                id           TEXT PRIMARY KEY,
+                mission_id   TEXT NOT NULL REFERENCES missions(id) ON DELETE CASCADE,
+                src          TEXT NOT NULL REFERENCES mission_graph_nodes(id) ON DELETE CASCADE,
+                dst          TEXT NOT NULL REFERENCES mission_graph_nodes(id) ON DELETE CASCADE,
+                kind         TEXT NOT NULL CHECK (kind IN ('calls','imports','transitions_to','depends_on','references')),
+                precondition TEXT,
+                guard        TEXT,
+                visit_count  INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE INDEX IF NOT EXISTS idx_mg_edges_src ON mission_graph_edges(src);
+            CREATE INDEX IF NOT EXISTS idx_mg_edges_dst ON mission_graph_edges(dst);
+            CREATE INDEX IF NOT EXISTS idx_mg_edges_mission ON mission_graph_edges(mission_id);
+
+            CREATE TABLE IF NOT EXISTS learning_graphs (
+                id               TEXT PRIMARY KEY,
+                intent_signature TEXT NOT NULL,
+                success          INTEGER NOT NULL CHECK (success IN (0,1)),
+                graph_json        TEXT NOT NULL,
+                created_ts        INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_lg_sig ON learning_graphs(intent_signature);
+            CREATE INDEX IF NOT EXISTS idx_lg_created ON learning_graphs(created_ts);",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![15, chrono::Utc::now().to_rfc3339()],
+        )?;
     }
     Ok(())
 }
