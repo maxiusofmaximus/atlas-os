@@ -363,7 +363,7 @@ Mínimo: botón **Export as posting** en card Audit (HUD §3). Componente `src/l
   6. ⏳ Learning graphs persist + retrieve por cosine
   7. ⏳ `GET /hud/graph/:id` + `<GraphView>` + tests
   8. ⏳ RFC 12/16/19/23/24 patches
-  9. ⏳ RFC 22 entries (4 crates)
+  9. ✅ RFC 22 entries (4 crates) — §10 Round 3 añadida: petgraph, tree-sitter, tree-sitter-rust, tree-sitter-svelte-next con justificación single-binary-safe + binary-size budget + sustitución `tree-sitter-svelte` → `tree-sitter-svelte-next` justificada.
 
 - **1.5d — §B IT ACP**:
   1. Crates: `agent-client-protocol = "=2.0.0"`, `sacp-tokio` (Context7 verify; `unstable_*` features)

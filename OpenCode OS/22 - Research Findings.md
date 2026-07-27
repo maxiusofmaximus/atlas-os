@@ -266,3 +266,56 @@ Output aplicado: `24 - HUD Mission Control.md` con 23 secciones, 8 views interca
 - Magentic-One: https://www.microsoft.com/en-us/research/blog/magentic-one-generalist-multi-agents-for-solving-complex-tasks/
 - Sakana AI Scientist: https://sakana.ai/ai-scientist
 - sqlite-vec examples: https://github.com/asg017/sqlite-vec/blob/main/examples.md
+
+---
+
+## 10. Investigación Round 3 (2026-07-27) — Phase 1.5c §C (graphify pattern)
+
+### 10.1 Motivación
+
+RFC 28 §C adopta el **patrón** graphify (no su código Python, que violaría §11 single-binary-safe). En su lugar portamos patrón a Rust con cuatro crates nuevos. Esta subsección es el *"entry registra"* que RFC 28 §C item 9 exige — justificación + single-binary-safety + licencia + binary-size budget.
+
+### 10.2 Crates añadidos (todos opcionales, default OFF)
+
+- **`petgraph = "0.8"`** (rust-version 1.64, MIT/Apache-2.0) — https://crates.io/crates/petgraph
+  - Pure Rust graph library. Lo usamos en `src-tauri/src/graph/traverse.rs` (gated `dag_mode`): `shortest_path` (BFS), `god_nodes` (percentile), `community_partition` (union-find — **no** Leiden since no mature Rust impl exists; ver RFC 28 §C Riesgos).
+  - Tamaño: ~200 KB.
+  - Sustituye cualquier dependencia en `graphify/cluster.py` (Python, `graspologic`).
+- **`tree-sitter = "0.26"`** (MIT) — https://crates.io/crates/tree-sitter
+  - C runtime linked estáticamente; ya usado ecosistema Rust (LSP hosts, helix, lapce).
+  - Lo usamos en `src-tauri/src/graph/ast.rs` (gated `codebase-graph`): AST walk on Rust source, `find_import_cycles` (Tarjan SCC), `report_to_graph` → `EXTRACTED` edges.
+  - Tamaño: ~3 MB (incluye C runtime).
+- **`tree-sitter-rust = "0.24"`** (MIT, rust-version 1.64+) — https://crates.io/crates/tree-sitter-rust
+  - Grammar para Rust source. Exposes `LANGUAGE` const compatible con `tree-sitter 0.26`.
+  - Tamaño: ~1.5 MB.
+- **`tree-sitter-svelte-next = "0.1.1"`** (MIT/Apache-2.0, sin rust-version declarado) — https://crates.io/crates/tree-sitter-svelte-next
+  - Grammar para Svelte source. Fork by PRRPCHT; el original `tree-sitter-svelte = "0.10"` pinnaba tree-sitter 0.20 y falta el const `LANGUAGE` que `tree-sitter 0.26` requiere — sustitución justificada.
+  - Tamaño: ~1.5 MB.
+  - **Limitación observada**: el grammar tags `<script>` content como `raw_text` (no embeds JS/TS parser), así que `ast::extract` para Svelte usa un **line-classifier heuristic** (regex-free, line-based) en vez de AST-walk. Aceptable para v1 — improvement deferred: si IBM o tree-sitter-js pinnable separado, reemplazar heuristic por sub-parse usando `tree-sitter-javascript`/`tree-sitter-typescript`.
+
+### 10.3 Binary-size budget
+
+- Tres crates suman **~6.2 MB** (petgraph 200KB + tree-sitter 3MB + 2 grammars 3MB). Tauri desktop binario se mueve de 30-45 MB (RFC 25) estimado a 36-51 MB. Aceptable para desktop; borderline para uso server.
+- Mitigación: **ambas features default OFF**. Default build sin `codebase-graph` evita tree-sitter完全. Para uso server-only el flag `--no-default-features` con `dag_mode` conserva planner DAG sin AST overhead.
+
+### 10.4 Single-binary-safety audit
+
+- ✅ `petgraph`: pure Rust, zero native deps.
+- ✅ `tree-sitter`: C runtime linked estático via `cc` crate; no `.dll`/`.so` al runtime.
+- ✅ Grammars `tree-sitter-rust` y `tree-sitter-svelte-next`: igual. **NO** dependemos de binarios Python (graphify runtime violaría §11).
+
+### 10.5 Cambios aplicados a los RFCs como consecuencia de Round 3
+
+- **NEW** `28 - External Tool Integration.md` §C — patrón graphify ported a Rust; §C items 1, 2, 3, 9 completos.
+- UPDATED `25 - Stack Técnico Multiplataforma.md` §3.2 — crates core list ahora incluye `petgraph`? **No**: §3.2 enumera required crates; los de §C son feature-gated default-off, por lo que permanecen fuera del "core" list. Esta nota clarifica la decisión.
+- UPDATED `26 - Index & Cross-References.md` — +3 rows (Mission graph, traverse, AST extractor).
+- UPDATED este archivo con §10 round 3.
+
+### 10.6 URLs nuevas (Round 3)
+
+- graphify (patrón, no runtime): https://github.com/safishamsi/graphify
+- petgraph: https://crates.io/crates/petgraph
+- tree-sitter: https://crates.io/crates/tree-sitter
+- tree-sitter-rust: https://crates.io/crates/tree-sitter-rust
+- tree-sitter-svelte-next: https://crates.io/crates/tree-sitter-svelte-next
+- Tarjan's SCC reference: https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm
