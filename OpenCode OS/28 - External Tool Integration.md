@@ -358,7 +358,7 @@ Mínimo: botón **Export as posting** en card Audit (HUD §3). Componente `src/l
      - `mod.rs` — canonical `Provenance`, `NodeKind`, `EdgeKind`, `NodeId`, `EdgeId`, `Node`, `Edge`, `MissionGraph` types; tag/parse round-trip; 7 tests.
      - `traverse.rs` — `shortest_path` (BFS), `get_neighbors`, `god_nodes` (percentile), `community_partition` (union-find). Gated `dag_mode`; 9 tests gated `#[cfg(all(test, feature = "dag_mode"))]`.
      - `ast.rs` — tree-sitter AST extractor (Rust) + heuristic Svelte extractor (grammar treats `<script>` as `raw_text` so we use a line-classifier for imports/functions) + Tarjan's SCC `find_import_cycles` + `report_to_graph`. Gated `codebase-graph`; 10 tests (`#[cfg(all(test, feature = "codebase-graph"))]`) + 3 fallback tests when feature is off.
-  4. ⏳ Planner DAG emitter — detrás de feature flag `dag_mode`
+  4. ✅ Planner DAG emitter — `src-tauri/src/planning/graph_emitter.rs` (`plan_to_graph(plan: &Plan) -> MissionGraph`, gated `dag_mode`, 9 tests). Pure projection of `Plan` over the canonical `MissionGraph` (RFC 28 §C item 3); root node `mission:{id}` + 1 node per Objective/Milestone/Step + `DependsOn` edges from `depends_on` arrays. Idempotent (string-stem edge ids). Default callers still see the linear `Plan { steps }` contract — `dag_mode` consumers opt-in by calling `planning::graph_emitter::plan_to_graph(&plan)`.
   5. ⏳ Skills `graph.toml` loader
   6. ⏳ Learning graphs persist + retrieve por cosine
   7. ⏳ `GET /hud/graph/:id` + `<GraphView>` + tests

@@ -14,6 +14,8 @@
 // stable and matches the LLM-driven planner coming with RFC 04 so the
 // rest of the kernel stays forward-compatible.
 
+#[cfg(feature = "dag_mode")]
+pub mod graph_emitter;
 pub mod runner;
 pub mod types;
 
