@@ -352,7 +352,7 @@ Mínimo: botón **Export as posting** en card Audit (HUD §3). Componente `src/l
   7. ⏳ `AutoresearchCard.test.ts` (vitest) — pending dep-free @testing-library/svelte install (frontend tests are #21 in `hud.test.ts` covering the `postAutoresearchCancel` contract).
 
 - **1.5c — §C mission graph**:
-  1. Crates: `petgraph`, `tree-sitter`, `tree-sitter-rust`, `tree-sitter-svelte` (Context7 verify versiones compatibles con Rust 1.84)
+  1. ✅ Crates: `petgraph = "0.8"` (gated `dag_mode`), `tree-sitter = "0.26"`, `tree-sitter-rust = "0.24"`, `tree-sitter-svelte = "0.10"` (last 3 gated `codebase-graph`). Two features added to `Cargo.toml` (default off); `cargo check --features dag_mode` and `--features codebase-graph` both resolve clean against Rust 1.84.
   2. M15 migration
   3. `graph/{mod, traverse, ast}` módulos
   4. Planner DAG emitter — detrás de feature flag `dag_mode`

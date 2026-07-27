@@ -27,6 +27,17 @@ hud = ["dep:axum", "dep:tower-http", "dep:tower"]
 lsp = ["dep:tower-lsp", "dep:lsp-types"]
 fastembed = ["dep:fastembed"]
 cli = ["dep:clap"]
+# RFC 28 Section C — Planner emits a DAG instead of a linear milestone
+# list when enabled. Off by default; flip via `--features dag_mode` once
+# the HUD <GraphView> toggle lands. petgraph is the only dependency
+# this pulls in (~200 KB, pure Rust, MIT OR Apache-2.0).
+dag_mode = ["dep:petgraph"]
+# RFC 28 Section C — AST extraction of the codebase for the mission
+# graph `EXTRACTED` provenance. Adds tree-sitter (~3 MB C runtime
+# linked statically) + 2 grammars (~1 MB). Off by default — major
+# binary size impact; enable when you want the meta-skill that maps
+# OpenCode OS's own Rust + Svelte sources into `mission_graph_*`.
+codebase-graph = ["dep:tree-sitter", "dep:tree-sitter-rust", "dep:tree-sitter-svelte"]
 
 [dependencies]
 # Core async + errors
@@ -98,6 +109,16 @@ once_cell = "1"
 toml = "0.8"
 indexmap = "2"
 serde_yaml = "0.9"
+
+# RFC 28 Section C — graph primitives (optional, gated `dag_mode`)
+petgraph = { version = "0.8", optional = true, default-features = false, features = ["stable_graph"] }
+
+# RFC 28 Section C — AST extraction (optional, gated `codebase-graph`)
+# tree-sitter (0.26) bundles its C runtime, linked statically — see
+# RFC 28 Section C Riesgos for binary-size justification.
+tree-sitter = { version = "0.26", optional = true }
+tree-sitter-rust = { version = "0.24", optional = true }
+tree-sitter-svelte = { version = "0.10", optional = true }
 
 # Test
 tempfile = "3"
