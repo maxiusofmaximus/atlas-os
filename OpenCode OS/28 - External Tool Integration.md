@@ -360,7 +360,26 @@ Mínimo: botón **Export as posting** en card Audit (HUD §3). Componente `src/l
      - `ast.rs` — tree-sitter AST extractor (Rust) + heuristic Svelte extractor (grammar treats `<script>` as `raw_text` so we use a line-classifier for imports/functions) + Tarjan's SCC `find_import_cycles` + `report_to_graph`. Gated `codebase-graph`; 10 tests (`#[cfg(all(test, feature = "codebase-graph"))]`) + 3 fallback tests when feature is off.
   4. ✅ Planner DAG emitter — `src-tauri/src/planning/graph_emitter.rs` (`plan_to_graph(plan: &Plan) -> MissionGraph`, gated `dag_mode`, 9 tests). Pure projection of `Plan` over the canonical `MissionGraph` (RFC 28 §C item 3); root node `mission:{id}` + 1 node per Objective/Milestone/Step + `DependsOn` edges from `depends_on` arrays. Idempotent (string-stem edge ids). Default callers still see the linear `Plan { steps }` contract — `dag_mode` consumers opt-in by calling `planning::graph_emitter::plan_to_graph(&plan)`.
   5. ✅ Skills `graph.toml` loader — `src-tauri/src/skills/graph_loader.rs` (gated `dag_mode`, 12 tests). Parses RFC 23 §7.3 4th-skill-file `graph.toml` via the existing `toml` crate (no new dep). `load_graph_template(dir) -> Option<SkillGraphTemplate>` (None when missing, error on malformed); `instantiate(template, skill_id, mission_id) -> MissionGraph` re-homes node/edge ids under `{skill_id}:{mission_id}:` prefix so two instances of the same skill on a running mission never collide. Provenance `Inferred` for all instantiated nodes (skill spec, not source). Loader contract clearly separated from `manifest::load_skill` — Phase 2 supervisor wires `load_graph_template` into the skill-load pipeline.
-  6. ⏳ Learning graphs persist + retrieve por cosine
+  6. ✅ Learning graphs persist + retrieve por cosine — M16 migration
+     adds nullable `embedding` (little-endian f32 BLOB) + `emb_model`
+     columns to `learning_graphs`. `src-tauri/src/journal/
+     learning_graphs.rs` (gated `dag_mode`) implements:
+       * `persist_graph(conn, &PersistGraphRequest)` — idempotent UPSERT
+         on `id`. Bundled-input struct keeps the call site readable
+         and stays under clippy's `too_many_arguments` threshold.
+       * `retrieve_similar_graphs(conn, query_embedding,
+         intent_signature, top_k) -> Vec<ScoredGraph>` — top-k by
+         cosine when an embedding is available; falls back to exact
+         `intent_signature` match (score 1.0) and otherwise to recency
+         (score 0.0). Only `success = 1` rows are returned (RFC 16 §3
+         anti-patterns are persisted for audit but never injected as
+         Planner hints).
+       * Cosine is computed in-process; the optional `vec0` virtual
+         table is intentionally NOT depended on because RFC 25 §3.4
+         marks `sqlite-vec` load_extension as best-effort.
+     Journal exposes thin lock-and-delegate wrappers
+     `persist_learning_graph` and `retrieve_similar_learning_graphs`.
+     16 tests (12 module + 4 M16 schema). Schema version 15 → 16.
   7. ⏳ `GET /hud/graph/:id` + `<GraphView>` + tests
   8. ✅ RFC 12/16/19/23/24 patches:
      - RFC 12 §3.1 — DAG mode emission contract behind `dag_mode`.

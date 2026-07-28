@@ -625,5 +625,27 @@ pub fn migrate(conn: &Connection) -> Result<()> {
             rusqlite::params![15, chrono::Utc::now().to_rfc3339()],
         )?;
     }
+
+    // M16 — Learning graphs embedding columns (RFC 28 §C item 6).
+    //   Adds `embedding` (BLOB of little-endian f32, nullable) and
+    //   `emb_model` (model id string, nullable) to `learning_graphs`.
+    //   Nullable so a Phase-1.5c instance without the optional `fastembed`
+    //   feature still inserts rows — the retrieve layer falls back to
+    //   exact `intent_signature` match in that case. When the optional
+    //   `fastembed` feature is on, the persist layer fills both columns
+    //   and the retrieve layer does in-memory cosine over the cached
+    //   rows (sqlite-vec load_extension is best-effort per RFC 25 §3.4
+    //   and may not be available on every host, so we do not depend on
+    //   the vec0 virtual table here).
+    if current < 16 {
+        conn.execute_batch(
+            "ALTER TABLE learning_graphs ADD COLUMN embedding BLOB;
+             ALTER TABLE learning_graphs ADD COLUMN emb_model TEXT;",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![16, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
     Ok(())
 }

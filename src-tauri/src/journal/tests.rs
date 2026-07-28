@@ -1142,7 +1142,10 @@ mod mission_graph_schema_tests {
         let v: i64 = conn
             .query_row("SELECT MAX(version) FROM schema_version", [], |r| r.get(0))
             .expect("query");
-        assert_eq!(v, 15);
+        assert!(
+            v >= 15,
+            "expected schema version >= 15 (M16 runs after M15), got {v}"
+        );
     }
 
     #[test]
@@ -1339,5 +1342,79 @@ mod mission_graph_schema_tests {
             .expect("query");
         assert_eq!(nodes, 0);
         assert_eq!(edges, 0);
+    }
+
+    #[test]
+    fn m16_advances_schema_version_to_16() {
+        let (_tmp, conn) = fresh_conn();
+        let v: i64 = conn
+            .query_row("SELECT MAX(version) FROM schema_version", [], |r| r.get(0))
+            .expect("query");
+        assert_eq!(v, 16);
+    }
+
+    #[test]
+    fn m16_adds_embedding_and_emb_model_columns_to_learning_graphs() {
+        let (_tmp, conn) = fresh_conn();
+        let cols: Vec<String> = conn
+            .prepare("PRAGMA table_info(learning_graphs)")
+            .expect("prepare")
+            .query_map([], |r| {
+                let name: String = r.get(1)?;
+                Ok(name)
+            })
+            .expect("query_map")
+            .map(Result::unwrap)
+            .collect();
+        assert!(
+            cols.iter().any(|c| c == "embedding"),
+            "expected `embedding` column after M16, got: {cols:?}"
+        );
+        assert!(
+            cols.iter().any(|c| c == "emb_model"),
+            "expected `emb_model` column after M16, got: {cols:?}"
+        );
+    }
+
+    #[test]
+    fn m16_learning_graphs_accepts_nullable_embedding_and_emb_model() {
+        let (_tmp, conn) = fresh_conn();
+        conn.execute(
+            "INSERT INTO learning_graphs (id, intent_signature, success, graph_json, created_ts)
+             VALUES ('g0', 'sig', 1, '{}', 1)",
+            [],
+        )
+        .expect("insert without embedding should succeed (nullable)");
+        let n: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM learning_graphs WHERE embedding IS NULL AND emb_model IS NULL",
+                [],
+                |r| r.get(0),
+            )
+            .expect("query");
+        assert_eq!(n, 1);
+    }
+
+    #[test]
+    fn m16_learning_graphs_accepts_dense_embedding_blob() {
+        let (_tmp, conn) = fresh_conn();
+        let emb: [u8; 8] = [
+            0x00, 0x00, 0x80, 0x3f, // 1.0f32 LE
+            0x00, 0x00, 0x00, 0x40, // 2.0f32 LE
+        ];
+        conn.execute(
+            "INSERT INTO learning_graphs (id, intent_signature, success, graph_json, created_ts, embedding, emb_model)
+             VALUES ('g1', 'sig', 1, '{}', 1, ?1, 'fastembed-bge-small')",
+            rusqlite::params![emb.to_vec()],
+        )
+        .expect("insert with embedding blob");
+        let model: String = conn
+            .query_row(
+                "SELECT emb_model FROM learning_graphs WHERE id = 'g1'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("query");
+        assert_eq!(model, "fastembed-bge-small");
     }
 }

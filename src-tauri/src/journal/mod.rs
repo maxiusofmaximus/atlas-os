@@ -4,12 +4,17 @@
 
 pub mod autoresearch;
 pub mod export;
+#[cfg(feature = "dag_mode")]
+pub mod learning_graphs;
 pub mod schema;
 pub mod store;
 pub mod yaml_format;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(feature = "dag_mode")]
+pub use learning_graphs::{LearningGraphRow, ScoredGraph};
 
 pub use store::{
     AuditEntry, CheckpointRow, ConsolidatedRow, DiffAnnotationRow, DiffRow, JournalEntry, Mission,
@@ -1463,5 +1468,31 @@ impl Journal {
             out.push(item);
         }
         Ok(out)
+    }
+}
+
+#[cfg(feature = "dag_mode")]
+impl Journal {
+    /// Thin wrapper over [`learning_graphs::persist_graph`]. Acquires
+    /// the connection lock once and delegates.
+    #[cfg(feature = "dag_mode")]
+    pub fn persist_learning_graph(
+        &self,
+        req: &learning_graphs::PersistGraphRequest<'_>,
+    ) -> anyhow::Result<()> {
+        let conn = self.conn.lock();
+        learning_graphs::persist_graph(&conn, req)
+    }
+
+    /// Thin wrapper over [`learning_graphs::retrieve_similar_graphs`].
+    #[cfg(feature = "dag_mode")]
+    pub fn retrieve_similar_learning_graphs(
+        &self,
+        query_embedding: Option<&[f32]>,
+        intent_signature: Option<&str>,
+        top_k: usize,
+    ) -> anyhow::Result<Vec<ScoredGraph>> {
+        let conn = self.conn.lock();
+        learning_graphs::retrieve_similar_graphs(&conn, query_embedding, intent_signature, top_k)
     }
 }
