@@ -148,7 +148,7 @@ Esta RFC reconoce los siguientes **tipos de card** distintos:
 |---|---|---|---|
 | `agent` | `AgentCard.svelte` | RFC 03 engine events | Tipo default descrito en §3.1 |
 | `autoresearch` | `AutoresearchCard.svelte` | RFC 19 §11 / RFC 28 §A | Baseline, best metric, step progress, sparkline, button Pause / Stop. Emite `POST /autoresearch/cancel`. Live desde commit `853da30` (Phase 1.5b). |
-| `graph` (planned) | `<GraphView>` | RFC 28 §C / M15 `mission_graph` | Render del DAG persistido para una mission. Toggle viewport kanban↔cascade↔graph. Card badge: `EXTRACTED`/`INFERRED`/`AMBIGUOUS`. Detrás de feature `dag_mode` (default off). Endpoint `GET /hud/graph/:id` (RFC 28 §C item 7). |
+| `graph` | `GraphView.svelte` | RFC 28 §C / M15 `mission_graph` | Render del DAG persistido para una mission. Toggle viewport kanban↔cascade↔graph (Phase 2). Card badge: `EXTRACTED`/`INFERRED`/`AMBIGUOUS`. Detrás de feature `dag_mode` (default off). Endpoint `GET /graph/:id` (RFC 28 §C item 7). Live desde commit `cddcbc2` (Phase 1.5c). |
 
 Cualquier nuevo card type debe declararse aquí primero, añadirse a la sidebar toggle (# views) y exponer su tipo de evento en `src/lib/stores/hud.ts`.
 

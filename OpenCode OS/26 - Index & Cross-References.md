@@ -36,7 +36,7 @@
 | 25 | [Stack Técnico Multiplataforma](./25%20-%20Stack%20T%C3%A9cnico%20Multiplataforma.md) | 25.9 KB | Tauri 2 + Rust 1.84+ + SvelteKit 2 + SQLite/`sqlite-vec` + `fastembed-rs` + Tower-LSP + axum WebSocket + sandbox Docker/Podman/Firejail/Job-Object + OS keychain + 13 model providers HTTP (3 locales + 10 free cloud + paid tier) + `opencode` CLI Rust. Multi-OS binario único 30-45 MB. Justificación vs Electron/AionUI. Tamaños y performance budgets. |
 | 26 | [Index & Cross-References](./26%20-%20Index%20&%20Cross-References.md) | este archivo | Mapa maestro. |
 | 27 | [Orchestration Fundamentals](./27%20-%20Orchestration%20Fundamentals.md) | 13.5 KB | Audit comparativo vs `tmux-orchestrator`, `orca`, `herdr`, `traycer`. Extrae 6 principios fundacionales (worktree isolation, at-a-glance state, remote attach, reflexivity, BYOA, spec-first) y cataloga 8 brechas (A–H) contra los fundamentos, con priorización Phase 2+. |
-| 28 | [External Tool Integration](./28%20-%20External%20Tool%20Integration.md) | 13.6 KB | 4 superficies: §A Karpathy autoresearch loop (Hill-climbing con métrica medible, M13 `autoresearch_runs`); §B Microsoft Intelligent Terminal ACP server (M14 `agent_session_events`, slash commands `/opencode fix` `/restart`); §C graphify pattern adoption (M15 `mission_graph` + `petgraph`+`tree-sitter`, `<GraphView>` HUD, skills como graph templates, Planner DAG); §D AuditLog YAML-on-disk export formato posting. Fase 1.5 orden §D→§A→§C→§B. Research internos en `OpenCode OS/research/`. |
+| 28 | [External Tool Integration](./28%20-%20External%20Tool%20Integration.md) | 13.6 KB | 4 superficies: §A Karpathy autoresearch loop (Hill-climbing con métrica medible, M13 `autoresearch_runs`); §B Microsoft Intelligent Terminal ACP server (M14 `agent_session_events`, slash commands `/opencode fix` `/restart`); §C graphify pattern adoption (M15 `mission_graph` + `petgraph`+`tree-sitter`, `<GraphView>` HUD, skills como graph templates, Planner DAG); §D AuditLog YAML-on-disk export formato posting. Fase 1.5 orden §D→§A→§C→§B. **Status Phase 1.5: §D ✅ (`db25379`), §A ✅ (`853da30`), §C ✅ (`cddcbc2`), §B PLANIFICADO (Phase 1.5d).** Research internos en `OpenCode OS/research/`. |
 
 **Total: 29 RFCs, ~272 KB** de especificación.
 
@@ -273,7 +273,7 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `BgeBaseEnV15` embeddings | 25 §3.5 |
 | `Capabilities` del Registry | 04 §3 |
 | `Capability Resolver` | 02 §3.3 |
-| `Card types (agent/autoresearch/graph)` | 24 §3.3; 28 §A (autoresearch live), 28 §C (graph planned) |
+| `Card types (agent/autoresearch/graph)` | 24 §3.3; 28 §A (autoresearch live), 28 §C (graph live) |
 | `Checkpoints SOP` | 02 §3.1.1 |
 | `Clarification Questions` (STORM) | 23 §5 |
 | `Command Center` (legacy) | 17 §1 (remplazado por HUD) |

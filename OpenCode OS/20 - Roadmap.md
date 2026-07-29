@@ -23,6 +23,17 @@ Entregable: editor que ya reduce alucinaciones aunque no orqueste modelos.
 
 Entregable: Modo IA funcional con un agente mono-modelo por step.
 
+## Fase 1.5 — External Integration Surfaces (RFC 28)
+
+Cuatro superficies de integración opt-in sobre el core de Fase 1, orden `§D → §A → §C → §B` (justificación en RFC 28 §"Orden de implementación"). Cada sub-fase es **atomicable y demo-ready standalone**; el bloque entero no rompe el single-binary (RFC 25 §11) — las dependencias nuevas son feature-gated default-off.
+
+- **1.5a — §D AuditLog YAML export (COMPLETO, commit `db25379`).** `opencode audit --export-posting -n 50 -o ./snapshots/` genera snapshots `.posting.yaml` compatibles con `darrenburns/posting`. `serde_yaml` reutilizado; sin runtime dep nueva.
+- **1.5b — §A Karpathy autoresearch loop (COMPLETO, commit `853da30`).** M13 `autoresearch_runs` + `autoresearch_candidates`; FSM pura en `journal::autoresearch`; `POST /autoresearch/cancel` axum endpoint; `<AutoresearchCard.svelte>` HUD card. Host loop LLM-driven aterriza en Phase 2 (motores).
+- **1.5c — §C graphify pattern adoption (COMPLETO, commit `cddcbc2`).** M15 `mission_graph` + M16 `learning_graphs`; `petgraph`+`tree-sitter` (feature-gated `dag_mode`/`codebase-graph` default-off); `graph/{mod, traverse, ast}` modules; Planner DAG emitter; skills `graph.toml` loader; cosine retrieval; `GET /hud/graph/:id` endpoint + `<GraphView.svelte>` HUD card. Items 1–9 ✅.
+- **1.5d — §B Microsoft Intelligent Terminal ACP server (PLANIFICADO).** `agent-client-protocol = "=2.0.0"` + `sacp-tokio` (feature `acp-server` default off, sólo detectando `WT_COM_CLSID`); M14 `agent_session_events`; métodos ACP `initialize`/`session/new`/`session/prompt`/`session/cancel` + optativos `session/load`/`set_mode` (mapeo RFC 19); slash commands `/opencode fix`, `/opencode restart`, `/opencode exec step`, `/opencode mission new`; `wtcli listen --json` worker → SQLite. Windows-only target; en macOS/Linux el ACP server idles sin efecto.
+
+Entregable: OpenCode OS detectable como ACP agent de primera clase por IT 0.1+ (autodetect PATH), slash commands en pane; HUD sigue siendo surface visual canonical. Validación manual en IT 0.1.1+ instalado (Windows).
+
 ## Fase 2 — Multi-model Orchestration
 - Model Orchestrator completo (votación + debate + fail-over).
 - Sub-modos local / free / mixto.

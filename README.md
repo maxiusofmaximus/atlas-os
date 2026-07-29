@@ -137,20 +137,24 @@ cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- journal -n 10
 
 ## Lint / test
 
-| Target     | Command                                                         |
-| ---------- | --------------------------------------------------------------- |
-| Rust check | `cargo check --manifest-path src-tauri/Cargo.toml --all-features` |
+| Target     | Command                                                                          |
+| ---------- | -------------------------------------------------------------------------------- |
+| Rust check | `cargo check --manifest-path src-tauri/Cargo.toml --all-features`                |
 | Rust lint  | `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings` |
-| Rust fmt   | `cargo fmt --manifest-path src-tauri/Cargo.toml --check`        |
-| Rust test  | `cargo test --manifest-path src-tauri/Cargo.toml --lib`        |
-| Frontend   | `pnpm check && pnpm lint && pnpm test`                          |
+| Rust fmt   | `cargo fmt --manifest-path src-tauri/Cargo.toml --check`                         |
+| Rust test  | `cargo test --manifest-path src-tauri/Cargo.toml --lib`                          |
+| Frontend   | `pnpm check && pnpm lint && pnpm test`                                           |
 
 ## Status
 
-**Phase 0 complete** (Tauri 2 + axum HUD + SvelteKit Mission Control
-with live event streaming, headless CLI, journal, audit, profiles, skills
-loader). The 27 RFCs (00–26) in `OpenCode OS/` describe the roadmap through
-Phase 7.
+**Phase 1 ~95% complete** — engines (Prompt, Planning, Coding, Validation, Repair,
+Learning, Skills, Supervisor), HUD Mission Control (annotated diffs, step pills,
+model swaps, autoresearch card, graph view), headless CLI with `exec/audit/journal`
+namespaces, multi-profile. **Phase 1.5 — RFC 28 External Tool Integration**:
+§D AuditLog YAML export ✅, §A Karpathy autoresearch loop ✅, §C graphify-pattern
+mission graph (`petgraph` + `tree-sitter` feature-gated) ✅, §B Microsoft Intelligent
+Terminal ACP server planned (Phase 1.5d). The 29 RFCs (00–28) in `OpenCode OS/`
+describe the roadmap through Phase 7.
 
 ## License
 

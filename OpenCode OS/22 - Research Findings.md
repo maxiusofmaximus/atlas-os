@@ -306,7 +306,7 @@ RFC 28 §C adopta el **patrón** graphify (no su código Python, que violaría �
 
 ### 10.5 Cambios aplicados a los RFCs como consecuencia de Round 3
 
-- **NEW** `28 - External Tool Integration.md` §C — patrón graphify ported a Rust; §C items 1, 2, 3, 9 completos.
+- **NEW** `28 - External Tool Integration.md` §C — patrón graphify ported a Rust; **§C COMPLETE (Phase 1.5c)** — items 1–9 ✅ (migrations, traverse, AST, planner emitter, skill templates, learning graphs, HUD endpoint + `<GraphView>`). Last commit `cddcbc2`.
 - UPDATED `25 - Stack Técnico Multiplataforma.md` §3.2 — crates core list ahora incluye `petgraph`? **No**: §3.2 enumera required crates; los de §C son feature-gated default-off, por lo que permanecen fuera del "core" list. Esta nota clarifica la decisión.
 - UPDATED `26 - Index & Cross-References.md` — +3 rows (Mission graph, traverse, AST extractor).
 - UPDATED este archivo con §10 round 3.

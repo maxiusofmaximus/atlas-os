@@ -1,7 +1,7 @@
 # RFC 28 — External Tool Integration
 
 **Author:** opencode architect agent · **Date:** 2026-07-25
-**Status:** Draft for orchestrator review
+**Status:** Phase 1.5 — §D ✅ (`db25379`), §A ✅ (`853da30`), §C ✅ (`cddcbc2`), §B planned (Phase 1.5d). Draft for orchestrator review.
 **Supersedes:** none · **Superseded by:** —
 **Depends on:** RFC 02 (Journal), RFC 03 (Memory), RFC 04 (Orchestrator), RFC 06/23 (Skills), RFC 12 (Planning), RFC 14 (Validation), RFC 15 (Repair), RFC 16 (Learning), RFC 19 (Execution Supervisor), RFC 22 (Research Findings), RFC 24 (HUD), RFC 25 (Stack), RFC 27 (Orchestration Fundamentals)
 
@@ -305,24 +305,24 @@ Mínimo: botón **Export as posting** en card Audit (HUD §3). Componente `src/l
 
 ## Orden recomendado — Phase 1.5
 
-**Recomendado (justificado):** Start con **Fase 0 (XS copy_uso batch)**, luego **§D primero**, §A segundo, §C tercero, §B cuarto.
+**Recomendado (justificado):** Start con **Fase 0 (XS copy_uso batch)**, luego **§D primero**, §A segundo, §C tercero, §B cuarto. **Status actual: Fase 0, §D, §A, §C completos; §B en Planeo (Phase 1.5d).**
 
 ### Razón
 
-0. **Fase 0 — batch de ítems XS (1–2 días, copy_uso + ports triviales)**: Antes de tocar ninguna sección en serio, este batch sienta las bases legales+contractuales para todos los portados posteriores. Total ~3h trabajo efectivo. **NO toca Cargo.toml**: sólo añade archivos Markdown / constantes Rust puras / YAML / scripts PowerShell en subdirectorios sin dependencias cruzadas. Items:
+0. **Fase 0 — batch de ítems XS (1–2 días, copy_uso + ports triviales)**: ✅ COMPLETO (commit `7ea40e1`). Antes de tocar ninguna sección en serio, este batch sienta las bases legales+contractuales para todos los portados posteriores. Total ~3h trabajo efectivo. **NO toca Cargo.toml**: sólo añade archivos Markdown / constantes Rust puras / YAML / scripts PowerShell en subdirectorios sin dependencias cruzadas. Items:
    - **AR-001** `skills/autoresearch/program.md` (copiar verbatim Karpathy's program.md con header de atribución)
    - **AR-012** `skills/autoresearch/NEVER_STOP.md` (extraer el guard `NEVER STOP` + "rewind sparingly" prose del program.md — para citar por separado en skills de autonomía)
    - **IT-003** `src-tauri/hooks/<cli>/hooks.json` — copy_uso de la tabla mapping 10 hooks → WTA topics (con variants por CLI generadas programáticamente)
    - **IT-004** `src-tauri/specs/osc-9001.md` — copy_uso verbatim del spec `doc/specs/llm-agent-event-integration.md` (referenciado por §B pero NO requiere código aún)
    - **PT-003** `src-tauri/src/journal/yaml_format.rs::literal_block` (26 LOC port — el str_presenter de posting a Rust). **NO toca aún el emisor YAML**, sólo escribe la función standalone + tests unitarios.
 
-1. **§D AuditLog export** (Phase 1.5a, 1–2 sprints): crate packaging más pequeño (`serde_yaml`), número más bajo de archivos tocados, cierra el gap implícito de audit-log portable export sin tocar engines. Deployable primero, reduce riesgo. Tests fáciles. Confidence builder. Reusa Fase 0's `literal_block`.
+1. **§D AuditLog export** (Phase 1.5a, 1–2 sprints): ✅ COMPLETO (commit `db25379`). Crate packaging más pequeño (`serde_yaml`), número más bajo de archivos tocados, cierra el gap implícito de audit-log portable export sin tocar engines. Deployable primero, reduce riesgo. Tests fáciles. Confidence builder. Reusa Fase 0's `literal_block`.
 
-2. **§A Autoresearch loop** (Phase 1.5b, 2–3 sprints): extiende RFC 19 supervisor sin tocar arquitectura. Schema M13 aislada, un branch de modo. Requiere `git` subprocess (ya tenemos via CLI bin, no nuevo crate). HUD card incremental. No depende de §B/§C. **Si el ACP server retrasa, autoresearch es demo-ready standalone.** Reusa Fase 0's `program.md`.
+2. **§A Autoresearch loop** (Phase 1.5b, 2–3 sprints): ✅ COMPLETO (commit `853da30`). Extiende RFC 19 supervisor sin tocar arquitectura. Schema M13 aislada, un branch de modo. Requiere `git` subprocess (ya tenemos via CLI bin, no nuevo crate). HUD card incremental. No depende de §B/§C. **Si el ACP server retrasa, autoresearch es demo-ready standalone.** Reusa Fase 0's `program.md`.
 
-3. **§C Mission graph M15** (Phase 1.5c, 3–4 sprints): el más disruptivo. Toca Planner, Skills, Supervisor, Learning, HUD. Crates `petgraph`+`tree-sitter` son bump binario. Hacerlo **third** aumenta conocimiento del codebase por lo aprendido en §A/§D. **No deberíamos hacer §C primero**: el scope del refactor Planner es grande.
+3. **§C Mission graph M15** (Phase 1.5c, 3–4 sprints): ✅ COMPLETO (commit `cddcbc2`). El más disruptivo. Toca Planner, Skills, Supervisor, Learning, HUD. Crates `petgraph`+`tree-sitter` son bump binario. Hacerlo **third** aumenta conocimiento del codebase por lo aprendido en §A/§D. **No deberíamos hacer §C primero**: el scope del refactor Planner es grande.
 
-4. **§B IT ACP server** (Phase 1.5d, 4–5 sprints): **último** porque depende de (a) el resto del sistema estable, (b) IT 0.1.x y ACP v2.0.0 son moving targets (`unstable_*` features), (c) prueba-target limitada a Windows, (d) si §C introduce DAG planner, la superficie `session/set_mode` mapping se beneficiará de tener states graph ya consolidado. Adicionalmente: el `exec step` de §A es el mismo `opencode exec step` que §B advertisea — armonizar antes de implementar §B reduce rework. Reusa Fase 0's IT-003/IT-004.
+4. **§B IT ACP server** (Phase 1.5d, 4–5 sprints): ⏳ **PLANEADO — SIGUIENTE HITO.** Último porque depende de (a) el resto del sistema estable, (b) IT 0.1.x y ACP v2.0.0 son moving targets (`unstable_*` features), (c) prueba-target limitada a Windows, (d) si §C introduce DAG planner, la superficie `session/set_mode` mapping se beneficiará de tener states graph ya consolidado. Adicionalmente: el `exec step` de §A es el mismo `opencode exec step` que §B advertisea — armonizar antes de implementar §B reduce rework. Reusa Fase 0's IT-003/IT-004.
 
 ### Sub-enum Phase 1.5
 
@@ -407,18 +407,18 @@ Mínimo: botón **Export as posting** en card Audit (HUD §3). Componente `src/l
      - RFC 16 §3 "Por grafo de misión exitoso" — learning_graphs structural graph diffing via cosine over `sqlite-vec` + `fastembed-rs`.
      - RFC 19 §6.1.1 — State DAG behind `dag_mode`; doom-loop switcher = `shortest_path(current, healthy_state)` from `graph::shortest_path`.
      - RFC 23 §7.3 — Skills gain 4th file `graph.toml` declaring sub-graph templates; loader inserts into M15 with `INFERRED` provenance (spec only; loader = item 5).
-     - RFC 24 §3.3 — Card types taxonomy: agent / autoresearch (live) / graph (planned, behind `dag_mode`).
+      - RFC 24 §3.3 — Card types taxonomy: agent / autoresearch (live) / graph (live, behind `dag_mode`).
   9. ✅ RFC 22 entries (4 crates) — §10 Round 3 añadida: petgraph, tree-sitter, tree-sitter-rust, tree-sitter-svelte-next con justificación single-binary-safe + binary-size budget + sustitución `tree-sitter-svelte` → `tree-sitter-svelte-next` justificada.
 
-- **1.5d — §B IT ACP**:
-  1. Crates: `agent-client-protocol = "=2.0.0"`, `sacp-tokio` (Context7 verify; `unstable_*` features)
-  2. M14 migration
-  3. `acp/{mod, commands, delegate, mode_mapping}` + tests con mock JSON-RPC stdio
-  4. CLI plumbing para `/opencode fix`, `/opencode restart`, `/opencode exec step`
-  5. `wtcli listen --json` worker → events SQLite
-  6. RFC 04/19 patches
-  7. Install README: cómo IT Settings.json apunta a `opencode`
-  8. Manual validation en IT 0.1.1+ instalado (Windows)
+- **1.5d — §B IT ACP** (⏳ Planeado — siguiente hito):
+  1. ⏳ Crates: `agent-client-protocol = "=2.0.0"`, `sacp-tokio` (Context7 verify; `unstable_*` features) — añadir feature `acp-server` a `Cargo.toml` (default off; on solo si `WT_COM_CLSID` detectado en startup).
+  2. ⏳ M14 migration — `agent_session_events` (id, ts, pane_id, event_type, agent, task_id, payload_json) + indexes on ts/task.
+  3. ⏳ `acp/{mod, commands, delegate, mode_mapping}` + tests con mock JSON-RPC stdio. Métodos ACP `initialize`/`session/new`/`session/prompt`/`session/cancel` (required) + `load`/`resume`/`close`/`delete`/`list`/`set_mode`/`logout` (optional). `set_mode` ↔ RFC 19 state machine (PLAN→architect, EXEC→code, REVIEW→ask).
+  4. ⏳ CLI plumbing para `/opencode fix`, `/opencode restart`, `/opencode exec step`, `/opencode mission new`. `/opencode fix` captura vía `wtcli active-pane`+`capture-pane --last-prompt`, enruta al engine Repair (RFC 15).
+  5. ⏳ `wtcli listen --json` worker → events SQLite (Channel 2). Worker Rust spawn del subprocess, parseo JSON-lines, UPSERT en M14.
+  6. ⏳ RFC 04/19 patches — ACP como frontend más (al lado de HUD/CLI); `session/set_mode` override de state documentado en RFC 19 §6.
+  7. ⏳ Install README: cómo IT Settings.json apunta a `opencode` como delegate-agent (Alt+Shift+B); troubleshooting para `WT_COM_CLSID` discovery.
+  8. ⏳ Manual validation en IT 0.1.1+ instalado (Windows build 19041+). Script smoke-test: `opencode mission new` desde pane, slash commands, Hud deep-link en `agent.task.completed._meta.hud_url`.
 
 ---
 
