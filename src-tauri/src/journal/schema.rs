@@ -554,7 +554,56 @@ pub fn migrate(conn: &Connection) -> Result<()> {
             "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
             rusqlite::params![13, chrono::Utc::now().to_rfc3339()],
         )?;
+    }
 
+    if current < 14 {
+        // M14 — Agent session events (RFC 28 §B, derived from Microsoft
+        //   Intelligent Terminal `doc/specs/llm-agent-event-integration.md`,
+        //   MIT — verbatim spec snapshot copy_uso'd into
+        //   `src-tauri/specs/osc-9001.md` during the Phase-0 batch XS).
+        //
+        //   agent_session_events : one row per in-band OSC 9001 envelope
+        //     captured by the `wtcli listen --json` worker (RFC 28 §B
+        //     Channel 2). The worker subprocess spawns `wtcli`, parses
+        //     the JSON-line stream, and UPSERTs each envelope here.
+        //     `pane_id` is nullable because some IT versions emit events
+        //     without a pane (e.g. agent.idle on window close). `task_id`
+        //     is nullable for the same reason — agent.started/agent.idle
+        //     signals carry no task. `payload_json` is the raw `params`
+        //     object of the OSC 9001 `agent_event` envelope, kept verbatim
+        //     so any future structured query (per-tool dashboards,
+        //     replay) has the full payload without a schema migration.
+        //
+        // The table itself is NOT feature-gated — a default build still
+        // creates it (cheap; lets the HUD read whatever pane telemetry
+        // exists even on a non-Windows host). The lifecycle that streets
+        // the rows (the `wtcli listen` worker) IS gated behind
+        // `acp-server` because spawning wtcli is meaningless on Linux.
+        //
+        // Per RFC 28 §B, the schema intentionally omits `mission_id`:
+        // the linkage from agent_session_events to a mission is
+        // deduced by the host from `task_id` <-> `steps.id` joins done
+        // at query-time by the HUD card, not stored as a hard FK.
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS agent_session_events (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts           INTEGER NOT NULL,
+                pane_id      TEXT,
+                event_type   TEXT NOT NULL,
+                agent        TEXT NOT NULL,
+                task_id      TEXT,
+                payload_json TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_ase_ts   ON agent_session_events(ts);
+            CREATE INDEX IF NOT EXISTS idx_ase_task ON agent_session_events(task_id);",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![14, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
+
+    if current < 15 {
         // M15 — Mission graph (RFC 28 §C, derived from
         //   safishamsi/graphify pattern, Apache-2.0). Three tables:
         //

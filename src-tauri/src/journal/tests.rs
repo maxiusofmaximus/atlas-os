@@ -1417,4 +1417,85 @@ mod mission_graph_schema_tests {
             .expect("query");
         assert_eq!(model, "fastembed-bge-small");
     }
+
+    #[test]
+    fn m14_advances_schema_version_to_at_least_14() {
+        let (_tmp, conn) = fresh_conn();
+        let v: i64 = conn
+            .query_row("SELECT MAX(version) FROM schema_version", [], |r| r.get(0))
+            .expect("query");
+        assert!(
+            v >= 14,
+            "expected schema version >= 14 (M14 runs before M15/M16), got {v}"
+        );
+    }
+
+    #[test]
+    fn m14_creates_agent_session_events_table() {
+        let (_tmp, conn) = fresh_conn();
+        let exists: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='agent_session_events'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("query");
+        assert_eq!(exists, 1, "agent_session_events should exist after M14");
+    }
+
+    #[test]
+    fn m14_creates_ts_and_task_indexes() {
+        let (_tmp, conn) = fresh_conn();
+        for idx in ["idx_ase_ts", "idx_ase_task"] {
+            let exists: i64 = conn
+                .query_row(
+                    &format!(
+                        "SELECT count(*) FROM sqlite_master WHERE type='index' AND name='{idx}'"
+                    ),
+                    [],
+                    |r| r.get(0),
+                )
+                .expect("query");
+            assert_eq!(exists, 1, "index {idx} should exist after M14");
+        }
+    }
+
+    #[test]
+    fn m14_accepts_nullable_pane_id_and_task_id() {
+        let (_tmp, conn) = fresh_conn();
+        conn.execute(
+            "INSERT INTO agent_session_events
+                (ts, pane_id, event_type, agent, task_id, payload_json)
+             VALUES (1722000000, NULL, 'agent.idle', 'opencode', NULL, '{}')",
+            [],
+        )
+        .expect("insert with NULL pane_id/task_id");
+        let n: i64 = conn
+            .query_row("SELECT count(*) FROM agent_session_events", [], |r| {
+                r.get(0)
+            })
+            .expect("query");
+        assert_eq!(n, 1);
+    }
+
+    #[test]
+    fn m14_roundtrips_envelope_payload_json() {
+        let (_tmp, conn) = fresh_conn();
+        let payload = r#"{"event":"agent.task.completed","hud_url":"http://127.0.0.1:57457"}"#;
+        conn.execute(
+            "INSERT INTO agent_session_events
+                (ts, pane_id, event_type, agent, task_id, payload_json)
+             VALUES (1722000001, 'pane-3', 'agent.task.completed', 'opencode', 'm-1', ?1)",
+            rusqlite::params![payload],
+        )
+        .expect("insert");
+        let stored: String = conn
+            .query_row(
+                "SELECT payload_json FROM agent_session_events WHERE ts = 1722000001",
+                [],
+                |r| r.get(0),
+            )
+            .expect("query");
+        assert_eq!(stored, payload);
+    }
 }
