@@ -328,12 +328,7 @@ export async function postExportPosting(
 //   RunSnapshot (Rust) -> AutoresearchSnapshot (TS)
 //   Outcome (Rust tag) -> AutoresearchOutcome (TS union)
 
-export type AutoresearchOutcome =
-  | 'running'
-  | 'improved'
-  | 'plateau'
-  | 'timeout'
-  | 'aborted';
+export type AutoresearchOutcome = 'running' | 'improved' | 'plateau' | 'timeout' | 'aborted';
 
 export interface AutoresearchSnapshot {
   id: string;
@@ -384,4 +379,58 @@ export async function postAutoresearchCancel(
   if (!res.ok) {
     throw new Error(`HUD autoresearch cancel failed: ${res.status} ${res.statusText}`);
   }
+}
+
+// �∂∂∂∂∂∂∂∂∂∂∂∂ RFC 28 §C item 7 — graph view typed client ∂∂∂∂∂∂∂∂∂∂∂∂
+//
+// Mirrors the Rust `graph::MissionGraph` payload emitted by
+// `GET /graph/:mission_id`. Keep these types in sync with
+// `src-tauri/src/graph/mod.rs` (the route serialises that struct
+// verbatim). The HUD `<GraphView>` component consumes these.
+
+export type Provenance = 'EXTRACTED' | 'INFERRED' | 'AMBIGUOUS';
+
+export type NodeKind = 'engine_state' | 'mission' | 'skill' | 'external';
+
+export type EdgeKind = 'calls' | 'imports' | 'transitions_to' | 'depends_on' | 'references';
+
+export interface GraphNode {
+  id: string;
+  mission_id: string;
+  kind: NodeKind;
+  label: string;
+  provenance: Provenance;
+  attrs_json: string;
+}
+
+export interface GraphEdge {
+  id: string;
+  mission_id: string;
+  src: string;
+  dst: string;
+  kind: EdgeKind;
+  precondition: string | null;
+  guard: string | null;
+  visit_count: number;
+}
+
+export interface MissionGraph {
+  mission_id: string;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+export async function fetchGraph(hudUrl: string, missionId: string): Promise<MissionGraph> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const res = await fetch(`${trimmed}/graph/${encodeURIComponent(missionId)}`, {
+    method: 'GET',
+    headers: { accept: 'application/json' },
+  });
+  if (res.status === 404) {
+    throw new Error(`No graph persisted for mission ${missionId}`);
+  }
+  if (!res.ok) {
+    throw new Error(`HUD graph fetch failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as MissionGraph;
 }

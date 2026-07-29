@@ -380,7 +380,28 @@ Mínimo: botón **Export as posting** en card Audit (HUD §3). Componente `src/l
      Journal exposes thin lock-and-delegate wrappers
      `persist_learning_graph` and `retrieve_similar_learning_graphs`.
      16 tests (12 module + 4 M16 schema). Schema version 15 → 16.
-  7. ⏳ `GET /hud/graph/:id` + `<GraphView>` + tests
+   7. ✅ `GET /hud/graph/:id` + `<GraphView>` + tests —
+      `src-tauri/src/journal/mission_graph.rs` (gated `dag_mode`, 22
+      tests): `read_graph(conn, mission_id) -> Option<MissionGraph>`
+      rehydrates the M15 rows back into canonical `Node`/`Edge` types
+      (parses `attrs_json` lazily via `Node::attrs()`). `Journal::
+      read_mission_graph` wraps the lock-and-delegate. `src-tauri/
+      src/hud/graph.rs` (gated `dag_mode`, 6 tests): `get_graph` axum
+      handler, `GET /graph/:mission_id` returns 200 JSON / 404 / 400
+      (mission_id ≤ `MAX_MISSION_ID_LEN = 64`); route registered in
+      `hud/server.rs` before `.with_state()`, after payload routes,
+      gated `#[cfg(feature = "dag_mode")]`. Frontend: typed
+      `MissionGraph`/`GraphNode`/`GraphEdge`/`Provenance`/`NodeKind`/
+      `EdgeKind` in `src/lib/stores/hud.ts` mirroring the Rust types
+      (SCREAMING_SNAKE_CASE provenance, snake_case kind); `fetchGraph
+      (hudUrl, missionId)` client with 404+5xx error paths.
+      `src/lib/components/GraphView.svelte` (Svelte 5 runes) renders
+      nodes (provenance-coloured chips grouped by `NodeKind`) and the
+      edge table (`precondition`/`guard`/`visit_count`); reads-only,
+      re-fetches via `$effect` on `hudUrl`/`missionId` change. 6 new
+      `hud.test.ts` cases (fetchGraph URL+errors, type contract)
+      bring the frontend suite 21 → 27. Clippy `-D warnings` clean;
+      default 257, combined 321.
   8. ✅ RFC 12/16/19/23/24 patches:
      - RFC 12 §3.1 — DAG mode emission contract behind `dag_mode`.
      - RFC 16 §3 "Por grafo de misión exitoso" — learning_graphs structural graph diffing via cosine over `sqlite-vec` + `fastembed-rs`.

@@ -201,10 +201,7 @@ describe('postAnnotation', () => {
 });
 
 // ────────────── RFC 28 §A — Autoresearch telemetry helpers ──────────────
-import {
-  postAutoresearchCancel,
-  type AutoresearchSnapshot,
-} from './hud';
+import { postAutoresearchCancel, type AutoresearchSnapshot } from './hud';
 
 describe('postAutoresearchCancel', () => {
   beforeEach(() => {
@@ -275,5 +272,155 @@ describe('AutoresearchSnapshot type', () => {
     };
     expect(snap.outcome).toBe('running');
     expect(snap.best_metric).toBeLessThan(snap.baseline_metric);
+  });
+});
+
+// ────────────── RFC 28 §C item 7 — graph view client ──────────────
+import {
+  fetchGraph,
+  type MissionGraph,
+  type GraphNode,
+  type GraphEdge,
+  type Provenance,
+  type NodeKind,
+  type EdgeKind,
+} from './hud';
+
+describe('fetchGraph', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    globalThis.fetch = vi.fn() as unknown as typeof fetch;
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const sampleGraph: MissionGraph = {
+    mission_id: 'mission-1',
+    nodes: [
+      {
+        id: 'mission-1:root',
+        mission_id: 'mission-1',
+        kind: 'mission',
+        label: 'Root mission',
+        provenance: 'EXTRACTED',
+        attrs_json: '{}',
+      },
+    ],
+    edges: [
+      {
+        id: 'mission-1:e1',
+        mission_id: 'mission-1',
+        src: 'mission-1:root',
+        dst: 'mission-1:s1',
+        kind: 'calls',
+        precondition: null,
+        guard: null,
+        visit_count: 0,
+      },
+    ],
+  };
+
+  it('requests GET /graph/<id> and returns parsed MissionGraph on 200', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => sampleGraph,
+    } as Response);
+    const got = await fetchGraph('http://localhost:57457', 'mission-1');
+    expect(got).toEqual(sampleGraph);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:57457/graph/mission-1',
+      expect.objectContaining({ method: 'GET' }),
+    );
+  });
+
+  it('trims a trailing slash from hudUrl before appending /graph', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => sampleGraph,
+    } as Response);
+    await fetchGraph('http://localhost:57457/', 'mission-1');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:57457/graph/mission-1',
+      expect.objectContaining({ method: 'GET' }),
+    );
+  });
+
+  it('URL-encodes the mission id when it contains a slash', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => sampleGraph,
+    } as Response);
+    await fetchGraph('http://localhost:57457', 'profile/m1');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:57457/graph/profile%2Fm1',
+      expect.objectContaining({ method: 'GET' }),
+    );
+  });
+
+  it('rejects with a descriptive message on 404', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      statusText: 'Not Found',
+      json: async () => sampleGraph,
+    } as Response);
+    await expect(fetchGraph('http://localhost:57457', 'mission-404')).rejects.toThrow(
+      /No graph persisted for mission mission-404/,
+    );
+  });
+
+  it('rejects with a generic message on 5xx', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      statusText: 'ISE',
+      json: async () => sampleGraph,
+    } as Response);
+    await expect(fetchGraph('http://localhost:57457', 'mission-1')).rejects.toThrow(/500/);
+  });
+});
+
+describe('MissionGraph type contract', () => {
+  it('accepts the payload shape emitted by GET /graph/:id', () => {
+    const node: GraphNode = {
+      id: 'm1:n1',
+      mission_id: 'm1',
+      kind: 'engine_state',
+      label: 'Planning',
+      provenance: 'INFERRED',
+      attrs_json: '{"k":"v"}',
+    };
+    const edge: GraphEdge = {
+      id: 'm1:e1',
+      mission_id: 'm1',
+      src: 'm1:n1',
+      dst: 'm1:n2',
+      kind: 'transitions_to',
+      precondition: 'step_done',
+      guard: 'has_steps',
+      visit_count: 3,
+    };
+    const graph: MissionGraph = {
+      mission_id: 'm1',
+      nodes: [node],
+      edges: [edge],
+    };
+    expect(graph.nodes).toHaveLength(1);
+    expect(graph.edges[0]?.visit_count).toBe(3);
+    const p: Provenance = node.provenance;
+    const k: NodeKind = node.kind;
+    const ek: EdgeKind = edge.kind;
+    expect(p).toBe('INFERRED');
+    expect(k).toBe('engine_state');
+    expect(ek).toBe('transitions_to');
   });
 });

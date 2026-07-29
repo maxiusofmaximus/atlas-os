@@ -6,6 +6,8 @@
 pub mod annotate;
 pub mod autoresearch;
 pub mod export;
+#[cfg(feature = "dag_mode")]
+pub mod graph;
 pub mod server;
 pub mod tail;
 pub mod ws;

@@ -85,7 +85,16 @@ pub async fn serve(state: Arc<AppState>, shutdown: CancellationToken) {
         .route(
             "/payload/skill/:skill_id/:version",
             get(super::tail::payload_skill),
-        )
+        );
+
+    // Phase 1.5c §C item 7 — graph read endpoint (RFC 28). Only
+    // mounted when the optional `dag_mode` feature is enabled: the
+    // write side (Planner DAG emitter, Skills graph.toml loader, AST
+    // extractor) is gated behind the same feature.
+    #[cfg(feature = "dag_mode")]
+    let app = app.route("/graph/:mission_id", get(super::graph::get_graph));
+
+    let app = app
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
         .with_state(state);

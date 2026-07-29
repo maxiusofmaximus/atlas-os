@@ -6,6 +6,8 @@ pub mod autoresearch;
 pub mod export;
 #[cfg(feature = "dag_mode")]
 pub mod learning_graphs;
+#[cfg(feature = "dag_mode")]
+pub mod mission_graph;
 pub mod schema;
 pub mod store;
 pub mod yaml_format;
@@ -1494,5 +1496,41 @@ impl Journal {
     ) -> anyhow::Result<Vec<ScoredGraph>> {
         let conn = self.conn.lock();
         learning_graphs::retrieve_similar_graphs(&conn, query_embedding, intent_signature, top_k)
+    }
+
+    /// Thin wrapper over [`mission_graph::read_graph`]. Returns the
+    /// full persisted graph (nodes+edges) for `mission_id`, or `None`
+    /// when no M15 rows exist for that mission.
+    #[cfg(feature = "dag_mode")]
+    pub fn read_mission_graph(
+        &self,
+        mission_id: &str,
+    ) -> anyhow::Result<Option<crate::graph::MissionGraph>> {
+        let conn = self.conn.lock();
+        mission_graph::read_graph(&conn, mission_id)
+    }
+
+    /// Test-only helper: bulk-insert raw graph rows for HUD/router
+    /// integration tests. NOT for production use; production callers
+    /// go through `skills::graph_loader::instantiate` or
+    /// `planning::graph_emitter::plan_to_graph` (caller owns the
+    /// write side). Gated behind `dag_mode` so a non-dag_mode build
+    /// doesn't even see this helper.
+    #[cfg(all(test, feature = "dag_mode"))]
+    pub fn seed_test_graph_node(
+        &self,
+        mission_id: &str,
+        node_id: &str,
+        kind: &str,
+        label: &str,
+        provenance: &str,
+    ) -> anyhow::Result<()> {
+        let conn = self.conn.lock();
+        conn.execute(
+            "INSERT INTO mission_graph_nodes (id, mission_id, kind, label, provenance)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params![node_id, mission_id, kind, label, provenance],
+        )?;
+        Ok(())
     }
 }
