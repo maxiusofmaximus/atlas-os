@@ -38,6 +38,20 @@ dag_mode = ["dep:petgraph"]
 # binary size impact; enable when you want the meta-skill that maps
 # OpenCode OS's own Rust + Svelte sources into `mission_graph_*`.
 codebase-graph = ["dep:tree-sitter", "dep:tree-sitter-rust", "dep:tree-sitter-svelte-next"]
+# RFC 28 Section B — Microsoft Intelligent Terminal ACP server. The
+# OpenCode CLI becomes a first-class ACP agent (stdio JSON-RPC, v1
+# stable wire) detectable by IT 0.1+ and any ACP-capable client. Off
+# by default — Microsoft IT is Windows-only and the surface only
+# matters when `WT_COM_CLSID` (or stdout-is-a-pipe heuristics) detect
+# a host. Anchor: `agent-client-protocol = "2.0"` (Apache-2.0, MSRV
+# 1.88). Only `unstable_session_fork` is enabled — that's the one v2
+# draft feature RFC 28 §B needs; the rest of v2 surface stays off
+# until ACP v2 stabilises. The crate's built-in `Stdio` transport
+# drives the JSON-RPC loop over our existing tokio runtime, so no
+# separate `sacp-tokio` / `agent-client-protocol-tokio` helper is
+# pulled in (verified Jul 2026: there is no such crate on crates.io
+# for the v2 line).
+acp-server = ["dep:agent-client-protocol"]
 
 [dependencies]
 # Core async + errors
@@ -119,6 +133,14 @@ petgraph = { version = "0.8", optional = true, default-features = false, feature
 tree-sitter = { version = "0.26", optional = true }
 tree-sitter-rust = { version = "0.24", optional = true }
 tree-sitter-svelte-next = { version = "0.1", optional = true }
+
+# RFC 28 Section B — Microsoft Intelligent Terminal ACP server
+# (optional, gated `acp-server`). MSRV 1.88, OK con nuestro Rust 1.84
+# de portability floor; el feature flag asegura que el binario default
+# sin IT instalado no arrastra el crate. v1 stable wire sin features;
+# `unstable_session_fork` habilita el futuro `/opencode fork` de RFC
+# 28 §B. Sin helper tokio externo: el core crate provee `Stdio`.
+agent-client-protocol = { version = "2.0", optional = true, features = ["unstable_session_fork"] }
 
 # Test
 tempfile = "3"
