@@ -67,9 +67,13 @@ fn should_run_acp_server() -> bool {
 
 #[cfg(feature = "acp-server")]
 async fn run_acp_server() -> anyhow::Result<()> {
+    // tracing logs must NOT pollute stdout — stdout is the ACP JSON-RPC
+    // transport. Route logs to stderr so the IT host (or a smoke-test
+    // harness) sees them out-of-band.
     let _ = tracing_subscriber::fmt()
         .with_env_filter("info,opencode_os=debug")
         .with_target(true)
+        .with_writer(std::io::stderr)
         .try_init();
     tracing::info!("acp-server: handing stdin/stdout to ACP JSON-RPC host loop");
     opencode_os::acp::run_server()
