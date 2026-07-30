@@ -2,6 +2,7 @@
 // WAL mode, single file per profile: `~/.opencode/profiles/<id>/journal.db`.
 // Schema is minimal in Phase 0 — Roadmap §Fase 0; expanded in later phases.
 
+pub mod agent_events;
 pub mod autoresearch;
 pub mod export;
 #[cfg(feature = "dag_mode")]
@@ -17,6 +18,8 @@ mod tests;
 
 #[cfg(feature = "dag_mode")]
 pub use learning_graphs::{LearningGraphRow, ScoredGraph};
+
+pub use agent_events::AgentSessionEventRow;
 
 pub use store::{
     AuditEntry, CheckpointRow, ConsolidatedRow, DiffAnnotationRow, DiffRow, JournalEntry, Mission,
@@ -1470,6 +1473,52 @@ impl Journal {
             out.push(item);
         }
         Ok(out)
+    }
+
+    /// Insert one row into `agent_session_events` (M14). Returns the row id.
+    /// Spawning and parsing the source envelope is owned by the ACP
+    /// `listen_worker`; this fn only persists the resulting envelope so
+    /// non-Windows hosts still get the typed row inserted by tests / fixtures.
+    pub fn insert_agent_session_event(
+        &self,
+        ts: i64,
+        pane_id: Option<&str>,
+        event_type: &str,
+        agent: &str,
+        task_id: Option<&str>,
+        payload_json: &str,
+    ) -> anyhow::Result<i64> {
+        let conn = self.conn.lock();
+        agent_events::insert_agent_session_event(
+            &conn,
+            ts,
+            pane_id,
+            event_type,
+            agent,
+            task_id,
+            payload_json,
+        )
+    }
+
+    /// Read the most recent `last` rows of `agent_session_events`, newest
+    /// first. Backs the HUD pane-timeline card.
+    pub fn agent_session_events_tail(
+        &self,
+        last: i64,
+    ) -> anyhow::Result<Vec<agent_events::AgentSessionEventRow>> {
+        let conn = self.conn.lock();
+        agent_events::agent_session_events_tail(&conn, last)
+    }
+
+    /// Read all rows for a given `pane_id`, newest first. Backs the per-pane
+    /// HUD card that lets an operator scrub agent.tool.invoked /
+    /// agent.tool.completed pairs in chronological order.
+    pub fn agent_session_events_for_pane(
+        &self,
+        pane_id: &str,
+    ) -> anyhow::Result<Vec<agent_events::AgentSessionEventRow>> {
+        let conn = self.conn.lock();
+        agent_events::agent_session_events_for_pane(&conn, pane_id)
     }
 }
 

@@ -37,6 +37,7 @@
 
 pub mod commands;
 pub mod delegate;
+pub mod listen_worker;
 pub mod mode_mapping;
 
 use agent_client_protocol::{
