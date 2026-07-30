@@ -305,9 +305,101 @@ Mínimo: botón **Export as posting** en card Audit (HUD §3). Componente `src/l
 
 ---
 
+## §E — Firecrawl: web ingestion polyfacética (post-graphify)
+
+### Source items
+
+- **firecrawl/firecrawl** (<https://github.com/firecrawl/firecrawl>), MIT — plataforma open-source de web scraping/crawling/search. Mantiene un **SDK Rust oficial y first-party** en la crate `firecrawl = "2.12.1"` (<https://crates.io/crates/firecrawl>, MIT, maintainers `mogery` + `rafaelsideguide` = equipo Firecrawl). NO hay que portar nada: la crate ya existe, está publicada en crates.io, y se actualiza en paralelo con el SDK Node/Python del mismo repo.
+- **firecrawl/firecrawl-mcp-server** (<https://github.com/firecrawl/firecrawl-mcp-server>), MIT — MCP server oficial (Node, 7.1k★) que expone `scrape`/`search`/`crawl`/`map`/`extract`/`agent`/`interact`/`monitor`/`research_*`. documenta el **contrato de herramientas** que nuestra facade debe replicar cuando se exponga vía MCP.
+- **firecrawl-mcp = "0.7.1"** (<https://crates.io/crates/firecrawl-mcp>, MIT, community `washanhanzi`) — SDK Rust para construir MCP servers firecrawl nativamente sin Node. Features `default = [batch-scrape, crawl, map, scrape, search]`, `self-host`. **Opcional/post-MVP**: usar sólo si decidimos emitir un MCP server propio; si no, basta con `firecrawl = "2"` directa.
+- **Hosted MCP endpoint** (`https://mcp.firecrawl.dev/v2/mcp`) — instancia gestionada que los clientes MCP pueden apuntar sin instalar nada. Keyless free tier cubre `scrape`/`search`/`interact`. Nosotros no lo worshipeamos internamente (no external runtime dep) pero lo citamos como referencia de la superficie canónica.
+
+### Por qué polyfacética — el patrón "adapter facade"
+
+Firecrawl reemplaza dos superficies de capacidad que el runtime opencode usa hoy por separado:
+
+1. **`webfetch` builtin** (tool investigación durante sesiones) — limitado a una URL, sin JavaScript rendering, sin structured extraction, sin rate-limit handling. Firecrawl lo supera en todos los ejes.
+2. **Ingest pipeline de graphify** (futuro): cuando `codebase-graph` lee repos y `dag_mode` emite grafos de misión, un componente de "research externo" puede enriquecer nodos con metadata scrapeada (READMEs upstream, issue trackers, papers citados en comentarios). Hoy esto no existe; firecrawl lo habilita.
+
+El patrón profesional para integrar una herramienta polyfacética que sirve a N consumers heterogéneos (MCP server, CLI `research`, graphify ingest, `webfetch` fallback, future Skills) es el **adapter facade**: un módulo Rust interno expone una superficie unificada y todos los consumers llaman a esa facade (no a la crate firecrawl directo). La facade abstrae: credenciales (`FIRECRAWL_API_KEY` / OAuth bearer / keyless fallback), rate-limit + retry exponencial, redacción PII (`redactPII: true`), normalización a tipos comunes (`ScrapedDocument { url, markdown, title, metadata }`, `SearchResult { url, title, snippet, highlights }`, `CrawlBatch { docs }`, `ExtractResult { json }`), y fallback graceful a `webfetch` cuando no hay API key o el feature flag está OFF.
+
+Esto evita el anti-patrón "cada consumer llama firecrawl directo con su propio error handling y duplicación de credenciales". La crate `firecrawl = "2"` sigue siendo una dependencia opcional gated tras `firecrawl` feature, pero su API surface se consume **única y exclusivamente** vía `crate::firecrawl::facade`.
+
+### Objetivos
+
+1. Añadir feature flag `firecrawl` (default OFF) a `Cargo.toml`, con dependencia `firecrawl = { version = "2", optional = true }`. Cumple AGENTS.md §4 (no new dep sin RFC first — este §E es el RFC).
+2. Implementar `src-tauri/src/firecrawl/{mod, facade, client, error}.rs` (gated `#[cfg(feature = "firecrawl")]`):
+   - `facade.rs` — tipos canónicos + traits: `async fn scrape_url(url, opts) -> Result<ScrapedDocument>`, `search_web(query, opts) -> Result<Vec<SearchResult>>`, `crawl_site(url, limit) -> Result<CrawlBatch>`, `extract_structured(urls, schema) -> Result<ExtractResult>`. Cada fn maneja credenciales, retry, redacción internamente.
+   - `client.rs` — wrapper fino sobre `firecrawl::Client` (singleton lazy-static con `FIRECRAWL_API_KEY` desde env o `profiles::Profile::secret`).
+   - `error.rs` — enum `FirecrawlFacadeError { MissingApiKey, RateLimited, Network, Api(FirecrawlError) }` con `thiserror`.
+3. Sub-comando CLI `opencode research` (gated `firecrawl`): `opencode research scrape <url>`, `opencode research search <query>`, `opencode research crawl <url> --limit N`. Usa `facade`. Output a stdout en JSON line-delimited (consumible por pipes).
+4. **MCP server nativo Rust** (opcional, post-§E MVP): si perfilamos y Node `firecrawl-mcp` startup cost duele, escribimos `src-tauri/src/firecrawl/mcp.rs` usando `firecrawl-mcp = "0.7.1"` SDK Rust para servir MCP tools sobre stdio. Decisión postergada hasta medir cuello de botella — primer corte: perfil hosted keyless endpoint o subprocess Node.
+5. Reemplazar todas las llamadas internas a `webfetch` por `facade::scrape_url` cuando el feature esté ON; si OFF, mantener `webfetch` como fallback hardcoded (no romper single-binary invariant).
+6. Cerrar el loop graphify: cuando `dag_mode` + `codebase-graph` + `firecrawl` co-ocurren, un `graph_ingest` step opt-in puede enriquecer nodos con metadata scrapeada. Spec detalle se añade a RFC 16 §3 (structural graph diffing) post-§E MVP.
+
+### Cambios Rust (plan, no implementación)
+
+- `Cargo.toml` — `[features] firecrawl = ["dep:firecrawl"]`, `firecrawl = { version = "2", optional = true, default-features = false }`. NO subir a default.
+- `src-tauri/src/firecrawl/mod.rs` — `pub mod facade; pub mod client; pub mod error;` con subtree todo gated `#[cfg(feature = "firecrawl")]`.
+- `src-tauri/src/lib.rs` — `#[cfg(feature = "firecrawl")] pub mod firecrawl;`
+- `src-tauri/src/cli/commands/research.rs` (nuevo, gated) — sub-comando `opencode research {scrape|search|crawl}`.
+- `src-tauri/src/cli/commands/mod.rs` — `#[cfg(feature = "firecrawl")] pub mod research;` + clap subcmd registration gated.
+- Sin migración SQL (§E no toca journal). Sin frontend changes a menos que el HUD quiera mostrar "firecrawl active" badge (deferido).
+
+### Comandos CLI nuevos (plan)
+
+```bash
+opencode research scrape https://docs.firecrawl.dev --format json
+opencode research search "rust async patterns" --limit 5 --highlights
+opencode research crawl https://example.com/blog --limit 50
+# gated behind `firecrawl` feature; build without flag = subcommand absent, clap returns "no such command"
+```
+
+### Front SvelteKit
+
+Ninguno en MVP. Posible futuro: badge "firecrawl connected" en HUD settings panel;(signature `firecrawl_used: true` en mission metadata, optional mostrar en `<MissionCard>`). Deferido.
+
+### Actualizaciones a RFCs existentes (plan)
+
+- **RFC 25 §3.2** — añadir `firecrawl = "2"` (optional, gated `firecrawl` feature) a la lista de crates justificados. NO entra en "core required" — queda fuera del default build.
+- **RFC 22 §11 Round 4** — audit exhaustivo de `firecrawl = "2.12.1"`: licensia, maintainers, MSRV, deps transitivas, binary-size, single-binary-safety. (Añadido por separado en este commit.)
+- **RFC 16 §3** — placeholder: "structured graph diffing MAY enqueue scrape enrichment when feature `firecrawl` está ON; spec completo tras §E MVP".
+- **Este archivo (RFC 28 §E)** — checklist de implementación (ver abajo).
+- **RFC 26** — cross-ref rows nuevos (`firecrawl facade`, `opencode research`).
+
+### §E Checklist (no ejecutar hasta post-graphify)
+
+1. ⏳ `Cargo.toml` feature `firecrawl` + dep `firecrawl = "2"` (optional). `cargo check --features firecrawl` limpio.
+2. ⏳ `src-tauri/src/firecrawl/{mod, error}.rs` — enum errors + module skeleton.
+3. ⏳ `src-tauri/src/firecrawl/client.rs` — `FirecrawlClient::from_env() -> Result<Self, FirecrawlFacadeError>`, singleton sobre `parking_lot::RwLock<Option<Client>>`. 5+ tests mock (mockito-style, sin red).
+4. ⏳ `src-tauri/src/firecrawl/facade.rs` — `scrape_url`, `search_web`, `crawl_site`, `extract_structured` con redacción PII default ON. 10+ tests.
+5. ⏳ `src-tauri/src/cli/commands/research.rs` — sub-comando clap gated.
+6. ⏳ Integración `webfetch` fallback path (cuando feature OFF o no API key).
+7. ⏳ Tests e2e optativos: `#[ignore]` gated tras envvar `FIRECRAWL_API_KEY` real, no corren en CI sin key.
+8. ⏳ Docs + atribución: module-level prose citando firecrawl MIT + apéndice atribución.
+9. ⏳ Decisión post-MVP: MCP server nativo Rust vs subprocess Node vs hosted endpoint. Bloqueador: medir startup cost + drift SDK.
+10. ⏳ Cierre graphify: `graph_ingest` enrichment spec en RFC 16 §3.
+
+### Riesgos
+
+1. **API key distribution**: firecrawl cloud requiere key. Self-host posible pero añade infra. Mitigación: keyless free tier cubre scrape/search/interact (rate-limited); key sólo para crawl/map/extract/agent.
+2. **Vendor lock-in**: facade abstrae el SDK; si firecrawl cambia breaking v3, sólo `client.rs` se retoca, no los consumers.
+3. **Cold-start `firecrawl::Client`**: construirla en primer call async. Mitigación: lazy singleton con `OnceCell`.
+4. **Rate limits**: facade retry exponencial + jitter; propagar `429` al caller como `FirecrawlFacadeError::RateLimited` paraque Skills/Planner puedan pausar.
+5. **Tests con red**: ningún test unitario toca la red real. `mockito` (dev-dep existente en firecrawl crate, no en nuestro tree) o `wiremock` para mock HTTP. Tests e2e `#[ignore]` con envvar opt-in.
+6. **Single-binary invariant**: `firecrawl = "2"` es pure Rust (reqwest/serde/tokio), zero native deps. Cumple AGENTS.md §6. SI usamos `firecrawl-mcp = "0.7.1"` para MCP server, igual (Rust puro). NO introducimos Node runtime en el binario.
+7. **Ordering vs graphify**: §E depende de §C MVP completo (ya ✅) PERO no bloquea en graphify runtime — el enriquecimiento `graph_ingest` es un follow-up opt-in. §E puede shipparse sin `dag_mode` + `codebase-graph`. Razón de "post-graphify": (a) prioridad de producto, no técnica; (b) queremos medir `firecrawl` usage desde graphify primero para afinar facade API.
+
+### Atribución (apéndice)
+
+- `src-tauri/src/firecrawl/{mod, facade, client, error}.rs` — `"Uses the official Rust SDK firecrawl = \"2\" published by the Firecrawl team (MIT). Copyright Mendable AI Inc."`. NO porta código fuente desde firecrawl/firecrawl-mcp-server (Node) — usa la crate Rust first-party.
+- Si se usa `firecrawl-mcp = "0.7.1"`: `"Rust SDK firecrawl-mcp by washanhanzi (MIT). Copyright washanhanzi."`.
+
+---
+
 ## Orden recomendado — Phase 1.5
 
-**Recomendado (justificado):** Start con **Fase 0 (XS copy_uso batch)**, luego **§D primero**, §A segundo, §C tercero, §B cuarto. **Status actual: Fase 0, §D, §A, §C completos; §B en Planeo (Phase 1.5d).**
+**Recomendado (justificado):** Start con **Fase 0 (XS copy_uso batch)**, luego **§D primero**, §A segundo, §C tercero, §B cuarto, **§E quinto (post-graphify)**. **Status actual: Fase 0, §D, §A, §C completos; §B en implementación (Phase 1.5d — items 1-3 committeados, 4-8 en curso); §E documentado, implementación postergada a Phase 1.5e/1.6.**
 
 ### Razón
 

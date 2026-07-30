@@ -319,3 +319,68 @@ RFC 28 §C adopta el **patrón** graphify (no su código Python, que violaría �
 - tree-sitter-rust: https://crates.io/crates/tree-sitter-rust
 - tree-sitter-svelte-next: https://crates.io/crates/tree-sitter-svelte-next
 - Tarjan's SCC reference: https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm
+
+## 11. Investigación Round 4 (2026-07-29) - Phase 1.5e §E (Firecrawl web ingestion)
+
+## 11. Investigación Round 4 (2026-07-29) - Phase 1.5e §E (Firecrawl web ingestion)
+
+### 11.1 Motivación
+
+RFC 28 §E introduce Firecrawl como superficie de web ingestion polyfacética (scrape, crawl, search, extract). Phase 1.5c §C ya introdujo `petgraph` + `tree-sitter` como bump binario; §E es otro bump pero elcrate oficial existe en Rust. La pregunta de research: ¿existe un SDK Rust oficial, qué crates competidoras hay, qué expansión binaria real, y cómo proteger la single-binary safety (RFC 25 §11)?
+
+### 11.2 Decision arquitectónica: adapter facade
+
+Adoptar **adapter facade** pattern: `src-tauri/src/firecrawl/{mod, facade, client, error}.rs`. La facade expone tipos canónicos `ScrapedDocument`, `SearchResult`, `CrawlBatch`, `ExtractResult` independientes de la librería subyacente. Beneficios:
+- Permite swap del crate subyacente sin tocar callers (si `firecrawl` oficial deprecado, intercambiamos por facade impl alternativa).
+- Centraliza redacción de API keys (callers nunca ven el raw client).
+- Centraliza retry/backoff con `thiserror` taxonomía unificada (`FirecrawlFacadeError`).
+- Gate feature `firecrawl` default OFF (single-binary safety; ver RFC 25 §11).
+- callers (Research Engine, Skills, autoresearch) dependen de la facade, no del SDK.
+
+### 11.3 Crates analizadas
+
+| Crate | Version | Licencia | Maintainer | Decision |
+|---|---|---|---|---|
+| `firecrawl` | 2.12.1 | MIT | equipo Firecrawl (Mendable AI): `mogery`, `rafaelsideguide` | **adoptar** como dep opcional gated detras de feature `firecrawl` |
+| `firecrawl-mcp` | 0.7.1 | MIT | `washanhanzi` (community) | **opcional/futuro**: solo si construimos MCP server nativo Rust |
+| `firecrawl_rs` | 0.1.1 | ? | ? | **rechazar**: cubierta por `firecrawl` oficial |
+| `firecrawl-sdk` | 0.5.1 | ? | ? | **rechazar**: cubierta por `firecrawl` oficial |
+
+`firecrawl 2.12.1` es el SDK oficial Rust mantenido por el equipo Firecrawl (Mendable AI). MIT. Dependencies: `reqwest 0.12`, `serde`, `tokio 1`, `thiserror 1`, `serde_with 3`. API: `Firecrawl::new_http(api_key)`, `.scrape_url`, `.search`, `.crawl_url`, `.extract`. Async, returns `Result<...>`.
+
+### 11.4 Binary-size budget
+
+- Binario OpenCode OS actual: ~30-45 MB (RFC 25).
+- `firecrawl` crate: < 800 KB incremental (reqwest ya presente para axum). Aceptable.
+- `firecrawl-mcp` (MCP SDK): ~1.5 MB. Postergado hasta que sea necesario (no en Phase 1.5).
+- Budget total Phase 1.5 (§A+§C+§B+§E) < 5 MB incremental sobre el binario base.
+
+### 11.5 Single-binary safety audit
+
+RFC 25 §11 exige single binary. `firecrawl` crate: no requiere Python, no instala herramientas externas, no spawn processes. Todo HTTP via reqwest (async, dentro del proceso). Apto. `firecrawl-mcp` lo cumple igual pero postergamos.
+
+### 11.6 Licencia y atribución
+
+`firecrawl 2.12.1` MIT — compatible conOpenCode OS (RFC 28 apéndice). Per-module attribution required en `src-tauri/src/firecrawl/mod.rs`: campo `// Ported from firecrawl 2.12.1 (MIT, Mendable AI, https://github.com/mendableai/firecrawl)` — no, no es porting, es uso directo del crate. Atribución distinta: declaración de uso de crate externo en `src-tauri/Cargo.toml` y `OpenCode OS/28 - External Tool Integration.md` apéndice licencias.
+
+### 11.7 Cambios aplicados
+
+- ADDED §E a RFC 28 (lines 308-399): source items, adapter facade rationale, 6 objectives, Rust change plan, CLI commands plan, 10-item checklist (all ⏳), 7 risks, atribución.
+- UPDATED `26 - Index & Cross-References.md` - +2 rows (Firecrawl adapter facade, `opencode research`).
+- UPDATED este archivo con §11 round 4.
+- UPDATED RFC 28 "Orden recomendado" para incluir §E quinto (post-graphify).
+
+### 11.8 URLs nuevas (Round 4)
+
+- firecrawl Rust SDK oficial: https://crates.io/crates/firecrawl
+- firecrawl repo (Mendable AI): https://github.com/mendableai/firecrawl
+- firecrawl docs API: https://docs.firecrawl.dev
+- firecrawl-mcp: https://crates.io/crates/firecrawl-mcp
+- firecrawl_rs (rechazada): https://crates.io/crates/firecrawl_rs
+- firecrawl-sdk (rechazada): https://crates.io/crates/firecrawl-sdk
+- adapter facade pattern: https://rust-unofficial.github.io/patterns/patterns/structural/facade.html
+- reqwest 0.12: https://crates.io/crates/reqwest
+- thiserror 1: https://crates.io/crates/thiserror
+- serde_with 3: https://crates.io/crates/serde_with
+- RFC 25 §11 single-binary: ./25%20-%20Stack%20T%C3%A9cnico%20Multiplataforma.md
+- RFC 28 §E: ./28%20-%20External%20Tool%20Integration.md
