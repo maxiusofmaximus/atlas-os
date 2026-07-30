@@ -153,6 +153,20 @@ Cuando `dag_mode=true` (feature default off), los estados por mission se persist
 
 La tabla esporádica del M15 aloja estos grafos junto con los del Planner (§3.1 de RFC 12) y los EXTRACTED del AST del propio codebase (RFC 28 §C item 3). Un único store, query con `kind` + `mission_id`.
 
+### 6.1.2 Override de state por ACP `session/set_mode` (RFC 28 §B item 6)
+
+Cuando `agent-client-protocol` activa `acp-server`, el ACP server de Microsoft Intelligent Terminal (IT) es **un frontend más** (al lado de HUD webview y de la CLI pura) y su método opcional `session/set_mode` queda como fuente de **override humano** de `current_state` del supervisor. La main rule:
+
+| ACP `mode` (v1 spec) | RFC 19 `SupervisorState` | Acción de override |
+| --- | --- | --- |
+| `architect` | `plan`     | fuerza `current_state = planning`  → Planning Engine toma el lock |
+| `code`      | `exec`     | fuerza `current_state = executing` → Coding Engine toma el lock |
+| `ask`       | `review`   | fuerza `current_state = verifying`  → Validation Engine toma el lock |
+
+Los estados autónomos (`idle, recovering, halted, done, learning`) **no** se exponen via ACP — el override sólo dirige el triplet humano-in-loop. Un override de state **persiste** (Journal M6 `audit` con `action = "set_mode_override"` + `inputs = { prev_mode, new_mode, source: "acp", session_id }`) y **no** resetea `mission_failure_count` (§6.2 sigue contando reinicios). Si `set_mode` llega en mitad de `recovering`, el supervisor avanzará hasta que `recovering → idle` antes de aplicar el override (anti-hand-stall). El ACP server emite el correspondiente `currentModeUpdate` notification con `currentModeId` para que la UI IT lo refleje (ver `acp/mode_mapping.rs` para la tabla bidireccional con Display/FromStr).
+
+Cuando `dag_mode=true` el override se inserta como edge `transitions_to` con `guard = "acp_human_override"`, `visit_count += 1`, y `precondition = {"from_acp_mode": <neighbouring>}`. De esta forma el DAG captura la intervención humana del operador sin necesidad de un soft fork del mission graph.
+
 ### 6.2 Políticas heredadas
 - Tras 2 reinicios consecutivos en el mismo step → marca `blocked`.
 - Tras 4 reinicios en la mission → escalar al usuario.

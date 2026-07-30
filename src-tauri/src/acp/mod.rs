@@ -43,9 +43,10 @@ pub mod mode_mapping;
 use agent_client_protocol::{
     on_receive_notification, on_receive_request,
     schema::v1::{
-        AgentCapabilities, CancelRequestNotification, ContentBlock, InitializeRequest,
-        InitializeResponse, NewSessionRequest, NewSessionResponse, PromptRequest, PromptResponse,
-        SessionId, SessionNotification, SessionUpdate, StopReason, TextContent,
+        AgentCapabilities, CancelRequestNotification, ContentBlock, CurrentModeUpdate,
+        InitializeRequest, InitializeResponse, NewSessionRequest, NewSessionResponse,
+        PromptRequest, PromptResponse, SessionId, SessionNotification, SessionUpdate,
+        SetSessionModeRequest, SetSessionModeResponse, StopReason, TextContent,
     },
     schema::ProtocolVersion,
     Agent, Stdio,
@@ -79,6 +80,29 @@ pub async fn run_server() -> agent_client_protocol::Result<()> {
                 let update = SessionNotification::new(
                     session_id,
                     commands::build_available_commands_update(),
+                );
+                connection.send_notification(update)?;
+                Ok(())
+            },
+            on_receive_request!(),
+        )
+        .on_receive_request(
+            async |request: SetSessionModeRequest, responder, connection| {
+                let session_id = request.session_id.clone();
+                let mode_id = request.mode_id.clone();
+                let mode_tag = mode_id.0.as_ref().to_string();
+                let supervisor_state = mode_mapping::parse_acp_mode_id(&mode_tag);
+                tracing::info!(
+                    session_id = %session_id,
+                    acp_mode = %mode_tag,
+                    supervisor_state = ?supervisor_state,
+                    "acp session/set_mode override received",
+                );
+                let response = SetSessionModeResponse::new();
+                responder.respond(response)?;
+                let update = SessionNotification::new(
+                    session_id,
+                    SessionUpdate::CurrentModeUpdate(CurrentModeUpdate::new(mode_id)),
                 );
                 connection.send_notification(update)?;
                 Ok(())
@@ -190,5 +214,28 @@ mod tests {
         assert_eq!(response.stop_reason, StopReason::Refusal);
         let caps = AgentCapabilities::new().load_session(false);
         assert!(!caps.load_session);
+    }
+
+    #[test]
+    fn set_mode_response_is_default_with_meta_unset() {
+        let response = SetSessionModeResponse::new();
+        assert!(response.meta.is_none());
+    }
+
+    #[test]
+    fn current_mode_update_round_trips_through_mode_mapping() {
+        use super::mode_mapping::{acp_mode_id, AcpMode};
+        let mode = AcpMode::Architect;
+        let mode_tag = acp_mode_id(&mode);
+        let update = CurrentModeUpdate::new(mode_tag.to_string());
+        assert_eq!(update.current_mode_id.0.as_ref(), mode_tag);
+        let parsed = super::mode_mapping::parse_acp_mode_id(mode_tag)
+            .expect("parse_acp_mode_id accepts a valid ACP mode id produced by acp_mode_id");
+        assert_eq!(parsed, mode);
+    }
+
+    #[test]
+    fn unknown_acp_mode_id_is_parsed_as_none() {
+        assert!(super::mode_mapping::parse_acp_mode_id("unknown-mode").is_none());
     }
 }

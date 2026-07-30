@@ -163,3 +163,22 @@ Cada invocación registra en el Journal:
 - `was_correct` (booleano determinado por Learning Engine).
 
 Esto retroalimenta la afinidad del orquestador con el tiempo → el sistema **aprende** qué modelo se porta mejor para cada clase de tarea en cada proyecto.
+
+## 9. Frontends del orquestador (RFC 28 §B item 6)
+
+El Orchestrator es agnóstico del transporte de UI. Hasta Phase 1 disponía de dos frontends:
+
+1. **CLI pura** (`opencode` headless binary, RFC 25 §3.9 / RFC 08) — `mission new`, `plan`, `run`, `resume`, `fork`, `steer`, `swap_model`, `exec`, etc.
+2. **HUD Mission Control** (WebView via Tauri, RFC 24) — graph cards, fork-tree, audit timeline, autoresearch card (RFC 28 §A), mission graph (RFC 28 §C), WebSockets over axum.
+
+A partir de **RFC 28 §B** (Phase 1.5d) hay un tercer frontend: el **ACP server embebido en `opencode`** que Microsoft Intelligent Terminal auto-detecta vía `WT_COM_CLSID`. Esto NO convierte al Orchestrator en un proceso externo — el ACP server reusa la misma `crate::orchestrator` que los otros dos frontends, simplemente con un transporte JSON-RPC sobre stdio y un envelope de input distinto (`PromptRequest` en vez de `commands::dispatch`). El contrato es:
+
+- `initialize` → `build_initialize_response` (sin `mcpCapabilities` en Phase 1.5d; ver RFC 28 §B).
+- `session/new` + `available_commands_update` → los 6 slash commands del catalogue de `acp/commands.rs`.
+- `session/prompt` con comando delegado → `acp::delegate::parse_delegate` enrutas a la lógica que el CLI ya conduce (`opencode exec step`, `/opencode fix` → Repair engine RFC 15, `/opencode restart` → `session/close` + `session/new`).
+- `session/set_mode` → override de `SupervisorState` (ver RFC 19 §6.1.2). El Orchestrator aplica el override **antes** del siguiente `tick()` (no interrumpe un step en curso) y persiste en Journal M6 como audit.
+- `$/cancel_request` → notification ack no-op (PIa 1.5d host loop no-oped; Phase 2 lo convertirá a `BusEvent::MissionSteered`).
+
+Frontends **no tienen voto** sobre qué modelo usar — el Orchestrator wählt según el Skill Graph (§7), presupuesto (§6) y last `was_correct` (§8). Un frontend sólo puede sugerir via `profile swap <model>` (CLI) o `swap_model` (HUD) o `session/set_mode` (ACP, indirectamente via skill-compatible model del nuevo state). Esta separación mantiene el Orchestrator neutral sobre el transporte, exactamente como P3 (`cualquier modelo puede entrar`).
+
+Single-binary safety (RFC 25 §11): el ACP frontend no añade subprocess externo; reusa tokio runtime + `agent-client-protocol::Stdio` builtin transport. Spawning `wtcli` (Channel 2 worker) es opt-in y gated `acp-server`; en macOS/Linux tanto `run_server` como `spawn_listener` son no-op.

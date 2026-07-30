@@ -264,6 +264,7 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | Concepto | RFC |
 |---|---|
 | `Agent Operating System` | 02 |
+| `ACP server frontends the Orchestrator` (CLI / HUD / ACP trio) | 04 §9; 28 §B item 6 |
 | `Approvals queue` pauserule | 24 §5 |
 | `Architecture Memory` | 02 §3.4 |
 | `Audit timeline hash chain` | 24 §10 |
@@ -345,6 +346,7 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Skill refresh en caliente` | 24 §8.1 |
 | `Skills as graph templates` (`graph.toml`, 4th skill file) | 23 §7.3; 28 §C |
 | `State DAG` (RFC 19 supervisor as DAG) | 19 §6.1.1; 28 §C |
+| `session/set_mode` override (ACP → SupervisorState) | 19 §6.1.2; 28 §B item 6 |
 | `SvelteKit CSR` | 25 §3.3 |
 | `sqlite-vec` | 25 §3.4; 09 |
 | `Stack technical` | 25 |
