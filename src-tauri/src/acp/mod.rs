@@ -1,12 +1,17 @@
 // OpenCode OS — Microsoft Intelligent Terminal ACP server skeleton
-// (RFC 28 §B Phase 1.5d item 3).
+// (RFC 28 §B Phase 1.5d item 3 + item 4).
 //
 // This stub turns the OpenCode CLI into a first-class ACP agent:
 //
 //   * `initialize` is answered with `agentInfo: "OpenCode OS"` plus an
 //     `agentCapabilities` block that advertises `loadSession=false` and no
 //     MCP / session-list / fork surfaces yet,
-//   * `session/new` synthesises a fresh `SessionId` from `uuid::v4`,
+//   * `session/new` synthesises a fresh `SessionId` from `uuid::v4` and
+//     immediately streams a `session/update` carrying the OpenCode OS
+//     slash-command catalogue (`available_commands_update`), so the IT
+//     operator sees `/opencode fix`, `/opencode exec step`,
+//     `/opencode restart`, `/opencode mission new`, ``/opencode fork``,
+//     `/opencode resume` as soon as the session opens,
 //   * `session/prompt` immediately stops with `StopReason::Refusal` and
 //     streams a single `session/update` chunk carrying a sentinel text
 //     explaining "Phase 1.5d: agent host loop not wired" before the prompt
@@ -15,14 +20,23 @@
 //     and otherwise dropped — the stub never enters a host loop, so there is
 //     no in-flight work to cancel.
 //
-// The entry point is `run_server`. It is intentionally `#[allow(dead_code)]`
-// for this commit: the `opencode` binary will pick it up in RFC 28 §B item 4
-// once Microsoft IT detection lands. The crate already re-exports this module
-// under the `acp-server` feature flag (see `lib.rs`).
+// The entry point is `run_server`. It is invoked by the `opencode` binary
+// when Microsoft IT detection requests an ACP stdio loop (see RFC 28 §B
+// item 4 wiring in `src-tauri/src/cli/bin/opencode.rs`). The crate
+// re-exports this module under the `acp-server` feature flag (see `lib.rs`).
+//
+// Slash-command catalogue + delegate helpers live in
+//   * `commands`:    `available_commands_update` builder + ACP
+//                    `AvailableCommand` definitions.
+//   * `delegate`:    parsing of `/opencode fix [hint]`, `/opencode exec step`,
+//                    `/opencode restart` argv + `wtcli` capture stub.
+//   * `mode_mapping`: bidirectional `SupervisorState` ↔ ACP `AcpMode` table.
 //
 // No `// TODO`s live in this file. Every branch is the deliberate behaviour
 // the stub ships with in Phase 1.5d.
 
+pub mod commands;
+pub mod delegate;
 pub mod mode_mapping;
 
 use agent_client_protocol::{
@@ -39,10 +53,10 @@ use uuid::Uuid;
 
 /// Entry point invoked by the `opencode` binary when Microsoft IT detection
 /// requests an ACP stdio loop. Drives the JSON-RPC server over stdio until
-/// the client disconnects or the transport closes. The binary is not yet
-/// wired to call this — see RFC 28 §B item 4 — so the symbol is touched
-/// only by its compile-check test today.
-#[allow(dead_code, reason = "binary wiring lands in RFC 28 §B item 4")]
+/// the client disconnects or the transport closes. Item 4 wires the binary
+/// (`src-tauri/src/cli/bin/opencode.rs`) to call this when env detection
+/// sees the IT host; without that env the subcommand list reuse the
+/// existing CLI dispatch.
 pub async fn run_server() -> agent_client_protocol::Result<()> {
     Agent
         .builder()
@@ -56,10 +70,16 @@ pub async fn run_server() -> agent_client_protocol::Result<()> {
             on_receive_request!(),
         )
         .on_receive_request(
-            async |request: NewSessionRequest, responder, _connection| {
+            async |request: NewSessionRequest, responder, connection| {
                 tracing::debug!(cwd = ?request.cwd, "acp session/new");
                 let response = build_new_session_response();
+                let session_id = response.session_id.clone();
                 responder.respond(response)?;
+                let update = SessionNotification::new(
+                    session_id,
+                    commands::build_available_commands_update(),
+                );
+                connection.send_notification(update)?;
                 Ok(())
             },
             on_receive_request!(),
