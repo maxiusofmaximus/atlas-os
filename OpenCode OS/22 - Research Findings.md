@@ -322,8 +322,6 @@ RFC 28 §C adopta el **patrón** graphify (no su código Python, que violaría �
 
 ## 11. Investigación Round 4 (2026-07-29) - Phase 1.5e §E (Firecrawl web ingestion)
 
-## 11. Investigación Round 4 (2026-07-29) - Phase 1.5e §E (Firecrawl web ingestion)
-
 ### 11.1 Motivación
 
 RFC 28 §E introduce Firecrawl como superficie de web ingestion polyfacética (scrape, crawl, search, extract). Phase 1.5c §C ya introdujo `petgraph` + `tree-sitter` como bump binario; §E es otro bump pero elcrate oficial existe en Rust. La pregunta de research: ¿existe un SDK Rust oficial, qué crates competidoras hay, qué expansión binaria real, y cómo proteger la single-binary safety (RFC 25 §11)?
@@ -384,3 +382,156 @@ RFC 25 §11 exige single binary. `firecrawl` crate: no requiere Python, no insta
 - serde_with 3: https://crates.io/crates/serde_with
 - RFC 25 §11 single-binary: ./25%20-%20Stack%20T%C3%A9cnico%20Multiplataforma.md
 - RFC 28 §E: ./28%20-%20External%20Tool%20Integration.md
+
+## 12. Investigación Round 5 (2026-07-31) - Phase 1.5f/g/h §F/§G/§H (Toast, Calendar, Reset-window)
+
+### 12.1 Motivación
+
+RFC 28 §F (Windows Toast notifications), §G (Windows Calendar integration) y §H (Model API reset-window notifications) introducen tres superficies que tocan SOs nativos, autenticación federada y patrones UX de AI coding tools comerciales. La investigación exhaustiva buscó:
+
+1. Para §F: una crate Rust maintained que exponga WinRT Toast con `on_activated`/`on_dismissed` callbacks y `register()` para AUMID desde apps desktop no-MSIX. `tauri-plugin-notification` fue considerado porque ya es Tauri-ecosystem.
+2. Para §G: una solución a la escritura bidireccional al calendario nativo (Outlook/Apple/Google) sin depender de capabilities WinRT restringidas. WinRT `AppointmentManager` y `Microsoft.Graph.Calendar`fueron evaluados; la vía `.ics` (RFC 5545) servida vía el axum HUD server y la vía Microsoft Graph REST (`/me/calendarView`) resultaron complementarias.
+3. Para §H: patrones provenientes de AI coding tools reales (Cline, Cursor, Aider, Copilot) en su manejo de 429/spend-limit, identificación del "discriminador competitivo" — qué feature NINGÚN tool ofrece hoy, y cómo OpenCode OS puede adueñarse del espacio.
+
+La investigación cubrió ~30 URLs entre crates.io, repos de crates, PRs de Cline/MIT-licensed AI tools y docs de providers LLM.
+
+### 12.2 Toast notifications (Windows)
+
+**Crate decision: `winrt-toast-reborn = "0.3.8"`** (crates.io ID `winrt-toast-reborn`, autor Md. Iftakhar Awal Chowdhury / `AtifChy`, repo `https://github.com/AtifChy/winrt-toast.git`, MIT, publicado 2025-09-01, ~16k downloads).
+
+- Fork mantenido de `winrt-toast 0.1.1` (original `allenbenz/winrt-notification`, ya sin updates desde 2020).
+- Expone `Toast::new(&AumId).with_title(...).show()?`, `register(&AumId, &DisplayName, &IconPath)?` (crea Start Menu shortcut + AUMID registry), `on_activated(|action| ...)`, `on_dismissed(|reason| ...)`, `on_failed(|error| ...)`. Soporta action buttons, deep-link via `activation_type=protocol` y argumento `opencode://...`.
+- Pure Rust (windows-rs FFI bindings), zero native deps旺季. Single-binary safe.
+- MSRV: edition 2021, sin rust_version locked — compila con 1.84+.
+
+`tauri-plugin-notification = "2.3.3"` RECHAZADO como primario en Windows: bug de heurística AUMID ([tauri-apps/plugins-workspace#1545](https://github.com/tauri-apps/plugins-workspace/issues/1545)) hace que `schedule` se vuelva silent no-op en desktop no-MSIX. No da callback de activación (sólo `show()`). Se retiene sólo para Linux/macOS como fallback trivial (no deep-link).
+
+Scheduler: NO via `ScheduledToastNotification` (WinRT scheduling API) porque ninguna crate Rust lo expone. Driver propio sobre `tokio::time::sleep_until(expiry) + SQLite toast_queue` queue (RFC 28 §F.3). Sobrevive a crashes, es auditable, y reusa el `toast_queue` de §F para ambos `kind='model_ready'` (§H) y `kind='calendar_reminder'` (§G alternativo).
+
+### 12.3 Calendar integration (Windows)
+
+**Reject WinRT `AppointmentManager`**: requiere capability restringida `appointmentsSystem` (manifest). En apps desktop no-MSIX (Tauri 2 default, `.exe` instalado sin MSIX), `ShowAddAppointmentAsync`/`FindAppointmentsAsync`/etc. devuelven `E_ACCESSDENIED (0x80070005)` porque la capability está condicionada al ser UWP package sandboxed. Esto viola RFC 25 §11 (single-binary, sin capabilities restringidas) y AGENTS.md §6.
+
+**WRITE side: `ics = "0.5.8"`** (crates.io ID `ics`, autor `hummingly`, repo `https://github.com/hummingly/ics`, MIT OR Apache-2.0). Pure Rust RFC 5545 generator. axum HUD server añade `GET /opencode-calendar.ics?token={base64url(16 bytes)}` que emite el feed por demanda. Subscription URL `webcal://127.0.0.1:{port}/opencode-calendar.ics?token=...`. Outlook/Apple Calendar soportan `webcal://` nativamente; Google Calendar vía "From URL" settings. RRULE soporta cadencias `FREQ=WEEKLY;BYDAY=MO;COUNT=8` para autoresearch recurring.
+
+**READ side: `graph-rs-sdk = "3.0.1"`** (crates.io ID `graph-rs-sdk`, autor `sreeise`, repo `https://github.com/sreeise/graph-rs-sdk`, MIT, ~600 stars). `features = ["interactive-auth"]` abre popup wry webview (mismo engine que Tauri 2) para primer OAuth flow interactivo. Scopes `Calendars.Read` + `offline_access`. Refresh token en SQLite encrypted (AES-256-GCM via `aes-gcm 0.10`). Endpoint `GET /me/calendarView?startDateTime=...&endDateTime=...`, poller 60s desde `AppState`. Output: `AppState.context_busy_windows: Vec<BusyWindow>` consultado por Planning engine antes de encolar turn proactivo.
+
+**Cross-platform parity argument**: `.ics` feed servido por axum HUD server funciona en Windows, macOS y Linux — cualquier cliente de calendario moderno (Outlook, Apple Calendar, Google Calendar) soporta `webcal://` subscription sin instalar nada. El READ side via Graph es sólo conversión Microsoft; en Linux/macOS el usuario puede simplemente subscribir su OpenCode calendar URL en el mismo calendario que Planifica y recibe los eventos. Conmutación bidireccional plena.
+
+### 12.4 Model API reset-window notifications
+
+**Pattern source: MIT-licensed `cline/cline` PRs**:
+
+- **PR #10207** ([cline/cline#10207](https://github.com/cline/cline/pull/10207)) añade la `SpendLimitError` card con `resets_at`, botón "Request Increase" con 5-min localStorage cooldown, entry **exempt del auto-retry**. MIT license cubre el pattern port a Rust.
+- **PR #10963** ([cline/cline#10963](https://github.com/cline/cline/pull/10963)) — retry middleware con jitter ±25% + parse `Retry-After` header + `x-ratelimit-reset` header.
+- **PR #10141** ([cline/cline#10141](https://github.com/cline/cline/pull/10141)) — bail-out cuando `Retry-After > threshold` (default 60s): para el retry loop en lugar de esperar.
+
+**OmniRoute envelope handling**: OpenCode OS usa OmniRoute ([github.com/diegosouzapw/OmniRoute](https://github.com/diegosouzapw/OmniRoute), MIT, 35k stars, 290+ providers, 500+ models, default branch `release/v3.8.50`) como un único OpenAI-compatible provider. OmniRoute normaliza headers upstream (`x-ratelimit-reset`, `anthropic-ratelimit-*-reset`, `Retry-After`) a un único campo `error.resets_at` en su JSON envelope:
+
+```json
+{
+  "error": {
+    "type": "rate_limit" | "spend_limit",
+    "message": "...",
+    "status": 429 | 402 | 403,
+    "provider": "anthropic",
+    "model": "claude-3-5-sonnet",
+    "resets_at": "2026-08-01T12:34:56Z",
+    "request_id": "req_abc123"
+  }
+}
+```
+
+OpenCode NO parsea headers del provider upstream directamente cuando se usa OmniRoute — simplifica el código. Para providers directos (sin OmniRoute), sí se parsea el header específico y se mapea al mismo formato.
+
+**Discriminador competitivo identificado**: NINGÚN AI coding tool comercial (Cline, Cursor, Aider, Copilot, Continue) **proactivamente notifica** al usuario cuando un model vuelve a estar disponible tras un rate-limit o spend-cap. Cline viene close con `SpendLimitError` card pero es reactiva — el usuario debe reintentar manualmente. OpenCode OS capturando `reset_at`, persistiéndolo en SQLite, y disparando una Toast `kind='model_ready'` cuando el reset cumple es único. Ser PRIMERO en ofrecerlo es ventaja competitiva tangible.
+
+**OpenRouter polling**: `X-RateLimit-Reset` header en 429 + `GET /api/v1/key` para tracking. No polling activo — sólo reacciona a 429. OpenRouter no expone webhook.
+
+**Anthropic headers**: `anthropic-ratelimit-requests-reset`, `anthropic-ratelimit-tokens-reset`, `anthropic-ratelimit-tokens-reset` — formato RFC 3339. Parseable.
+
+**OpenAI headers**: `x-ratelimit-reset-requests`, `x-ratelimit-reset-tokens` — formato duration string ("5s", "12m", "1h"). Parseable a `Duration`.
+
+**LiteLLM defaults**: `cooldown_time=5s`, `allowed_fails=3` — referencias para thresholds propios.
+
+### 12.5 Crates a añadir (todos opcionales, default OFF)
+
+| Crate | Version | License | Phase | Cargo gate |
+|---|---|---|---|---|
+| `winrt-toast-reborn` | `0.3.8` | MIT | 1.5f §F | `features = ["toast-notifications"]`, target `cfg(windows)` |
+| `tauri-plugin-notification` | `2.3.3` | Apache-2.0 OR MIT | 1.5f §F (fallback) | `features = ["toast-notifications"]`, target `cfg(not(windows))` |
+| `ics` | `0.5.8` | MIT OR Apache-2.0 | 1.5g §G (WRITE) | `features = ["calendar"]` |
+| `graph-rs-sdk` | `3.0.1` | MIT | 1.5g §G (READ) | `features = ["calendar"]`, `features = ["interactive-auth"]` |
+| `aes-gcm` | `0.10` | MIT OR Apache-2.0 | 1.5g §G (token encryption) | `features = ["calendar"]` |
+
+§H no introduce nuevas crates (usa `chrono`, `tokio`, `serde` ya presentes). Reusa el `toast_queue` de §F.
+
+### 12.6 Binary-size budget
+
+- `winrt-toast-reborn 0.3.8`: ~400KB incremental (windows-rs FFI a `Data_Xml_DOM`/`ToastNotificationManager`).
+- `tauri-plugin-notification 2.3.3`: ~150KB incremental (nativo Tauri plugin).
+- `ics 0.5.8`: ~30KB incremental (pure Rust parser/serializer).
+- `graph-rs-sdk 3.0.1` + `interactive-auth` + `aes-gcm 0.10`: ~600KB incremental total (reqwest deps transitivos ya presentes; wry ya presente via Tauri).
+- §H: sin aumento neto.
+
+**Total §F+§G+§H incremental: ~1.2MB** (todas las features opcional default OFF; el usuario sólo paga si opt-in).
+
+### 12.7 Single-binary safety audit
+
+- `winrt-toast-reborn`: pure Rust · FFI windows-rs · sin DLL externo · sin build script native · single-binary safe.
+- `tauri-plugin-notification`: Tauri plugin estándar · binario único.
+- `ics`: pure Rust · cero deps nativas.
+- `graph-rs-sdk`: reqwest + serde_json (ya en árbol) + wry (`interactive-auth`) — ya presente via Tauri.
+- `aes-gcm`: pure Rust (Ring backend default) · sin native.
+
+Todas las crates cumplen RFC 25 §11. WinRT lo usa sólo en `cfg(target_os="windows")` para features que son Windows-only por definición. En Linux/macOS los módulos `toast/` y `calendar/` reducen a no-ops o al fallback `tauri-plugin-notification` para Linux.
+
+### 12.8 Atribución (per-module)
+
+- `src-tauri/src/toast/*.rs` — `"Uses winrt-toast-reborn 0.3.8 (MIT) by Md. Iftakhar Awal Chowdhury (AtifChy) — maintained fork of winrt-toast 0.1.1. https://github.com/AtifChy/winrt-toast"`.
+- `src-tauri/src/toast/fallback_unix.rs` — `"Uses tauri-plugin-notification 2.3.3 (Apache-2.0 OR MIT) by Tauri Apps. https://github.com/tauri-apps/plugins-workspace"`.
+- `src-tauri/src/calendar/ics_writer.rs` — `"Uses ics 0.5.8 (MIT OR Apache-2.0) by hummingly. https://github.com/hummingly/ics"`.
+- `src-tauri/src/calendar/graph_reader.rs` — `"Uses graph-rs-sdk 3.0.1 (MIT) by sreeise. https://github.com/sreeise/graph-rs-sdk"`.
+- `src-tauri/src/calendar/auth.rs` — `"Interactive auth via graph-rs-sdk 3.0.1 (MIT). Encryption via aes-gcm 0.10 (MIT OR Apache-2.0)."`
+- `src-tauri/src/orchestrator/{error,parse_error,retry}.rs` — `"Pattern adapted from Cline (Apache-2.0) PRs #10207 (SpendLimitError card, exempt auto-retry), #10963 (jitter ±25%, Retry-After parse), #10141 (bail-out threshold). https://github.com/cline/cline"`.
+
+### 12.9 Cambios aplicados a los RFCs como consecuencia de Round 5
+
+- UPDATED RFC 28 con §F (Toast notifications), §G (Calendar integration), §H (Model reset-window notifications) — completa documentación Phase 1.5 extensions hasta el roadmap Phase 1.5.
+- UPDATED RFC 28 "Orden recomendado" con §F/§G/§H añadidos a ordering + status.
+- UPDATED RFC 28 §B orden (de "en implementación" a "✅ COMPLETO", commits `7f8215e`-`4b4924e`).
+- UPDATED RFC 26 (cross-references) con §F/§G/§H rows.
+- UPDATED RFC 20 (Roadmap) con entradas Phase 1.5f/g/h post-Firecrawl-§E.
+- Corregido el duplicado `## 11.` header (líneas 323/325 pre-existentes).
+
+### 12.10 URLs nuevas (Round 5)
+
+Toast notifications:
+- winrt-toast-reborn crate: https://crates.io/crates/winrt-toast-reborn
+- winrt-toast-reborn repo (AtifChy fork): https://github.com/AtifChy/winrt-toast
+- winrt-toast original (allenbenz): https://github.com/allenbenz/winrt-toast
+- tauri-plugin-notification crate: https://crates.io/crates/tauri-plugin-notification
+- tauri-apps/plugins-workspace issue #1545 (AUMID bug): https://github.com/tauri-apps/plugins-workspace/issues/1545
+- Microsoft Toasts docs (deep-link activation): https://learn.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/send-local-toast
+
+Calendar integration:
+- ics crate: https://crates.io/crates/ics
+- ics repo (hummingly): https://github.com/hummingly/ics
+- graph-rs-sdk crate: https://crates.io/crates/graph-rs-sdk
+- graph-rs-sdk repo (sreeise): https://github.com/sreeise/graph-rs-sdk
+- Microsoft Graph /me/calendarView: https://learn.microsoft.com/en-us/graph/api/calendar-list-calendarview
+- WinRT AppointmentManager restricted capability: https://learn.microsoft.com/en-us/uwp/api/windows.applicationmodel.appointments.appointmentmanager
+- RFC 5545 (iCalendar): https://datatracker.ietf.org/doc/html/rfc5545
+- webcal:// URI scheme: https://en.wikipedia.org/wiki/Webcal
+- AES-256-GCM crate: https://crates.io/crates/aes-gcm
+
+Model reset-window notifications:
+- OmniRoute repo: https://github.com/diegosouzapw/OmniRoute
+- OmniRoute docs: https://diegosouzapw.github.io/OmniRoute/
+- Cline PR #10207 (SpendLimitError): https://github.com/cline/cline/pull/10207
+- Cline PR #10963 (retry with jitter): https://github.com/cline/cline/pull/10963
+- Cline PR #10141 (bail-out threshold): https://github.com/cline/cline/pull/10141
+- OpenRouter X-RateLimit-Reset: https://openrouter.ai/docs/api-reference/limits
+- Anthropic rate limits: https://docs.anthropic.com/en/api/rate-limits
+- OpenAI rate limits: https://platform.openai.com/docs/guides/rate-limits
+- LiteLLM retries: https://docs.litellm.ai/docs/proxy/reliability

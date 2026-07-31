@@ -36,7 +36,7 @@
 | 25 | [Stack Técnico Multiplataforma](./25%20-%20Stack%20T%C3%A9cnico%20Multiplataforma.md) | 25.9 KB | Tauri 2 + Rust 1.84+ + SvelteKit 2 + SQLite/`sqlite-vec` + `fastembed-rs` + Tower-LSP + axum WebSocket + sandbox Docker/Podman/Firejail/Job-Object + OS keychain + 13 model providers HTTP (3 locales + 10 free cloud + paid tier) + `opencode` CLI Rust. Multi-OS binario único 30-45 MB. Justificación vs Electron/AionUI. Tamaños y performance budgets. |
 | 26 | [Index & Cross-References](./26%20-%20Index%20&%20Cross-References.md) | este archivo | Mapa maestro. |
 | 27 | [Orchestration Fundamentals](./27%20-%20Orchestration%20Fundamentals.md) | 13.5 KB | Audit comparativo vs `tmux-orchestrator`, `orca`, `herdr`, `traycer`. Extrae 6 principios fundacionales (worktree isolation, at-a-glance state, remote attach, reflexivity, BYOA, spec-first) y cataloga 8 brechas (A–H) contra los fundamentos, con priorización Phase 2+. |
-| 28 | [External Tool Integration](./28%20-%20External%20Tool%20Integration.md) | 17.8 KB | 5 superficies: §A Karpathy autoresearch loop (Hill-climbing con métrica medible, M13 `autoresearch_runs`); §B Microsoft Intelligent Terminal ACP server (M14 `agent_session_events`, slash commands `/opencode fix` `/restart`); §C graphify pattern adoption (M15 `mission_graph` + `petgraph`+`tree-sitter`, `<GraphView>` HUD, skills como graph templates, Planner DAG); §D AuditLog YAML-on-disk export formato posting; §E Firecrawl: web ingestion polyfacética (adapter facade, post-graphify). Fase 1.5 orden §D→§A→§C→§B→§E. **Status Phase 1.5: §D ✅ (`db25379`), §A ✅ (`853da30`), §C ✅ (`cddcbc2`), §B en implementación (Phase 1.5d, items 1-3 committeados), §E documentado (postergada a Phase 1.5e/1.6).** Research internos en `OpenCode OS/research/`. |
+| 28 | [External Tool Integration](./28%20-%20External%20Tool%20Integration.md) | 95.4 KB | 8 superficies: §A Karpathy autoresearch loop (Hill-climbing con métrica medible, M13 `autoresearch_runs`); §B Microsoft Intelligent Terminal ACP server (M14 `agent_session_events`, slash commands `/opencode fix` `/restart`); §C graphify pattern adoption (M15 `mission_graph` + `petgraph`+`tree-sitter`, `<GraphView>` HUD, skills como graph templates, Planner DAG); §D AuditLog YAML-on-disk export formato posting; §E Firecrawl: web ingestion polyfacética (adapter facade, post-graphify); §F Windows Toast Notifications (AUMID + Start Menu shortcut via `winrt-toast-reborn`, `tokio::sleep_until` SQLite-driven scheduler, `on_activated` deep-link); §G Windows Calendar (`.ics` feed via axum HUD `GET /opencode-calendar.ics` + Microsoft Graph `/me/calendarView` reader via `graph-rs-sdk` `interactive-auth`, refresh token SQLite encrypted); §H Model API reset-window notifications (OmniRoute envelope parsing, `SpendLimitError` card port de Cline PR #10207, `model_ready` Toast — feature diferencial frente a competencia). Fase 1.5 orden §D→§A→§C→§B→§E→§F→§G→§H. **Status Phase 1.5: §D ✅ (`db25379`), §A ✅ (`853da30`), §C ✅ (`cddcbc2`), §B ✅ (`7f8215e`–`4b4924e` items 1-8 todos ✅), §E/§F/§G/§H documentados (Round 5 research), implementación postergada a Phase 1.5e/f/g/h.** Research internos en `OpenCode OS/research/`. |
 
 **Total: 29 RFCs, ~272 KB** de especificación.
 
@@ -227,6 +227,13 @@ Tabla bidireccional. Si el RFC A referencia al RFC B, B también aparece listado
 | 25 | → | 22 |
 | 25 | → | 23 |
 | 25 | → | 24 |
+| 28 | → | 04 |
+| 28 | → | 06 |
+| 28 | → | 19 |
+| 28 | → | 20 |
+| 28 | → | 22 |
+| 28 | → | 24 |
+| 28 | → | 25 |
 
 ---
 
@@ -327,6 +334,20 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Planning mode (architect/code/ask/context)` | 23 §8; 21 §12 |
 | `Pool swarm` | 05 §5 |
 | `Posting format` (audit export) | 24 §10.1; 28 §D |
+| `AUMID registration` (Start Menu shortcut for non-MSIX Toast activation) | 28 §F.2 |
+| `Toast queue` (SQLite-driven scheduler, survives crashes) | 28 §F.3 |
+| `Toast activation deep-link` (`opencode://mission/{id}/...`) | 28 §F.4 |
+| `Toast history` (append-only audit + dedupe) | 28 §F.5 |
+| `Calendar ICS feed` (axum HUD `GET /opencode-calendar.ics`) | 28 §G.2 |
+| `Microsoft Graph /me/calendarView` reader (`graph-rs-sdk`) | 28 §G.3; 22 §12 (Round 5) |
+| `BusyWindow` (`AppState.context_busy_windows`, Planning engine hook) | 28 §G.4; 12 §3 |
+| `OmniRoute` (free MIT AI gateway, OpenAI-compatible) | 28 §H.2; 22 §12 (Round 5) |
+| `SpendLimitError` card (port de Cline PR #10207) | 28 §H.3; 22 §12 (Round 5); 24 §3.3 |
+| `ModelReady` Toast (`kind='model_ready'`, feature diferencial) | 28 §H.4; 22 §12 (Round 5) |
+| `Retry policy` (jitter ±25%, exponential, bail-out threshold) | 28 §H.5; 04 §9 addendum |
+| `Bail-out threshold` (`Profile::bail_out_threshold_secs`, default 60s) | 28 §H.5; 06 (profile schema) |
+| `Backup profile` (`Profile::backup_profile_id`, auto-switch on spend-limit) | 28 §H.3; 06 (profile schema) |
+| `WinRT AppointmentManager rejected` (capability `appointmentsSystem`) | 28 §G.1; 22 §12 (Round 5) |
 | `ProjectSymbolTable` | 03 §9.4 |
 | `probe_feasibility` | 10 §11; 23 §2.2 |
 | `Prompt Understanding Pipeline` | 23 §2 |

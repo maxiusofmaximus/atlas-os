@@ -397,9 +397,447 @@ Ninguno en MVP. Posible futuro: badge "firecrawl connected" en HUD settings pane
 
 ---
 
+## §F — Windows Toast Notifications (Phase 1.5f)
+
+**Status: ⏳ documentado, implementación pendiente (post-Firecrawl §E).**
+
+OpenCode OS corre como shell desktop (Tauri 2) pero también como headless CLI/ACP server. Cuando el proceso está ocioso o el webview está minimizado, las notificaciones nativas del SO son el canal correcto para señales asíncronas: reset-window de modelo, fin de turn largo, fallo crítico, calendar reminder. Esta sección define cómo OpenCode OS configura AUMID + Start Menu shortcut y dispara Toasts via `winrt-toast-reborn`, persiste historial en SQLite, y responde a activaciones (deep-link al HUD).
+
+### F.1 Crate decision
+
+| Crate | Version | License | Rol |
+|---|---|---|---|
+| `winrt-toast-reborn` | `0.3.8` | MIT | Toast activation, AUMID registration, event handlers (Windows 10/11) |
+| `tauri-plugin-notification` | `2.3.3` | Apache-2.0 OR MIT | Fallback trivial en Linux/macOS (sólo `show()` sin callbacks) |
+
+**`winrt-toast-reborn`** es el fork mantenido de `winrt-toast 0.1.1` (crates.io ID `winrt-toast-reborn`, author `AtifChy` / Md. Iftakhar Awal Chowdhury, repo `https://github.com/AtifChy/winrt-toast.git`). Publicado `2025-09-01`, 16k downloads, MIT. Expone:
+
+- `Toast::new(&AumId).with_title(...).with_text_body(...).show()?` — disparo síncrono.
+- `register(&AumId, &DisplayName, &IconPath)?` — crea Start Menu shortcut + registry AUMID, requisito para activación silenciosa desde proceso no-MSIX.
+- `on_activated(|action| ...)`, `on_dismissed(|reason| ...)`, `on_failed(|error| ...)` — callbacks por toast, usados para deep-link al HUD y persistencia de dismiss.
+- Sin API para `ScheduledToastNotification` (WinRT appointment-like scheduling). El scheduler propio se construye sobre `tokio::time::sleep_until(expiry)` + SQLite (ver F.3).
+
+**`tauri-plugin-notification`** RECHAZADO como primario en Windows: bug de heurística AUMID ([tauri-apps/plugins-workspace#1545](https://github.com/tauri-apps/plugins-workspace/issues/1545)) hace que el schedule se vuelva silent no-op en desktop no-MSIX, y no entrega callback de activación (sólo fire-and-forget). Se retiene **sólo para Linux/macOS** donde los Toasts nativos del SO no requieren AUMID y la activación deep-link no aplica (CLI/desktop WebSocket HUD ya está escuchando).
+
+### F.2 AUMID registration (one-time)
+
+```rust
+const AUMID: &str = "dev.opencode.OpenCodeOS.HUD";
+const DISPLAY_NAME: &str = "OpenCode OS — Mission Control";
+const ICON_PATH: &str = "icons/icon.png"; // bundle-relative
+
+winrt_toast_reborn::register(AUMID, DISPLAY_NAME, ICON_PATH)?;
+```
+
+Idempotente: si el shortcut existe, plutó corregir `DisplayName`/icon path sin duplicar. Corre una vez en `AppState::new()` (desktop+CLI) si `cfg!(windows)`. En Linux/macOS es no-op (la feature `winrt-toast-reborn` no compila fuera de Windows — se gatea con `#[cfg(windows)]`).
+
+### F.3 Toast scheduler (database-driven)
+
+Las notificaciones scheduled NO usan WinRT `ScheduledToastNotification` (ninguna crate Rust lo expone + activeWinRT appointment APIs requieren `appointmentsSystem` capability, ver §G). En cambio, un **driver tokio** consume la tabla SQLite `toast_queue` y dispara `Toast::show()` al expirar el `fire_at`:
+
+```sql
+CREATE TABLE toast_queue (
+  id            INTEGER PRIMARY KEY,
+  kind          TEXT NOT NULL,       -- 'model_ready' | 'turn_end' | 'validation_failed' | 'calendar_reminder'
+  title         TEXT NOT NULL,
+  body          TEXT,
+  deep_link     TEXT,                -- p.ej. "opencode://mission/{mission_id}/card/{card_id}"
+  fire_at       INTEGER NOT NULL,    -- unix millis
+  status        TEXT NOT NULL DEFAULT 'pending', -- 'pending' | 'fired' | 'dismissed' | 'failed'
+  fired_at      INTEGER,
+  dismissed_at  INTEGER,
+  dismiss_reason TEXT,               -- 'userCanceled' | 'applicationHidden' | 'timeout' | ...
+  attempts      INTEGER NOT NULL DEFAULT 0,
+  created_at    INTEGER NOT NULL DEFAULT (unixepoch())
+);
+CREATE INDEX toast_queue_pending_idx ON toast_queue(fire_at) WHERE status = 'pending';
+```
+
+**Driver loop** (corre como `tokio::spawn` desde `AppState::new()`, cadencia 5s):
+
+```rust
+loop {
+    let now = unix_millis();
+    let next = queue.next_pending(now)?;          // SELECT ... WHERE fire_at <= now AND status='pending' LIMIT 1
+    let sleep_ms = match next {
+        Some(row) => 0.max(row.fire_at - now),
+        None     => 5_000,                        // idle 5s si no hay pendientes
+    };
+    tokio::time::sleep(Duration::from_millis(sleep_ms)).await;
+    if let Some(row) = next {
+        fire_toast(&row).await?;                   //Toast::show() + update status='fired'
+    }
+}
+```
+
+Esto garantiza: (a) notificaciones sobreviven crashes (están en SQLite, no en RAM), (b) se pueden backfill en boot, (c) no dependen de un scheduler del SO. Un `VacuumHook` (RFC 16 §3) purga toasts con `status in ('fired','dismissed','failed')` > 30 días.
+
+### F.4 Activación deep-link
+
+Cuando el usuario hace click en el Toast o en un action button (p.ej. "Open Mission"), `on_activated` corre en el mismo proceso (el que registró el AUMID). El handler:
+
+1. Parsea `deep_link` (formato `opencode://...`).
+2. Si el HUD tiene webview abierto: envía evento por Kernel Bus (`hud:deep_link`).
+3. Si CLI/headless: arranca `pnpm tauri:dev` via `Command::new` (o en MSI/MSIX package: `ShellExecute` con el protocolo `opencode://`).
+4. Marca `toast_queue.status='fired'`, `dismissed_at=now`, `dismiss_reason='activated'`.
+
+### F.5 Toast history (audit + dedupe)
+
+Cada `fire_toast` escribe en `toast_history` (tabla append-only, sin cleanup) para auditoría y para Idempotency de reintentos. `kind`+`mission_id`+`fire_at`(±5min) como clave de unicidad: si el proceso reinicia y encuentra un `pending` ya `fired` en `toast_history`, lo marca `status='fired'` y no lo re-dispara.
+
+### F.6 Plan de cambios Rust
+
+| Archivo | Cambio |
+|---|---|
+| `src-tauri/Cargo.toml` | Añadir feature `toast-notifications` (default OFF). `winrt-toast-reborn = { version = "0.3.8", optional = true }` (`target_os = "windows"`). `tauri-plugin-notification = { version = "2.3.3", optional = true }` (non-Windows). |
+| `src-tauri/src/toast/mod.rs` | Módulo raíz. Re-exporta `ToastQueue`, `ToastDriver`. `#[cfg(windows)]` gatea `winrt-toast-reborn`. |
+| `src-tauri/src/toast/queue.rs` | `ToastQueue` con `enqueue`, `next_pending`, `mark_fired`, `mark_dismissed`, `mark_failed`. Backed por `journal::toast_queue`. |
+| `src-tauri/src/toast/driver.rs` | `ToastDriver` — tokio task loop, `fire_toast()`, `on_activated`/`on_dismissed` handlers. |
+| `src-tauri/src/toast/aumid.rs` | `register_aumid()` idempotente (Start Menu shortcut + registry). |
+| `src-tauri/src/toast/history.rs` | `toast_history` CRUD + dedupe. Comparte `journal` conn. |
+| `src-tauri/src/journal/schema.rs` | M17 migration: `toast_queue` + `toast_history` tables. Schema version 16→17. |
+| `src-tauri/src/core/state.rs` | `AppState::new()` llama `toast::aumid::register_aumid()` (Windows) y arranca `ToastDriver::spawn()`. |
+| `src-tauri/src/lib.rs` | `#[cfg(feature = "toast-notifications")] pub mod toast;` |
+
+### F.7 Checklist
+
+- [ ] **Item 1**: `Cargo.toml` feature flag `toast-notifications` + crate deps `winrt-toast-reborn 0.3.8` (Windows-only), `tauri-plugin-notification 2.3.3` (non-Windows).
+- [ ] **Item 2**: M17 migration `toast_queue` + `toast_history` (schema 16→17).
+- [ ] **Item 3**: `toast/aumid.rs` — `register_aumid()` idempotente. Test mock registro.
+- [ ] **Item 4**: `toast/queue.rs` — `ToastQueue` CRUD (enqueue, next_pending, mark_*). 6 tests min (happy + dup + boundary).
+- [ ] **Item 5**: `toast/driver.rs` — `ToastDriver` loop + `fire_toast()` + `on_activated` deep-link handler. 4 tests min.
+- [ ] **Item 6**: `toast/history.rs` — `toast_history` append + dedupe por `(kind, mission_id, fire_at±5min)`. 3 tests min.
+- [ ] **Item 7**: `AppState::new()` integration — register AUMID + spawn driver. Documentar en RFC 04 §9 (frontends del orquestador).
+- [ ] **Item 8**: `docs/toast-integration.md` — README de troubleshooting AUMID, Start Menu shortcut, registry entries, depuración via `pnpm tauri:dev`.
+- [ ] **Item 9**: `tools/toast-smoke.ps1` — script que dispara 3 Toasts (info / warning / error) + verifica `toast_history` rows.
+
+### F.8 Riesgos
+
+1. **Single-binary invariant** (AGENTS.md §6): `winrt-toast-reborn` es pure Rust (windows-rs FFI). Cumple. `tauri-plugin-notification` también (Tauri plugin estándar). No se introduce runtime extra.
+2. **Non-MSIX desktop activation**: WinRT Toast activation desde desktop (no-MSIX) requiere el Start Menu shortcut creado por `register()` — si falla, los toasts aparecen pero los clicks no regresa al proceso. Mitigación: `register_aumid()` corre en boot y persiste el resultado en `AppState.toast_aumid_registered`. Si falla, los callbacks se desactivan y el toast es sólo informational (no deep-linkable).
+3. **AUMID registration conflict**: Si otra app reusa `dev.opencode.OpenCodeOS.HUD` (improbable), WinRT enruta los callbacks al último registrante. Mitigación: AUMID namespace `dev.opencode.OpenCodeOS.*` único al proyecto.
+4. **Sobrevive crash del proceso**: queue en SQLite → re-backfill en boot.
+5. **Linux/macOS parity**: `tauri-plugin-notification` para notification trivial; deep-link callbacks no aplican (no hay AUMID). El HUD WebSocket sirve como canal alternativo y `opencode hud` arranca el server de nuevo.
+
+### F.9 Atribución (apéndice)
+
+- `src-tauri/src/toast/*.rs` — `"Uses winrt-toast-reborn 0.3.8 (MIT) by Md. Iftakhar Awal Chowdhury (AtifChy), fork maintained of winrt-toast 0.1.1. https://github.com/AtifChy/winrt-toast"`.
+- `src-tauri/src/toast/fallback_unix.rs` — `"Uses tauri-plugin-notification 2.3.3 (Apache-2.0 OR MIT) by Tauri Apps. https://github.com/tauri-apps/plugins-workspace"`.
+
+---
+
+## §G — Windows Calendar Integration (Phase 1.5g)
+
+**Status: ⏳ documentado, implementación pendiente (post-Toast §F).**
+
+OpenCode OS planifica (RFC 12 Planning) runs de validación, retrospectives (RFC 16) y schedules de `autoresearch` cadencia. Hoy estas lives en el `journal` SQLite sin affordance para el usuario que quiere verlas en su calendario nativo (Outlook, Apple Calendar, Google Calendar). §G define dos direcciones con un único stack: **WRITE** (OpenCode OS publica eventos via `.ics` feed servido desde el HUD axum server) y **READ** (OpenCode OS consume el Microsoft Graph `/me/calendarView` endpoint para巷ar eventos del usuario e inyectarlos como contexto al Planning engine).
+
+### G.1 Decision: reject WinRT `AppointmentManager`
+
+WinRT `Windows.ApplicationModel.Appointments.AppointmentManager` requiere la capability restringida `appointmentsSystem` ([microsoft/WindowsAppSDK docs](https://learn.microsoft.com/en-us/uwp/api/windows.applicationmodel.appointments.appointmentmanager)). En apps desktop no-MSIX (el caso de Tauri 2 default), `ShowAddAppointmentAsync` / `ShowEditAppointmentAsync` / `ShowRemoveAppointmentAsync` devuelven `E_ACCESSDENIED (0x80070005)`. Las APIs de lectura (`FindAppointmentsAsync`) también están sandboxed a la app caller. Esto viola RFC 25 §11 (single-binary, sin capabilities restringidas) y AGENTS.md §6 (no comportamiento dependiente de packaging restricted).
+
+Alternativa: **win32 ICalendar via COM** no tiene Rust bindings mantenidos y depende de Outlook instalado (no cross-platform). Alternativa: **Microsoft Graph REST** — sí cross-platform, funciona con cualquier cliente de calendario que el usuario haya federado a Microsoft 365.
+
+### G.2 WRITE: `GET /opencode-calendar.ics`
+
+#### G.2.1 axum HUD route
+
+```rust
+.route("/opencode-calendar.ics", get(handler_calendar_ics))
+```
+
+No requiere auth (los IDs en la URL son opacos y unguessable — `?token={base64url(random 16 bytes)}`). El feed es **read-only** (RFC 5545 `METHOD:PUBLISH`). Cadencia: served on demand; el consumidor (Outlook/Apple/Google) polla cada N horas.
+
+Contenido: para cada `mission` con `status in ('planning','in_progress','validation','learning','completed')` y `created_at` dentro de los últimos 30 días, emite un `VEVENT`:
+
+| iCal field | Source |
+|---|---|
+| `UID` | `mission-{id}@opencode.dev` |
+| `DTSTAMP` | `updated_at` (UTC, RFC 3339 → iCal `Z` suffix) |
+| `DTSTART` / `DTEND` | `created_at` / `updated_at` (all-day si delta > 24h; timed otherwise) |
+| `SUMMARY` | `mission.label` (truncado a 240) |
+| `DESCRIPTION` | JSON del delta reciente (engine events top 10) |
+| `CATEGORIES` | `mission.status` (e.g. `planning`, `validation`) |
+| `STATUS` | map: `planning`→`TENTATIVE`, `in_progress`→`CONFIRMED`, `validation`→`CONFIRMED`, `completed`→`CONFIRMED`, `failed`→`CANCELLED` |
+| `RRULE` | Sólo si la mission tiene recurrence programada (p.ej. autoresearch weekly): `FREQ=WEEKLY;BYDAY=MO;COUNT=8` |
+
+#### G.2.2 Crate `ics = "0.5"`
+
+[`ics 0.5.8`](https://crates.io/crates/ics) (MIT OR Apache-2.0, por `hummingly`, repo `https://github.com/hummingly/ics`). Pure Rust, sin deps nativas. API:
+
+```rust
+use ics::prelude::*;
+
+let event = ICalendar::new()
+    .push_event(Event::new(
+        format!("mission-{}@opencode.dev", mission.id),
+        format!("{}", chrono::DateTime::from_timestamp_millis(mission.created_at).unwrap().format("%Y%m%dT%H%M%SZ")),
+    )
+    .add_property(Property::new("SUMMARY", &mission.label))
+    .add_property(Property::new("STATUS", status_ical(&mission.status)))
+    .add_property(Property::new("CATEGORIES", &mission.status)));
+```
+
+Output: `ICalendar::to_string()` produce el RFC 5545 text completo (con proper line folding, escaping).
+
+#### G.2.3 `webcal://` subscription URL
+
+OpenCode OS prints en `opencode hud` boot:
+
+```
+Calendar subscription URL:
+  webcal://127.0.0.1:{port}/opencode-calendar.ics?token={token}
+```
+
+El usuario lo añade una vez en Outlook / Apple Calendar / Google Calendar. outlook/Apple aceptan `webcal://` nativamente; Google Calendar requiere meterlo como "From URL" en calendar settings.
+
+### G.3 READ: Microsoft Graph poller
+
+#### G.3.1 Auth: `graph-rs-sdk = "3.0.1"` con `interactive-auth`
+
+[`graph-rs-sdk 3.0.1`](https://crates.io/crates/graph-rs-sdk) (MIT, repo `https://github.com/sreeise/graph-rs-sdk`). `features = ["interactive-auth"]` hace popup wry webview (mismo engine que Tauri 2) para el primer OAuth flow interactivo:
+
+```rust
+let graph = Graph::new(&client_id, [&redirect_uri], &scopes)?;
+let token = graph.interactive_auth().await?; // wry popup, persists refresh token
+```
+
+Scopes: `Calendars.Read` + `offline_access`. Refresh token se guarda en SQLite en una columna encrypted (`AES-256-GCM` via `ring` o `aes-gcm = "0.10"`). La webview popup es opcional — si el usuario prefiere, puede paste client_id+tenant via CLI (`opencode calendar login`).
+
+#### G.3.2 Endpoint: `GET /me/calendarView?startDateTime=...&endDateTime=...`
+
+```rust
+let range = (chrono::Utc::now(), chrono::Utc::now() + chrono::Duration::days(7));
+let events = graph
+    .me()
+    .calendar_view(&range.0, &range.1)
+    .top(50)
+    .send()
+    .await?
+    .value();
+```
+
+Filtra `subject` y `body` por patrones indicativos de coding sessions ("OpenCode", "PR review", "ship"). Inyecta en `AppState.context_busy_windows` que el Planning engine (RFC 12 §3) consulta antes de encolar turn proactivo.
+
+#### G.3.3 Poller loop
+
+Cadencia: 60s, como `tokio::spawn` desde `AppState::new()`. Threshold: si más de 5 eventos en la próxima hora, todos marcados como `busy` con `weight=1.0`. Refresh token check al inicio; si expired, intenta silent refresh; si falla, Notifica via Toast (§F) que requiere re-login.
+
+### G.4 Comunicación bidireccional con Planning
+
+El Planning engine (RFC 12 §3) ya consulta `AppState.context_window` (journal events recientes). §G agrega `AppState.context_busy_windows: Vec<BusyWindow>` con `start, end, source: Graph|IcsLocal|Manual, subject, weight`. `BusyWindow::overlaps(turn_eta)` determina si encolar un turn proactivo ahora o esperar.
+
+```rust
+pub fn next_free_slot(&self, turn_eta: Duration) -> Option<(chrono::DateTime<Utc>, chrono::DateTime<Utc>)> {
+    let now = chrono::Utc::now();
+    self.context_busy_windows
+        .iter()
+        .fold(now, |cursor, bw| {
+            if bw.overlaps(cursor, cursor + turn_eta) { bw.end } else { cursor }
+        })
+        .into()
+}
+```
+
+### G.5 Plan de cambios Rust
+
+| Archivo | Cambio |
+|---|---|
+| `src-tauri/Cargo.toml` | Añadir feature `calendar` (default OFF). `ics = { version = "0.5", optional = true }`. `graph-rs-sdk = { version = "3.0.1", optional = true, features = ["interactive-auth"] }`. |
+| `src-tauri/src/calendar/mod.rs` | Re-export `CalendarWriter`, `CalendarReader`, `BusyWindow`. |
+| `src-tauri/src/calendar/ics_writer.rs` | `CalendarWriter::from_journal(&Journal) -> String` (RFC 5545 text). Usa `ics 0.5`. |
+| `src-tauri/src/calendar/ics_route.rs` | axum handler `handler_calendar_ics`. Token filter. |
+| `src-tauri/src/calendar/graph_reader.rs` | `CalendarReader::poll()` — Graph `/me/calendarView` poll, parse `Event` Graph object → `BusyWindow`. |
+| `src-tauri/src/calendar/auth.rs` | Interactive auth (wry popup) + refresh token en SQLite encrypted (AES-256-GCM). |
+| `src-tauri/src/journal/schema.rs` | M18 migration: `calendar_busy_windows` table + `calendar_auth` (encrypted refresh token). Schema 17→18. |
+| `src-tauri/src/hud/server.rs` | Añadir `.route("/opencode-calendar.ics", get(handler_calendar_ics))`. (Ver §G.2.1.) |
+| `src-tauri/src/core/state.rs` | `AppState` agrega `context_busy_windows: Arc<RwLock<Vec<BusyWindow>>>`. Spawn poller 60s. |
+| `src-tauri/src/lib.rs` | `#[cfg(feature = "calendar")] pub mod calendar;` |
+
+### G.6 Checklist
+
+- [ ] **Item 1**: `Cargo.toml` feature flag `calendar` + deps `ics 0.5`, `graph-rs-sdk 3.0.1`.
+- [ ] **Item 2**: M18 migration `calendar_busy_windows` + `calendar_auth` (schema 17→18).
+- [ ] **Item 3**: `calendar/ics_writer.rs` — `CalendarWriter::from_journal()`. 6 tests min (incluye RRULE) + 1 para cada `MissionStatus → iCal STATUS` mapping.
+- [ ] **Item 4**: `calendar/ics_route.rs` — axum handler + token filter. 3 tests (token válido, inválido, expirado).
+- [ ] **Item 5**: `calendar/graph_reader.rs` — `CalendarReader::poll()` + Graph event parse. 4 tests (mock Graph response).
+- [ ] **Item 6**: `calendar/auth.rs` — interactive auth wry popup + refresh token encrypted en SQLite. 3 tests.
+- [ ] **Item 7**: `AppState::new()` integration — spawn Graph poller 60s. `AppState.context_busy_windows` poblado.
+- [ ] **Item 8**: `Planning::next_free_slot()` —Consulta `context_busy_windows` antes de encolar turn proactivo. Integration test.
+- [ ] **Item 9**: `docs/calendar-integration.md` — README: cómo subscribir webcal, cómo autorizar Graph login.
+- [ ] **Item 10**: `tools/calendar-smoke.ps1` — dispara servidor, fetch `/opencode-calendar.ics`, valida RFC 5545 estructura con `icalendar` Python lib o `vevent` crate.
+
+### G.7 Riesgos
+
+1. **Token storage encryption**: Refresh token en SQLite encrypted via AES-256-GCM. Si el usuario pierde el dispositivo, NO es recoverable. Mitigación: en docs recomendar `opencode calendar logout` antes de mover máquinas.
+2. **graph-rs-sdk maintenance**: crate MIT mantenida por `sreeise`, 600 stars. Actualizada a v3.0.1 julio 2025. Si se rompe con nueva API Graph, fallback directo a `reqwest` + `azure_identity` (ya en workspace tree).
+3. **WinRT appointment rejected**: Documentado en G.1. Sin fallback — `webcal://` subscription es el sustituto cross-platform total.
+4. **Buscar eventos irrelevantes**: Graph `/me/calendarView` devuelve TODO; el filtro `subject.contains("OpenCode")` es heurístico. Alternativa: `categories` field en Graph events; pero requiere que el usuario etiquete eventos manualmente. UI lo configurable en settings (post-§G).
+5. **Rate limits Graph**: 10k reqs/10 min por app default. Poller 60s/24h = 1440 reqs/día ≪ limit. OK.
+6. **wry popup auth dependencies**: `graph-rs-sdk` `interactive-auth` ya incluye wry transitivamente. Verificar no conflict con la versión wry de Tauri 2 (lock file check).
+
+### G.8 Atribución (apéndice)
+
+- `src-tauri/src/calendar/ics_writer.rs` — `"Uses ics 0.5.8 (MIT OR Apache-2.0) by hummingly. https://github.com/hummingly/ics"`.
+- `src-tauri/src/calendar/graph_reader.rs` — `"Uses graph-rs-sdk 3.0.1 (MIT) by sreeise. https://github.com/sreeise/graph-rs-sdk"`.
+- `src-tauri/src/calendar/auth.rs` — `"Interactive auth via graph-rs-sdk 3.0.1 (MIT). Encryption via aes-gcm 0.10 (MIT OR Apache-2.0)."`
+
+---
+
+## §H — Model API Reset-Window Notifications (Phase 1.5h)
+
+**Status: ⏳ documentado, implementación pendiente (post-Calendar §G).**
+
+OpenCode OS usa models LLM via upstream providers o vía OmniRoute gateway (§3.8 RFC 25). Cuando un model hittea un rate limit (429) o un spend cap (402/403), los providers devuelven headers/timestamps indicando cuándo el model se resetea y puede volver a usarse. Ningún AI coding tool comercial (Cline, Cursor, Aider, Copilot) **proactivamente notifica** al usuario cuando el model vuelve a estar disponible — el usuario debe reintentar manualmente. OpenCode OS capturar `reset_at` desde la respuesta de error, persiste hasta llegada la hora, y dispara una Toast notification `kind='model_ready'` cuando el reset cumple. Esta es una feature diferencial frente a la competencia.
+
+### H.1 Pattern source: Cline PRs #10207, #10963, #10141
+
+- **Cline PR #10207** ([cline/cline#10207](https://github.com/cline/cline/pull/10207)) añade la `SpendLimitError` card con `resets_at`, un botón "Request Increase" con 5-min localStorage cooldown, y la entry es **exempt del auto-retry loop** (no spamea costos).
+- **Cline PR #10963** ([cline/cline#10963](https://github.com/cline/cline/pull/10963)) — retry middleware con jitter ±25% + parse `Retry-After` header + `x-ratelimit-reset` header.
+- **Cline PR #10141** ([cline/cline#10141](https://github.com/cline/cline/pull/10141)) — bail-out cuando `Retry-After > threshold` (default 60s): para el retry loop en lugar de esperar 5min y agotar sesiones.
+
+A这三 se porta a Rust usando:
+- Estructura `SpendLimitError` (struct, no panic / Result) con `resets_at: chrono::DateTime<Utc>`, `provider`, `model`, `request_id`.
+- Retry middleware (tokio layer) con `RetryPolicy::with_jitter(±25%)`, `RetryPolicy::bail_threshold(Duration)`.
+- `SpendLimitError` exempted: no entra en `RetryPolicy` automático; la queue se pausa y el user decide.
+
+### H.2 OmniRoute: parsing de la envelope de error
+
+OpenCode OS usa OmniRoute como un único OpenAI-compatible provider (no parsea headers upstream directamente — OmniRoute los normaliza). OmniRoute devuelve una JSON envelope:
+
+```json
+{
+  "error": {
+    "type": "rate_limit" | "spend_limit",
+    "message": "...",
+    "status": 429 | 402 | 403,
+    "provider": "anthropic",
+    "model": "claude-3-5-sonnet",
+    "resets_at": "2026-08-01T12:34:56Z",
+    "request_id": "req_abc123"
+  }
+}
+```
+
+El handler de error HTTP en `Orchestrator::complete()` parsea `error.resets_at` (RFC 3339). Si existe y es en el futuro, persiste en SQLite `model_resets`:
+
+```sql
+CREATE TABLE model_resets (
+  id           INTEGER PRIMARY KEY,
+  provider     TEXT NOT NULL,         -- 'openai' | 'anthropic' | 'omniroute' | ...
+  model        TEXT NOT NULL,
+  status_code  INTEGER NOT NULL,      -- 429 | 402 | 403
+  error_type   TEXT,                 -- 'rate_limit' | 'spend_limit' | NULL
+  resets_at    INTEGER NOT NULL,      -- unix millis, parsed from resets_at || Retry-After || x-ratelimit-reset
+  request_id   TEXT,
+  observed_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+  UNIQUE (provider, model, resets_at)
+);
+CREATE INDEX model_resets_pending_idx ON model_resets(resets_at) WHERE toast_dismissed_at IS NULL;
+```
+
+Decision: NO exponer `x-ratelimit-reset-requests` / `x-ratelimit-reset-tokens` (OpenAI) ni `anthropic-ratelimit-*-reset` (Anthropic) directamente. OmniRoute los normaliza a una única `resets_at`. Para providers directos (sin OmniRoute), se parsea el header específico y se mapea al mismo formato.
+
+### H.3 `SpendLimitError` card (HUD)
+
+La HUD Mission Control (RFC 24 §3.3) renderiza una card especial para `kind='model_spend_limit'`, port del diseño Cline #10207:
+
+```
+┌─────────────────────────────────────────────────┐
+│ ⚠ Spend Limit Reached                            │
+│                                                   │
+│ Model: claude-3-5-sonnet                          │
+│ Resets: 2026-08-01 12:34:56 UTC (in 12 min)      │
+│                                                   │
+│ [Request Increase]  [Switch Provider]             │
+└─────────────────────────────────────────────────┘
+```
+
+- Botón **"Request Increase"**: deeplink al provider dashboard (`anthropic.com/usage`, `platform.openai.com/usage`, etc.). 5-min localStorage cooldown por provider (`opencode.llm.cooldown.request_increase.{provider}`) — evita que el usuario lo click múltiples veces mientras espera.
+- Botón **"Switch Provider"**: lanza `opencode profile switch {backup_profile}` (RFC 06). El backup profile debe estar configurado (verifica en `profiles.toml`).
+- Esta card es **exempt** del auto-retry loop de `Orchestrator` (Cline #10207). No spawnea turn requests mientras se muestre.
+
+### H.4 Scheduler + Toast: `model_ready`
+
+Cuando `resets_at` llega, el **Scheduler Driver** (ver §F.3 — mismo `toast_queue`, `kind='model_ready'`) dispara el Toast:
+
+```
+┌─────────────────────────────────┐
+│ ✓ Model Ready                    │
+│                                   │
+│ claude-3-5-sonnet is available.   │
+│ Resume mission?                   │
+│                                   │
+│ [Resume]                          │
+└─────────────────────────────────┘
+```
+
+- Botón **"Resume"** → `on_activated` deep-link `opencode://mission/{id}/resume`. Re-encola el turn en `Orchestrator`.
+- Toast history se persiste para dedupe.
+
+### H.5 Retry policy con jitter y bail-out
+
+Para 429s sin SpendLimitError (rate-limit transitorio), el `Orchestrator` retry-loop aplica (port de Cline #10963 + #10141):
+
+- **Jitter ±25%**: `delay = base * (1 + rng.gen_range(-0.25..=0.25))`, `base = exponential_backoff(attempt)`.
+- **Parse `Retry-After`**: si el header existe y es un número de segundos, usarlo como delay base (en lugar de exponential). Si es RFC 3339 datetime, parsear y comparar con `now`.
+- **Parse `x-ratelimit-reset`** (en providers directos sin OmniRoute): igual que `Retry-After`.
+- **Bail-out threshold**: si `delay > threshold` (default 60s, configurable en `profiles.toml`), NO reintenter — emite `OrchestratorEvent::BailOut(reason)` al HUD y pausa la mission. El usuario decide si esperar manual o switch provider.
+
+### H.6 Plan de cambios Rust
+
+| Archivo | Cambio |
+|---|---|
+| `src-tauri/Cargo.toml` | No new deps (usa `chrono`, `tokio`, `serde` ya presentes). |
+| `src-tauri/src/orchestrator/error.rs` | `SpendLimitError` struct (`resets_at`, `provider`, `model`, `request_id`). |
+| `src-tauri/src/orchestrator/parse_error.rs` | OmniRoute envelope parser + header parsers (`Retry-After`, `x-ratelimit-reset`). |
+| `src-tauri/src/orchestrator/retry.rs` | `RetryPolicy` con jitter ±25%, exponential backoff, bail-out threshold, exempt `SpendLimitError`. |
+| `src-tauri/src/orchestrator/mod.rs` | `Orchestrator::complete()` catch error → parse → persist `model_resets` → enqueue Toast `kind='model_ready'` en `toast_queue`. |
+| `src-tauri/src/journal/schema.rs` | M19 migration: `model_resets` table. Schema 18→19. |
+| `src-tauri/src/journal/model_resets.rs` | CRUD: `insert`, `pending_for(provider, model)`, `mark_toast_dispatched`. |
+| `src-tauri/src/hud/cards.rs` | `SpendLimitErrorCard` component + `ModelReadyCard` component. |
+| `src/lib/components/SpendLimitErrorCard.svelte` | Svelte 5 runes. Botones "Request Increase" + "Switch Provider". localStorage cooldown. |
+| `src/lib/components/ModelReadyCard.svelte` | Svelte 5 runes. Botón "Resume". |
+| `src/lib/stores/hud.ts` | `SpendLimitErrorCard` y `ModelReadyCard` types + renderers. |
+| `src-tauri/src/profiles/mod.rs` | `Profile::bail_out_threshold_secs: u64` (default 60) + `Profile::backup_profile_id: Option<String>`. |
+| `OpenCode OS/24 - HUD Mission Control.md` | Section §3.3 addendum: SpendLimit / ModelReady card anatomy. |
+| `OpenCode OS/04 - Model Orchestrator.md` | Section §9 addendum: retry policy + bail-out + reset-window. |
+| `OpenCode OS/06 - Profiles.md` | `bail_out_threshold_secs` + `backup_profile_id` profile fields. |
+
+### H.7 Checklist
+
+- [ ] **Item 1**: M19 migration `model_resets` (schema 18→19).
+- [ ] **Item 2**: `orchestrator/error.rs` — `SpendLimitError` struct. 2 tests.
+- [ ] **Item 3**: `orchestrator/parse_error.rs` — OmniRoute envelope parser + `Retry-After` header parser + `x-ratelimit-reset` parser. 5 tests min (one por source).
+- [ ] **Item 4**: `journal/model_resets.rs` — CRUD. 4 tests min.
+- [ ] **Item 5**: `orchestrator/retry.rs` — `RetryPolicy` con jitter, exponential, bail-out. 6 tests min (jitter distribution, parse, bail-out boundary).
+- [ ] **Item 6**: `orchestrator/mod.rs` integration — catch error → persist → enqueue Toast. 3 tests.
+- [ ] **Item 7**: `src/lib/components/SpendLimitErrorCard.svelte` — Svelte 5 runes, 2 botones, localStorage cooldown. Vitest 2 tests.
+- [ ] **Item 8**: `src/lib/components/ModelReadyCard.svelte` — Svelte 5 runes, botón "Resume". Vitest 1 test.
+- [ ] **Item 9**: HUD card pipeline — `cards.rs` + `hud.ts` types. Integration test.
+- [ ] **Item 10**: `profile` schema fields `bail_out_threshold_secs` + `backup_profile_id`. 2 tests.
+- [ ] **Item 11**: RFC 24 §3.3 addendum + RFC 04 §9 addendum + RFC 06 schema fields.
+- [ ] **Item 12**: `docs/reset-window-notifications.md` — README: cómo configuraar OmniRoute, cómo customizaar thresholds, troubleshooting.
+- [ ] **Item 13**: `tools/reset-window-smoke.ps1` — mock provider response con `Retry-After: 5`, valida Toast `model_ready` disparado + dedupe.
+
+### H.8 Riesgos
+
+1. **OmniRoute envelope format drift**: si OmniRoute cambia su error JSON, parser falla. Mitigación: fallback graceful si `error.resets_at` no parsea — log warning + continúa con retry normal sin Toast.
+2. **Clock drift**: si el reloj del cliente está adelantado vs el server, `resets_at` puede llegar "en el pasado" → Toast se dispara inmediatamente. Mitigación: si `resets_at < now - 60s` al persistir, no encolar Toast (suponemos ya expiró o reconcile).
+3. **Toast spam**: si un model rate-limits frecuentemente (provider degradado), el XOR Toast `model_ready` puede ser molesto. Mitigación: cooldown de 10 min por `(provider, model)` en `toast_queue` — segundo reset dentro de 10 min del primero no dispara Toast, sólo marca `status='fired'` silenciosamente.
+4. **SpendLimitError vs RateLimit**: Pay-per-use (402/403) vs rate-limit (429) comparten `resets_at`. UX los distingue: `error_type='spend_limit'` → "Spend Limit Reached"; `error_type='rate_limit'` → "Rate Limited". Misma handler, distinta COPY en la card.
+5. **Competitive gap, not parity**: Esta feature ES el diferencial. Si Cline la añade primero, OpenCode pierde ventaja. Implementar temprano, shippear visible.
+
+### H.9 Atribución (apéndice)
+
+- `src-tauri/src/orchestrator/{error,parse_error,retry}.rs` — `"Pattern adapted from Cline (Apache-2.0) PRs #10207 (SpendLimitError card, exempt auto-retry), #10963 (jitter ±25%, Retry-After parse), #10141 (bail-out threshold). https://github.com/cline/cline"`.
+- OmniRoute error envelope: campo `resets_at` field nomalizado por OmniRoute gateway; OpenCode OS no parse upstream provider headers directamente cuando se usa OmniRoute.
+
+---
+
 ## Orden recomendado — Phase 1.5
 
-**Recomendado (justificado):** Start con **Fase 0 (XS copy_uso batch)**, luego **§D primero**, §A segundo, §C tercero, §B cuarto, **§E quinto (post-graphify)**. **Status actual: Fase 0, §D, §A, §C completos; §B en implementación (Phase 1.5d — items 1-3 committeados, 4-8 en curso); §E documentado, implementación postergada a Phase 1.5e/1.6.**
+**Recomendado (justificado):** Start con **Fase 0 (XS copy_uso batch)**, luego **§D primero**, §A segundo, §C tercero, §B cuarto, **§E quinto (post-graphify)**, §F sexto (post-§E, Windows-only), §G séptimo (post-§F), **§H octavo (post-§G — feature diferencial frente a competencia)**. **Status actual: Fase 0, §D, §A, §C, §B COMPLETOS; §E, §F, §G, §H documentados (RFC 28 listo al 100% en documentación, post-Firecrawl §E implementación); implementación en curso: §E Phase 1.5e, §F/§G/§H postergados a Phase 1.5f/g/h.**
 
 ### Razón
 
@@ -416,7 +854,7 @@ Ninguno en MVP. Posible futuro: badge "firecrawl connected" en HUD settings pane
 
 3. **§C Mission graph M15** (Phase 1.5c, 3–4 sprints): ✅ COMPLETO (commit `cddcbc2`). El más disruptivo. Toca Planner, Skills, Supervisor, Learning, HUD. Crates `petgraph`+`tree-sitter` son bump binario. Hacerlo **third** aumenta conocimiento del codebase por lo aprendido en §A/§D. **No deberíamos hacer §C primero**: el scope del refactor Planner es grande.
 
-4. **§B IT ACP server** (Phase 1.5d, 4–5 sprints): ⏳ **PLANEADO — SIGUIENTE HITO.** Último porque depende de (a) el resto del sistema estable, (b) IT 0.1.x y ACP v2.0.0 son moving targets (`unstable_*` features), (c) prueba-target limitada a Windows, (d) si §C introduce DAG planner, la superficie `session/set_mode` mapping se beneficiará de tener states graph ya consolidado. Adicionalmente: el `exec step` de §A es el mismo `opencode exec step` que §B advertisea — armonizar antes de implementar §B reduce rework. Reusa Fase 0's IT-003/IT-004.
+4. **§B IT ACP server** (Phase 1.5d, 4–5 sprints): ✅ **COMPLETO** (commits `7f8215e`–`4b4924e`, items 1–8 todos ✅). Antes: "Último porque depende de (a) el resto del sistema estable, (b) IT 0.1.x y ACP v2.0.0 son moving targets (`unstable_*` features), (c) prueba-target limitada a Windows, (d) si §C introduce DAG planner, la superficie `session/set_mode` mapping se beneficiará de tener states graph ya consolidado. Adicionalmente: el `exec step` de §A es el mismo `opencode exec step` que §B advertisea — armonizar antes de implementar §B reduce rework. Reusa Fase 0's IT-003/IT-004." Decision sustained: §B fue claramente el más disruptivo, hecho último; ahora sirve como referencia para §F (ACP handlers patrón callback) y §G (interactive auth patrón).
 
 ### Sub-enum Phase 1.5
 
