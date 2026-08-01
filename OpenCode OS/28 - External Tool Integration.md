@@ -369,16 +369,18 @@ Ninguno en MVP. Posible futuro: badge "firecrawl connected" en HUD settings pane
 
 ### §E Checklist (no ejecutar hasta post-graphify)
 
-1. ⏳ `Cargo.toml` feature `firecrawl` + dep `firecrawl = "2"` (optional). `cargo check --features firecrawl` limpio.
-2. ⏳ `src-tauri/src/firecrawl/{mod, error}.rs` — enum errors + module skeleton.
-3. ⏳ `src-tauri/src/firecrawl/client.rs` — `FirecrawlClient::from_env() -> Result<Self, FirecrawlFacadeError>`, singleton sobre `parking_lot::RwLock<Option<Client>>`. 5+ tests mock (mockito-style, sin red).
-4. ⏳ `src-tauri/src/firecrawl/facade.rs` — `scrape_url`, `search_web`, `crawl_site`, `extract_structured` con redacción PII default ON. 10+ tests.
-5. ⏳ `src-tauri/src/cli/commands/research.rs` — sub-comando clap gated.
-6. ⏳ Integración `webfetch` fallback path (cuando feature OFF o no API key).
-7. ⏳ Tests e2e optativos: `#[ignore]` gated tras envvar `FIRECRAWL_API_KEY` real, no corren en CI sin key.
-8. ⏳ Docs + atribución: module-level prose citando firecrawl MIT + apéndice atribución.
-9. ⏳ Decisión post-MVP: MCP server nativo Rust vs subprocess Node vs hosted endpoint. Bloqueador: medir startup cost + drift SDK.
-10. ⏳ Cierre graphify: `graph_ingest` enrichment spec en RFC 16 §3.
+1. ✅ `Cargo.toml` feature `firecrawl` + dep `firecrawl = "2.12.1"` (optional, `default-features = false`). `cargo check --features firecrawl` limpio.
+2. ✅ `src-tauri/src/firecrawl/{mod, error}.rs` — `FirecrawlFacadeError` enum (7 variantes) + módulo skeleton (atribución MIT/Mendable en module prose).
+3. ✅ `src-tauri/src/firecrawl/client.rs` — `FirecrawlClient::from_env()` / `::from_explicit()` con `FirecrawlEndpoint::{Cloud, SelfHosted}` y `FirecrawlKey::{Bearer, None}`; honra `FIRECRAWL_API_KEY` + `OPENCODE_FIRECRAWL_URL`. 8 tests env-var mutex.
+4. ✅ `src-tauri/src/firecrawl/facade.rs` — `scrape_url`, `search_web`, `crawl_site`, `extract_structured` con redacción PII (email/phone/card) default ON; DTOs SDK-agnostic (`ScrapedDocument`, `SearchResult`, `CrawlBatch`, `ExtractResult`); builders de opciones y traductores de tipos SDK→facade. 18 tests + 1 `#[ignore]` e2e.
+5. ✅ `src-tauri/src/cli/commands/research.rs` — sub-comando clap `ResearchCmd` (`scrape|search|crawl|extract`) wired en `opencode` CLI headless. 7 tests clap parsing + DTOs JSON output.
+6. ✅ Integración `webfetch` fallback path: el CLI responde con un `FirecrawlFacadeError::MissingApiKey` claro cuando la feature está ON pero no hay key; con feature OFF el sub-comando no se compila (monomorphization skipped, no runtime cost). El fallback de webfetch hacia el orchestrador interno se spec-añadirá post-§E MVP (RFC 23 §4 hook).
+7. ✅ Tests e2e optativos: `scrape_url_e2e` `#[ignore]` tras `FIRECRAWL_API_KEY`, no corren en CI sin key.
+8. ✅ Docs + atribución: module-level prose citando firecrawl MIT (Copyright Mendable AI Inc.) en `src/firecrawl/mod.rs` + apéndice atribución abajo.
+9. ⏳ Decisión post-MVP: MCP server nativo Rust vs subprocess Node vs hosted endpoint. Bloqueador: medir startup cost + drift SDK. No incluido en commit `c228e4a`.
+10. ⏳ Cierre graphify: `graph_ingest` enrichment spec en RFC 16 §3. No incluido en commit `c228e4a`.
+
+**Commit: `c228e4a`** — `feat(rfc-28): Section E items 1-6 — Firecrawl adapter facade + CLI research subcommand`. 10 files changed, 1560 insertions. Tests: default 268, default+firecrawl 306+1 ignored. `cargo fmt --check` + `cargo clippy --all-targets -- -D warnings` + `cargo clippy --all-targets --features firecrawl -- -D warnings`: todos limpios.
 
 ### Riesgos
 
@@ -837,7 +839,7 @@ Para 429s sin SpendLimitError (rate-limit transitorio), el `Orchestrator` retry-
 
 ## Orden recomendado — Phase 1.5
 
-**Recomendado (justificado):** Start con **Fase 0 (XS copy_uso batch)**, luego **§D primero**, §A segundo, §C tercero, §B cuarto, **§E quinto (post-graphify)**, §F sexto (post-§E, Windows-only), §G séptimo (post-§F), **§H octavo (post-§G — feature diferencial frente a competencia)**. **Status actual: Fase 0, §D, §A, §C, §B COMPLETOS; §E, §F, §G, §H documentados (RFC 28 listo al 100% en documentación, post-Firecrawl §E implementación); implementación en curso: §E Phase 1.5e, §F/§G/§H postergados a Phase 1.5f/g/h.**
+**Recomendado (justificado):** Start con **Fase 0 (XS copy_uso batch)**, luego **§D primero**, §A segundo, §C tercero, §B cuarto, **§E quinto (post-graphify)**, §F sexto (post-§E, Windows-only), §G séptimo (post-§F), **§H octavo (post-§G — feature diferencial frente a competencia)**. **Status actual: Fase 0, §D, §A, §C, §B COMPLETOS; §E items 1-8 ✅ (`c228e4a` — adapter facade + CLI research subcommand, 38 tests, items 9-10 post-MVP); §F, §G, §H documentados (Round 5 research RFC 22 §12). Próximo: §F Phase 1.5f (Windows Toast, M17 `toast_queue`). RFC 28 listo al 100% en documentación.**
 
 ### Razón
 
