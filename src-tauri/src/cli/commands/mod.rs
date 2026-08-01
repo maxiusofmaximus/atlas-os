@@ -10,6 +10,8 @@ pub mod mcp;
 pub mod mission;
 pub mod plan;
 pub mod profile;
+#[cfg(feature = "firecrawl")]
+pub mod research;
 pub mod resume;
 pub mod run;
 pub mod skill;
@@ -25,6 +27,8 @@ pub use mcp::McpCmd;
 pub use mission::MissionCmd;
 pub use plan::PlanCmd;
 pub use profile::ProfileCmd;
+#[cfg(feature = "firecrawl")]
+pub use research::ResearchCmd;
 pub use resume::ResumeCmd;
 pub use run::RunCmd;
 pub use skill::SkillCmd;
@@ -51,5 +55,7 @@ pub async fn dispatch(cmd: Commands, profile: &str) -> Result<()> {
         Commands::Profile(c) => profile::run(c, profile).await,
         Commands::Audit(c) => audit::run(c, profile).await,
         Commands::Journal(c) => journal::run(c, profile).await,
+        #[cfg(feature = "firecrawl")]
+        Commands::Research(c) => research::run(c, profile).await,
     }
 }

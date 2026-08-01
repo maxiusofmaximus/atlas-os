@@ -52,6 +52,17 @@ codebase-graph = ["dep:tree-sitter", "dep:tree-sitter-rust", "dep:tree-sitter-sv
 # pulled in (verified Jul 2026: there is no such crate on crates.io
 # for the v2 line).
 acp-server = ["dep:agent-client-protocol"]
+# RFC 28 Section E — Firecrawl web ingestion (scrape, search, crawl).
+# Adapter facade over the official Rust SDK `firecrawl = "2.12.1"` (MIT,
+# by the Firecrawl team at Mendable AI Inc.). All callers go through
+# `crate::firecrawl::facade`; the SDK is never imported directly outside
+# `src/firecrawl/client.rs`. Off by default — pulls in reqwest deps that
+# are transitively present already, plus a small SDK-shaped surface that
+# adds ~250 KB to a desktop build. Self-hosted instances can be
+# configured by setting `OPENCODE_FIRECRAWL_URL` instead of
+# `FIRECRAWL_API_KEY`; the facade handles both paths. No native deps —
+# pure Rust, single-binary safe (RFC 25 §11).
+firecrawl = ["dep:firecrawl"]
 
 [dependencies]
 # Core async + errors
@@ -141,6 +152,14 @@ tree-sitter-svelte-next = { version = "0.1", optional = true }
 # `unstable_session_fork` habilita el futuro `/opencode fork` de RFC
 # 28 §B. Sin helper tokio externo: el core crate provee `Stdio`.
 agent-client-protocol = { version = "2.0", optional = true, features = ["unstable_session_fork"] }
+
+# RFC 28 Section E — Firecrawl web ingestion (optional, gated
+# `firecrawl`). Officially supported Rust SDK (MIT, Mendable AI Inc.).
+# Default features OFF to trim binary surface — we only use the HTTP
+# client + serde models, never the WebSocket crawler sub-protocol.
+# `default-features = false` plus our explicit reqwest enablement keeps
+# the dep tree shared with the existing model-provider reqwest (rustls).
+firecrawl = { version = "2.12.1", optional = true, default-features = false }
 
 # Test
 tempfile = "3"

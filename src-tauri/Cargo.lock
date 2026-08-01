@@ -1733,6 +1733,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
 
 [[package]]
+name = "firecrawl"
+version = "2.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ea59c3089ef7141efda017bc7bc9714bbf58f5958bfe87a123bb4aee1a6da3b5"
+dependencies = [
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "thiserror 1.0.69",
+ "tokio",
+]
+
+[[package]]
 name = "fixedbitset"
 version = "0.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3885,6 +3899,7 @@ dependencies = [
  "dirs 5.0.1",
  "eventsource-stream",
  "fastembed",
+ "firecrawl",
  "futures",
  "futures-util",
  "git2",
@@ -4839,6 +4854,7 @@ dependencies = [
  "js-sys",
  "log",
  "mime",
+ "mime_guess",
  "native-tls",
  "percent-encoding",
  "pin-project-lite",

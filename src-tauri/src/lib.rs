@@ -7,6 +7,8 @@ pub mod acp;
 pub mod cli;
 pub mod coding;
 pub mod core;
+#[cfg(feature = "firecrawl")]
+pub mod firecrawl;
 pub mod graph;
 pub mod hud;
 pub mod journal;

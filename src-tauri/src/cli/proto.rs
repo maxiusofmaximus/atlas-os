@@ -4,6 +4,8 @@
 
 use clap::{Parser, Subcommand};
 
+#[cfg(feature = "firecrawl")]
+use super::commands::ResearchCmd;
 use super::commands::{
     AuditCmd, ExecCmd, ForkCmd, HudCmd, JournalCmd, McpCmd, MissionCmd, PlanCmd, ProfileCmd,
     ResumeCmd, RunCmd, SkillCmd, SteerCmd, SwapModelCmd,
@@ -69,4 +71,8 @@ pub enum Commands {
     Audit(AuditCmd),
     /// Journal tail (RFC 19).
     Journal(JournalCmd),
+    /// Web ingestion via Firecrawl — scrape, search, crawl, extract
+    /// (RFC 28 §E).
+    #[cfg(feature = "firecrawl")]
+    Research(ResearchCmd),
 }
