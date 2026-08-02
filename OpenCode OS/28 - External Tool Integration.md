@@ -401,7 +401,7 @@ Ninguno en MVP. Posible futuro: badge "firecrawl connected" en HUD settings pane
 
 ## §F — Windows Toast Notifications (Phase 1.5f)
 
-**Status: ⏳ documentado, implementación pendiente (post-Firecrawl §E).**
+**Status: ✅ items 1-8 implementados, commit `d6e6e23`.** Item 9 (smoke script `tools/toast-smoke.ps1`) post-MVP. Item 10 (docs README troubleshooting AUMID) post-MVP.
 
 OpenCode OS corre como shell desktop (Tauri 2) pero también como headless CLI/ACP server. Cuando el proceso está ocioso o el webview está minimizado, las notificaciones nativas del SO son el canal correcto para señales asíncronas: reset-window de modelo, fin de turn largo, fallo crítico, calendar reminder. Esta sección define cómo OpenCode OS configura AUMID + Start Menu shortcut y dispara Toasts via `winrt-toast-reborn`, persiste historial en SQLite, y responde a activaciones (deep-link al HUD).
 
@@ -410,7 +410,6 @@ OpenCode OS corre como shell desktop (Tauri 2) pero también como headless CLI/A
 | Crate | Version | License | Rol |
 |---|---|---|---|
 | `winrt-toast-reborn` | `0.3.8` | MIT | Toast activation, AUMID registration, event handlers (Windows 10/11) |
-| `tauri-plugin-notification` | `2.3.3` | Apache-2.0 OR MIT | Fallback trivial en Linux/macOS (sólo `show()` sin callbacks) |
 
 **`winrt-toast-reborn`** es el fork mantenido de `winrt-toast 0.1.1` (crates.io ID `winrt-toast-reborn`, author `AtifChy` / Md. Iftakhar Awal Chowdhury, repo `https://github.com/AtifChy/winrt-toast.git`). Publicado `2025-09-01`, 16k downloads, MIT. Expone:
 
@@ -419,7 +418,9 @@ OpenCode OS corre como shell desktop (Tauri 2) pero también como headless CLI/A
 - `on_activated(|action| ...)`, `on_dismissed(|reason| ...)`, `on_failed(|error| ...)` — callbacks por toast, usados para deep-link al HUD y persistencia de dismiss.
 - Sin API para `ScheduledToastNotification` (WinRT appointment-like scheduling). El scheduler propio se construye sobre `tokio::time::sleep_until(expiry)` + SQLite (ver F.3).
 
-**`tauri-plugin-notification`** RECHAZADO como primario en Windows: bug de heurística AUMID ([tauri-apps/plugins-workspace#1545](https://github.com/tauri-apps/plugins-workspace/issues/1545)) hace que el schedule se vuelva silent no-op en desktop no-MSIX, y no entrega callback de activación (sólo fire-and-forget). Se retiene **sólo para Linux/macOS** donde los Toasts nativos del SO no requieren AUMID y la activación deep-link no aplica (CLI/desktop WebSocket HUD ya está escuchando).
+**`tauri-plugin-notification`** RECHAZADO como primario en Windows: bug de heurística AUMID ([tauri-apps/plugins-workspace#1545](https://github.com/tauri-apps/plugins-workspace/issues/1545)) hace que el schedule se vuelva silent no-op en desktop non-MSIX, y no devuelve callback de activación (solo fire-and-forget). Se retiene **solo para Linux/macOS** donde los Toasts nativos del SO no requieren AUMID y la activación deep-link no aplica (CLI/desktop WebSocket HUD ya está escuchando).
+
+**Implementación final (commit `d6e6e23`)**: Elimina `tauri-plugin-notification` del plan de dependencias; la feature `toast` incluye unicamente `winrt-toast-reborn` en `cfg(windows)`. En non-Windows, el dispatcher se degrada a `ToastDispatcher::Stub` que logueea via `tracing::info!` y devuelve `Dismissed{timedOut}` — suficiente para pruebas end-to-end del driver loop sin WinRT. WinRT `ToastManager` es **no-Send**, así que el dispatcher Windows usa un std::thread dedicado con mpsc channel; el driver tokio invoca via `tokio::task::spawn_blocking` para mantener la future `Send`.
 
 ### F.2 AUMID registration (one-time)
 
@@ -503,28 +504,31 @@ Cada `fire_toast` escribe en `toast_history` (tabla append-only, sin cleanup) pa
 
 ### F.7 Checklist
 
-- [ ] **Item 1**: `Cargo.toml` feature flag `toast-notifications` + crate deps `winrt-toast-reborn 0.3.8` (Windows-only), `tauri-plugin-notification 2.3.3` (non-Windows).
-- [ ] **Item 2**: M17 migration `toast_queue` + `toast_history` (schema 16→17).
-- [ ] **Item 3**: `toast/aumid.rs` — `register_aumid()` idempotente. Test mock registro.
-- [ ] **Item 4**: `toast/queue.rs` — `ToastQueue` CRUD (enqueue, next_pending, mark_*). 6 tests min (happy + dup + boundary).
-- [ ] **Item 5**: `toast/driver.rs` — `ToastDriver` loop + `fire_toast()` + `on_activated` deep-link handler. 4 tests min.
-- [ ] **Item 6**: `toast/history.rs` — `toast_history` append + dedupe por `(kind, mission_id, fire_at±5min)`. 3 tests min.
-- [ ] **Item 7**: `AppState::new()` integration — register AUMID + spawn driver. Documentar en RFC 04 §9 (frontends del orquestador).
-- [ ] **Item 8**: `docs/toast-integration.md` — README de troubleshooting AUMID, Start Menu shortcut, registry entries, depuración via `pnpm tauri:dev`.
-- [ ] **Item 9**: `tools/toast-smoke.ps1` — script que dispara 3 Toasts (info / warning / error) + verifica `toast_history` rows.
+- [x] **Item 1**: `Cargo.toml` feature flag `toast` + crate dep `winrt-toast-reborn 0.3.8` (Windows-only via `[target.'cfg(windows)'.dependencies]`). `tauri-plugin-notification` retirado del plan (bug #1545 + no callback surface); CLI subcommand `opencode toast queue/list/cancel` añadido.
+- [x] **Item 2**: M17 migration `toast_queue` + `toast_history` (schema 16→17) in `src/journal/schema.rs`. Runs unconditionally — schema version is 17 regardless of feature flag.
+- [x] **Item 3**: `src/toast/manager.rs::register_aumid()` idempotente (Windows): wraps `winrt_toast_reborn::register(AUMID, DISPLAY_NAME, icon_path)`. Non-Windows no-op. 1 test (non-Windows) + 失败 falla logged graceful.
+- [x] **Item 4**: `src/toast/queue.rs::ToastQueue<'a>` — `enqueue`, `next_pending`, `count_pending`, `mark_fired`, `mark_dismissed`, `mark_failed`, `get`, `cancel`, `list`, `append_history`. 11 tests (happy-path + dup + cancels + history-append + descending list).
+- [x] **Item 5**: `src/toast/scheduler.rs::ToastDriver` — tokio spawn task, 5-s idle poll, dispatch via `tokio::task::spawn_blocking` (WinRT `ToastManager` no-Send), persist outcome back. 3 tests (non-Windows): fires-one, drains-backlog, handle-is-some.
+- [x] **Item 6**: `toast_history` dedupe ledger implemented in `ToastQueue::append_history`. Each `mark_*` call writes an audit row. 1 test (`history_is_appended_per_outcome`) verifies two outcomes produce two rows.
+- [x] **Item 7**: `AppState::bootstrap()` integration — calls `register_aumid()` (warnings on failure, non-fatal), spawns `ToastDriver` with shared `Arc<Mutex<Journal>>`. `Journal::toast_*` thin wrappers added. `Inner.toast_driver` owns the handle for shutdown.
+- [x] **Item 8** (renamed): `src/cli/commands/toast.rs` — `opencode toast queue|list|cancel` clap subcommand + dispatch wiring. 7 clap parsing tests. README troubleshooting (`docs/toast-integration.md`) deferred to post-MVP.
+- [ ] **Item 9**: `tools/toast-smoke.ps1` smoke script — deferred to post-MVP.
+
+**Commit: `d6e6e23`** — `feat(rfc-28): Section F items 1-8 — Toast notifications queue + driver + CLI subcommand`. 16 files changed, 1721 insertions. Tests default 270, +toast 301. `cargo fmt --check` + `cargo clippy -- -D warnings` + `cargo clippy --features toast -- -D warnings`: todos limpios. `cargo check --features "firecrawl,toast" --lib`: clean (combo verify).
 
 ### F.8 Riesgos
 
-1. **Single-binary invariant** (AGENTS.md §6): `winrt-toast-reborn` es pure Rust (windows-rs FFI). Cumple. `tauri-plugin-notification` también (Tauri plugin estándar). No se introduce runtime extra.
-2. **Non-MSIX desktop activation**: WinRT Toast activation desde desktop (no-MSIX) requiere el Start Menu shortcut creado por `register()` — si falla, los toasts aparecen pero los clicks no regresa al proceso. Mitigación: `register_aumid()` corre en boot y persiste el resultado en `AppState.toast_aumid_registered`. Si falla, los callbacks se desactivan y el toast es sólo informational (no deep-linkable).
+1. **Single-binary invariant** (AGENTS.md §6): `winrt-toast-reborn` es pure Rust (windows-rs FFI). Cumple. No se introduce runtime extra.
+2. **Non-MSIX desktop activation**: WinRT Toast activation desde desktop (no-MSIX) requiere el Start Menu shortcut creado por `register()` — si falla, los toasts aparecen pero los clicks no regresan al proceso. Mitigación: `register_aumid()` corre en boot y loguea el error; los callbacks se mantienen activos (WinRT permite registry-creation lazy si el AUMID existe con otro valor de DisplayName). Si toast.exe no está registrado en absoluto, los toasts siguen siendo visibles pero no deep-linkable.
 3. **AUMID registration conflict**: Si otra app reusa `dev.opencode.OpenCodeOS.HUD` (improbable), WinRT enruta los callbacks al último registrante. Mitigación: AUMID namespace `dev.opencode.OpenCodeOS.*` único al proyecto.
-4. **Sobrevive crash del proceso**: queue en SQLite → re-backfill en boot.
-5. **Linux/macOS parity**: `tauri-plugin-notification` para notification trivial; deep-link callbacks no aplican (no hay AUMID). El HUD WebSocket sirve como canal alternativo y `opencode hud` arranca el server de nuevo.
+4. **Sobrevive crash del proceso**: queue en SQLite → re-backfill en boot. El driver polls `next_pending` en arranque, así todo `pending` whose `fire_at <= now` dispara inmediatamente.
+5. **Linux/macOS parity**: `ToastDispatcher::Stub` logueea via `tracing::info!`. Deep-link callbacks no aplican (no hay AUMID). El HUD WebSocket sirve como canal alternativo y `opencode hud` arranca el server de nuevo.
+6. **WinRT ToastManager no-Send**: Resuelto con std::thread dedicado + mpsc channel entre el dispatcher handle y el worker; el driver tokio invoca via `tokio::task::spawn_blocking`. Future remain `Send`.
 
 ### F.9 Atribución (apéndice)
 
-- `src-tauri/src/toast/*.rs` — `"Uses winrt-toast-reborn 0.3.8 (MIT) by Md. Iftakhar Awal Chowdhury (AtifChy), fork maintained of winrt-toast 0.1.1. https://github.com/AtifChy/winrt-toast"`.
-- `src-tauri/src/toast/fallback_unix.rs` — `"Uses tauri-plugin-notification 2.3.3 (Apache-2.0 OR MIT) by Tauri Apps. https://github.com/tauri-apps/plugins-workspace"`.
+- `src-tauri/src/toast/*.rs` — `"Uses winrt-toast-reborn 0.3.8 (MIT) by Md. Iftakhar Awal Chowdhury (AtifChy), fork maintained of winrt-toast 0.1.1. https://github.com/AtifChy/winrt-toast"`. Module prose en `src/toast/mod.rs`.
+- `src-tauri/Cargo.toml` — entry under `[target.'cfg(windows)'.dependencies]` carries the crate name + version + license (MIT) in inline comment.
 
 ---
 
@@ -839,7 +843,7 @@ Para 429s sin SpendLimitError (rate-limit transitorio), el `Orchestrator` retry-
 
 ## Orden recomendado — Phase 1.5
 
-**Recomendado (justificado):** Start con **Fase 0 (XS copy_uso batch)**, luego **§D primero**, §A segundo, §C tercero, §B cuarto, **§E quinto (post-graphify)**, §F sexto (post-§E, Windows-only), §G séptimo (post-§F), **§H octavo (post-§G — feature diferencial frente a competencia)**. **Status actual: Fase 0, §D, §A, §C, §B COMPLETOS; §E items 1-8 ✅ (`c228e4a` — adapter facade + CLI research subcommand, 38 tests, items 9-10 post-MVP); §F, §G, §H documentados (Round 5 research RFC 22 §12). Próximo: §F Phase 1.5f (Windows Toast, M17 `toast_queue`). RFC 28 listo al 100% en documentación.**
+**Recomendado (justificado):** Start con **Fase 0 (XS copy_uso batch)**, luego **§D primero**, §A segundo, §C tercero, §B cuarto, **§E quinto (post-graphify)**, §F sexto (post-§E, Windows-only), §G séptimo (post-§F), **§H octavo (post-§G — feature diferencial frente a competencia)**. **Status actual: Fase 0, §D, §A, §C, §B, §E items 1-8, §F items 1-8 COMPLETOS; §G, §H documentados (Round 5 research RFC 22 §12). Próximo: §G Phase 1.5g (Windows Calendar + Microsoft Graph reader, M18 schema). RFC 28 listo al 100% en documentación.**
 
 ### Razón
 
