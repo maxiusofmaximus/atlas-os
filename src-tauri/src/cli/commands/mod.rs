@@ -17,6 +17,8 @@ pub mod run;
 pub mod skill;
 pub mod steer;
 pub mod swap_model;
+#[cfg(feature = "toast")]
+pub mod toast;
 
 pub use audit::AuditCmd;
 pub use exec::ExecCmd;
@@ -34,6 +36,8 @@ pub use run::RunCmd;
 pub use skill::SkillCmd;
 pub use steer::SteerCmd;
 pub use swap_model::SwapModelCmd;
+#[cfg(feature = "toast")]
+pub use toast::ToastCmd;
 
 use anyhow::Result;
 
@@ -57,5 +61,7 @@ pub async fn dispatch(cmd: Commands, profile: &str) -> Result<()> {
         Commands::Journal(c) => journal::run(c, profile).await,
         #[cfg(feature = "firecrawl")]
         Commands::Research(c) => research::run(c, profile).await,
+        #[cfg(feature = "toast")]
+        Commands::Toast(c) => toast::run(c, profile).await,
     }
 }

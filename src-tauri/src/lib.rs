@@ -21,6 +21,8 @@ pub mod prompt;
 pub mod repair;
 pub mod skills;
 pub mod supervisor;
+#[cfg(feature = "toast")]
+pub mod toast;
 pub mod validation;
 
 pub use core::state::AppState;

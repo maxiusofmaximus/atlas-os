@@ -6,11 +6,12 @@ use clap::{Parser, Subcommand};
 
 #[cfg(feature = "firecrawl")]
 use super::commands::ResearchCmd;
+#[cfg(feature = "toast")]
+use super::commands::ToastCmd;
 use super::commands::{
     AuditCmd, ExecCmd, ForkCmd, HudCmd, JournalCmd, McpCmd, MissionCmd, PlanCmd, ProfileCmd,
     ResumeCmd, RunCmd, SkillCmd, SteerCmd, SwapModelCmd,
 };
-
 #[derive(Parser, Debug)]
 #[command(name = "opencode", version, propagate_version = true)]
 #[command(about = "OpenCode OS — Agent Engineering Operating System", long_about = None)]
@@ -75,4 +76,7 @@ pub enum Commands {
     /// (RFC 28 §E).
     #[cfg(feature = "firecrawl")]
     Research(ResearchCmd),
+    /// Toast queue management — enqueue, list, cancel (RFC 28 §F).
+    #[cfg(feature = "toast")]
+    Toast(ToastCmd),
 }

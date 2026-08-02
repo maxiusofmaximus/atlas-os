@@ -1345,12 +1345,44 @@ mod mission_graph_schema_tests {
     }
 
     #[test]
-    fn m16_advances_schema_version_to_16() {
+    fn m16_advances_schema_version_to_at_least_16() {
         let (_tmp, conn) = fresh_conn();
         let v: i64 = conn
             .query_row("SELECT MAX(version) FROM schema_version", [], |r| r.get(0))
             .expect("query");
-        assert_eq!(v, 16);
+        assert!(v >= 16, "expected schema version >= 16 after M16, got {v}");
+    }
+
+    #[test]
+    fn m17_advances_schema_version_to_at_least_17() {
+        // M17 (toast_queue + toast_history) runs unconditionally — the
+        // tables exist whether or not the `toast` feature is on. This
+        // keeps the schema idempotent across feature combos.
+        let (_tmp, conn) = fresh_conn();
+        let v: i64 = conn
+            .query_row("SELECT MAX(version) FROM schema_version", [], |r| r.get(0))
+            .expect("query");
+        assert!(v >= 17, "expected schema version >= 17 after M17, got {v}");
+    }
+
+    #[test]
+    fn m17_creates_toast_queue_and_history_tables() {
+        let (_tmp, conn) = fresh_conn();
+        let tables: Vec<String> = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+            .expect("prepare")
+            .query_map([], |r| r.get(0))
+            .expect("query_map")
+            .map(Result::unwrap)
+            .collect();
+        assert!(
+            tables.iter().any(|t| t == "toast_queue"),
+            "expected `toast_queue` table after M17, got: {tables:?}"
+        );
+        assert!(
+            tables.iter().any(|t| t == "toast_history"),
+            "expected `toast_history` table after M17, got: {tables:?}"
+        );
     }
 
     #[test]

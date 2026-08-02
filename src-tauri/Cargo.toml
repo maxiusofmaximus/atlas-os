@@ -63,6 +63,18 @@ acp-server = ["dep:agent-client-protocol"]
 # `FIRECRAWL_API_KEY`; the facade handles both paths. No native deps —
 # pure Rust, single-binary safe (RFC 25 §11).
 firecrawl = ["dep:firecrawl"]
+# RFC 28 Section F — Windows Toast notifications. AUMID registration +
+# interactive Toasts with `on_activated`/`on_dismissed`/`on_failed`
+# callbacks via `winrt-toast-reborn = "0.3.8"` (MIT, by Md. Iftakhar
+# Awal Chowdhury / AtifChy, fork maintained of winrt-toast 0.1.1).
+# Windows-only target (`cfg(windows)`); on other platforms the feature
+# compiles to a no-op stub that logs via `tracing` and is testable
+# without WinRT. The driver over `toast_queue` (M17) is platform-
+# agnostic. Off by default — adds ~150 KB on Windows release builds.
+# No `tauri-plugin-notification` fallback (bug tauri-apps#1545 makes
+# the AUMID heuristic silently no-op on non-MSIX desktop; deep-link
+# callbacks aren't exposed by the plugin anyway).
+toast = ["dep:winrt-toast-reborn"]
 
 [dependencies]
 # Core async + errors
@@ -160,6 +172,16 @@ agent-client-protocol = { version = "2.0", optional = true, features = ["unstabl
 # `default-features = false` plus our explicit reqwest enablement keeps
 # the dep tree shared with the existing model-provider reqwest (rustls).
 firecrawl = { version = "2.12.1", optional = true, default-features = false }
+
+# RFC 28 Section F — Windows Toast notifications (optional, gated
+# `toast`). Windows-only FFI via windows-rs; the crate's `register()`
+# call creates a Start Menu shortcut + registry AUMID so non-MSIX
+# desktop apps can also receive activations. MIT, by AtifChy (fork).
+# The `toast` feature gate plus `target_os = "windows"` keeps non-
+# Windows builds clean; the stub module on other OSes logs via
+# tracing and is unit-testable without WinRT.
+[target.'cfg(windows)'.dependencies]
+winrt-toast-reborn = { version = "0.3.8", optional = true }
 
 # Test
 tempfile = "3"

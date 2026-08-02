@@ -696,5 +696,58 @@ pub fn migrate(conn: &Connection) -> Result<()> {
             rusqlite::params![16, chrono::Utc::now().to_rfc3339()],
         )?;
     }
+    // M17 — Toast notifications queue + history (RFC 28 §F).
+    //   `toast_queue` holds scheduled notifications that the driver
+    //   loop polls every 5 s. The `kind` column is a stable TEXT
+    //   token (`model_ready` | `turn_end` | `validation_failed` |
+    //   `calendar_reminder` | `critical` | `info`); status is one of
+    //   `pending` / `fired` / `dismissed` / `failed`. `fire_at`,
+    //   `fired_at`, `dismissed_at` are unix milliseconds. Deep-link
+    //   strings use the `opencode://mission/...` scheme.
+    //   `toast_history` is the append-only audit + dedupe ledger
+    //   consulted during crash-recovery backfill.
+    if current < 17 {
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS toast_queue (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                kind            TEXT NOT NULL,
+                title           TEXT NOT NULL,
+                body            TEXT,
+                deep_link       TEXT,
+                fire_at         INTEGER NOT NULL,
+                status          TEXT NOT NULL DEFAULT 'pending',
+                fired_at        INTEGER,
+                dismissed_at    INTEGER,
+                dismiss_reason  TEXT,
+                attempts        INTEGER NOT NULL DEFAULT 0,
+                created_at      INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+            );
+
+            CREATE INDEX IF NOT EXISTS toast_queue_pending_idx
+                ON toast_queue(fire_at)
+                WHERE status = 'pending';
+
+            CREATE TABLE IF NOT EXISTS toast_history (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                queue_id        INTEGER NOT NULL,
+                kind            TEXT NOT NULL,
+                title           TEXT NOT NULL,
+                body            TEXT,
+                deep_link       TEXT,
+                fire_at         INTEGER NOT NULL,
+                fired_at        INTEGER,
+                dismiss_reason  TEXT,
+                outcome         TEXT NOT NULL,
+                recorded_at     INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+            );
+
+            CREATE INDEX IF NOT EXISTS toast_history_dedupe_idx
+                ON toast_history(kind, title, fire_at);",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![17, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
     Ok(())
 }

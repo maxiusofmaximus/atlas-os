@@ -27,7 +27,7 @@ pub struct AppState {
 struct Inner {
     pub profile_id: RwLock<ProfileId>,
     pub profile_root: RwLock<PathBuf>,
-    pub journal: Mutex<Journal>,
+    pub journal: Arc<Mutex<Journal>>,
     /// Kernel Bus broadcast channel — multi-consumer event stream
     /// (RFC 02 §3.1). HUD, LSP, CLI, swarm all subscribe.
     pub bus_tx: broadcast::Sender<BusEvent>,
@@ -36,6 +36,14 @@ struct Inner {
     /// it; locking the journal mutex just to read an int is wasteful and
     /// can induce async stalls.
     pub hud_port: AtomicU16,
+    /// Toast driver task handle (RFC 28 §F). Present when the `toast`
+    /// feature is enabled, regardless of platform. Owned by `Inner`
+    /// so dropping the `AppState` triggers a graceful shutdown.
+    /// Currently no public accessor is needed — `Drop` does the
+    /// teardown.
+    #[cfg(feature = "toast")]
+    #[allow(dead_code)]
+    pub toast_driver: Option<crate::toast::scheduler::ToastDriver>,
 }
 
 impl AppState {
@@ -43,15 +51,35 @@ impl AppState {
         let profile_id = ProfileId::default();
         let profile_root = profiles::resolve_root(&profile_id)?;
         let journal = Journal::open(&profile_root)?;
+        let journal = Arc::new(Mutex::new(journal));
         let (bus_tx, _) = broadcast::channel(1024);
+
+        #[cfg(feature = "toast")]
+        let toast_driver = {
+            // Register AUMID + spawn Toast driver (RFC 28 §F.2/§F.3).
+            // Errors here are non-fatal — Toast is a convenience
+            // surface, not a core dependency. We log and proceed
+            // without the driver if registration or spawn fails.
+            let icon_path = None; // Bundled icon path resolved post-§F MVP.
+            if let Err(e) = crate::toast::manager::register_aumid(icon_path) {
+                tracing::warn!(error = %e, "toast AUMID registration failed — toasts will not receive activations");
+            }
+            let dispatcher = crate::toast::manager::ToastDispatcher::new_default();
+            Some(crate::toast::scheduler::ToastDriver::spawn(
+                Arc::clone(&journal),
+                dispatcher,
+            ))
+        };
 
         Ok(Self {
             inner: Arc::new(Inner {
                 profile_id: RwLock::new(profile_id),
                 profile_root: RwLock::new(profile_root),
-                journal: Mutex::new(journal),
+                journal,
                 bus_tx,
                 hud_port: AtomicU16::new(0),
+                #[cfg(feature = "toast")]
+                toast_driver,
             }),
         })
     }
@@ -132,9 +160,11 @@ impl AppState {
             inner: Arc::new(Inner {
                 profile_id: RwLock::new(ProfileId::default()),
                 profile_root: RwLock::new(PathBuf::new()),
-                journal: Mutex::new(journal),
+                journal: Arc::new(Mutex::new(journal)),
                 bus_tx,
                 hud_port: AtomicU16::new(0),
+                #[cfg(feature = "toast")]
+                toast_driver: None,
             }),
         }
     }

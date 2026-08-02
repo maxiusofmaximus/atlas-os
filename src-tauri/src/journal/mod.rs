@@ -1583,3 +1583,78 @@ impl Journal {
         Ok(())
     }
 }
+
+#[cfg(feature = "toast")]
+impl Journal {
+    /// Thin wrapper over [`crate::toast::queue::ToastQueue::enqueue`].
+    #[cfg(feature = "toast")]
+    pub fn toast_enqueue(
+        &self,
+        kind: crate::toast::payload::ToastKind,
+        title: &str,
+        body: Option<&str>,
+        deep_link: Option<&str>,
+        fire_at_ms: i64,
+    ) -> anyhow::Result<i64> {
+        let conn = self.conn.lock();
+        let q = crate::toast::queue::ToastQueue::new(&conn);
+        Ok(q.enqueue(kind, title, body, deep_link, fire_at_ms)?)
+    }
+
+    /// Thin wrapper over [`crate::toast::queue::ToastQueue::next_pending`].
+    #[cfg(feature = "toast")]
+    pub fn toast_next_pending(
+        &self,
+        now_ms: i64,
+    ) -> anyhow::Result<Option<crate::toast::queue::QueueRow>> {
+        let conn = self.conn.lock();
+        let q = crate::toast::queue::ToastQueue::new(&conn);
+        Ok(q.next_pending(now_ms)?)
+    }
+
+    /// Thin wrapper over [`crate::toast::queue::ToastQueue::count_pending`].
+    #[cfg(feature = "toast")]
+    pub fn toast_count_pending(&self) -> anyhow::Result<i64> {
+        let conn = self.conn.lock();
+        let q = crate::toast::queue::ToastQueue::new(&conn);
+        Ok(q.count_pending()?)
+    }
+
+    /// Thin wrapper around the various `mark_*` mutators on
+    /// [`crate::toast::queue::ToastQueue`]. `operation` is one of
+    /// `"fired"` / `"dismissed"` / `"failed"`.
+    #[cfg(feature = "toast")]
+    pub fn toast_mark(
+        &self,
+        operation: &str,
+        id: i64,
+        stamp_ms: i64,
+        reason: Option<&str>,
+    ) -> anyhow::Result<()> {
+        let conn = self.conn.lock();
+        let q = crate::toast::queue::ToastQueue::new(&conn);
+        match operation {
+            "fired" => q.mark_fired(id, stamp_ms)?,
+            "dismissed" => q.mark_dismissed(id, stamp_ms, reason.unwrap_or("unknown"))?,
+            "failed" => q.mark_failed(id, 1)?,
+            other => anyhow::bail!("unknown toast mark operation: {other}"),
+        }
+        Ok(())
+    }
+
+    /// Thin wrapper over [`crate::toast::queue::ToastQueue::cancel`].
+    #[cfg(feature = "toast")]
+    pub fn toast_cancel(&self, id: i64) -> anyhow::Result<bool> {
+        let conn = self.conn.lock();
+        let q = crate::toast::queue::ToastQueue::new(&conn);
+        Ok(q.cancel(id)?)
+    }
+
+    /// Thin wrapper over [`crate::toast::queue::ToastQueue::list`].
+    #[cfg(feature = "toast")]
+    pub fn toast_list(&self, limit: i64) -> anyhow::Result<Vec<crate::toast::queue::QueueRow>> {
+        let conn = self.conn.lock();
+        let q = crate::toast::queue::ToastQueue::new(&conn);
+        Ok(q.list(limit)?)
+    }
+}
