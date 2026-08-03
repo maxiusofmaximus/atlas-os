@@ -1530,4 +1530,121 @@ mod mission_graph_schema_tests {
             .expect("query");
         assert_eq!(stored, payload);
     }
+
+    #[test]
+    fn m18_advances_schema_version_to_at_least_18() {
+        // M18 (calendar_busy_windows + calendar_auth) runs
+        // unconditionally — the tables exist whether or not the
+        // `calendar-*` features are on. This keeps the schema
+        // idempotent across feature combos, same as M17.
+        let (_tmp, conn) = fresh_conn();
+        let v: i64 = conn
+            .query_row("SELECT MAX(version) FROM schema_version", [], |r| r.get(0))
+            .expect("query");
+        assert!(v >= 18, "expected schema version >= 18 after M18, got {v}");
+    }
+
+    #[test]
+    fn m18_creates_calendar_busy_windows_and_auth_tables() {
+        let (_tmp, conn) = fresh_conn();
+        let tables: Vec<String> = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+            .expect("prepare")
+            .query_map([], |r| r.get(0))
+            .expect("query_map")
+            .map(Result::unwrap)
+            .collect();
+        assert!(
+            tables.iter().any(|t| t == "calendar_busy_windows"),
+            "expected `calendar_busy_windows` table after M18, got: {tables:?}"
+        );
+        assert!(
+            tables.iter().any(|t| t == "calendar_auth"),
+            "expected `calendar_auth` table after M18, got: {tables:?}"
+        );
+    }
+
+    #[test]
+    fn m18_calendar_busy_windows_source_check_constraint_rejects_unknown() {
+        let (_tmp, conn) = fresh_conn();
+        let ok = conn.execute(
+            "INSERT INTO calendar_busy_windows
+                (source, external_id, subject, starts_at, ends_at, weight)
+             VALUES ('graph', 'evt-1', 'Sprint planning', 1_000, 2_000, 1.0)",
+            [],
+        );
+        assert!(ok.is_ok(), "graph source should be accepted: {:?}", ok);
+        let err = conn.execute(
+            "INSERT INTO calendar_busy_windows
+                (source, external_id, subject, starts_at, ends_at, weight)
+             VALUES ('unknown', 'evt-2', 'Bad source', 1_000, 2_000, 1.0)",
+            [],
+        );
+        assert!(
+            err.is_err(),
+            "unknown source should be rejected by CHECK constraint"
+        );
+    }
+
+    #[test]
+    fn m18_calendar_busy_windows_unique_source_external_id_dedupe() {
+        let (_tmp, conn) = fresh_conn();
+        conn.execute(
+            "INSERT INTO calendar_busy_windows
+                (source, external_id, subject, starts_at, ends_at, weight)
+             VALUES ('graph', 'evt-7', 'First insert', 1_000, 2_000, 1.0)",
+            [],
+        )
+        .expect("first insert");
+        let dup = conn.execute(
+            "INSERT INTO calendar_busy_windows
+                (source, external_id, subject, starts_at, ends_at, weight)
+             VALUES ('graph', 'evt-7', 'Dup insert', 3_000, 4_000, 1.0)",
+            [],
+        );
+        assert!(
+            dup.is_err(),
+            "duplicate (source, external_id) should be rejected by UNIQUE constraint"
+        );
+    }
+
+    #[test]
+    fn m18_calendar_busy_windows_accepts_soft_busy_weight() {
+        let (_tmp, conn) = fresh_conn();
+        conn.execute(
+            "INSERT INTO calendar_busy_windows
+                (source, external_id, subject, starts_at, ends_at, weight)
+             VALUES ('ics_local', 'mtg-soft', 'Maybe join', 5_000, 6_000, 0.5)",
+            [],
+        )
+        .expect("insert with weight=0.5 (soft busy)");
+        let w: f64 = conn
+            .query_row(
+                "SELECT weight FROM calendar_busy_windows WHERE external_id = 'mtg-soft'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("query");
+        assert!((w - 0.5).abs() < 1e-6, "soft-busy weight should roundtrip");
+    }
+
+    #[test]
+    fn m18_calendar_auth_accepts_encrypted_token_blob() {
+        let (_tmp, conn) = fresh_conn();
+        let ciphertext: Vec<u8> = vec![0u8; 32];
+        conn.execute(
+            "INSERT INTO calendar_auth (account, token_ciphertext, key_hint)
+             VALUES ('alice@contoso.com', ?1, 'host-key-1')",
+            rusqlite::params![ciphertext],
+        )
+        .expect("insert");
+        let stored_hint: String = conn
+            .query_row(
+                "SELECT key_hint FROM calendar_auth WHERE account = 'alice@contoso.com'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("query");
+        assert_eq!(stored_hint, "host-key-1");
+    }
 }

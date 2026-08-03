@@ -168,6 +168,65 @@ impl Journal {
         Ok(out)
     }
 
+    /// Mission projection consumed by the ICS writer (RFC 28 §G.2.1).
+    /// Returns rows whose `updated_at` falls within the last `days`
+    /// days, ordered by `updated_at DESC`. The status string is mapped
+    /// to `IcsMissionStatus` by the caller; rows with an unknown
+    /// status token are skipped (logged at `warn`).
+    pub fn missions_for_ics(
+        &self,
+        days: i64,
+    ) -> anyhow::Result<Vec<crate::calendar::payload::IcsMission>> {
+        use crate::calendar::payload::{IcsMission, IcsMissionStatus};
+        use chrono::{DateTime, Utc};
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT id, label, status, created_at, updated_at
+             FROM missions
+             WHERE updated_at >= datetime('now', ?1)
+             ORDER BY updated_at DESC",
+        )?;
+        let offset = format!("-{days} days");
+        let rows = stmt.query_map(rusqlite::params![&offset], |row| {
+            let id: String = row.get(0)?;
+            let label: String = row.get(1)?;
+            let status_str: String = row.get(2)?;
+            let created_str: String = row.get(3)?;
+            let updated_str: String = row.get(4)?;
+            Ok((id, label, status_str, created_str, updated_str))
+        })?;
+        let mut out = Vec::new();
+        for (id, label, status_str, created_str, updated_str) in rows.flatten() {
+            let status = match status_str.parse::<IcsMissionStatus>() {
+                Ok(s) => s,
+                Err(e) => {
+                    tracing::warn!(raw = %status_str, error = %e, "skipping mission — unknown status for ICS");
+                    continue;
+                }
+            };
+            let created_at = DateTime::parse_from_rfc3339(&created_str)
+                .map(|t| t.with_timezone(&Utc))
+                .unwrap_or_else(|e| {
+                    tracing::warn!(raw = %created_str, error = %e, "unparseable created_at; using epoch");
+                    DateTime::from_timestamp(0, 0).unwrap_or_default()
+                });
+            let updated_at = DateTime::parse_from_rfc3339(&updated_str)
+                .map(|t| t.with_timezone(&Utc))
+                .unwrap_or_else(|e| {
+                    tracing::warn!(raw = %updated_str, error = %e, "unparseable updated_at; using epoch");
+                    DateTime::from_timestamp(0, 0).unwrap_or_default()
+                });
+            out.push(IcsMission {
+                id,
+                label,
+                status,
+                created_at,
+                updated_at,
+            });
+        }
+        Ok(out)
+    }
+
     pub fn tail(&self, last: i64) -> anyhow::Result<Vec<JournalEntry>> {
         let conn = self.conn.lock();
         // Subquery picks newest N; outer query reorders oldest-first without

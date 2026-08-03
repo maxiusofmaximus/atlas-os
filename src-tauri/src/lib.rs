@@ -4,6 +4,7 @@
 
 #[cfg(feature = "acp-server")]
 pub mod acp;
+pub mod calendar;
 pub mod cli;
 pub mod coding;
 pub mod core;

@@ -94,6 +94,15 @@ pub async fn serve(state: Arc<AppState>, shutdown: CancellationToken) {
     #[cfg(feature = "dag_mode")]
     let app = app.route("/graph/:mission_id", get(super::graph::get_graph));
 
+    // Phase 1.5g §G item 2 — read-only ICS calendar feed (RFC 28). Only
+    // mounted when `calendar-ics` is enabled; the route is gated by the
+    // same feature that compiles the ICS writer.
+    #[cfg(feature = "calendar-ics")]
+    let app = app.route(
+        "/opencode-calendar.ics",
+        get(crate::calendar::ics_route::get_calendar_ics),
+    );
+
     let app = app
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())

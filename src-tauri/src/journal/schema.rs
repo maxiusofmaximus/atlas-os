@@ -749,5 +749,58 @@ pub fn migrate(conn: &Connection) -> Result<()> {
             rusqlite::params![17, chrono::Utc::now().to_rfc3339()],
         )?;
     }
+    // M18 — Calendar integration (RFC 28 §G).
+    //   `calendar_busy_windows` stores busy events consumed by the
+    //   Planning engine to decide whether to enqueue a proactive turn
+    //   now or wait until the next free slot. `source` enumerates the
+    //   provenance: `graph` (MS Graph `/me/calendarView` poller),
+    //   `ics_local` (any ICS feed the user subscribed via
+    //   `opencode calendar subscribe`), or `manual` (operator-added).
+    //   `weight` is 0.0..=1.0 — `graph` defaults to 1.0, an
+    //   `OPENCODE`-tagged event defaults to 1.0 (full busy), an
+    //   untagged event to 0.5 (soft busy).
+    //   `calendar_auth` holds the encrypted refresh token for the
+    //   MS Graph reader. `account` is the principal (UPN / email);
+    //   `token_ciphertext` is AES-256-GCM(nonce||ciphertext||tag) of
+    //   the refresh-token JSON, `key_hint` is a short stable
+    //   identifier of the local key (so future multiple-device
+    //   setups can support key rotation). `expires_at` is the access
+    //   token's expiry (separately tracked so the poller can
+    //   silent-refresh before the access token expires). All times
+    //   are unix milliseconds. M18 is created unconditionally (no
+    //   feature gate): a default build still creates the tables (cheap
+    //   schema bump) so a future enablement of `calendar-ics` /
+    //   `calendar-graph` doesn't require a migration step.
+    if current < 18 {
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS calendar_busy_windows (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                source      TEXT NOT NULL CHECK (source IN ('graph','ics_local','manual')),
+                external_id TEXT NOT NULL,
+                subject     TEXT NOT NULL,
+                body        TEXT,
+                starts_at   INTEGER NOT NULL,
+                ends_at     INTEGER NOT NULL,
+                weight      REAL NOT NULL DEFAULT 1.0,
+                recorded_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+                UNIQUE(source, external_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS cal_busy_starts_idx
+                ON calendar_busy_windows(starts_at);
+
+            CREATE TABLE IF NOT EXISTS calendar_auth (
+                account         TEXT PRIMARY KEY,
+                token_ciphertext BLOB NOT NULL,
+                key_hint        TEXT NOT NULL,
+                expires_at      INTEGER,
+                updated_at      INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+            );",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![18, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
     Ok(())
 }

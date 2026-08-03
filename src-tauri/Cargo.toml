@@ -75,6 +75,22 @@ firecrawl = ["dep:firecrawl"]
 # the AUMID heuristic silently no-op on non-MSIX desktop; deep-link
 # callbacks aren't exposed by the plugin anyway).
 toast = ["dep:winrt-toast-reborn"]
+# RFC 28 Section G — Calendar integration. Split into two sub-
+# features because the surfaces are independently useful: `calendar-ics`
+# (the WRITE path: publish mission events as an iCalendar feed served
+# from the HUD axum server) requires only the pure-Rust `ics` crate
+# (~50 KB, no native deps); `calendar-graph` (the READ path: poll
+# Microsoft Graph `/me/calendarView` and inject busy windows into the
+# Planning engine) pulls in `graph-rs-sdk` + `aes-gcm` for encrypted
+# refresh-token storage + a 60-s tokio poller. The umbrella `calendar`
+# feature turns both on; enable either sub-feature alone for a
+# slimmer build. `ics = "0.5"` (MIT OR Apache-2.0, by hummingly) is
+# pure Rust RFC 5545 emitter. `graph-rs-sdk = "3.0.1"` (MIT, by
+# sreeise) with `interactive-auth` pops a wry webview for the first
+# OAuth flow. Both default OFF — Phase 1.5g is opt-in.
+calendar = ["calendar-ics", "calendar-graph"]
+calendar-ics = ["dep:ics", "hud"]
+calendar-graph = ["dep:graph-rs-sdk", "dep:aes-gcm", "dep:ring"]
 
 [dependencies]
 # Core async + errors
@@ -172,6 +188,20 @@ agent-client-protocol = { version = "2.0", optional = true, features = ["unstabl
 # `default-features = false` plus our explicit reqwest enablement keeps
 # the dep tree shared with the existing model-provider reqwest (rustls).
 firecrawl = { version = "2.12.1", optional = true, default-features = false }
+
+# RFC 28 Section G — Calendar WRITE path (optional, gated
+# `calendar-ics`). `ics 0.5` (MIT OR Apache-2.0, by hummingly) is a
+# pure-Rust RFC 5545 emitter. Only depends on chrono — no native
+# libs, single-binary safe (RFC 25 §11).
+ics = { version = "0.5", optional = true, default-features = false, features = ["rfc7986"] }
+# RFC 28 Section G — Calendar READ path (optional, gated `calendar-
+# graph`). `graph-rs-sdk 3.0.1` (MIT, by sreeise) with `interactive-
+# auth` for the first OAuth flow (wry webview popup, same engine as
+# Tauri 2). `aes-gcm 0.10` (MIT OR Apache-2.0) for encrypting refresh
+# tokens at rest in SQLite; `ring` (MIT) for key derivation.
+graph-rs-sdk = { version = "3.0.1", optional = true, default-features = false, features = ["interactive-auth"] }
+aes-gcm = { version = "0.10", optional = true }
+ring = { version = "0.17", optional = true }
 
 # RFC 28 Section F — Windows Toast notifications (optional, gated
 # `toast`). Windows-only FFI via windows-rs; the crate's `register()`
