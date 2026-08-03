@@ -802,5 +802,53 @@ pub fn migrate(conn: &Connection) -> Result<()> {
             rusqlite::params![18, chrono::Utc::now().to_rfc3339()],
         )?;
     }
+    // M19 — Model API reset-window tracking (RFC 28 §H).
+    //   `model_resets` is the append-only ledger of provider-model
+    //   resets observed from upstream error responses (429 rate limit
+    //   or 402/403 spend cap). One row per `(provider, model,
+    //   resets_at)` triple — UNIQUE de-dupes when the same reset is
+    //   re-observed (e.g. poller fetches an unchanged envelope each
+    //   minute). `resets_at` is unix-millis absolute (the moment the
+    //   provider says the model will be usable again). `observed_at`
+    //   is when OpenCode OS saw the error. `status_code` is 429/402/403;
+    //   `error_type` is `rate_limit | spend_limit | NULL` (the OmniRoute
+    //   envelope's `error.type` field when going via OmniRoute, NULL
+    //   when the provider is hit directly and didn't classify).
+    //   `request_id` is the upstream request id (provider-dependent);
+    //   it's not used as a key but kept for forensics and dedupe.
+    //   `toast_dismissed_at` is NULL until the `model_ready` Toast
+    //   we enqueue into `toast_queue` is dismissed by the user — the
+    //   partial index `model_resets_pending_idx` lists only rows where
+    //   `toast_dismissed_at IS NULL`, which is the scheduler's working
+    //   set. M19 created unconditionally: a default build still
+    //   creates the table so a future enablement of §H plumbing doesn't
+    //   need a migration step.
+    if current < 19 {
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS model_resets (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                provider        TEXT NOT NULL,
+                model           TEXT NOT NULL,
+                status_code     INTEGER NOT NULL,
+                error_type      TEXT,
+                resets_at       INTEGER NOT NULL,
+                request_id      TEXT,
+                observed_at     INTEGER NOT NULL DEFAULT (unixepoch()),
+                toast_id        INTEGER,
+                toast_dismissed_at INTEGER
+            );
+
+            CREATE UNIQUE INDEX IF NOT EXISTS model_resets_uniq_idx
+                ON model_resets(provider, model, resets_at);
+
+            CREATE INDEX IF NOT EXISTS model_resets_pending_idx
+                ON model_resets(resets_at)
+                WHERE toast_dismissed_at IS NULL;",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![19, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
     Ok(())
 }

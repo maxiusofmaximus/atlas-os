@@ -812,17 +812,17 @@ Para 429s sin SpendLimitError (rate-limit transitorio), el `Orchestrator` retry-
 
 ### H.7 Checklist
 
-- [ ] **Item 1**: M19 migration `model_resets` (schema 18→19).
-- [ ] **Item 2**: `orchestrator/error.rs` — `SpendLimitError` struct. 2 tests.
-- [ ] **Item 3**: `orchestrator/parse_error.rs` — OmniRoute envelope parser + `Retry-After` header parser + `x-ratelimit-reset` parser. 5 tests min (one por source).
-- [ ] **Item 4**: `journal/model_resets.rs` — CRUD. 4 tests min.
-- [ ] **Item 5**: `orchestrator/retry.rs` — `RetryPolicy` con jitter, exponential, bail-out. 6 tests min (jitter distribution, parse, bail-out boundary).
-- [ ] **Item 6**: `orchestrator/mod.rs` integration — catch error → persist → enqueue Toast. 3 tests.
-- [ ] **Item 7**: `src/lib/components/SpendLimitErrorCard.svelte` — Svelte 5 runes, 2 botones, localStorage cooldown. Vitest 2 tests.
-- [ ] **Item 8**: `src/lib/components/ModelReadyCard.svelte` — Svelte 5 runes, botón "Resume". Vitest 1 test.
-- [ ] **Item 9**: HUD card pipeline — `cards.rs` + `hud.ts` types. Integration test.
-- [ ] **Item 10**: `profile` schema fields `bail_out_threshold_secs` + `backup_profile_id`. 2 tests.
-- [ ] **Item 11**: RFC 24 §3.3 addendum + RFC 04 §9 addendum + RFC 06 schema fields.
+- [x] **Item 1**: M19 migration `model_resets` (schema 18→19).
+- [x] **Item 2**: `orchestrator/error.rs` — `SpendLimitError` struct. 5 tests.
+- [x] **Item 3**: `orchestrator/parse_error.rs` — OmniRoute envelope parser + `Retry-After` header parser + `x-ratelimit-reset` parser. 14 tests (incluye stale-reset guard y nom-kind inference).
+- [x] **Item 4**: `journal/model_resets.rs` — CRUD. 8 tests (incluye idempotent upsert, dismissed filter, link/unlink by id y queue_id).
+- [x] **Item 5**: `orchestrator/retry.rs` — `RetryPolicy` con jitter ±25 %, exponential backoff, bail-out 60 s, max 5 intentos. 8 tests.
+- [x] **Item 6**: `orchestrator/mod.rs` `handle_spend_limit_error` — persist → (toast-gated) enqueue → link → publish `SpendLimitObserved`. 3 tests (incluye idempotent replay y feature-off Toast skip).
+- [x] **Item 7**: `src/lib/components/SpendLimitErrorCard.svelte` — Svelte 5 runes, botones "Request Increase" + "Switch Provider", localStorage cooldown 5 min por provider, deeplink por provider-known dashboard URLs. Vitest contract tests en `hud.test.ts` (5 tests para `postProfileSwitch`/payload).
+- [x] **Item 8**: `src/lib/components/ModelReadyCard.svelte` — Svelte 5 runes, botón "Resume" invoca `POST /mission/resume`. Vitest contract tests en `hud.test.ts` (3 tests para `postMissionResume`).
+- [x] **Item 9**: HUD card pipeline — `hud/cards.rs` con `SpendLimitErrorCardPayload` + `ModelReadyCardPayload` serialisers; `hud.ts` tipos espejo; 5 tests Rust + `hud.test.ts` contratos.
+- [x] **Item 10**: `profiles/mod.rs` `Profile` struct + `profile.toml` reader/writer; campos `bail_out_threshold_secs` (default 60) + `backup_profile_id: Option<String>`. 2 tests (roundtrip + default fallback).
+- [x] **Item 11**: RFC 24 §3.3 addendum + RFC 04 §9 addendum + RFC 06 placeholder (RFC 06 no existe aún; `Profile` struct establece la base para futura RFC).
 - [ ] **Item 12**: `docs/reset-window-notifications.md` — README: cómo configuraar OmniRoute, cómo customizaar thresholds, troubleshooting.
 - [ ] **Item 13**: `tools/reset-window-smoke.ps1` — mock provider response con `Retry-After: 5`, valida Toast `model_ready` disparado + dedupe.
 

@@ -133,6 +133,27 @@ pub enum BusEventKind {
         run_id: String,
         outcome: String,
     },
+    /// RFC 28 §H.4 — `SpendLimitError` (or rate-limit carrying a
+    /// `resets_at`) observed by the orchestrator. The host-side
+    /// handler (`handle_spend_limit_error`) has already persisted the
+    /// `model_resets` row + enqueued the `model_ready` Toast (when
+    /// `toast` feature is on), so this event is informational — the
+    /// HUD live-stream renders the SpendLimit card on receipt.
+    SpendLimitObserved {
+        provider: String,
+        model: String,
+        status_code: i64,
+        /// Unix millis absolute — when the provider says the model
+        /// will be usable again.
+        resets_at_ms: i64,
+        /// "rate_limit" or "spend_limit" — the OmniRoute envelope's
+        /// `error.type` token (or inferred from the HTTP status).
+        error_type: String,
+        /// `Some(toast_queue.id)` when a Toast was enqueued, `None`
+        /// when the `toast` feature is off (default) or the Toast was
+        /// already linked to this reset row idempotently.
+        toast_enqueued_id: Option<i64>,
+    },
 }
 
 /// RFC 27 §B — who triggered the model swap.
@@ -262,6 +283,7 @@ impl BusEventKind {
             BusEventKind::ModelSwapped { .. } => "model_swapped",
             BusEventKind::StepPhaseChanged { .. } => "step_phase_changed",
             BusEventKind::AutoresearchCancelled { .. } => "autoresearch_cancelled",
+            BusEventKind::SpendLimitObserved { .. } => "spend_limit_observed",
         }
     }
 }

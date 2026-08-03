@@ -424,3 +424,126 @@ describe('MissionGraph type contract', () => {
     expect(ek).toBe('transitions_to');
   });
 });
+
+// ────────────── RFC 28 §H.3 / §H.4 — reset-window card helpers ──────────────
+import {
+  postProfileSwitch,
+  postMissionResume,
+  type SpendLimitErrorCardPayload,
+  type ModelReadyCardPayload,
+} from './hud';
+
+describe('postProfileSwitch', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    globalThis.fetch = vi.fn() as unknown as typeof fetch;
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('POSTs /profile/switch with backup_profile_id and resolves on 200', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, new_profile_id: 'personal' }),
+    } as Response);
+    const got = await postProfileSwitch('http://h', 'personal');
+    expect(got.new_profile_id).toBe('personal');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(String(url)).toBe('http://h/profile/switch');
+    expect(init?.method).toBe('POST');
+    const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    expect(body.backup_profile_id).toBe('personal');
+  });
+
+  it('rejects with descriptive error when hudUrl is null', async () => {
+    await expect(postProfileSwitch(null, 'personal')).rejects.toThrow(/unavailable/i);
+  });
+
+  it('rejects on 5xx', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 500, statusText: 'ISE' } as Response);
+    await expect(postProfileSwitch('http://h', 'personal')).rejects.toThrow(/500/);
+  });
+});
+
+describe('postMissionResume', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    globalThis.fetch = vi.fn() as unknown as typeof fetch;
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('POSTs /mission/resume with mission_id and resolves on 200', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, mission_id: 'm1' }),
+    } as Response);
+    const got = await postMissionResume('http://h', 'm1');
+    expect(got.ok).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(String(url)).toBe('http://h/mission/resume');
+    expect(init?.method).toBe('POST');
+    const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    expect(body.mission_id).toBe('m1');
+  });
+
+  it('rejects when hudUrl is null', async () => {
+    await expect(postMissionResume(null, 'm1')).rejects.toThrow(/unavailable/i);
+  });
+
+  it('rejects on 4xx', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 404, statusText: 'NF' } as Response);
+    await expect(postMissionResume('http://h', 'm1')).rejects.toThrow(/404/);
+  });
+});
+
+describe('SpendLimitErrorCardPayload type', () => {
+  it('accepts the canonical shape emitted by the Rust bus event', () => {
+    const p: SpendLimitErrorCardPayload = {
+      provider: 'anthropic',
+      model: 'claude-3-5-sonnet',
+      status_code: 429,
+      error_type: 'rate_limit',
+      resets_at: '2026-08-03T13:00:00Z',
+      request_id: 'req_1',
+      toast_enqueued_id: 42,
+    };
+    expect(p.error_type).toBe('rate_limit');
+    expect(p.toast_enqueued_id).toBe(42);
+  });
+});
+
+describe('ModelReadyCardPayload type', () => {
+  it('accepts the canonical shape emitted by the §F scheduler', () => {
+    const p: ModelReadyCardPayload = {
+      provider: 'anthropic',
+      model: 'claude-3-5-sonnet',
+      resets_at: '2026-08-03T13:00:00Z',
+      mission_id: '00000000-0000-0000-0000-00000000abc',
+      toast_queue_id: 99,
+    };
+    expect(p.toast_queue_id).toBe(99);
+    expect(p.mission_id).not.toBeNull();
+  });
+
+  it('allows null mission_id for orphan model-ready toast', () => {
+    const p: ModelReadyCardPayload = {
+      provider: 'openai',
+      model: 'gpt-5',
+      resets_at: '2026-08-03T14:00:00Z',
+      mission_id: null,
+      toast_queue_id: 5,
+    };
+    expect(p.mission_id).toBeNull();
+  });
+});

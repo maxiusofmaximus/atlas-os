@@ -434,3 +434,88 @@ export async function fetchGraph(hudUrl: string, missionId: string): Promise<Mis
   }
   return (await res.json()) as MissionGraph;
 }
+
+// ────────────── RFC 28 §H.3 / §H.4 — Spend-limit & Model-ready cards ──────────────
+//
+// Card payloads mirrored from the Rust `BusEventKind::SpendLimitObserved`
+// event and the Toast `kind='model_ready'` body. The HUD `+page.svelte`
+// projects the WS stream onto these typed objects so the Svelte components
+// avoid `unknown` casts.
+
+export type SpendLimitErrorType = 'rate_limit' | 'spend_limit';
+
+export interface SpendLimitErrorCardPayload {
+  provider: string;
+  model: string;
+  status_code: number;
+  error_type: SpendLimitErrorType;
+  resets_at: string;
+  request_id: string | null;
+  toast_enqueued_id: number | null;
+}
+
+export interface ModelReadyCardPayload {
+  provider: string;
+  model: string;
+  resets_at: string;
+  mission_id: string | null;
+  toast_queue_id: number;
+}
+
+export interface ProfileSwitchRequest {
+  backup_profile_id: string;
+}
+
+export interface ProfileSwitchResponse {
+  ok: boolean;
+  new_profile_id: string;
+}
+
+export async function postProfileSwitch(
+  hudUrl: string | null,
+  backupProfileId: string,
+): Promise<ProfileSwitchResponse> {
+  const trimmed = (hudUrl ?? '').replace(/\/$/, '');
+  if (!trimmed) {
+    throw new Error('HUD URL unavailable — could not switch profile');
+  }
+  const req: ProfileSwitchRequest = { backup_profile_id: backupProfileId };
+  const res = await fetch(`${trimmed}/profile/switch`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) {
+    throw new Error(`HUD profile switch failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as ProfileSwitchResponse;
+}
+
+export interface MissionResumeRequest {
+  mission_id: string;
+}
+
+export interface MissionResumeResponse {
+  ok: boolean;
+  mission_id: string;
+}
+
+export async function postMissionResume(
+  hudUrl: string | null,
+  missionId: string,
+): Promise<MissionResumeResponse> {
+  const trimmed = (hudUrl ?? '').replace(/\/$/, '');
+  if (!trimmed) {
+    throw new Error('HUD URL unavailable — could not resume mission');
+  }
+  const req: MissionResumeRequest = { mission_id: missionId };
+  const res = await fetch(`${trimmed}/mission/resume`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) {
+    throw new Error(`HUD mission resume failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as MissionResumeResponse;
+}

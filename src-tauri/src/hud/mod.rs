@@ -5,6 +5,7 @@
 
 pub mod annotate;
 pub mod autoresearch;
+pub mod cards;
 pub mod export;
 #[cfg(feature = "dag_mode")]
 pub mod graph;

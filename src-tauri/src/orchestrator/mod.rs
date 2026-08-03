@@ -15,12 +15,117 @@
 // renders the transition. The persisted histories (`journal_events`,
 // `model_swaps`) keep the original values intact for the audit trail.
 
+pub mod error;
+pub mod parse_error;
+pub mod retry;
+
+pub use error::{ResetKind, SpendLimitError};
+pub use parse_error::ParseError;
+pub use retry::{BailDecision, RetryPolicy};
+
 use anyhow::Context;
+use chrono::Utc;
 use uuid::Uuid;
 
 use crate::core::bus::{BusEvent, BusEventKind, SwapInitiator};
 use crate::journal::Journal;
 use crate::planning::types::Plan;
+
+/// Outcome of `handle_spend_limit_error` — the orchestrator's
+/// host-side error path when a 429 / 402 / 403 carrying a
+/// `resets_at` future timestamp is observed. Mirrors the
+/// `SpendLimitError`-to-`model_resets` persistence + optional
+/// Toast enqueue described by RFC 28 §H.4 / §H.6.
+///
+/// `toast_enqueued_id` is `Some(queue_id)` only when the `toast`
+/// feature is enabled and the Toast row was successfully inserted.
+/// When `toast` is off, the reset is still persisted (the next user
+/// Observed HUD Tail surfaces it as the next pending reset) and
+/// `toast_enqueued_id = None`.
+#[derive(Clone, Debug, PartialEq)]
+pub struct HandleSpendLimitOutcome {
+    pub reset_id: i64,
+    pub toast_enqueued_id: Option<i64>,
+}
+
+/// RFC 28 §H.4 — host-side error path when the orchestrator receives
+/// a `SpendLimitError` payload from an upstream provider (or from
+/// OmniRoute's envelope parser). The fn:
+///
+/// 1. Persists the reset row in `model_resets` (idempotent UPSERT
+///    on `(provider, model, resets_at)`).
+/// 2. Enqueues a `kind='model_ready'` Toast scheduled for
+///    `resets_at` (when the `toast` feature is on).
+/// 3. Links the Toast queue row id back to the reset row
+///    (`model_resets.toast_id`).
+/// 4. Publishes a `BusEventKind::SpendLimitObserved` event so the
+///    HUD live-stream renders a card.
+///
+/// All errors are logged and swallowed — the orchestrator's request
+/// loop must not crash because the Toast sub-system was unavailable.
+/// `handle_spend_limit_error` is idempotent: a replay of the same
+/// `(provider, model, resets_at)` returns the existing `reset_id`
+/// (because `insert_model_reset` uses `INSERT OR IGNORE`) and does
+/// NOT enqueue a duplicate Toast (caller should consult the existing
+/// row's `toast_id` before calling this — see §H.4 design notes).
+pub fn handle_spend_limit_error(
+    journal: &Journal,
+    error: &crate::orchestrator::error::SpendLimitError,
+) -> anyhow::Result<HandleSpendLimitOutcome> {
+    let now = Utc::now();
+
+    // 1. Persist (or fetch existing) reset row + Toast link.
+    let (reset_id, already_linked_toast_id) = journal.model_reset_upsert(error, now)?;
+
+    // 2. Enqueue Toast + link (only when toast feature is on and this
+    //    reset row was not yet linked — idempotent replays skip).
+    #[cfg(feature = "toast")]
+    let toast_enqueued_id: Option<i64> = {
+        if already_linked_toast_id.is_some() {
+            already_linked_toast_id
+        } else {
+            match journal.enqueue_model_ready_toast(error) {
+                Ok(queue_id) => {
+                    let _ = journal.link_model_reset_toast(reset_id, queue_id);
+                    Some(queue_id)
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        error = %e,
+                        "toast enqueue failed for model_reset row {reset_id} — reset still persisted"
+                    );
+                    None
+                }
+            }
+        }
+    };
+    #[cfg(not(feature = "toast"))]
+    let toast_enqueued_id: Option<i64> = {
+        // Suppress the dead-code warning (already_linked_toast_id
+        // is read for idempotent-replay accounting when toast is on).
+        let _ = already_linked_toast_id;
+        None
+    };
+
+    // 3. Publish HUD event (best-effort — a publish failure must not
+    //    mask the already-persisted reset row).
+    let event = BusEvent::new(BusEventKind::SpendLimitObserved {
+        provider: error.provider.clone(),
+        model: error.model.clone(),
+        status_code: error.status_code as i64,
+        resets_at_ms: error.resets_at.timestamp_millis(),
+        error_type: error.kind.as_str().to_string(),
+        toast_enqueued_id,
+    });
+    if let Err(e) = journal.publish(&event) {
+        tracing::warn!(error = %e, "BusEvent publish for SpendLimitObserved failed");
+    }
+
+    Ok(HandleSpendLimitOutcome {
+        reset_id,
+        toast_enqueued_id,
+    })
+}
 
 /// Output of a successful `swap_model` call. The supervisor / HUD reads
 /// `swap_id` to render a toast, `verdict_id` to re-route the next prompt
@@ -314,5 +419,86 @@ mod tests {
             format!("{err:#}").contains("no verdict"),
             "unexpected error: {err:#}"
         );
+    }
+}
+
+#[cfg(test)]
+mod handle_spend_limit_tests {
+    use super::*;
+    use crate::journal::Journal;
+    use crate::orchestrator::error::{ResetKind, SpendLimitError};
+    use tempfile::TempDir;
+
+    fn fresh_journal() -> (TempDir, Journal) {
+        let dir = TempDir::new().unwrap();
+        let journal = Journal::open(dir.path()).unwrap();
+        (dir, journal)
+    }
+
+    fn make_error(resets_at: &str, kind: ResetKind) -> SpendLimitError {
+        let (status, kind) = match kind {
+            ResetKind::RateLimit => (429u16, ResetKind::RateLimit),
+            ResetKind::SpendLimit => (402, ResetKind::SpendLimit),
+        };
+        SpendLimitError {
+            provider: "anthropic".into(),
+            model: "claude-3-5-sonnet".into(),
+            status_code: status,
+            kind,
+            resets_at: chrono::DateTime::parse_from_rfc3339(resets_at)
+                .unwrap()
+                .with_timezone(&Utc),
+            request_id: Some("req_1".into()),
+            message: Some("rate limited".into()),
+        }
+    }
+
+    #[test]
+    fn handle_without_toast_feature_still_persists_reset() {
+        // Default build has no `toast` feature — Toast enqueue is
+        // skipped, but the reset row must still be created.
+        let (_dir, journal) = fresh_journal();
+        let outcome = handle_spend_limit_error(
+            &journal,
+            &make_error("2026-08-03T13:00:00Z", ResetKind::SpendLimit),
+        )
+        .unwrap();
+        assert!(outcome.reset_id > 0);
+        #[cfg(not(feature = "toast"))]
+        assert_eq!(
+            outcome.toast_enqueued_id, None,
+            "toast feature off → no Toast enqueued id"
+        );
+    }
+
+    #[test]
+    fn handle_persists_reset_row_in_model_resets() {
+        let (_dir, journal) = fresh_journal();
+        let outcome = handle_spend_limit_error(
+            &journal,
+            &make_error("2026-08-03T13:00:00Z", ResetKind::RateLimit),
+        )
+        .unwrap();
+        assert!(outcome.reset_id > 0);
+        let n = journal
+            .count_model_resets_for_test("anthropic", "claude-3-5-sonnet")
+            .unwrap();
+        assert_eq!(n, 1, "exactly one row should have been persisted");
+    }
+
+    #[test]
+    fn handle_is_idempotent_on_replay() {
+        let (_dir, journal) = fresh_journal();
+        let err = make_error("2026-08-03T13:00:00Z", ResetKind::RateLimit);
+        let first = handle_spend_limit_error(&journal, &err).unwrap();
+        let second = handle_spend_limit_error(&journal, &err).unwrap();
+        assert_eq!(
+            first.reset_id, second.reset_id,
+            "replay should return the same reset_id"
+        );
+        let n = journal
+            .count_model_resets_for_test("anthropic", "claude-3-5-sonnet")
+            .unwrap();
+        assert_eq!(n, 1, "deduped to one row");
     }
 }

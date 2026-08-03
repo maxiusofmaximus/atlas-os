@@ -113,6 +113,11 @@ chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.11", features = ["v4", "serde"] }
 sha2 = "0.10"
 hex = "0.4"
+# `rand` is a transitive dep of `uuid v4` already; we surface it
+# directly because `orchestrator::retry::RetryPolicy::decide` samples
+# jitter ±25 % directly (RFC 28 §H.5 — jitter avoids thundering-herd
+# on shared provider rate windows).
+rand = "0.8"
 
 # Embeddings (optional)
 fastembed = { version = "4", optional = true }

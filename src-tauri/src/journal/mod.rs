@@ -9,6 +9,7 @@ pub mod export;
 pub mod learning_graphs;
 #[cfg(feature = "dag_mode")]
 pub mod mission_graph;
+pub mod model_resets;
 pub mod schema;
 pub mod store;
 pub mod yaml_format;
@@ -20,6 +21,8 @@ mod tests;
 pub use learning_graphs::{LearningGraphRow, ScoredGraph};
 
 pub use agent_events::AgentSessionEventRow;
+
+pub use model_resets::ModelResetRow;
 
 pub use store::{
     AuditEntry, CheckpointRow, ConsolidatedRow, DiffAnnotationRow, DiffRow, JournalEntry, Mission,
@@ -1715,5 +1718,105 @@ impl Journal {
         let conn = self.conn.lock();
         let q = crate::toast::queue::ToastQueue::new(&conn);
         Ok(q.list(limit)?)
+    }
+}
+
+// Section H — model reset-window helpers. `model_reset_upsert`
+// and `link_model_reset_toast` are NOT feature-gated: the
+// `model_resets` table is created unconditionally (M19), and the
+// reset path persists the row even when the `toast` feature is off
+// (the HUD tail surfaces the next pending reset regardless). Only
+// the Toast enqueue is gated (`enqueue_model_ready_toast`).
+impl Journal {
+    /// RFC 28 §H.4 — persist a `SpendLimitError` observation into
+    /// `model_resets` and read back the row id + any pre-existing
+    /// Toast link (for idempotent replays). Returns
+    /// `(reset_id, Option<toast_id>)` where the second slot is
+    /// `Some(queue_id)` when this same `(provider, model, resets_at)`
+    /// was already observed and previously linked to a Toast row.
+    /// Used by `orchestrator::handle_spend_limit_error`.
+    pub fn model_reset_upsert(
+        &self,
+        error: &crate::orchestrator::error::SpendLimitError,
+        observed_at: chrono::DateTime<chrono::Utc>,
+    ) -> anyhow::Result<(i64, Option<i64>)> {
+        let conn = self.conn.lock();
+        let reset_id = crate::journal::model_resets::insert_model_reset(&conn, error, observed_at)?;
+        let already_linked: Option<i64> = conn
+            .query_row(
+                "SELECT toast_id FROM model_resets WHERE id = ?1",
+                rusqlite::params![reset_id],
+                |r| r.get(0),
+            )
+            .ok()
+            .flatten();
+        Ok((reset_id, already_linked))
+    }
+
+    /// RFC 28 §H.4 — enqueue the `kind='model_ready'` Toast for a
+    /// fresh `SpendLimitError` observation. Returns the new Toast
+    /// queue row id; caller links it back via `link_model_reset_toast`.
+    /// Feature-gated behind `toast` (the `toast_queue` table exists
+    /// regardless of the feature, but §H ships Toast-only).
+    #[cfg(feature = "toast")]
+    pub fn enqueue_model_ready_toast(
+        &self,
+        error: &crate::orchestrator::error::SpendLimitError,
+    ) -> anyhow::Result<i64> {
+        let conn = self.conn.lock();
+        let q = crate::toast::queue::ToastQueue::new(&conn);
+        let fire_at_ms = error.resets_at.timestamp_millis();
+        let title = format!("{}: {} is rate-limited", error.provider, error.model);
+        let body = format!(
+            "Resets at {}. Switch provider or wait.",
+            error.resets_at.to_rfc3339()
+        );
+        let deep_link = format!("opencode://model/{}/{}", error.provider, error.model);
+        Ok(q.enqueue(
+            crate::toast::payload::ToastKind::ModelReady,
+            &title,
+            Some(&body),
+            Some(&deep_link),
+            fire_at_ms,
+        )?)
+    }
+
+    /// RFC 28 §H.4 — link a `model_resets` row to the Toast queue row
+    /// enqueued for it, so the scheduler can correlate dismissals.
+    pub fn link_model_reset_toast(&self, reset_id: i64, toast_id: i64) -> anyhow::Result<bool> {
+        let conn = self.conn.lock();
+        crate::journal::model_resets::link_toast_id(&conn, reset_id, toast_id)
+    }
+
+    /// RFC 28 §H.4 — mark a `model_resets` row's Toast as dismissed,
+    /// looked up by `toast_queue.id`. Used by the Toast callback when
+    /// the user dismisses the `model_ready` card (the dismiss is
+    /// propagated through the scheduler -> here).
+    pub fn mark_model_reset_toast_dismissed_by_queue_id(
+        &self,
+        toast_id: i64,
+        dismissed_at: chrono::DateTime<chrono::Utc>,
+    ) -> anyhow::Result<bool> {
+        let conn = self.conn.lock();
+        crate::journal::model_resets::mark_toast_dismissed_by_queue_id(
+            &conn,
+            toast_id,
+            dismissed_at,
+        )
+    }
+
+    /// Count of `model_resets` rows for a given `(provider, model)`
+    /// pair (regardless of pending / dismissed state). Used by tests
+    /// to assert idempotency of `handle_spend_limit_error` — production
+    /// callers should consult `pending_for` for the actual pending
+    /// reset (it filters past + dismissed rows).
+    #[cfg(test)]
+    pub fn count_model_resets_for_test(&self, provider: &str, model: &str) -> anyhow::Result<i64> {
+        let conn = self.conn.lock();
+        Ok(conn.query_row(
+            "SELECT count(*) FROM model_resets WHERE provider=?1 AND model=?2",
+            rusqlite::params![provider, model],
+            |r| r.get(0),
+        )?)
     }
 }
