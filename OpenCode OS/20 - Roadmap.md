@@ -57,7 +57,9 @@ Entregable: la IA decide con evidencia social y académica, no con suposición.
 ## Fase 4 — Swarm
 - Roles: Planner, Researcher, Architect, Backend, Frontend, DB, Security, Testing, Reviewer, Merger.
 - Pool swarm estilo Kimi (paralelismo por rol).
-- Worktrees Git por agente.
+- Worktrees Git por agente (patrones CN-001/CN-003/CN-004 ver research `28 - conductor & alt surfaces.md` Sector A.4).
+- Rebase automático post-merge en workspaces vivos (CN-003 port de Conductor).
+- Checks button por worktree en HUD (CN-004).
 - Locks de archivos.
 - Swarm Console en la UI.
 
@@ -92,8 +94,10 @@ Entregable: extensible como OpenClaw pero seguro.
 - Agent Console en vivo.
 - Skill Picker iluminado/grisado.
 - VRAM/RAM/cost monitor.
+- **Sister IDE-in-a-terminal** (`src/cli-tui/` Node + `cronvel/terminal-kit` Document Model, conecta al mismo Kernel Bus WebSocket que el HUD WebView) — ver research `28 - conductor & alt surfaces.md` Sector B.
+- **Remote-live dual-PC** (modelo Nate Gentile): PC servidor corre OpenCode OS + Ollama/API; PC/móvil cliente accede en vivo via RustDesk (Apache-2.0) host embed en Rust core, NO captura estática — video stream <60ms + input forwarding a Kernel Bus. Ver research Sector C.
 
-Entregable: ve el swarm desde el móvil/tablet.
+Entregable: ve el swarm desde el móvil/tablet, programa en vivo desde un PC thin accediendo a los recursos del servidor.
 
 ## Fase 9 — Mejoras profundas
 - Tree-sitter como lectura principal del Context Engine.
