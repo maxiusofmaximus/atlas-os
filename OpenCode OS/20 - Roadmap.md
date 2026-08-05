@@ -39,12 +39,53 @@ Cuatro superficies de integración opt-in sobre el core de Fase 1, orden `§D �
 Entregable: OpenCode OS detectable como ACP agent de primera clase por IT 0.1+ (autodetect PATH), slash commands en pane; HUD sigue siendo surface visual canonical. Toast notifications asyncronous via AUMID-registered deep-links. Calendar WRITE path (ICS feed) — bidireccional completa pendiente Phase 2. Reset-window notifica al usuario cuando el model vuelve a estar disponible — advantage competitiva. Validación manual en IT 0.1.1+ instalado (Windows) + `tools/toast-smoke.ps1`, `tools/calendar-smoke.ps1`, `tools/reset-window-smoke.ps1`.
 
 ## Fase 2 — Multi-model Orchestration
-- Model Orchestrator completo (votación + debate + fail-over).
-- Sub-modos local / free / mixto.
-- Telemetría del Learning Engine para afinidad de modelos.
-- Capability Resolver (lenguaje/framework).
 
-Entregable: el sistema sabe **cuándo cambiar de cerebro**.
+Plan refinado en `OpenCode OS/research/29 - Phase 2 model orchestrator.md` (6 sub-fases atómicas, commits no PRs). Evidencia primaria: 11 papers arxiv cross-verified, LiteLLM docs, OpenRouter docs, Aider README/changelog, async-openai MIDDLEWARE, async-anthropic docs.rs, RouteLLM GitHub, docs.rs (tower/governor/arc-swap/notify/rusqlite/dashmap). Auditoría iterativa Round 3 detectó 9 gaps críticos (G1/G2/G3/G5/G8/G11/G12/G17/G18) que se incorporan en sub-fase 2.0.5 — sin ellos el cascade cross-provider y feedback loop son incorrectos.
+
+### Sub-fase 2.0 — Foundation (Registry + Tri-model)
+- `enum Provider` (variantes OpenAI/Anthropic/Gemini/VertexAI/Bedrock/Azure/Ollama/LmStudio/OpenRouter + `Custom(Arc<dyn Config>)`) en `orchestrator/provider.rs` — async-openai `Box<dyn Config>` pattern.
+- M20 migration: SQLite tables `models`/`deployments`/`model_aliases`/`model_groups`.
+- JSON seed `assets/model_prices_and_context_window.json` (LiteLLM MIT bundled `include_str!`) + `opencode models refresh`.
+- `ArcSwap<Registry>` lock-free reads + `DashMap<DeploymentId, (Instant, u32)>` cooldown.
+- `Profile` extendido: `architect_model`/`editor_model`/`weak_model` (Aider port — weak hace compactación de history, no commits).
+
+### Sub-fase 2.0.5 — Provider Normalization Layer (gaps G1/G2/G5/G8/G17/G18)
+
+**Sub-fase nueva tras Round 3 — sin ella cascade cross-provider y feedback loop son incorrectos.**
+- `ToolCall` enum cross-provider + `normalize()`/`deserialize()` (Anthropic tool_use / OpenAI function_calling / Gemini function_call).
+- `Tokenizer` trait pre-flight (`tiktoken-rs` / `tokenizers` / Anthropic `count_tokens` endpoint) → `estimate(payload)->u32` pre-routing (G2).
+- Prompt cache accounting (G1): `cache_control` marker injection + `model_invocations.cache_read_input_tokens` tracking.
+- Cooldown per-provider overrideable (G5): defaults `{anthropic:30s, openai:60s, ollama:5s, bedrock:1s}`. `Retry-After` header override (G17).
+- Back-pressure `Arc<Semaphore>` per `ProviderId` (G18) — `max_concurrent_remote_calls` de RFC 04 §6.
+
+### Sub-fase 2.1 — Routing Policy
+- `enum RoutingStrategy` (LiteLLM 6 strategies: SimpleShuffle default, LatencyBased, UsageBasedV2, LeastBusy, CostBased, Hybrid, Custom). Per-ModelGroup override.
+- M21 migration `model_invocations` (latency_ms, tokens_in/out, cost, cache_read, seed NULL, temperature, sampling_params JSON, route_taken JSON, was_correct NULL).
+- 3-bucket cascade fallback (LiteLLM: `fallbacks` + `context_window_fallbacks` + `content_policy_fallbacks` + `default_fallbacks` + `max_fallbacks=5`).
+- Idempotency (G12): `RequestFrame { idempotency_key Ulid, executed_tool_calls, tool_calls_complete bool }` — fallback solo si `complete`.
+- HUD WS `Data Parts` con ID reconciliation (Vercel AI SDK pattern).
+
+### Sub-fase 2.2 — Aggregation (opt-in HighStakes)
+- `trait Aggregator` + `enum AggregationMode { Single, MajorityVote, MoA, Council, SelfRefine, Reflexion }`.
+- `MajorityVote` (AgentForest `2402.05120`): N∈{1,3,5,9} por task difficulty, stop-early 2/3 agreement + entropy <0.5.
+- `MoA` (`2406.04692`): solo `ExecutionMode::HighStakes` (RFC 19), 3×3 modelos, cost guard (G11).
+- `Reflexion` (`2303.11366`) multi-model: M22 `reflection_episodes` con `executor_model` + `reflexor_model` barato. Cap 3, anti-doom-loop (RFC 19).
+- `SelfRefine` (`2303.17651`) Coding Engine: cap 2 iter; abort si `delta_lines<10`.
+- `SelfDiscover` (`2402.03620`) Planning Engine: skeleton JSON cacheado por prompt_embedding.
+- Cost guard pre-aggregation (G11): `pre_cost_estimate > profile.budget_per_turn` → fallback a `Single`.
+
+### Sub-fase 2.3 — Auto-routing Classifier + MCP-aware
+- `TaskTypeClassifier` opt-in (sub-modo `auto` off-by-default): logistic regression (TF-IDF léxicos) + `fastembed-rs` BGE-small (384 dim) + `linfa` MLP. **No BERT/DeBERTa** (single-binary).
+- Tag pre-filter hot-path: pre-filter deployments por `capability_tags` AND `tool_capabilities` de MCP servers disponibles (G19).
+- Router selector via `model` field (RouteLLM `router-mf-0.116`): caller emite OpenAI shape sin saber si es router-agregado o directo.
+- Threshold defaults RouteLLM: `coding=0.116, plan=0.05, chat=0.2`.
+
+### Sub-fase 2.4 — Feedback Loop + `mf` experimental
+- Reader `model_invocations` GROUP BY `(task_type, model_id)` → `AffinityRow` alimenta `ModelRegistry.affinity` vía `ArcSwap::store`.
+- `RoutingStrategy::Mf { threshold }` experimental (RouteLLM `2406.18665`): `include_bytes!("assets/mf_weights.bin")` <100KB. A/B testing contra classifier log-loss durante 1 semana.
+- `aggregation_cost_estimate()` impl real usando histórico `mean_tokens_in/out`.
+
+Entregable: el sistema sabe **cuándo cambiar de cerebro**. KPI: coste LLM por mission ≤ baseline Phase 1 × 0.6 (evidence RouteLLM >2× savings).
 
 ## Fase 3 — Research Engine
 - Fuentes: GitHub, arXiv, SO, blogs, docs vía Context7 MCP.
