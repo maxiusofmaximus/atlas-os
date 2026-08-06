@@ -17,10 +17,16 @@
 
 pub mod error;
 pub mod parse_error;
+pub mod provider;
+pub mod registry;
 pub mod retry;
 
 pub use error::{ResetKind, SpendLimitError};
 pub use parse_error::ParseError;
+pub use provider::{
+    Capability, Config as ProviderConfig, Deployment, ModelDescriptor, Provider, ProviderWire, Tier,
+};
+pub use registry::{Registry, RegistrySeed, RegistrySeedMeta, ResourceMode};
 pub use retry::{BailDecision, RetryPolicy};
 
 use anyhow::Context;

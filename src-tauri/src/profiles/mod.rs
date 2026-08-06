@@ -108,23 +108,92 @@ pub fn set_current(id: &ProfileId) -> anyhow::Result<()> {
 ///     on a `SpendLimitErrorCard`, the HUD does
 ///     `opencode profile switch <backup_profile_id>`. `None` disables
 ///     the button (one-profile setups).
+///
+/// RFC 04 Phase 2 sub-fase 2.0 — Aider tri-model port: each profile
+/// may designate three model roles independently. The defaults fall
+/// back to `main_model_id`, preserving Aider's pattern where the
+/// `--weak-model` defaults to `--model` when unset. The `weak` role
+/// is the cheapest model in the pool and is used for context-window
+/// compactification + commit messages — never for primary inference
+/// (Aider v0.42+ semantics).
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct Profile {
     pub id: ProfileId,
     pub bail_out_threshold_secs: u64,
     pub backup_profile_id: Option<String>,
+    /// RFC 04 §1 / RFC 04 Phase 2 — The main / primary model. The
+    /// Orchestrator uses this for every kind of inference unless a
+    /// role-specific override (`architect_model_id` /
+    /// `editor_model_id` / `weak_model_id`) is set.
+    #[serde(default)]
+    pub main_model_id: Option<String>,
+    /// RFC 21 §12 `architect` mode — model used to PROPOSE changes
+    /// (the editor then applies them). Defaults to `main_model_id`
+    /// when `None`. Aider `--model` (with `--architect`).
+    #[serde(default)]
+    pub architect_model_id: Option<String>,
+    /// RFC 21 §12 `architect` mode — model used to APPLY edits.
+    /// Defaults to `main_model_id` when `None`. Aider `--editor-model`.
+    #[serde(default)]
+    pub editor_model_id: Option<String>,
+    /// Aider `--weak-model`. The cheapest model in the pool, used
+    /// for commit-message synthesis + context-window compactification
+    /// when `--max-chat-history-tokens` is exceeded (RFC 11 Context
+    /// Engine). Defaults to `main_model_id` when `None`.
+    #[serde(default)]
+    pub weak_model_id: Option<String>,
+    /// RFC 04 §5 Phase 2 sub-fase 2.0 — Resource-mode filter applied
+    /// to the orchestrator. Defaults to `Mixed`.
+    #[serde(default = "default_resource_mode")]
+    pub resource_mode: String,
+}
+
+fn default_resource_mode() -> String {
+    "mixed".to_string()
 }
 
 impl Profile {
     /// Default profile: `bail_out_threshold_secs = 60`,
-    /// `backup_profile_id = None`. Used when `<profile_root>/profile.toml`
-    /// is missing (first launch, fresh install).
+    /// `backup_profile_id = None`, no tri-model overrides (all roles
+    /// fall back to `main_model_id`), `resource_mode = "mixed"` (RFC
+    /// 04 §5 default). Used when `<profile_root>/profile.toml` is
+    /// missing (first launch, fresh install).
     pub fn default_for(id: ProfileId) -> Self {
         Self {
             id,
             bail_out_threshold_secs: 60,
             backup_profile_id: None,
+            main_model_id: None,
+            architect_model_id: None,
+            editor_model_id: None,
+            weak_model_id: None,
+            resource_mode: default_resource_mode(),
         }
+    }
+
+    /// Resolve the effective architect model — `architect_model_id`
+    /// when set, else `main_model_id`. Returns `None` when neither is
+    /// set (the orchestrator then falls back to the registry default).
+    pub fn effective_architect_model(&self) -> Option<&str> {
+        self.architect_model_id
+            .as_deref()
+            .or(self.main_model_id.as_deref())
+    }
+
+    /// Resolve the effective editor model — `editor_model_id` when
+    /// set, else `main_model_id`.
+    pub fn effective_editor_model(&self) -> Option<&str> {
+        self.editor_model_id
+            .as_deref()
+            .or(self.main_model_id.as_deref())
+    }
+
+    /// Resolve the effective weak model — `weak_model_id` when set,
+    /// else `main_model_id`. Aider's downstream semantic.
+    pub fn effective_weak_model(&self) -> Option<&str> {
+        self.weak_model_id
+            .as_deref()
+            .or(self.main_model_id.as_deref())
     }
 
     /// Path to the persisted config inside a profile's root directory.
@@ -192,12 +261,22 @@ mod tests {
             id: id.clone(),
             bail_out_threshold_secs: 120,
             backup_profile_id: Some("personal".into()),
+            main_model_id: Some("claude-opus-4".into()),
+            architect_model_id: Some("gpt-5".into()),
+            editor_model_id: Some("claude-sonnet-4.5".into()),
+            weak_model_id: Some("gemini-2.5-flash".into()),
+            resource_mode: "free".into(),
         };
         p.save(root).unwrap();
         let loaded = Profile::load(root, id.clone()).unwrap();
         assert_eq!(loaded, p);
         assert_eq!(loaded.bail_out_threshold_secs, 120);
         assert_eq!(loaded.backup_profile_id.as_deref(), Some("personal"));
+        assert_eq!(loaded.main_model_id.as_deref(), Some("claude-opus-4"));
+        assert_eq!(loaded.architect_model_id.as_deref(), Some("gpt-5"));
+        assert_eq!(loaded.editor_model_id.as_deref(), Some("claude-sonnet-4.5"));
+        assert_eq!(loaded.weak_model_id.as_deref(), Some("gemini-2.5-flash"));
+        assert_eq!(loaded.resource_mode, "free");
     }
 
     #[test]
@@ -209,5 +288,83 @@ mod tests {
         assert_eq!(p.id, id);
         assert_eq!(p.bail_out_threshold_secs, 60, "RFC 28 §H.10 default");
         assert!(p.backup_profile_id.is_none(), "default has no backup");
+        assert!(p.main_model_id.is_none(), "default has no main model");
+        assert!(p.architect_model_id.is_none(), "default has no architect");
+        assert!(p.editor_model_id.is_none(), "default has no editor");
+        assert!(p.weak_model_id.is_none(), "default has no weak");
+        assert_eq!(p.resource_mode, "mixed", "RFC 04 §5 default");
+    }
+
+    #[test]
+    fn profile_effective_tri_model_falls_back_to_main() {
+        let profile = Profile {
+            id: ProfileId::new("test"),
+            bail_out_threshold_secs: 60,
+            backup_profile_id: None,
+            main_model_id: Some("claude-opus-4".into()),
+            architect_model_id: None,
+            editor_model_id: None,
+            weak_model_id: None,
+            resource_mode: "mixed".into(),
+        };
+        assert_eq!(profile.effective_architect_model(), Some("claude-opus-4"));
+        assert_eq!(profile.effective_editor_model(), Some("claude-opus-4"));
+        assert_eq!(profile.effective_weak_model(), Some("claude-opus-4"));
+    }
+
+    #[test]
+    fn profile_effective_tri_model_uses_overrides_when_set() {
+        let profile = Profile {
+            id: ProfileId::new("test"),
+            bail_out_threshold_secs: 60,
+            backup_profile_id: None,
+            main_model_id: Some("claude-opus-4".into()),
+            architect_model_id: Some("gpt-5".into()),
+            editor_model_id: Some("claude-sonnet-4.5".into()),
+            weak_model_id: Some("gemini-2.5-flash".into()),
+            resource_mode: "mixed".into(),
+        };
+        assert_eq!(profile.effective_architect_model(), Some("gpt-5"));
+        assert_eq!(profile.effective_editor_model(), Some("claude-sonnet-4.5"));
+        assert_eq!(profile.effective_weak_model(), Some("gemini-2.5-flash"));
+    }
+
+    #[test]
+    fn profile_effective_returns_none_when_no_main_no_override() {
+        let profile = Profile {
+            id: ProfileId::new("test"),
+            bail_out_threshold_secs: 60,
+            backup_profile_id: None,
+            main_model_id: None,
+            architect_model_id: None,
+            editor_model_id: None,
+            weak_model_id: None,
+            resource_mode: "mixed".into(),
+        };
+        assert_eq!(profile.effective_architect_model(), None);
+        assert_eq!(profile.effective_editor_model(), None);
+        assert_eq!(profile.effective_weak_model(), None);
+    }
+
+    #[test]
+    fn profile_old_toml_without_phase2_fields_loads_with_defaults() {
+        // A pre-Phase-2 `profile.toml` won't have the new fields — serde
+        // defaults must keep the load successful.
+        let dir = tempfile::TempDir::new().unwrap();
+        let root = dir.path();
+        let path = root.join("profile.toml");
+        std::fs::write(
+            &path,
+            "id = 'work'\nbail_out_threshold_secs = 90\nbackup_profile_id = 'personal'\n",
+        )
+        .unwrap();
+        let loaded = Profile::load(root, ProfileId::new("work")).unwrap();
+        assert_eq!(loaded.bail_out_threshold_secs, 90);
+        assert_eq!(loaded.backup_profile_id.as_deref(), Some("personal"));
+        assert!(loaded.main_model_id.is_none());
+        assert!(loaded.architect_model_id.is_none());
+        assert!(loaded.editor_model_id.is_none());
+        assert!(loaded.weak_model_id.is_none());
+        assert_eq!(loaded.resource_mode, "mixed");
     }
 }

@@ -850,5 +850,93 @@ pub fn migrate(conn: &Connection) -> Result<()> {
             rusqlite::params![19, chrono::Utc::now().to_rfc3339()],
         )?;
     }
+
+    // M20 — RFC 04 §1 Phase 2 sub-fase 2.0:
+    //
+    //   * `models`             — overridable cost / context window /
+    //                            capability metadata per logical model.
+    //                            Overrides take precedence over the JSON
+    //                            seed in `orchestrator/assets/`. The seed
+    //                            remains the source-of-record for build-
+    //                            time-stable values; this table holds
+    //                            user/operator overrides and per-deployment
+    //                            runtime knobs.
+    //   * `deployments`        — RFC 04 §1 multi-key pooling: one
+    //                            logical model served by N deployments
+    //                            (distinct api_key / api_base / region).
+    //                            Cooldown (sub-fase 2.0.5) tracks here.
+    //   * `model_aliases`      — alias → model_id reverse map, persistent;
+    //                            JSON seed populates it at boot when the
+    //                            row is absent (INSERT OR IGNORE).
+    //   * `model_groups`       — RFC 04 §1 routing groups (LiteLLM port).
+    //                            One group = a set of model_ids sharing a
+    //                            routing_strategy. Sub-fase 2.1 plumbs
+    //                            the actual routing logic.
+    //
+    // Phase 2 sub-fase 2.0 only materialises the table layouts +
+    // indexes. The INSERT/upsert logic lands with the registry reader
+    // in sub-fase 2.1 (alongside `model_invocations`, M21).
+    if current < 20 {
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS models (
+                id                      TEXT PRIMARY KEY,
+                provider                TEXT NOT NULL,
+                display_name            TEXT NOT NULL,
+                tier                    TEXT NOT NULL,
+                context_window          INTEGER NOT NULL,
+                max_output_tokens       INTEGER NOT NULL,
+                capabilities_json       TEXT NOT NULL,
+                input_cost_per_1m       REAL,
+                output_cost_per_1m      REAL,
+                cache_read_cost_per_1m  REAL,
+                latency_ms_p50          INTEGER,
+                updated_at              INTEGER NOT NULL DEFAULT (unixepoch())
+            );
+
+            CREATE INDEX IF NOT EXISTS models_tier_idx ON models(tier);
+
+            CREATE TABLE IF NOT EXISTS deployments (
+                id                      TEXT PRIMARY KEY,
+                model_id                TEXT NOT NULL REFERENCES models(id),
+                label                   TEXT NOT NULL DEFAULT '',
+                api_base                TEXT NOT NULL,
+                region                  TEXT,
+                priority                INTEGER NOT NULL DEFAULT 0,
+                weight                  REAL NOT NULL DEFAULT 1.0,
+                tokens_per_minute       INTEGER,
+                requests_per_minute     INTEGER,
+                max_parallel            INTEGER,
+                api_key_env             TEXT,
+                cooldown_until          INTEGER,
+                fails_this_minute       INTEGER NOT NULL DEFAULT 0,
+                last_fail_at            INTEGER,
+                enabled                 INTEGER NOT NULL DEFAULT 1
+            );
+
+            CREATE INDEX IF NOT EXISTS deployments_model_idx
+                ON deployments(model_id, enabled);
+            CREATE INDEX IF NOT EXISTS deployments_cooldown_idx
+                ON deployments(cooldown_until)
+                WHERE cooldown_until IS NOT NULL;
+
+            CREATE TABLE IF NOT EXISTS model_aliases (
+                alias           TEXT PRIMARY KEY,
+                model_id        TEXT NOT NULL REFERENCES models(id),
+                mutable         INTEGER NOT NULL DEFAULT 1
+            );
+
+            CREATE TABLE IF NOT EXISTS model_groups (
+                name            TEXT PRIMARY KEY,
+                strategy       TEXT NOT NULL,
+                strategy_args_json TEXT,
+                models_json     TEXT NOT NULL,
+                updated_at      INTEGER NOT NULL DEFAULT (unixepoch())
+            );",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![20, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
     Ok(())
 }

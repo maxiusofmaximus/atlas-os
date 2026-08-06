@@ -10,7 +10,7 @@ El motor que decide **qué cerebro** piensa cada paso. Es el pilar de la diferen
 
 ---
 
-## 1. Registro de modelos `[PENDING Phase 2 — sub-fase 2.0 Foundation]`
+## 1. Registro de modelos `[IMPLEMENTADO Phase 2 — sub-fase 2.0 Foundation]`
 
 El orquestador mantiene un registry de modelos. Cada entrada:
 
@@ -198,14 +198,14 @@ Single-binary safety (RFC 25 §11): el ACP frontend no añade subprocess externo
 
 **Source:** `OpenCode OS/research/29 - Phase 2 model orchestrator.md`. Evidencia primaria: 11 papers arxiv cross-verified + LiteLLM/OpenRouter/Aider/async-openai/RouteLLM docs.
 
-| Sub-fase | Título | Migración | Cobertura |
-|---|---|---|---|
-| 2.0 | Foundation (Registry + Tri-model) | M20 (`models`/`deployments`/`model_aliases`/`model_groups`) | §1 (Provider enum, ModelRegistry storage SQLite+JSON seed `ArcSwap<Registry>`, Aider tri-model en `Profile`) |
-| 2.0.5 | Provider Normalization Layer | — | Gaps críticos G1 prompt caching, G2 token pre-flight, G5 cooldown per-provider, G8 ToolCall enum cross-provider normalize/deserialize, G17 `Retry-After` header, G18 back-pressure `Arc<Semaphore>` |
-| 2.1 | Routing Policy | M21 (`model_invocations` con sampling_params/seed/cache_read) | §2 (RoutingStrategy enum 6 LiteLLM), §4 completa (3 buckets cascade fallback con `max_fallbacks=5` + exclusion set), §5 (sub-modos filter), §6 parcial (back-pressure), G12 idempotency `RequestFrame`, HUD WS DataParts reconciliation |
-| 2.2 | Aggregation (opt-in HighStakes) | M22 (`reflection_episodes`) + `council_votes` | §3 (`AggregationMode { Single, MajorityVote AgentForest N∈{1,3,5,9} stop-early 2/3, MoA 3×3 cost guard G11, Council 1-round, SelfRefine cap 2, Reflexion multi-model cap 3 anti-doom-loop }`). Papers: 2402.05120, 2406.04692, 2305.14325, 2303.11366, 2303.17651, 2402.03620 |
-| 2.3 | Auto-routing Classifier + MCP-aware | — | §7 (TaskTypeClassifier opt-in logistic regression + fastembed-rs BGE-small + linfa MLP, tag pre-filter hot-path `capability_tags` AND `tool_capabilities` MCP G19, Router selector via `model` field RouteLLM `router-mf-0.116`, threshold defaults `coding=0.116`) |
-| 2.4 | Feedback Loop + `mf` experimental | M20 affinity cache (in-memory) | §8 completa (reader `model_invocations` GROUP BY `(task_type, model_id)` → `AffinityRow` → `ArcSwap::store`, `RoutingStrategy::Mf { threshold }` A/B testing vs classifier) |
+| Sub-fase | Título | Migración | Cobertura | Estado |
+|---|---|---|---|---|
+| 2.0 | Foundation (Registry + Tri-model) | M20 (`models`/`deployments`/`model_aliases`/`model_groups`) | §1 (Provider enum, ModelRegistry storage SQLite+JSON seed `ArcSwap<Registry>`, Aider tri-model en `Profile`) | **✅ IMPLEMENTADO** — `orchestrator::{provider, registry}` con `enum Provider` (20 builtin + `Custom(Arc<dyn Config>)`), `ProviderWire` serde-safe (rename explícito para PascalCase cortos), `ModelDescriptor`/`Deployment`/`Capability`/`Tier`, `Registry::{from_seed, from_bundled_seed, resolve, get, descriptors_for_provider, filter_by_resource_mode, filter_by_capability}` con seed JSON bundled (`assets/model_prices_and_context_window.json`, 18 modelos subset LiteLLM MIT), M20 migration idempotente (4 tablas + índices), `Profile` extendido con `main_model_id`/`architect_model_id`/`editor_model_id`/`weak_model_id` + `resource_mode` + `effective_{architect,editor,weak}_model()` fallback a `main_model_id`. 24 tests (13 `provider`, 11 `registry`). `parse()` en vez de `from_str()` para evitar colisión con `std::str::FromStr`. `Provider` sin `Eq/Hash` (Custom varía); cooldown maps usarán `ProviderWire`. |
+| 2.0.5 | Provider Normalization Layer | — | Gaps críticos G1 prompt caching, G2 token pre-flight, G5 cooldown per-provider, G8 ToolCall enum cross-provider normalize/deserialize, G17 `Retry-After` header, G18 back-pressure `Arc<Semaphore>` | PENDING |
+| 2.1 | Routing Policy | M21 (`model_invocations` con sampling_params/seed/cache_read) | §2 (RoutingStrategy enum 6 LiteLLM), §4 completa (3 buckets cascade fallback con `max_fallbacks=5` + exclusion set), §5 (sub-modos filter), §6 parcial (back-pressure), G12 idempotency `RequestFrame`, HUD WS DataParts reconciliation | PENDING |
+| 2.2 | Aggregation (opt-in HighStakes) | M22 (`reflection_episodes`) + `council_votes` | §3 (`AggregationMode { Single, MajorityVote AgentForest N∈{1,3,5,9} stop-early 2/3, MoA 3×3 cost guard G11, Council 1-round, SelfRefine cap 2, Reflexion multi-model cap 3 anti-doom-loop }`). Papers: 2402.05120, 2406.04692, 2305.14325, 2303.11366, 2303.17651, 2402.03620 | PENDING |
+| 2.3 | Auto-routing Classifier + MCP-aware | — | §7 (TaskTypeClassifier opt-in logistic regression + fastembed-rs BGE-small + linfa MLP, tag pre-filter hot-path `capability_tags` AND `tool_capabilities` MCP G19, Router selector via `model` field RouteLLM `router-mf-0.116`, threshold defaults `coding=0.116`) | PENDING |
+| 2.4 | Feedback Loop + `mf` experimental | M20 affinity cache (in-memory) | §8 completa (reader `model_invocations` GROUP BY `(task_type, model_id)` → `AffinityRow` → `ArcSwap::store`, `RoutingStrategy::Mf { threshold }` A/B testing vs classifier) | PENDING |
 
 **KPIs Phase 2:** coste LLM por mission ≤ Phase 1 × 0.6 (RouteLLM evidence >2× savings); routing overhead < 5ms p95 (ArcSwap lock-free); re-ingresos model crash 100%; feedback loop `was_correct` < 30s tras verdict usuario.
 
