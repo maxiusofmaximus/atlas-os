@@ -15,12 +15,22 @@
 // renders the transition. The persisted histories (`journal_events`,
 // `model_swaps`) keep the original values intact for the audit trail.
 
+pub mod backpressure;
+pub mod cache_control;
+pub mod cooldown;
 pub mod error;
 pub mod parse_error;
 pub mod provider;
 pub mod registry;
 pub mod retry;
+pub mod tokenizer;
+pub mod wire;
 
+pub use backpressure::{BackPressure, BackPressureConfig};
+pub use cache_control::{
+    extract_cache_creation, extract_cache_read, inject_breakpoints, CachePolicy, CacheTtl,
+};
+pub use cooldown::{CooldownConfig, CooldownOrigin, CooldownOutcome, RetryAfterSource};
 pub use error::{ResetKind, SpendLimitError};
 pub use parse_error::ParseError;
 pub use provider::{
@@ -28,6 +38,8 @@ pub use provider::{
 };
 pub use registry::{Registry, RegistrySeed, RegistrySeedMeta, ResourceMode};
 pub use retry::{BailDecision, RetryPolicy};
+pub use tokenizer::{estimate_prompt, PromptMessage, PromptRole, Tokenizer};
+pub use wire::{OpShape, OpenAIToolFunction, ToolCall, ToolCallError};
 
 use anyhow::Context;
 use chrono::Utc;

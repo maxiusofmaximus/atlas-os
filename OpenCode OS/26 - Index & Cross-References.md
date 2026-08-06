@@ -279,6 +279,10 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Autoresearch loop` (Karpathy hill-climbing) | 19 §11; 28 §A |
 | `Autoresearch cancel HUD endpoint` | 28 §A (Phase 1.5b §A-3) |
 | `BgeBaseEnV15` embeddings | 25 §3.5 |
+| `BackPressure` (semáforo per-provider) | 04 §6; 04 §Apéndice 2.0.5 |
+| `CachePolicy` (Anthropic ephemeral breakpoints) | 04 §6; 04 §Apéndice 2.0.5 |
+| `Cooldown` per-provider + Retry-After | 04 §6; 28 §H; 04 §Apéndice 2.0.5 |
+| `ProviderWire` (serde-safe wire enum) | 04 §1; 04 §Apéndice 2.0 |
 | `Capabilities` del Registry | 04 §3 |
 | `Capability Resolver` | 02 §3.3 |
 | `Card types (agent/autoresearch/graph)` | 24 §3.3; 28 §A (autoresearch live), 28 §C (graph live) |
@@ -376,6 +380,8 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Tauri 2` | 25 §3.1 |
 | `Team Mode` (AionUI) | 22 §2 (cited); 05 |
 | `Tiered memory` | 09; 16 |
+| `Tokenizer` (tiktoken-rs / CharRatio) | 04 §6; 04 §Apéndice 2.0.5 |
+| `ToolCall` enum cross-provider (OpShape) | 04 §3; 04 §Apéndice 2.0.5 |
 | `Tower-LSP` | 25 §3.6 |
 | `Worktree own per subagent` | 05 §3; 24 §12; 25 §3.2 |
 | `Worktrees view` | 24 §12 |

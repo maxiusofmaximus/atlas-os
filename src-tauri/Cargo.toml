@@ -148,6 +148,12 @@ lsp-types = { version = "0.97", optional = true }
 reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls"], default-features = false }
 eventsource-stream = "0.2"
 
+# Token counting (RFC 04 §1 — pre-flight context-window check)
+# tiktoken-rs es MIT/Apache-2.0, pesos BPE embebidos (~3MB por
+# encoding). Sólo cargamos `o200k_base` (GPT-5/o3/4o) y `cl100k_base`
+# (GPT-4/-3.5) — los demás providers usan el heurístico chars/4.
+tiktoken-rs = "0.6"
+
 # CLI
 clap = { version = "4.5", optional = true, features = ["derive", "color", "env"] }
 dirs = "5"
