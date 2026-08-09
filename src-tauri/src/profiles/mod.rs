@@ -116,7 +116,7 @@ pub fn set_current(id: &ProfileId) -> anyhow::Result<()> {
 /// is the cheapest model in the pool and is used for context-window
 /// compactification + commit messages — never for primary inference
 /// (Aider v0.42+ semantics).
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct Profile {
     pub id: ProfileId,
     pub bail_out_threshold_secs: u64,
@@ -146,10 +146,22 @@ pub struct Profile {
     /// to the orchestrator. Defaults to `Mixed`.
     #[serde(default = "default_resource_mode")]
     pub resource_mode: String,
+    /// RFC 04 §6 — routing + fallback configuration for the model
+    /// orchestrator. Sub-fase 2.1. Defaults to `RoutingConfig::default`
+    /// (SimpleShuffle, empty fallback buckets, `max_fallbacks=5`,
+    /// `default_cooldown_secs=60`).
+    #[serde(default)]
+    pub routing_config: crate::orchestrator::routing::RoutingConfig,
 }
 
 fn default_resource_mode() -> String {
     "mixed".to_string()
+}
+
+impl Default for Profile {
+    fn default() -> Self {
+        Self::default_for(ProfileId::new("default"))
+    }
 }
 
 impl Profile {
@@ -168,6 +180,7 @@ impl Profile {
             editor_model_id: None,
             weak_model_id: None,
             resource_mode: default_resource_mode(),
+            routing_config: crate::orchestrator::routing::RoutingConfig::default(),
         }
     }
 
@@ -179,7 +192,6 @@ impl Profile {
             .as_deref()
             .or(self.main_model_id.as_deref())
     }
-
     /// Resolve the effective editor model — `editor_model_id` when
     /// set, else `main_model_id`.
     pub fn effective_editor_model(&self) -> Option<&str> {
@@ -266,6 +278,7 @@ mod tests {
             editor_model_id: Some("claude-sonnet-4.5".into()),
             weak_model_id: Some("gemini-2.5-flash".into()),
             resource_mode: "free".into(),
+            ..Default::default()
         };
         p.save(root).unwrap();
         let loaded = Profile::load(root, id.clone()).unwrap();
@@ -306,6 +319,7 @@ mod tests {
             editor_model_id: None,
             weak_model_id: None,
             resource_mode: "mixed".into(),
+            ..Default::default()
         };
         assert_eq!(profile.effective_architect_model(), Some("claude-opus-4"));
         assert_eq!(profile.effective_editor_model(), Some("claude-opus-4"));
@@ -323,6 +337,7 @@ mod tests {
             editor_model_id: Some("claude-sonnet-4.5".into()),
             weak_model_id: Some("gemini-2.5-flash".into()),
             resource_mode: "mixed".into(),
+            ..Default::default()
         };
         assert_eq!(profile.effective_architect_model(), Some("gpt-5"));
         assert_eq!(profile.effective_editor_model(), Some("claude-sonnet-4.5"));
@@ -340,6 +355,7 @@ mod tests {
             editor_model_id: None,
             weak_model_id: None,
             resource_mode: "mixed".into(),
+            ..Default::default()
         };
         assert_eq!(profile.effective_architect_model(), None);
         assert_eq!(profile.effective_editor_model(), None);

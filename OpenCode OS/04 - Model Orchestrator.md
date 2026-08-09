@@ -63,7 +63,7 @@ El orquestador mantiene un registry de modelos. Cada entrada:
 ### Registry extensible
 El usuario puede añadir proveedores de pago o cualquier otro endpoint compatible.
 
-## 2. Política de selección `[PENDING Phase 2 — sub-fase 2.1 Routing Policy]`
+## 2. Política de selección `[IMPLEMENTADO Phase 2 — sub-fase 2.1 Routing Policy ✅]`
 
 El orquestador analiza la tarea y ejecuta:
 
@@ -89,6 +89,24 @@ Fusiona respuestas si procede
    ↓
 Devuelve una sola decisión
 ```
+
+**Implementación sub-fase 2.1.** La capa de routing vive en `orchestrator/routing.rs` (~20 tests) con `enum RoutingStrategy { SimpleShuffle, LatencyBased { ttl_secs, buffer_ms }, UsageBasedV2, LeastBusy, CostBased, Hybrid { branches, default }, Custom(Arc<dyn Router>) }` — las cinco estrategias de producción LiteLLM (MIT, BerriAI) más `Hybrid` para estrategias condicionales (p.ej. HighStakes → LeastBusy, bulk → CostBased) y `Custom` para routers in-process (`#[serde(skip)]` por la `Arc<dyn>`). El trait `Router::route(ctx) -> RouteDecision` y el `RouteContext<'a>` (snapshot pura: healthy deployments, in-flight, p50 latency, error rate, tokens/min, budget, prompt tokens, capabilities, pre-cost, has_tool_calls, high_stakes, exclusion set) hacen la selección deterministamente testeable sin runtime. `Condition` enum (`TokensAbove`, `Requires`, `CostAbove`, `HasToolCalls`, `HighStakes`) drive el `Hybrid` branch matching.
+
+`RoutingConfig` (serializable, en `Profile.routing_config`) porta: `strategy: RoutingStrategy`, `fallback: FallbackMap` (3 buckets LiteLLM: `fallbacks`/`context_window_fallbacks`/`content_policy_fallbacks`), `default_fallbacks: Vec<String>`, `max_fallbacks: u8=5` (cap), `default_cooldown_secs=60`, `allowed_fails=3`, `fails_window_secs=60`.
+
+`orchestrator/cascade.rs` (~13 tests) implementa la escalation: `Cascade::next_target(FailureMode, healthy_for)` hace (1) weighted failover en same-group para `RateLimited` (exclusion set `HashSet<String>` acumula IDs ya probados), (2) escalation al bucket correspondiente (`FallbackBucket::Generic|ContextWindow|ContentPolicy`), (3) `default_fallbacks` catch-all, (4) cap en `max_fallbacks` (default 5). `FailureMode` discrimina 401/404/408/network vs 429 vs context overflow vs content-policy refusal. `CascadeStep::{TryNext { deployment, model_id, bucket, attempt_index }, Exhausted { reason: NoFallbackConfigured|MaxFallbacksReached|AllFallbacksUnhealthy, attempts }}`.
+
+`orchestrator/idempotency.rs` (7 tests, G12): `RequestFrame { idempotency_key: Uuid v4, executed_tool_calls: Vec<String>, tool_calls_complete: bool }` — `can_cascade()` bloquea cascade cuando hay tool calls pending (preserva consistencia del dispatcher de tools). `mark_executed()` dedupe--append. `filter_unexecuted(&[OpShape])` parcha prompts del fallback.
+
+`orchestrator/cost_guard.rs` (8 tests, G11): trait `AggregationPolicy { pre_cost_estimate(ctx) -> f64, aggregate_cost_breakdown(ctx) }` shape definido aquí; `LinearCostGuard` + `NoAggregation` defaults. Implementación concreta en sub-fase 2.2.
+
+`orchestrator/data_parts.rs` (11 tests): `DataPartBuffer` con `DataPart { id, payload, is_transient, seq }` — patrón DataParts Vercel AI SDK (MIT): mismo id actualiza in-place; `persistent_only()` descarta partes transient tras cascade (preserva durables: tool-call deltas, plan diffs, commit hashes).
+
+M21 migration `journal/schema.rs`: `model_invocations` table (id PK, mission_id FK, model_id FK weak, deployment_id, provider, idempotency_key, started_at, finished_at, latency_ms, tokens_in, tokens_out, cache_read_input_tokens, cost_usd, seed, temperature, sampling_params_json, route_taken_json, was_correct NULL, error_kind, error_message) + 3 indexes. 134 journal tests pasan.
+
+`Profile` extendido con `routing_config: RoutingConfig` (default SimpleShuffle + buckets vacíos). `Profile` pierde `Eq` (RoutingConfig contiene `f64` en `Condition::CostAbove`), retiene `PartialEq` — ningún sitio usa `Eq` sobre `Profile`. `impl Default for Profile` añadido. 6 profile tests adaptados con `..Default::default()`.
+
+39 tests nuevos. 65 tests combined (routing + cascade + idempotency + cost_guard + data_parts + profiles) pasan. 542 tests totales verde.
 
 ### Mapa de afinidad (por defecto, configurable)
 
@@ -131,23 +149,26 @@ Votación ponderada → Strategy
 Confidence fuse → 0.89
 ```
 
-## 4. Fail-over `[PARCIAL Phase 1 — Phase 2 sub-fase 2.1 completa cascade 3-buckets]`
+## 4. Fail-over `[IMPLEMENTADO Phase 2 — sub-fase 2.1 ✅ completa cascade 3-buckets]`
 
-> Phase 1: existen `SpendLimitError`/`ResetKind` (RFC 28 §H items 2,5,6) con parse OmniRoute envelope + `RetryPolicy::decide` con backoff exponencial + jitter ±25% + bail-out 60s threshold. `handle_spend_limit_error()` en `orchestrator/mod.rs` persiste `model_resets` (M19) y dispara Toast `kind='model_ready'` cuando reset cumple. **No** hay cascade cross-deployment ni múltiples buckets fallback aún — eso aterriza en sub-fase 2.1 (3 buckets LiteLLM: `fallbacks` + `context_window_fallbacks` + `content_policy_fallbacks`).
-
+> Phase 1: existen `SpendLimitError`/`ResetKind` (RFC 28 §H items 2,5,6) con parse OmniRoute envelope + `RetryPolicy::decide` con backoff exponencial + jitter ±25% + bail-out 60s threshold. `handle_spend_limit_error()` en `orchestrator/mod.rs` persiste `model_resets` (M19) y dispara Toast `kind='model_ready'` cuando reset cumple.
+>
+> **Phase 2 sub-fase 2.1 ✅:** `Cascade::next_target(FailureMode, healthy_for)` en `orchestrator/cascade.rs` materializa el cascade completo con los 3 buckets LiteLLM + `default_fallbacks` + `max_fallbacks=5` cap + weighted failover en same-group + exclusion set `HashSet<String>` acumulativo. `FailureMode` discrimina 401/404/408/network vs 429 vs context overflow vs content-policy refusal. `ExhaustionReason::{NoFallbackConfigured|MaxFallbacksReached|AllFallbacksUnhealthy}` surface el HUD card paused-mission.
 
 - Si un modelo devuelve timeout / rate-limit / hallucination detectada, se marca `available: false` temporalmente.
 - Se reintenta con el siguiente candidato.
 - Tras 3 fallos consecutivos se escapa hacia arriba (usuario o Planning Engine) para replanificar.
 
-## 5. Restricciones de modo `[PENDING Phase 2 — sub-fase 2.1 routing filter]`
+## 5. Restricciones de modo `[PARCIAL — sub-fase 2.0 ResourceMode enum ✅ + sub-fase 2.1 routing filter ✅]`
 
 El orquestador **nunca** debe usar un modelo fuera del sub-modo activo:
 - sub-modo `local-only` ⇒ filtra `kind == local`.
 - sub-modo `free-only` ⇒ filtra `tier in {free, free_tier}`.
 - sub-modo `mixto` ⇒ acepta cualquier `tier`, respetando el presupuesto definido.
 
-## 6. Presupuesto y límites `[Phase 2 — sub-fase 2.0.5 back-pressure semáforo ✅ IMPLEMENTADO + 2.4 cost guard feedback PENDING]`
+## 6. Presupuesto y límites `[Phase 2 — sub-fase 2.0.5 back-pressure semáforo ✅ IMPLEMENTADO + sub-fase 2.1 cost-guard trait shape ✅ + 2.4 cost guard feedback PENDING]`
+
+> Cost guard pre-aggregation (G11): trait `AggregationPolicy::pre_cost_estimate(ctx) -> f64` shape definido en `orchestrator/cost_guard.rs` (sub-fase 2.1, 8 tests) con defaults `NoAggregation` (0.0 siempre) y `LinearCostGuard` (`parallel_samples × rounds × tokens_per_sample × blended_cost_per_1m / 1M`). La implementación concreta para los 6 modos de aggregation (MajorityVote, MoA, Council, Reflexion, SelfRefine, SelfDiscover) aterriza en sub-fase 2.2.
 
 El usuario define:
 - `max_tokens_per_minute`
@@ -202,7 +223,7 @@ Single-binary safety (RFC 25 §11): el ACP frontend no añade subprocess externo
 |---|---|---|---|---|
 | 2.0 | Foundation (Registry + Tri-model) | M20 (`models`/`deployments`/`model_aliases`/`model_groups`) | §1 (Provider enum, ModelRegistry storage SQLite+JSON seed `ArcSwap<Registry>`, Aider tri-model en `Profile`) | **✅ IMPLEMENTADO** — `orchestrator::{provider, registry}` con `enum Provider` (20 builtin + `Custom(Arc<dyn Config>)`), `ProviderWire` serde-safe (rename explícito para PascalCase cortos), `ModelDescriptor`/`Deployment`/`Capability`/`Tier`, `Registry::{from_seed, from_bundled_seed, resolve, get, descriptors_for_provider, filter_by_resource_mode, filter_by_capability}` con seed JSON bundled (`assets/model_prices_and_context_window.json`, 18 modelos subset LiteLLM MIT), M20 migration idempotente (4 tablas + índices), `Profile` extendido con `main_model_id`/`architect_model_id`/`editor_model_id`/`weak_model_id` + `resource_mode` + `effective_{architect,editor,weak}_model()` fallback a `main_model_id`. 24 tests (13 `provider`, 11 `registry`). `parse()` en vez de `from_str()` para evitar colisión con `std::str::FromStr`. `Provider` sin `Eq/Hash` (Custom varía); cooldown maps usarán `ProviderWire`. |
 | 2.0.5 | Provider Normalization Layer | — | Gaps críticos G1 prompt caching, G2 token pre-flight, G5 cooldown per-provider, G8 ToolCall enum cross-provider normalize/deserialize, G17 `Retry-After` header, G18 back-pressure `Arc<Semaphore>` | **✅ IMPLEMENTADO** — `orchestrator::{wire, tokenizer, cache_control, cooldown, backpressure}`. `wire.rs` (~24 tests): `OpShape` neutro + `ToolCall` enum (OpenAI/Anthropic/Gemini/Local dialects) + `normalize()`/`denormalize()` + `prefix_id()`/`next_id()` atomic. `tokenizer.rs` (~17 tests): `trait Tokenizer` + `OpenAITokenizer` (tiktoken-rs 0.6 `o200k_base` BPE via `OnceLock`) + `CharRatioTokenizer` fallback + `tokenizer_for(ProviderWire)`. `cache_control.rs` (25 tests): `CachePolicy`/`CacheTtl` + `inject_breakpoints()`/`extract_cache_read()`/`extract_cache_creation()` (estilo Anthropic ephemeral). `cooldown.rs` (21 tests): `CooldownConfig::default_for(ProviderWire)` + `resolve()`/`resolve_with_retry_after()` con `RetryAfterSource` trait + `CooldownOutcome { duration, origin }` + `DurationClampExt`. `backpressure.rs` (~20 tests): `BackPressureConfig` con `HashMap<ProviderWire, u32>` overrides + `BackPressure` con `parking_lot::Mutex<HashMap<ProviderWire, Arc<Semaphore>>>` lazy-init + `try_acquire()`/`acquire()` async + `available_permits()` + `reset_for()` + `plan_reconfigure()` (no `unsafe`). Cargo: `tiktoken-rs = "0.6"`. 109 tests nuevos (483 total). clippy + fmt + svelte-check + vitest verdes. |
-| 2.1 | Routing Policy | M21 (`model_invocations` con sampling_params/seed/cache_read) | §2 (RoutingStrategy enum 6 LiteLLM), §4 completa (3 buckets cascade fallback con `max_fallbacks=5` + exclusion set), §5 (sub-modos filter), §6 parcial (back-pressure), G12 idempotency `RequestFrame`, HUD WS DataParts reconciliation | PENDING |
+| 2.1 | Routing Policy | M21 (`model_invocations` con sampling_params/seed/cache_read) | §2 (RoutingStrategy enum 6 LiteLLM), §4 completa (3 buckets cascade fallback con `max_fallbacks=5` + exclusion set), §5 (sub-modos filter), §6 parcial (back-pressure), G12 idempotency `RequestFrame`, HUD WS DataParts reconciliation | **✅ IMPLEMENTADO** — `orchestrator::{routing, cascade, idempotency, cost_guard, data_parts}`. `routing.rs` (~20 tests): `RoutingStrategy` enum 6 variantes (`SimpleShuffle`/`LatencyBased{ttl_secs,buffer_ms}`/`UsageBasedV2`/`LeastBusy`/`CostBased`/`Hybrid{branches,default}`/`Custom(Arc<dyn Router>)`), `RoutingConfig` (3 buckets fallback + default_fallbacks + max_fallbacks=5 + cooldown/allowed_fails defaults), `Router` trait, `Condition` enum (TokensAbove/Requires/CostAbove/HasToolCalls/HighStakes), `RouteContext<'a>` snapshot pura, `RouteDecision::{Deploy/NoHealthy}`. `cascade.rs` (~13 tests): `Cascade::next_target(FailureMode, healthy_for)` con weighted failover same-group → bucket escalation → default_fallbacks → max_fallbacks cap. `FailureMode::{RateLimited,BadConfigOrNetwork,ContextWindowOverflow,ContentPolicyRefusal}` + `ExhaustionReason`. `idempotency.rs` (7 tests, G12): `RequestFrame { idempotency_key: Uuid v4, executed_tool_calls, tool_calls_complete }` con `can_cascade()`, `filter_unexecuted(&[OpShape])`. `cost_guard.rs` (8 tests, G11): `AggregationPolicy` trait shape + `LinearCostGuard`/`NoAggregation`. `data_parts.rs` (11 tests): `DataPartBuffer` Vercel AI SDK pattern (mismo id update in-place, transient vs persistent guard, `persistent_only()` post-cascade). M21 migration `journal/schema.rs`: `model_invocations` (19 columns + 3 indexes). `Profile.routing_config: RoutingConfig` añadido (pierde `Eq`, retiene `PartialEq`, `impl Default`). 39 tests nuevos (542 total). clippy + fmt verdes. |
 | 2.2 | Aggregation (opt-in HighStakes) | M22 (`reflection_episodes`) + `council_votes` | §3 (`AggregationMode { Single, MajorityVote AgentForest N∈{1,3,5,9} stop-early 2/3, MoA 3×3 cost guard G11, Council 1-round, SelfRefine cap 2, Reflexion multi-model cap 3 anti-doom-loop }`). Papers: 2402.05120, 2406.04692, 2305.14325, 2303.11366, 2303.17651, 2402.03620 | PENDING |
 | 2.3 | Auto-routing Classifier + MCP-aware | — | §7 (TaskTypeClassifier opt-in logistic regression + fastembed-rs BGE-small + linfa MLP, tag pre-filter hot-path `capability_tags` AND `tool_capabilities` MCP G19, Router selector via `model` field RouteLLM `router-mf-0.116`, threshold defaults `coding=0.116`) | PENDING |
 | 2.4 | Feedback Loop + `mf` experimental | M20 affinity cache (in-memory) | §8 completa (reader `model_invocations` GROUP BY `(task_type, model_id)` → `AffinityRow` → `ArcSwap::store`, `RoutingStrategy::Mf { threshold }` A/B testing vs classifier) | PENDING |

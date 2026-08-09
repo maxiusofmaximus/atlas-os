@@ -313,10 +313,19 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Health KPIs` | 24 §7 |
 | `Hermes HUD` | 24 §0, §4.3 (cite); 22 §1 |
 | `HUD Mission Control` | 24 |
+| `Aggregation` (Single/MajorityVote/MoA/Council/SelfRefine/Reflexion) | 04 §3 |
+| `AggregationPolicy` (trait, G11 cost guard) | 04 §6; 04 §Apéndice 2.1 |
+| `BackPressure` (`Arc<Semaphore>` lazy-init, G18) | 04 §6; 04 §Apéndice 2.0.5 |
+| `CachePolicy` (Anthropic ephemeral, G1) | 04 §6; 04 §Apéndice 2.0.5 |
+| `Cascade` (3-bucket fallback, exclusion set) | 04 §4; 04 §Apéndice 2.1 |
+| `Cooldown` (per-provider default, G5) | 04 §6; 04 §Apéndice 2.0.5 |
+| `DataPartBuffer` (HUD WS DataParts reconciliation, Vercel AI SDK pattern) | 04 §2; 04 §Apéndice 2.1; 24 §4.1 |
 | `Idempotency key` | 02 §3.1.2 |
 | `Job Object` sandbox Windows | 25 §3.7 |
 | `Kernel Bus` | 02 §3.1 |
 | `LanguageIdResolver` | 03 §9.3; 21 §2.2 |
+| `Router` trait + `RoutingStrategy` enum (6 LiteLLM variants) | 04 §2; 04 §Apéndice 2.1 |
+| `RequestFrame` (idempotency, G12) | 04 §4; 04 §Apéndice 2.1 |
 | `Launcher CLI` (`opencode`) | 08; 25 §3.9 |
 | `Learning graphs` (cosine retrieval of past successful `mission_graph`) | 16 §3 "Por grafo de misión exitoso"; 28 §C |
 | `Local models` (Ollama/LM Studio/llama-server) | 25 §3.8 |

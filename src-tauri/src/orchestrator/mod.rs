@@ -17,12 +17,17 @@
 
 pub mod backpressure;
 pub mod cache_control;
+pub mod cascade;
 pub mod cooldown;
+pub mod cost_guard;
+pub mod data_parts;
 pub mod error;
+pub mod idempotency;
 pub mod parse_error;
 pub mod provider;
 pub mod registry;
 pub mod retry;
+pub mod routing;
 pub mod tokenizer;
 pub mod wire;
 
@@ -30,14 +35,25 @@ pub use backpressure::{BackPressure, BackPressureConfig};
 pub use cache_control::{
     extract_cache_creation, extract_cache_read, inject_breakpoints, CachePolicy, CacheTtl,
 };
+pub use cascade::{Cascade, CascadeStep, ExhaustionReason, FailureMode};
 pub use cooldown::{CooldownConfig, CooldownOrigin, CooldownOutcome, RetryAfterSource};
+pub use cost_guard::{
+    AggregationCostBreakdown, AggregationCostContext, AggregationPolicy, LinearCostGuard,
+    NoAggregation,
+};
+pub use data_parts::{DataPart, DataPartBuffer};
 pub use error::{ResetKind, SpendLimitError};
+pub use idempotency::RequestFrame;
 pub use parse_error::ParseError;
 pub use provider::{
     Capability, Config as ProviderConfig, Deployment, ModelDescriptor, Provider, ProviderWire, Tier,
 };
 pub use registry::{Registry, RegistrySeed, RegistrySeedMeta, ResourceMode};
 pub use retry::{BailDecision, RetryPolicy};
+pub use routing::{
+    Condition, FallbackBucket, FallbackMap, RouteContext, RouteDecision, Router, RoutingConfig,
+    RoutingStrategy, SkipReason,
+};
 pub use tokenizer::{estimate_prompt, PromptMessage, PromptRole, Tokenizer};
 pub use wire::{OpShape, OpenAIToolFunction, ToolCall, ToolCallError};
 
