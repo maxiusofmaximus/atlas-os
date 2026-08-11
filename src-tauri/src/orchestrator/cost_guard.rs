@@ -59,9 +59,8 @@ pub struct AggregationCostBreakdown {
     /// Per-sample cost (parallel_samples × tokens_per_sample ×
     /// blended_cost_per_1m / 1_000_000).
     pub per_sample_usd: f64,
-    /// Cross-round coordinator cost (NegotiatorCouncil, Reflexion
-    /// reflexor) — separate so the HUD can show it next to the per-
-    /// sample line.
+    /// Cross-round coordinator cost (Council, Reflexion reflexor) —
+    /// separate so the HUD can show it next to the per-sample line.
     pub coordinator_usd: f64,
     /// Number of samples that would actually be dispatched (after
     /// stop-early estimation in MajorityVote).

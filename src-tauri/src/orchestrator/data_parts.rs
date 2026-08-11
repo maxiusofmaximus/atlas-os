@@ -2,7 +2,7 @@
 // sub-fase 2.1, G13).
 //
 // The HUD WebSocket pushes streaming model output to the webview
-// faster than theWebSocket can repaint. When a new chunk arrives for
+// faster than the WebSocket can repaint. When a new chunk arrives for
 // an in-flight turn the HUD wants to **update the in-place part**
 // (append to the same card) rather than render a new card. The Vercel
 // AI SDK pattern (vercel/ai, MIT) models this as `DataParts`: opaque
@@ -54,8 +54,7 @@ pub struct DataPart {
 }
 
 /// Reconciliation buffer maintained per mission (or per request when
-/// no mission is active — the hud cares about identity, not
-/// hierarchy). The orchestrator populates it as the model streams;
+/// no mission is active — the HUD cares about identity, not hierarchy). The orchestrator populates it as the model streams;
 /// the HUD WS link consumes snapshots via `snapshot()`.
 #[derive(Debug, Clone, Default)]
 pub struct DataPartBuffer {

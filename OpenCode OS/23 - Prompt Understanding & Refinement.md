@@ -88,7 +88,7 @@ MODEL_OMNISCIENCE_ASSUMPTION  → route to Research Engine (RFC 10)
 │  8) Loop with user           si confidence < threshold → pulsar K preguntas  │
 │      │                       y regenerar verdict sobre las respuestas         │
 │      ▼                                                                        │
-│  9) Locked Mission          持久 al Journal → Planning Engine (RFC 12)        │
+│  9) Locked Mission          Persist al Journal → Planning Engine (RFC 12)        │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 

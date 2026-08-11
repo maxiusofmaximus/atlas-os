@@ -630,7 +630,7 @@ Toda la UI navegable por teclado (para humanos rápidos, ver `17 - UI.md` §12):
 | `:p` | Pause selected |
 | `:x` | Stop selected |
 | `:c` | Comment on selected |
-| `:e` | Expand selected to canvas全景 |
+| `:e` | Expand selected to canvas full view |
 | `:o` | Mode selector (ask/architect/code/context) |
 | `:t` | Toggle Health KPIs dock |
 | `?` | Help overlay |
@@ -643,7 +643,7 @@ Toda la UI navegable por teclado (para humanos rápidos, ver `17 - UI.md` §12):
 - Diff highlight vía web worker para no bloquear main thread.
 - WebSocket events encolados, flushed cada 50ms → batch updates reactivos.
 - Snapshot de Journal cada 30s salvage/restaurable (cf `19`).
-- En desktop Tauri 2 Rust consume ~30MB para 主线程 HUD (ver `25`).
+- En desktop Tauri 2 Rust consume ~30MB para el hilo principal del HUD (ver `25`).
 
 ---
 
@@ -681,7 +681,7 @@ keyboard:
 
 ## 22. Limitaciones explícitas
 
-- El HUD **no consume prompts ni escribe código**. Es la visibilidad y el steering. El LLM作業 corre en el Agent Engine Kernel (`02`).
+- El HUD **no consume prompts ni escribe código**. Es la visibilidad y el steering. El trabajo del LLM corre en el Agent Engine Kernel (`02`).
 - No replace el editor de código para diff side-by-side detailed; ese flujo abre `diff pane` separado (están en `17 - UI.md`).
 - DEMos via TTS requiere permiso de audio; si el usuario desactiva, queda solo Frame viewer sin narración.
 - Hash chain audit está diseñado para tamper-evidence local; para compliance multi-user, requiere write-through to external append-only log (out of scope por ahora; ver `18 - Security.md`).

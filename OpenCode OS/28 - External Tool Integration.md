@@ -506,7 +506,7 @@ Cada `fire_toast` escribe en `toast_history` (tabla append-only, sin cleanup) pa
 
 - [x] **Item 1**: `Cargo.toml` feature flag `toast` + crate dep `winrt-toast-reborn 0.3.8` (Windows-only via `[target.'cfg(windows)'.dependencies]`). `tauri-plugin-notification` retirado del plan (bug #1545 + no callback surface); CLI subcommand `opencode toast queue/list/cancel` añadido.
 - [x] **Item 2**: M17 migration `toast_queue` + `toast_history` (schema 16→17) in `src/journal/schema.rs`. Runs unconditionally — schema version is 17 regardless of feature flag.
-- [x] **Item 3**: `src/toast/manager.rs::register_aumid()` idempotente (Windows): wraps `winrt_toast_reborn::register(AUMID, DISPLAY_NAME, icon_path)`. Non-Windows no-op. 1 test (non-Windows) + 失败 falla logged graceful.
+- [x] **Item 3**: `src/toast/manager.rs::register_aumid()` idempotente (Windows): wraps `winrt_toast_reborn::register(AUMID, DISPLAY_NAME, icon_path)`. Non-Windows no-op. 1 test (non-Windows) + failure logged gracefully.
 - [x] **Item 4**: `src/toast/queue.rs::ToastQueue<'a>` — `enqueue`, `next_pending`, `count_pending`, `mark_fired`, `mark_dismissed`, `mark_failed`, `get`, `cancel`, `list`, `append_history`. 11 tests (happy-path + dup + cancels + history-append + descending list).
 - [x] **Item 5**: `src/toast/scheduler.rs::ToastDriver` — tokio spawn task, 5-s idle poll, dispatch via `tokio::task::spawn_blocking` (WinRT `ToastManager` no-Send), persist outcome back. 3 tests (non-Windows): fires-one, drains-backlog, handle-is-some.
 - [x] **Item 6**: `toast_history` dedupe ledger implemented in `ToastQueue::append_history`. Each `mark_*` call writes an audit row. 1 test (`history_is_appended_per_outcome`) verifies two outcomes produce two rows.
@@ -536,7 +536,7 @@ Cada `fire_toast` escribe en `toast_history` (tabla append-only, sin cleanup) pa
 
 **Status: ⏳ documentado, implementación pendiente (post-Toast §F).**
 
-OpenCode OS planifica (RFC 12 Planning) runs de validación, retrospectives (RFC 16) y schedules de `autoresearch` cadencia. Hoy estas lives en el `journal` SQLite sin affordance para el usuario que quiere verlas en su calendario nativo (Outlook, Apple Calendar, Google Calendar). §G define dos direcciones con un único stack: **WRITE** (OpenCode OS publica eventos via `.ics` feed servido desde el HUD axum server) y **READ** (OpenCode OS consume el Microsoft Graph `/me/calendarView` endpoint para巷ar eventos del usuario e inyectarlos como contexto al Planning engine).
+OpenCode OS planifica (RFC 12 Planning) runs de validación, retrospectives (RFC 16) y schedules de `autoresearch` cadencia. Hoy estas viven en el `journal` SQLite sin affordance para el usuario que quiere verlas en su calendario nativo (Outlook, Apple Calendar, Google Calendar). §G define dos direcciones con un único stack: **WRITE** (OpenCode OS publica eventos via `.ics` feed servido desde el HUD axum server) y **READ** (OpenCode OS consume el Microsoft Graph `/me/calendarView` endpoint para leer eventos del usuario e inyectarlos como contexto al Planning engine).
 
 ### G.1 Decision: reject WinRT `AppointmentManager`
 
@@ -702,7 +702,7 @@ OpenCode OS usa models LLM via upstream providers o vía OmniRoute gateway (§3.
 - **Cline PR #10963** ([cline/cline#10963](https://github.com/cline/cline/pull/10963)) — retry middleware con jitter ±25% + parse `Retry-After` header + `x-ratelimit-reset` header.
 - **Cline PR #10141** ([cline/cline#10141](https://github.com/cline/cline/pull/10141)) — bail-out cuando `Retry-After > threshold` (default 60s): para el retry loop en lugar de esperar 5min y agotar sesiones.
 
-A这三 se porta a Rust usando:
+Esto se porta a Rust usando:
 - Estructura `SpendLimitError` (struct, no panic / Result) con `resets_at: chrono::DateTime<Utc>`, `provider`, `model`, `request_id`.
 - Retry middleware (tokio layer) con `RetryPolicy::with_jitter(±25%)`, `RetryPolicy::bail_threshold(Duration)`.
 - `SpendLimitError` exempted: no entra en `RetryPolicy` automático; la queue se pausa y el user decide.

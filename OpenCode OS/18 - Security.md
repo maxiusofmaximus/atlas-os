@@ -116,4 +116,4 @@ Todo eso pasa por un filter chain obligatorio.
 
 ## 13. Telemetría de seguridad
 
-Dashboard con: top呼声 attempts, CPU/RAM anomalies, blocked actions, MCP sanc-cli violations, reputation changes de proveedores.
+Dashboard con: top call attempts, CPU/RAM anomalies, blocked actions, MCP sanc-cli violations, reputation changes de proveedores.

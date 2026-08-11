@@ -310,7 +310,7 @@ Execution Mode × Mode de uso son **ortogonales**. Ejemplos:
 | `AUTOPILOT` | `architect` | ✅ — el agente para cada N steps pero el architect model sigue proponiendo. |
 | `AUTONOMOUS` | `code` | ✅ — modo más común para runs largos nocturnos. |
 | `AUTONOMOUS` | `context` | ✅ — si el verdict detectó `lost_in_the_middle`, se reordena y se lanza el loop autónomo. |
-| `AUTONOMOUS` | `ask` |❌ — si hay que preguntar, no es autónomo. El modo倔 downgrade automático a `HUMAN_IN_LOOP`. |
+| `AUTONOMOUS` | `ask` |❌ — si hay que preguntar, no es autónomo. El modo hace downgrade automático a `HUMAN_IN_LOOP`. |
 
 ### 12.2 Handoff `23 → 21`
 

@@ -294,7 +294,7 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Confidence thresholds (HIGH/MED/LOW/BLOCK)` | 23 §5 |
 | `Consolidated mission` | 23 §4 |
 | `Context Engine` | 11 |
-| `Cosine vs 内积` | 09 |
+| `Cosine vs dot-product` | 09 |
 | `Cross-provider cascade` | 04 |
 | `Cube mode` (CodeMirror) | 25 §3.3 |
 | `Demos over diffs` | 24 §9 |

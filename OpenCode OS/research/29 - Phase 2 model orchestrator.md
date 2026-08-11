@@ -52,7 +52,7 @@ Fuente: `aider.chat/docs/config/options.html`, changelog HISTORY.md.
 
 **Tri-model**: `--model` (main/architect) + `--editor-model` (ejecuta edits con `--editor-edit-format`) + `--weak-model` (commit messages AND **chat history summarization** cuando `--max-chat-history-tokens` se excede). El weak-model role es **no-obvio**: hace compactación de history, no commits.
 
-**`--architect` mode**: main propone cambios en natural语言/diff, editor los aplica al código.
+**`--architect` mode**: main propone cambios en natural language/diff, editor los aplica al código.
 
 **Prompt caching Anthropic gestionado desde v0.42**: Aider injecta `prompt_cache_control` markers y `caching=true` en Anthropic SDK, logs `cache_read tokens` para cost accounting. **Sin esto, el feedback loop reporta cost inflated para modelos Anthropic** — contaminaría el affinity learning (gap crítico detectado en Round 3).
 

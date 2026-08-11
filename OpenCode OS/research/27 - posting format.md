@@ -154,7 +154,7 @@ No recomiendo `hurlfmt` ni `atavia` (no existen — evitar inventar).
 **NO transferibles**:
 - Python hooks (3) — reemplazo: skills declarativos Rust (RFC 23 §7.2).
 - Textual widgets — irrelevantes, tenemos Svelte.
-- Tree-sitter highlight — Svelte已经有了highlight.js/shiki; comparar costos en RFC.
+- Tree-sitter highlight — Svelte already has highlight.js/shiki; comparar costos en RFC.
 
 ---
 

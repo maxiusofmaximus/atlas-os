@@ -1,6 +1,6 @@
 # 25 - Stack Técnico Multiplataforma
 
-> Define la pila concreta que corre OpenCode OS en **Windows, Linux y macOS** sin核心竞争力otros de un sistema operativo y sin obligar al usuario a instalar Node.js/Python/servidores externos. El resultado es un binario único (Tauri 2 / Rust) con frontend web, que puede correr tanto como app de escritorio responsive como servicio local accesible desde el móvil, manteniendo **cero dependencias externas** salvo el OS.
+> Define la pila concreta que corre OpenCode OS en **Windows, Linux y macOS** sin depender de otros de un sistema operativo y sin obligar al usuario a instalar Node.js/Python/servidores externos. El resultado es un binario único (Tauri 2 / Rust) con frontend web, que puede correr tanto como app de escritorio responsive como servicio local accesible desde el móvil, manteniendo **cero dependencias externas** salvo el OS.
 
 La elección no es casual. Reemplazar la combinación típica "Electron + Node + Python + Postgres/Annoy + Redis" por **"Tauri 2 + Rust + SQLite/sqlite-vec + LSP"** logra:
 
@@ -27,9 +27,9 @@ La elección no es casual. Reemplazar la combinación típica "Electron + Node +
 | Embeddings remotos (opcional) | Cohere, OpenAI, Voyage | solo OpenAI | diversidad providers. |
 | LSP | **Tower-LSP** (Rust) | lsp-rs, direct JSON-RPC | framework oficial de reference implementation. |
 | Server runtime web | **`axum`** (Rust) | Actix, Rocket, Node/Fastify | Tokio-compatible, hyper-bound, ideal para WebSocket. |
-| WebSocket | **`axum::extract::ws`** | Soketi, ws-rs simple | integrado en axum, handlers 类型-safe. |
+| WebSocket | **`axum::extract::ws`** | Soketi, ws-rs simple | integrado en axum, handlers type-safe. |
 | Serialización | **`serde`** + `serde_json` / `postcard` | msgpack, protobuff | estándar Rust, JSON para protocol HUD. |
-| Async runtime | **Tokio** | async-std, smol | standard事实的事实. |
+| Async runtime | **Tokio** | async-std, smol | standard de facto. |
 | HTTP client | **`reqwest`** + `hyper` | ureq | TLS rustls, streaming SSE, multi-provider. |
 | CLI modes | **`clap`** (v4) | cobra (no Rust),structop | mejor hacer docs, derivadas. |
 | Logging | **`tracing`** + `tracing-subscriber` | log + env_logger | spans jerárquicos, correlacionar con Kernel Bus (`02`). |
@@ -133,7 +133,7 @@ Ventajas físicas:
 - Default model: `BgeBaseEnV15` (768-dim, 130MB). Alternativa `AllMiniLML6V2` (384-dim, fast).Se descarga al primer arranque a `~/.opencode/models/embeddings/`, idempotente (hash-check).
 - Cero Python. Cero torch. Cero `transformers`. Cero pyinstaller bundling.
 - Para usuarios con GPU, fastembed usa CUDA via `ort` `CUDA-DNN` feature flag.
-- Si no hay GPU, fallback CPU仍然是 <50ms per embedding on quad-core x86_64.
+- Si no hay GPU, fallback CPU se mantiene <50ms per embedding on quad-core x86_64.
 
 ### 3.6 LSP via Tower-LSP
 
@@ -449,7 +449,7 @@ AionUI (https://github.com/iOfficeAI/AionUi, Apache-2.0) usa:
 ¿Por qué no usar AionUI directly?
 - Se necesita reemplazar Python por Rust para tener single-binary, cero runtime Python.
 - El ruteo manual de AionUI obliga el ** humano a plan de conocimiento avanzado**. OpenCode OS lo automatiza en Model Orchestrator (`04`) con seus lessons AionUI.
-- El orquestador propio de AionUI no respeta lo使用者 tags multi-key, fail-over automatic y capability tagging. OpenCodeOS sí.
+- El orquestador propio de AionUI no respeta los user tags multi-key, fail-over automatic y capability tagging. OpenCodeOS sí.
 - AionUI no tiene HUD Mission Control; nosotros integramos (`24`).
 - AionUI no tiene Skills auto-compresoras (`06`); nosotros sí.
 - AionUI no tiene anti- doom_loop mecánico (`19`); nosotros sí.

@@ -25,7 +25,7 @@ Snyk (si se toca lockfile)
    ↓
 Docker / Testcontainers (si se toca config)
    ↓
-Semgrep / CodeQL (si谩annadir seguridad crítica)
+Semgrep / CodeQL (si se añade seguridad crítica)
    ↓
 Dependency-cruiser (si_contenta límite de mod)
    ↓

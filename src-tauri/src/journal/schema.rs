@@ -948,7 +948,7 @@ pub fn migrate(conn: &Connection) -> Result<()> {
     //                        the LatencyBased / UsageBasedV2 / LeastBusy
     //                        routing strategies of sub-fase 2.1 itself.
     //
-    // Columns mirror the gaps flagged en Round 3 audit:
+    // Columns mirror the gaps flagged in Round 3 audit:
     //   * `cache_read_input_tokens`        — gap G1 (prompt cache accounting).
     //     Without this column the feedback loop reports Anthropic
     //     deployments 3-5× more expensive than reality and the affinity
@@ -958,16 +958,17 @@ pub fn migrate(conn: &Connection) -> Result<()> {
     //     aggregator of sub-fase 2.2 can omit them.
     //   * `route_taken_json`               — array ordering of the
     //     fallback cascade actually executed (provider, model_id,
-    //     outcome) litellm-style. Lets 2.4 audit which fallback bucket
-    //     caught the request.
-    //   * `idempotency_key`                — gap G12. The Orchestrator
+    //     outcome) LiteLLM-style. Lets sub-fase 2.4 audit which fallback
+    //     bucket caught the request.
+    //   * `idempotency_key`                — gap G12. The orchestrator
     //     mints a uuid v4 per logical `RequestFrame` and persists it
     //     here so replayed requests (network retry / pane fork) can
     //     short-circuit before spending another deployment token budget.
     //     UNIQUE-indexed so concurrent enqueues of the same frame collapse
     //     to one row.
-    //   * `was_correct`                    — feedback signal NULL until
-    //     the user / Validation engine (RFC 14) annotates. Drives 2.4.
+    //   * `was_correct`                    — feedback signal, NULL until
+    //     the user or the Validation engine (RFC 14) annotates it.
+    //     Drives sub-fase 2.4.
     //
     // Foreign-key `model_id` references `models(id)` weakly (no ON DELETE
     // CASCADE) — historical invocations must survive a model being

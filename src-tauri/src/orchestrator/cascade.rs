@@ -18,9 +18,9 @@
 //    exhausted (or the error was non-retryable, bypassing step 1),
 //    we pick the next fallback `model_id` from the bucket matching
 //    the failure mode:
-//    - `Fallback` (generic) for 401/404/408/network.
-//    - `ContextWindow` for prompt-overflow.
-//    - `ContentPolicy` for provider refusals.
+//    - `FallbackBucket::Generic` for 401/404/408/network.
+//    - `FallbackBucket::ContextWindow` for prompt-overflow.
+//    - `FallbackBucket::ContentPolicy` for provider refusals.
 // 3. **`default_fallbacks`** — when no bucket-specific list matches,
 //    we consult `RoutingConfig::default_fallbacks` as the catch-all.
 // 4. **`max_fallbacks` cap** (default 5). After
@@ -152,8 +152,8 @@ impl Cascade {
     ///
     /// `healthy_for` is a closure that returns healthy deployments
     /// for a `model_id` — lifted from the cascade because, in
-    /// production, "healthy" requires consulting the `CooldownStore`
-    /// and `BackPressure` state which the cascade deliberately does
+    /// production, "healthy" requires consulting the cooldown store
+    /// and backpressure state which the cascade deliberately does
     /// not own. Tests pass a passthrough closure.
     pub fn next_target<'a, F>(&mut self, mode: FailureMode, healthy_for: F) -> CascadeStep<'a>
     where
@@ -451,10 +451,10 @@ mod tests {
         let mut d_a = dep_full("m1", "a", 1.0);
         let mut d_b = dep_full("m1", "b", 1.0);
         let mut d_c = dep_full("m1", "c", 1.0);
-        // Force deterministic ordering of `deployments_for` by giving
-        // them alphabetic ids (Deployment::new hashes api_base into the
-        // id, so we cannot rely on stable order — but exclusion set
-        // means we cannot pick the same one twice in a row).
+        // Force deterministic ordering of the model group by giving
+        // them alphabetic ids (`Deployment::new` hashes api_base into
+        // the id, so we cannot rely on stable order — but the exclusion
+        // set means we cannot pick the same one twice in a row).
         let _ = (&mut d_a, &mut d_b, &mut d_c);
         let deps = vec![d_a, d_b, d_c];
         let rf = RoutingConfig::default();

@@ -202,7 +202,7 @@ Estudiados y citados en `23 - Prompt Understanding & Refinement.md` §2.1:
 
 Anti-patrones de usuario catalogados (10): capacity_hallucination, unknown_tool_dependency, underspecified, implicit_assumption, capacity_overreach, user_knowledge_gap, low_information_prompt, lost_in_the_middle, role_overload, model_omniscience_assumption. Ver `23 §1`.
 
-Output aplicado: `PublicUnderstandingVerdict` y `MissionConsolidated` definidos como tipos canónicos consumidos por `12 - Planning Engine.md` y por `24 - HUD Mission Control.md` (badge de confidence y相关 mission panel).
+Output aplicado: `PublicUnderstandingVerdict` y `MissionConsolidated` definidos como tipos canónicos consumidos por `12 - Planning Engine.md` y por `24 - HUD Mission Control.md` (badge de confidence y related mission panel).
 
 ### 8.3 UI admin patterns (Hermes HUD + Jira/Linear + Cursor + Notion + n8n)
 
@@ -296,7 +296,7 @@ RFC 28 §C adopta el **patrón** graphify (no su código Python, que violaría �
 ### 10.3 Binary-size budget
 
 - Tres crates suman **~6.2 MB** (petgraph 200KB + tree-sitter 3MB + 2 grammars 3MB). Tauri desktop binario se mueve de 30-45 MB (RFC 25) estimado a 36-51 MB. Aceptable para desktop; borderline para uso server.
-- Mitigación: **ambas features default OFF**. Default build sin `codebase-graph` evita tree-sitter完全. Para uso server-only el flag `--no-default-features` con `dag_mode` conserva planner DAG sin AST overhead.
+- Mitigación: **ambas features default OFF**. Default build sin `codebase-graph` evita tree-sitter por completo. Para uso server-only el flag `--no-default-features` con `dag_mode` conserva planner DAG sin AST overhead.
 
 ### 10.4 Single-binary-safety audit
 
@@ -401,7 +401,7 @@ La investigación cubrió ~30 URLs entre crates.io, repos de crates, PRs de Clin
 
 - Fork mantenido de `winrt-toast 0.1.1` (original `allenbenz/winrt-notification`, ya sin updates desde 2020).
 - Expone `Toast::new(&AumId).with_title(...).show()?`, `register(&AumId, &DisplayName, &IconPath)?` (crea Start Menu shortcut + AUMID registry), `on_activated(|action| ...)`, `on_dismissed(|reason| ...)`, `on_failed(|error| ...)`. Soporta action buttons, deep-link via `activation_type=protocol` y argumento `opencode://...`.
-- Pure Rust (windows-rs FFI bindings), zero native deps旺季. Single-binary safe.
+- Pure Rust (windows-rs FFI bindings), zero native deps. Single-binary safe.
 - MSRV: edition 2021, sin rust_version locked — compila con 1.84+.
 
 `tauri-plugin-notification = "2.3.3"` RECHAZADO como primario en Windows: bug de heurística AUMID ([tauri-apps/plugins-workspace#1545](https://github.com/tauri-apps/plugins-workspace/issues/1545)) hace que `schedule` se vuelva silent no-op en desktop no-MSIX. No da callback de activación (sólo `show()`). Se retiene sólo para Linux/macOS como fallback trivial (no deep-link).

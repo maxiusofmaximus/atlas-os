@@ -104,7 +104,7 @@ Cada mission parte de un documento estructurado. Sin spec, el agente deriva. Los
 
 ## 3. Las 8 brechas contra los fundamentos
 
-Las 8 brechas concretas que el audit identifica. Cada una está entrada como `(prioridad, esfuerzo estimado, principal受益ario)`. Las primeras 4 son estructurales; las últimas 4 son de superficie o documentación.
+Las 8 brechas concretas que el audit identifica. Cada una está entrada como `(prioridad, esfuerzo estimado, principal beneficiario)`. Las primeras 4 son estructurales; las últimas 4 son de superficie o documentación.
 
 ### §3.A — Worktrees físicos por subagente **(P0, M, orquestación)**
 
