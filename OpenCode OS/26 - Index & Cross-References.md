@@ -317,20 +317,33 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Aggregator` (trait, `#[async_trait]`) + `aggregator_for()` dispatch | 04 §3; 04 §Apéndice 2.2 |
 | `AggregationMode` enum (7 variantes, `#[serde(tag="type")]`) | 04 §3; 04 §Apéndice 2.2 |
 | `AggregationPolicy` (trait, G11 cost guard) + 6 mode-specific impls | 04 §6; 04 §Apéndice 2.1 + 2.2 |
-| `ReflectionEpisode` (M22 migration `reflection_episodes`, anti-doom-loop `detect_doom_loop()`) | 04 §3; 04 §Apéndice 2.2 |
-| `CouncilVote` (M22 migration `council_votes`) | 04 §3; 04 §Apéndice 2.2 |
-| `SelfDiscover` skeleton cache (`OnceLock<Mutex<HashMap>>`, SHA-256 cache key) | 04 §3; 04 §Apéndice 2.2 |
+| `AutoRouterConfig` (off-by-default, `ClassifierKind`, per-task threshold RouteLLM-mf calibrated) | 04 §7; 04 §Apéndice 2.3 |
 | `BackPressure` (`Arc<Semaphore>` lazy-init, G18) | 04 §6; 04 §Apéndice 2.0.5 |
 | `CachePolicy` (Anthropic ephemeral, G1) | 04 §6; 04 §Apéndice 2.0.5 |
 | `Cascade` (3-bucket fallback, exclusion set) | 04 §4; 04 §Apéndice 2.1 |
+| `ClassifierKind` (`Lexical`/`LogReg`/`Embedding`, default=`Lexical`) | 04 §7; 04 §Apéndice 2.3 |
 | `Cooldown` (per-provider default, G5) | 04 §6; 04 §Apéndice 2.0.5 |
 | `DataPartBuffer` (HUD WS DataParts reconciliation, Vercel AI SDK pattern) | 04 §2; 04 §Apéndice 2.1; 24 §4.1 |
+| `EmbeddingClassifier` (fastembed-rs BGE-small, `#[cfg(feature="fastembed")]`) | 04 §7; 04 §Apéndice 2.3 |
 | `Idempotency key` | 02 §3.1.2 |
 | `Job Object` sandbox Windows | 25 §3.7 |
 | `Kernel Bus` | 02 §3.1 |
 | `LanguageIdResolver` | 03 §9.3; 21 §2.2 |
+| `LexicalClassifier` (12-bucket regex word-boundary, `extract_features`) | 04 §7; 04 §Apéndice 2.3 |
+| `LogisticRegressionClassifier` (multi-class one-vs-rest, no `linfa`) | 04 §7; 04 §Apéndice 2.3; 22 §8.2 AN-2.3-a |
+| `McpServerCatalog` (trait, `NoMcpCatalog` default, G19) | 04 §7; 04 §Apéndice 2.3 |
+| `McpToolFilter` (`pre_filter` capability_tags AND tool-names, G19) | 04 §7; 04 §Apéndice 2.3 |
+| `MLP-linfa deferral` (AN-2.3-a, `linfa` no MLP — Phase 2.5+) | 04 §7.1; 22 §8.2 AN-2.3-a |
 | `Router` trait + `RoutingStrategy` enum (6 LiteLLM variants) | 04 §2; 04 §Apéndice 2.1 |
 | `RequestFrame` (idempotency, G12) | 04 §4; 04 §Apéndice 2.1 |
+| `RouterId` (`Literal`/`Auto{strong_pct}`/`Mf{threshold}` parsing) | 04 §7; 04 §Apéndice 2.3 |
+| `TaskType` (12 concretos + Unknown, `as_str`/`parse` round-trip) | 04 §7; 04 §Apéndice 2.3 |
+| `TaskTypeClassifier` (trait `#[async_trait]`) + `classifier_for()` dispatch | 04 §7; 04 §Apéndice 2.3 |
+| `Task classifier decisions` (M23 audit table, UNIQUE `(prompt_hash, classifier_kind)`) | 04 §7; 04 §Apéndice 2.3 |
+| `Model affinity cache` (M23 mirror table, `INSERT OR REPLACE` idempotente para 2.4 reader) | 04 §7; 04 §Apéndice 2.3 |
+| `ReflectionEpisode` (M22 migration `reflection_episodes`, anti-doom-loop `detect_doom_loop()`) | 04 §3; 04 §Apéndice 2.2 |
+| `CouncilVote` (M22 migration `council_votes`) | 04 §3; 04 §Apéndice 2.2 |
+| `SelfDiscover` skeleton cache (`OnceLock<Mutex<HashMap>>`, SHA-256 cache key) | 04 §3; 04 §Apéndice 2.2 |
 | `Launcher CLI` (`opencode`) | 08; 25 §3.9 |
 | `Learning graphs` (cosine retrieval of past successful `mission_graph`) | 16 §3 "Por grafo de misión exitoso"; 28 §C |
 | `Local models` (Ollama/LM Studio/llama-server) | 25 §3.8 |

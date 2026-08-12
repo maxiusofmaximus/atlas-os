@@ -159,6 +159,14 @@ pub struct Profile {
     /// Reflexion / SelfRefine / SelfDiscover set this field explicitly.
     #[serde(default)]
     pub aggregation: crate::orchestrator::aggregation::AggregationMode,
+    /// RFC 04 §7 — auto-routing classifier + MCP tool-capability-aware
+    /// pre-filter. Sub-fase 2.3. Defaults to
+    /// `AutoRouterConfig::default()` (disabled, lexical backend
+    /// fallback). Profiles that opt into auto-routing set `enabled =
+    /// true` and optionally `classifier_kind = LogReg` / `Embedding`
+    /// with a calibrated weights path.
+    #[serde(default)]
+    pub auto_router: crate::orchestrator::classifier::AutoRouterConfig,
 }
 
 fn default_resource_mode() -> String {
@@ -189,6 +197,7 @@ impl Profile {
             resource_mode: default_resource_mode(),
             routing_config: crate::orchestrator::routing::RoutingConfig::default(),
             aggregation: crate::orchestrator::aggregation::AggregationMode::default(),
+            auto_router: crate::orchestrator::classifier::AutoRouterConfig::default(),
         }
     }
 

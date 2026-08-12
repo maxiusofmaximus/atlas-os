@@ -1080,5 +1080,67 @@ pub fn migrate(conn: &Connection) -> Result<()> {
             rusqlite::params![22, chrono::Utc::now().to_rfc3339()],
         )?;
     }
+
+    // M23 — RFC 04 §7 Phase 2 sub-fase 2.3:
+    // Auto-routing classifier + MCP tool-capability-aware. Two tables:
+    //
+    // * `task_classifier_decisions` — append-only audit of every
+    //   `TaskTypeClassifier` prediction the orchestrator emits. The
+    //   composite UNIQUE over `(prompt_hash, classifier_kind)` lets a
+    //   replayed prompt only mint a new row when a different classifier
+    //   kind was used (lexical / logreg / embedding). `features_json`
+    //   stores the raw feature vector so an offline `opencode
+    //   calibrate-classifier` job (G15, Phase 2.5+) can re-fit without
+    //   re-tokenising. `confidence` is the softmax-normalised max
+    //   probability the classifier emitted (RouteLLM-style threshold
+    //   routing uses this value).
+    // * `model_affinity_cache` — in-memory cache backed by a SQL mirror
+    //   so affinity survives a restart. One row per
+    //   `(task_type, model_id)` pair with `success_rate` in [0.0, 1.0],
+    //   `p95_latency_ms`, `mean_cost_usd`, and `n_samples` (the rolling
+    //   window size used by the reader). The UNIQUE PK over
+    //   `(task_type, model_id)` makes the upsert idempotent — sub-fase
+    //   2.4 feedback loop will `INSERT OR REPLACE` here when it
+    //   re-crunches the affinity window.
+    //
+    // Foreign keys are intentionally weak. A model row removed from
+    // `models` should not invalidate the classifier audit historical
+    // record, and the affinity cache is invalidated lazily by the 2.4
+    // reader when it re-rebuilds the in-memory map.
+    if current < 23 {
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS task_classifier_decisions (
+                id                  TEXT PRIMARY KEY,
+                mission_id          TEXT,
+                prompt_hash         TEXT NOT NULL,
+                predicted_task_type TEXT NOT NULL,
+                confidence          REAL NOT NULL CHECK (confidence BETWEEN 0.0 AND 1.0),
+                features_json       TEXT,
+                classifier_kind     TEXT NOT NULL CHECK (classifier_kind IN ('lexical','logreg','embedding')),
+                created_at          TEXT NOT NULL,
+                UNIQUE (prompt_hash, classifier_kind)
+            );
+
+            CREATE INDEX IF NOT EXISTS task_classifier_decisions_mission_idx
+                ON task_classifier_decisions(mission_id, created_at);
+            CREATE INDEX IF NOT EXISTS task_classifier_decisions_type_idx
+                ON task_classifier_decisions(predicted_task_type, created_at);
+
+            CREATE TABLE IF NOT EXISTS model_affinity_cache (
+                task_type           TEXT NOT NULL,
+                model_id            TEXT NOT NULL,
+                success_rate        REAL NOT NULL CHECK (success_rate BETWEEN 0.0 AND 1.0),
+                p95_latency_ms      INTEGER,
+                mean_cost_usd       REAL,
+                n_samples           INTEGER NOT NULL CHECK (n_samples >= 0),
+                updated_at          TEXT NOT NULL,
+                PRIMARY KEY (task_type, model_id)
+            );",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![23, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
     Ok(())
 }

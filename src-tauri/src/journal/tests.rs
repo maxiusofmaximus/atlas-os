@@ -1876,4 +1876,122 @@ mod model_resets_schema_tests {
             "duplicate (mission_id, attempt_no) must be rejected by the UNIQUE constraint"
         );
     }
+
+    #[test]
+    fn m23_advances_schema_version_to_at_least_23() {
+        let (_tmp, conn) = fresh_conn();
+        let v: i64 = conn
+            .query_row("SELECT MAX(version) FROM schema_version", [], |r| r.get(0))
+            .expect("query");
+        assert!(v >= 23, "expected schema version >= 23 after M23, got {v}");
+    }
+
+    #[test]
+    fn m23_creates_task_classifier_decisions_table() {
+        let (_tmp, conn) = fresh_conn();
+        let exists: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='task_classifier_decisions'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("query");
+        assert_eq!(
+            exists, 1,
+            "task_classifier_decisions table should exist after M23"
+        );
+    }
+
+    #[test]
+    fn m23_creates_model_affinity_cache_table() {
+        let (_tmp, conn) = fresh_conn();
+        let exists: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='model_affinity_cache'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("query");
+        assert_eq!(
+            exists, 1,
+            "model_affinity_cache table should exist after M23"
+        );
+    }
+
+    #[test]
+    fn m23_task_classifier_decisions_rejects_unknown_kind() {
+        let (_tmp, conn) = fresh_conn();
+        let res = conn.execute(
+            "INSERT INTO task_classifier_decisions (id, prompt_hash, predicted_task_type,
+                confidence, classifier_kind, created_at)
+             VALUES ('d1', 'h1', 'coding', 0.9, 'unknown_kind', '2026-01-01T00:00:00Z')",
+            [],
+        );
+        assert!(
+            res.is_err(),
+            "classifier_kind='unknown_kind' must be rejected by the CHECK constraint"
+        );
+    }
+
+    #[test]
+    fn m23_task_classifier_decisions_dedupes_prompt_hash_per_kind() {
+        let (_tmp, conn) = fresh_conn();
+        conn.execute(
+            "INSERT INTO task_classifier_decisions (id, prompt_hash, predicted_task_type,
+                confidence, classifier_kind, created_at)
+             VALUES ('d1', 'h1', 'coding', 0.9, 'lexical', '2026-01-01T00:00:00Z')",
+            [],
+        )
+        .expect("first insert ok");
+        let dup = conn.execute(
+            "INSERT INTO task_classifier_decisions (id, prompt_hash, predicted_task_type,
+                confidence, classifier_kind, created_at)
+             VALUES ('d2', 'h1', 'plan', 0.8, 'lexical', '2026-01-02T00:00:00Z')",
+            [],
+        );
+        assert!(
+            dup.is_err(),
+            "duplicate (prompt_hash, classifier_kind) must be rejected by the UNIQUE constraint"
+        );
+        // Different classifier_kind on same prompt_hash is allowed.
+        conn.execute(
+            "INSERT INTO task_classifier_decisions (id, prompt_hash, predicted_task_type,
+                confidence, classifier_kind, created_at)
+             VALUES ('d3', 'h1', 'plan', 0.85, 'logreg', '2026-01-03T00:00:00Z')",
+            [],
+        )
+        .expect("different kind allowed for same prompt_hash");
+    }
+
+    #[test]
+    fn m23_model_affinity_cache_upsert_replaces_existing_row() {
+        let (_tmp, conn) = fresh_conn();
+        conn.execute(
+            "INSERT INTO model_affinity_cache (task_type, model_id, success_rate, p95_latency_ms,
+                mean_cost_usd, n_samples, updated_at)
+             VALUES ('coding', 'gpt-5', 0.85, 1200, 0.01, 12, '2026-01-01T00:00:00Z')",
+            [],
+        )
+        .expect("insert ok");
+        conn.execute(
+            "INSERT OR REPLACE INTO model_affinity_cache (task_type, model_id, success_rate,
+                p95_latency_ms, mean_cost_usd, n_samples, updated_at)
+             VALUES ('coding', 'gpt-5', 0.9, 1100, 0.011, 18, '2026-01-02T00:00:00Z')",
+            [],
+        )
+        .expect("upsert ok");
+        let (rate, n): (f64, i64) = conn
+            .query_row(
+                "SELECT success_rate, n_samples FROM model_affinity_cache
+                 WHERE task_type='coding' AND model_id='gpt-5'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .expect("query");
+        assert!(
+            (rate - 0.9).abs() < 1e-6,
+            "upsert should overwrite success_rate"
+        );
+        assert_eq!(n, 18, "upsert should overwrite n_samples");
+    }
 }
