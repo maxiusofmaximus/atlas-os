@@ -1012,5 +1012,73 @@ pub fn migrate(conn: &Connection) -> Result<()> {
             rusqlite::params![21, chrono::Utc::now().to_rfc3339()],
         )?;
     }
+
+    // M22 — RFC 04 §3 Phase 2 sub-fase 2.2:
+    // Aggregation persistence. Two tables:
+    //
+    // * `reflection_episodes` — Reflexion multi-model verbal
+    //   reinforcement (arxiv 2303.11366). Each row is one attempt of
+    //   the reflexor upon the executor's failing trace. `attempt_no`
+    //   is hard-capped at 3 by a CHECK constraint (paper §3.3
+    //   saturation curve flattens after 3 attempts). The UNIQUE
+    //   pair `(mission_id, attempt_no)` guarantees a mission cannot
+    //   have two concurrent episodes at the same attempt index. The
+    //   anti-doom-loop guard in `aggregation/reflexion.rs` queries
+    //   the two most recent rows ordered by `created_at` and aborts
+    //   when their `failure_signal` hashes are identical (RFC 19
+    //   supervisor escalation).
+    // * `council_votes` — Multiagent Debate (arxiv 2305.14325). One
+    //   row per agent per round. `critique_of_prev` is NULL on
+    //   round 1; rounds 2+ populate it with the agent's critique of
+    //   the previous round's leading claim. Final fused response is
+    //   the most-frequent round-N claim or debater #1's claim when
+    //   no majority.
+    //
+    // Both tables use `TEXT PRIMARY KEY` (uuid v4 string) to keep
+    // consistency with the journal's id convention. Foreign keys
+    // are intentionally weak (no ON DELETE CASCADE) — historical
+    // aggregation rows must survive the removal of their parent
+    // mission or model.
+    if current < 22 {
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS reflection_episodes (
+                episode_id              TEXT PRIMARY KEY,
+                mission_id              TEXT NOT NULL,
+                attempt_no              INTEGER NOT NULL CHECK (attempt_no BETWEEN 1 AND 3),
+                executor_model          TEXT NOT NULL,
+                reflexor_model          TEXT NOT NULL,
+                failure_signal          TEXT NOT NULL,
+                failure_trace           TEXT,
+                verbal_reflection       TEXT NOT NULL,
+                injected_prompt_delta   TEXT NOT NULL,
+                tokens_in               INTEGER,
+                tokens_out              INTEGER,
+                created_at              TEXT NOT NULL,
+                UNIQUE (mission_id, attempt_no)
+            );
+
+            CREATE INDEX IF NOT EXISTS reflection_episodes_mission_idx
+                ON reflection_episodes(mission_id, attempt_no);
+
+            CREATE TABLE IF NOT EXISTS council_votes (
+                id                      TEXT PRIMARY KEY,
+                episode_id              TEXT NOT NULL,
+                round                   INTEGER NOT NULL CHECK (round BETWEEN 1 AND 3),
+                agent_id                TEXT NOT NULL,
+                claim                   TEXT NOT NULL,
+                critique_of_prev        TEXT,
+                tokens_in               INTEGER,
+                tokens_out              INTEGER,
+                created_at              TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS council_votes_episode_idx
+                ON council_votes(episode_id, round);",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![22, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
     Ok(())
 }

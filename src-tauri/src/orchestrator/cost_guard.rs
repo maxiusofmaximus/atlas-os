@@ -124,6 +124,168 @@ impl AggregationPolicy for LinearCostGuard {
     }
 }
 
+/// Cost guard for `MajorityVote` (RFC 04 §3, sub-fase 2.2). Linear
+/// cost model plus a stop-early discount — when the profile sets
+/// `stop_early_threshold`, the effective sample count is `min(
+/// parallel_samples, estimated_samples)`. By default we assume the
+/// full `parallel_samples` will be dispatched; the orchestrator
+/// updates `estimated_samples` post-hoc.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct MajorityVoteCostGuard;
+
+impl AggregationPolicy for MajorityVoteCostGuard {
+    fn pre_cost_estimate(&self, ctx: &AggregationCostContext) -> f64 {
+        let effective = ctx.parallel_samples.max(1) as f64;
+        effective * ctx.tokens_per_sample as f64 * (ctx.blended_cost_per_1m / 1_000_000.0)
+    }
+    fn aggregate_cost_breakdown(&self, ctx: &AggregationCostContext) -> AggregationCostBreakdown {
+        let total = self.pre_cost_estimate(ctx);
+        let per = if ctx.parallel_samples > 0 {
+            total / ctx.parallel_samples as f64
+        } else {
+            0.0
+        };
+        AggregationCostBreakdown {
+            total_usd: total,
+            per_sample_usd: per,
+            coordinator_usd: 0.0,
+            estimated_samples: ctx.parallel_samples,
+        }
+    }
+}
+
+/// Cost guard for `MoA` (RFC 04 §3). MoA's layered architecture
+/// means each layer-N aggregator consumes every layer-(N-1) output
+/// as auxiliary input — the cost grows quadratically with the number
+/// of layers, not linearly with `parallel_samples` alone. We model
+/// this as `sum(layer_sizes) × tokens_per_sample × blended_cost`
+/// with a `layers` multiplier exposed via `rounds` (the orchestrator
+/// sets `rounds = layers.len()`).
+#[derive(Debug, Default, Clone, Copy)]
+pub struct MoACostGuard;
+
+impl AggregationPolicy for MoACostGuard {
+    fn pre_cost_estimate(&self, ctx: &AggregationCostContext) -> f64 {
+        let layers = ctx.rounds.max(1) as f64;
+        ctx.parallel_samples as f64
+            * layers
+            * ctx.tokens_per_sample as f64
+            * (ctx.blended_cost_per_1m / 1_000_000.0)
+    }
+}
+
+/// Cost guard for `Council` (RFC 04 §3). Debaters run every round
+/// (`parallel_samples × rounds`), plus a coordinator model synthesises
+/// the final fused response. The coordinator uses the same blended
+/// cost but operates on the concatenated claim text — modelled here
+/// as a small coordinator surcharge proportional to `parallel_samples
+/// × rounds` (the number of claims it must fuse).
+#[derive(Debug, Default, Clone, Copy)]
+pub struct CouncilCostGuard;
+
+impl AggregationPolicy for CouncilCostGuard {
+    fn pre_cost_estimate(&self, ctx: &AggregationCostContext) -> f64 {
+        let debater_cost = ctx.parallel_samples as f64
+            * ctx.rounds.max(1) as f64
+            * ctx.tokens_per_sample as f64
+            * (ctx.blended_cost_per_1m / 1_000_000.0);
+        let coordinator_cost = (ctx.parallel_samples as f64 * ctx.rounds.max(1) as f64)
+            * 200.0
+            * (ctx.blended_cost_per_1m / 1_000_000.0);
+        debater_cost + coordinator_cost
+    }
+    fn aggregate_cost_breakdown(&self, ctx: &AggregationCostContext) -> AggregationCostBreakdown {
+        let debater_cost = ctx.parallel_samples as f64
+            * ctx.rounds.max(1) as f64
+            * ctx.tokens_per_sample as f64
+            * (ctx.blended_cost_per_1m / 1_000_000.0);
+        let coordinator_cost = (ctx.parallel_samples as f64 * ctx.rounds.max(1) as f64)
+            * 200.0
+            * (ctx.blended_cost_per_1m / 1_000_000.0);
+        AggregationCostBreakdown {
+            total_usd: debater_cost + coordinator_cost,
+            per_sample_usd: if ctx.parallel_samples > 0 {
+                debater_cost / ctx.parallel_samples as f64
+            } else {
+                0.0
+            },
+            coordinator_usd: coordinator_cost,
+            estimated_samples: ctx.parallel_samples,
+        }
+    }
+}
+
+/// Cost guard for `Reflexion` (RFC 04 §3). Executor cost (caro)
+/// scales with attempts; reflexor cost (barato) scales with
+/// attempts × memory buffer tokens. The orchestrator fills
+/// `tokens_per_sample` with the executor's blended cost and
+/// `reflexion_memory_tokens` with the reflexor's per-attempt
+/// memory cost. We approximate reflexor-blended cost as 1/4 the
+/// executor's (a common ratio in deployed profiles); the live
+/// orchestrator can override.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct ReflexionCostGuard;
+
+impl AggregationPolicy for ReflexionCostGuard {
+    fn pre_cost_estimate(&self, ctx: &AggregationCostContext) -> f64 {
+        let attempts = ctx.rounds.max(1) as f64;
+        let executor_cost =
+            attempts * ctx.tokens_per_sample as f64 * (ctx.blended_cost_per_1m / 1_000_000.0);
+        let reflexor_rate = ctx.blended_cost_per_1m / 4.0;
+        let reflexor_cost =
+            attempts * ctx.reflexion_memory_tokens as f64 * (reflexor_rate / 1_000_000.0);
+        executor_cost + reflexor_cost
+    }
+    fn aggregate_cost_breakdown(&self, ctx: &AggregationCostContext) -> AggregationCostBreakdown {
+        let attempts = ctx.rounds.max(1) as f64;
+        let executor_cost =
+            attempts * ctx.tokens_per_sample as f64 * (ctx.blended_cost_per_1m / 1_000_000.0);
+        let reflexor_rate = ctx.blended_cost_per_1m / 4.0;
+        let reflexor_cost =
+            attempts * ctx.reflexion_memory_tokens as f64 * (reflexor_rate / 1_000_000.0);
+        AggregationCostBreakdown {
+            total_usd: executor_cost + reflexor_cost,
+            per_sample_usd: if ctx.parallel_samples > 0 {
+                executor_cost / ctx.parallel_samples as f64
+            } else {
+                executor_cost
+            },
+            coordinator_usd: reflexor_cost,
+            estimated_samples: ctx.parallel_samples.max(1),
+        }
+    }
+}
+
+/// Cost guard for `SelfRefine` (RFC 04 §3). The same LLM plays
+/// generator, feedback, and refiner — so the cost is
+/// `max_iterations × tokens_per_sample × blended_cost`. No
+/// separate coordinator; the model refines in-place.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct SelfRefineCostGuard;
+
+impl AggregationPolicy for SelfRefineCostGuard {
+    fn pre_cost_estimate(&self, ctx: &AggregationCostContext) -> f64 {
+        let iters = ctx.rounds.max(1) as f64;
+        iters * ctx.tokens_per_sample as f64 * (ctx.blended_cost_per_1m / 1_000_000.0)
+    }
+}
+
+/// Cost guard for `SelfDiscover` (RFC 04 §3). One planning call
+/// per cache miss (charged once per TTL window), then a single
+/// executor call. `parallel_samples` is 1 here; `rounds` is 1
+/// except on cache miss (rounds=2 — plan + execute). The live
+/// orchestrator estimates cache hit-rate from rolling stats; the
+/// default assumes worst-case (always miss).
+#[derive(Debug, Default, Clone, Copy)]
+pub struct SelfDiscoverCostGuard;
+
+impl AggregationPolicy for SelfDiscoverCostGuard {
+    fn pre_cost_estimate(&self, ctx: &AggregationCostContext) -> f64 {
+        let calls = ctx.rounds.max(1) as f64;
+        calls * ctx.tokens_per_sample as f64 * (ctx.blended_cost_per_1m / 1_000_000.0)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -242,5 +404,111 @@ mod tests {
         let json = serde_json::to_string(&bd).unwrap();
         let back: AggregationCostBreakdown = serde_json::from_str(&json).unwrap();
         assert_eq!(bd, back);
+    }
+
+    fn ctx_full() -> AggregationCostContext {
+        AggregationCostContext {
+            parallel_samples: 3,
+            tokens_per_sample: 1_000_000,
+            blended_cost_per_1m: 10.0,
+            rounds: 2,
+            reflexion_memory_tokens: 50_000,
+        }
+    }
+
+    #[test]
+    fn majority_vote_cost_guard_matches_linear_for_single_round() {
+        let p = MajorityVoteCostGuard;
+        let ctx = AggregationCostContext {
+            rounds: 1,
+            ..ctx_full()
+        };
+        // 3 × 1M × 10/1M = 30 USD.
+        assert!((p.pre_cost_estimate(&ctx) - 30.0).abs() < 1e-9);
+        let bd = p.aggregate_cost_breakdown(&ctx);
+        assert_eq!(bd.estimated_samples, 3);
+        assert!((bd.per_sample_usd - 10.0).abs() < 1e-9);
+        assert_eq!(bd.coordinator_usd, 0.0);
+    }
+
+    #[test]
+    fn moa_cost_guard_scales_with_layer_count() {
+        let p = MoACostGuard;
+        let ctx = AggregationCostContext {
+            rounds: 3,
+            ..ctx_full()
+        };
+        // 3 × 3 × 1M × 10/1M = 90 USD.
+        assert!((p.pre_cost_estimate(&ctx) - 90.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn council_cost_guard_charges_coordinator() {
+        let p = CouncilCostGuard;
+        let ctx = AggregationCostContext {
+            parallel_samples: 3,
+            tokens_per_sample: 1_000_000,
+            blended_cost_per_1m: 10.0,
+            rounds: 2,
+            reflexion_memory_tokens: 0,
+        };
+        let est = p.pre_cost_estimate(&ctx);
+        let bd = p.aggregate_cost_breakdown(&ctx);
+        assert!(bd.coordinator_usd > 0.0);
+        // debater_cost = 3 × 2 × 1M × 10/1M = 60 USD; coordinator_cost
+        // = 6 × 200 × 10/1M = 0.012 USD. Total ≈ 60.012.
+        assert!((est - bd.total_usd).abs() < 1e-12);
+        assert!((bd.total_usd - 60.012).abs() < 1e-3);
+    }
+
+    #[test]
+    fn reflexion_cost_guard_charges_reflexor_memory() {
+        let p = ReflexionCostGuard;
+        let ctx = AggregationCostContext {
+            parallel_samples: 1,
+            tokens_per_sample: 1_000_000,
+            blended_cost_per_1m: 10.0,
+            rounds: 2,
+            reflexion_memory_tokens: 50_000,
+        };
+        // executor_cost = 2 × 1M × 10/1M = 20 USD.
+        // reflexor_cost = 2 × 50_000 × (10/4)/1M = 0.25 USD.
+        // Total = 20.25.
+        assert!((p.pre_cost_estimate(&ctx) - 20.25).abs() < 1e-9);
+        let bd = p.aggregate_cost_breakdown(&ctx);
+        assert!((bd.coordinator_usd - 0.25).abs() < 1e-9);
+    }
+
+    #[test]
+    fn self_refine_cost_guard_scales_iterations() {
+        let p = SelfRefineCostGuard;
+        let ctx1 = AggregationCostContext {
+            rounds: 1,
+            ..ctx_full()
+        };
+        let ctx2 = AggregationCostContext {
+            rounds: 2,
+            ..ctx_full()
+        };
+        let r1 = p.pre_cost_estimate(&ctx1);
+        let r2 = p.pre_cost_estimate(&ctx2);
+        assert!((r2 - r1 * 2.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn self_discover_cost_guard_charges_planning_on_cache_miss() {
+        let p = SelfDiscoverCostGuard;
+        let ctx_miss = AggregationCostContext {
+            rounds: 2,
+            ..ctx_full()
+        };
+        let ctx_hit = AggregationCostContext {
+            rounds: 1,
+            ..ctx_full()
+        };
+        let miss = p.pre_cost_estimate(&ctx_miss);
+        let hit = p.pre_cost_estimate(&ctx_hit);
+        assert!(miss > hit);
+        assert!((miss - 2.0 * hit).abs() < 1e-9);
     }
 }

@@ -190,7 +190,7 @@ TOP 10 features que colegimos y aplicamos:
 Estudiados y citados en `23 - Prompt Understanding & Refinement.md` §2.1:
 
 - **Self-Refine** (Madaan et al. 2023, https://arxiv.org/abs/2303.17651) — paso 7 de la pipeline.
-- **Reflexion** (Shinn et al. 2023, https://arxiv.org/abs/2303.11366) — paso 4 recupera memorias verbales.
+- **Reflexion** (Shinn et al. 2023, https://arxiv.org/abs/2303.11366) — paso 4 recupera memorias verbales. **Contribución OpenCode OS (sub-fase 2.2):** el paper original usa el mismo LLM para executor y reflexor; nosotros separamos roles y usamos un reflexor ~4× más barato (rate × 1/4 en `ReflexionCostGuard`). Generalización NO validada en el paper — anotada como contribution de OpenCode OS. Implementado en `orchestrator/aggregation/reflexion.rs` con `detect_doom_loop()` (2 episodios consecutivos con `failure_signal` idéntico → abort mission, RFC 19 doom-loop guard).
 - **Tree of Thoughts** (Yao et al. 2023, https://arxiv.org/abs/2305.10601) — paso 2.
 - **RePrompt** (Chen et al. 2024, https://arxiv.org/abs/2406.11132) — ajuste de prompts futuros.
 - **ODUTQA-MDC** (Wang et al. ACL 2026, https://arxiv.org/abs/2604.10159) — etiquetado fino de underspecification.

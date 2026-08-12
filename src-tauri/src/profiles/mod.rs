@@ -152,6 +152,13 @@ pub struct Profile {
     /// `default_cooldown_secs=60`).
     #[serde(default)]
     pub routing_config: crate::orchestrator::routing::RoutingConfig,
+    /// RFC 04 §3 — aggregation policy for the model orchestrator.
+    /// Sub-fase 2.2. Defaults to `AggregationMode::default()` (=
+    /// `Single` — no multi-sample aggregation, one inference per
+    /// request). Profiles that opt into MajorityVote / MoA / Council /
+    /// Reflexion / SelfRefine / SelfDiscover set this field explicitly.
+    #[serde(default)]
+    pub aggregation: crate::orchestrator::aggregation::AggregationMode,
 }
 
 fn default_resource_mode() -> String {
@@ -181,6 +188,7 @@ impl Profile {
             weak_model_id: None,
             resource_mode: default_resource_mode(),
             routing_config: crate::orchestrator::routing::RoutingConfig::default(),
+            aggregation: crate::orchestrator::aggregation::AggregationMode::default(),
         }
     }
 

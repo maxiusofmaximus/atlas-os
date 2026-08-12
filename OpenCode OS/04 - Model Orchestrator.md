@@ -124,17 +124,80 @@ M21 migration `journal/schema.rs`: `model_invocations` table (id PK, mission_id 
 | Offline / privacidad | Local 7B–70B en GPU del usuario |
 | Documentación / resumen | Local gratuito o Mistral |
 
-## 3. Fusión y votación `[PENDING Phase 2 — sub-fase 2.2 Aggregation]`
+## 3. Fusión y votación `[IMPLEMENTADO Phase 2 — sub-fase 2.2 Aggregation ✅]`
+
+> **Sub-fase 2.2 ✅:** `orchestrator/aggregation/` materializa los 6 modos
+> (Single, MajorityVote, MoA, Council, Reflexion, SelfRefine, SelfDiscover)
+> como `enum AggregationMode` + `trait Aggregator` (`#[async_trait]`). Cada
+> modo tiene su struct (`MajorityVoteAggregator`, `MoAAggregator`,
+> `CouncilAggregator`, `ReflexionAggregator`, `SelfRefineAggregator`,
+> `SelfDiscoverAggregator`) y su `AggregationPolicy` cost guard en
+> `orchestrator/cost_guard.rs` (`MajorityVoteCostGuard`, `MoACostGuard`,
+> `CouncilCostGuard`, `ReflexionCostGuard`, `SelfRefineCostGuard`,
+> `SelfDiscoverCostGuard`). `aggregator_for(&mode)` despacha con unit
+> struct constructors. M22 migration añade `reflection_episodes` +
+> `council_votes` al schema. `Profile.aggregation: AggregationMode` field
+> (default = `Single`). Papers cross-verified: 2402.05120 (AgentForest
+> majority vote), 2406.04692 (MoA), 2305.14325 (Council debate),
+> 2303.11366 (Reflexion), 2303.17651 (Self-Refine), 2402.03620
+> (Self-Discover).
 
 Para decisiones críticas el orquestador puede:
 
 1. Llamar a **N modelos** en paralelo (por ejemplo Claude, Gemini, GPT, DeepSeek).
 2. Recoger sus respuestas estructuradas.
-3. Aplicar uno de:
-   - **Votación mayoritaria** con peso por Confidence.
-   - **Fusión** (mezcla de outputs si son compatibles).
-   - **Debate** (un modelo critica al otro, iteran, finalmente emiten).
-4. Devolver **una** decisión al caller.
+3. Aplicar uno de 6 modos (seleccionado por `Profile.aggregation`):
+   - **`Single`** (default, pass-through — sin aggregation, el orquestador
+     enruta una inferencia y devuelve la respuesta intacta).
+   - **`MajorityVote { n_samples, stop_early_threshold }`** (Agent Forest
+     arxiv 2402.05120) — N paralelo con stop-early tras cada batch de 3
+     votos si `agreement ≥ 2/3` Y `shannon_entropy < 0.5`. `n_samples`
+     difficulty-aware (1 easy, 3 medium, 5/9 hard). Canonicaliza
+     respuestas antes de votar (strip whitespace, lowercase, trim
+     trailing punctuation).
+   - **`MoA { layers: Vec<Vec<ModelId>> }`** (arxiv 2406.04692) — layered
+     architecture 3×3 por defecto. Cada capa-N consume todos los
+     outputs de capa-(N-1) como auxiliary input. Restringido a
+     `ExecutionMode::HighStakes` por cost guard G11 (`MoACostGuard`
+     escala cuadráticamente con `layers.len()`).
+   - **`Council { debaters, rounds }`** (arxiv 2305.14325) — 2-3 debaters
+     + 1 round default. Schema SQLite `council_votes` (M22). Un
+     coordinador sintetiza la fused response.
+   - **`Reflexion { memory_buffer_size }`** (arxiv 2303.11366) —
+     multi-model: executor caro + reflexor barato. M22 migration
+     `reflection_episodes`. Anti-doom-loop: `detect_doom_loop()` aborta
+     la mission si `failure_signal` idéntico aparece en 2 episodios
+     consecutivos. **Contribución OpenCode OS:** paper original usa el
+     mismo modelo para executor y reflexor; nosotros separamos roles y
+     usamos un reflexor ~4× más barato (anotado en RFC 22 §Research
+     Findings).
+   - **`SelfRefine { max_iterations, stop_condition }`** (arxiv
+     2303.17651) — single-LLM generator→feedback→refiner. Cap 2 iter
+     por defecto; aborta si `line_delta() < threshold` (stall
+     detection). `StopCondition::{Converged,MaxIterations,Stalled}`.
+   - **`SelfDiscover { cache_ttl_secs }`** (arxiv 2402.03620) — planning
+     engine pre-decode selecciona modules de razonamiento y genera JSON
+     skeleton reuseado. Cachea por `SHA-256(url + prompt)` con TTL
+     configurable. Feature-gated `fastembed` para prompt embeddings.
+4. Devolver **una** `FusedResponse` al caller.
+
+### Cost guard pre-aggregation (G11)
+
+Antes de despachar aggregation, el orquestador consulta
+`AggregationPolicy::pre_cost_estimate(&ctx) -> f64`. Si el estimado
+excede `profile.budget_per_turn`, el orquestador **fallback a `Single`**
+y loguea `BusEventKind::AggregationCostBudgetExceeded`. Cada modo tiene
+su cost guard específico en `orchestrator/cost_guard.rs`:
+
+| Modo | CostGuard | Fórmula |
+|------|-----------|---------|
+| Single | `NoAggregation` | 0.0 siempre |
+| MajorityVote | `MajorityVoteCostGuard` | `parallel_samples × tokens × blended / 1M` |
+| MoA | `MoACostGuard` | `parallel_samples × layers × tokens × blended / 1M` |
+| Council | `CouncilCostGuard` | `debater_cost + coordinator_cost` (200 tok/synth) |
+| Reflexion | `ReflexionCostGuard` | `executor_cost + reflexor_cost` (rate × 1/4) |
+| SelfRefine | `SelfRefineCostGuard` | `iterations × tokens × blended / 1M` |
+| SelfDiscover | `SelfDiscoverCostGuard` | `calls × tokens × blended / 1M` (cache miss = 2 calls) |
 
 ### Ejemplo
 ```
@@ -145,7 +208,9 @@ Decisión: ¿Strategy, Factory o Context para el patrón de estado?
    GPT         → Factory  (Conf 0.62)
    DeepSeek    → Strategy (Conf 0.90)
   ↓
-Votación ponderada → Strategy
+Votación mayoritaria (MajorityVote, n=4, stop_early_threshold=0.66) → Strategy
+agreement_ratio = 0.75 ≥ 0.66, shannon_entropy ≈ 0.56
+Stop-early: batch 1/1 (3 votos Strategy) → fuse → Strategy
 Confidence fuse → 0.89
 ```
 
@@ -168,7 +233,7 @@ El orquestador **nunca** debe usar un modelo fuera del sub-modo activo:
 
 ## 6. Presupuesto y límites `[Phase 2 — sub-fase 2.0.5 back-pressure semáforo ✅ IMPLEMENTADO + sub-fase 2.1 cost-guard trait shape ✅ + 2.4 cost guard feedback PENDING]`
 
-> Cost guard pre-aggregation (G11): trait `AggregationPolicy::pre_cost_estimate(ctx) -> f64` shape definido en `orchestrator/cost_guard.rs` (sub-fase 2.1, 8 tests) con defaults `NoAggregation` (0.0 siempre) y `LinearCostGuard` (`parallel_samples × rounds × tokens_per_sample × blended_cost_per_1m / 1M`). La implementación concreta para los 6 modos de aggregation (MajorityVote, MoA, Council, Reflexion, SelfRefine, SelfDiscover) aterriza en sub-fase 2.2.
+> Cost guard pre-aggregation (G11): trait `AggregationPolicy::pre_cost_estimate(ctx) -> f64` shape definido en `orchestrator/cost_guard.rs` (sub-fase 2.1, 8 tests) con defaults `NoAggregation` (0.0 siempre) y `LinearCostGuard` (`parallel_samples × rounds × tokens_per_sample × blended_cost_per_1m / 1M`). **Sub-fase 2.2 ✅:** implementación concreta de los 6 mode-specific cost guards (`MajorityVoteCostGuard`, `MoACostGuard`, `CouncilCostGuard`, `ReflexionCostGuard`, `SelfRefineCostGuard`, `SelfDiscoverCostGuard`) — 6 tests nuevos en `cost_guard.rs` (14 total).
 
 El usuario define:
 - `max_tokens_per_minute`
@@ -224,7 +289,7 @@ Single-binary safety (RFC 25 §11): el ACP frontend no añade subprocess externo
 | 2.0 | Foundation (Registry + Tri-model) | M20 (`models`/`deployments`/`model_aliases`/`model_groups`) | §1 (Provider enum, ModelRegistry storage SQLite+JSON seed `ArcSwap<Registry>`, Aider tri-model en `Profile`) | **✅ IMPLEMENTADO** — `orchestrator::{provider, registry}` con `enum Provider` (20 builtin + `Custom(Arc<dyn Config>)`), `ProviderWire` serde-safe (rename explícito para PascalCase cortos), `ModelDescriptor`/`Deployment`/`Capability`/`Tier`, `Registry::{from_seed, from_bundled_seed, resolve, get, descriptors_for_provider, filter_by_resource_mode, filter_by_capability}` con seed JSON bundled (`assets/model_prices_and_context_window.json`, 18 modelos subset LiteLLM MIT), M20 migration idempotente (4 tablas + índices), `Profile` extendido con `main_model_id`/`architect_model_id`/`editor_model_id`/`weak_model_id` + `resource_mode` + `effective_{architect,editor,weak}_model()` fallback a `main_model_id`. 24 tests (13 `provider`, 11 `registry`). `parse()` en vez de `from_str()` para evitar colisión con `std::str::FromStr`. `Provider` sin `Eq/Hash` (Custom varía); cooldown maps usarán `ProviderWire`. |
 | 2.0.5 | Provider Normalization Layer | — | Gaps críticos G1 prompt caching, G2 token pre-flight, G5 cooldown per-provider, G8 ToolCall enum cross-provider normalize/deserialize, G17 `Retry-After` header, G18 back-pressure `Arc<Semaphore>` | **✅ IMPLEMENTADO** — `orchestrator::{wire, tokenizer, cache_control, cooldown, backpressure}`. `wire.rs` (~24 tests): `OpShape` neutro + `ToolCall` enum (OpenAI/Anthropic/Gemini/Local dialects) + `normalize()`/`denormalize()` + `prefix_id()`/`next_id()` atomic. `tokenizer.rs` (~17 tests): `trait Tokenizer` + `OpenAITokenizer` (tiktoken-rs 0.6 `o200k_base` BPE via `OnceLock`) + `CharRatioTokenizer` fallback + `tokenizer_for(ProviderWire)`. `cache_control.rs` (25 tests): `CachePolicy`/`CacheTtl` + `inject_breakpoints()`/`extract_cache_read()`/`extract_cache_creation()` (estilo Anthropic ephemeral). `cooldown.rs` (21 tests): `CooldownConfig::default_for(ProviderWire)` + `resolve()`/`resolve_with_retry_after()` con `RetryAfterSource` trait + `CooldownOutcome { duration, origin }` + `DurationClampExt`. `backpressure.rs` (~20 tests): `BackPressureConfig` con `HashMap<ProviderWire, u32>` overrides + `BackPressure` con `parking_lot::Mutex<HashMap<ProviderWire, Arc<Semaphore>>>` lazy-init + `try_acquire()`/`acquire()` async + `available_permits()` + `reset_for()` + `plan_reconfigure()` (no `unsafe`). Cargo: `tiktoken-rs = "0.6"`. 109 tests nuevos (483 total). clippy + fmt + svelte-check + vitest verdes. |
 | 2.1 | Routing Policy | M21 (`model_invocations` con sampling_params/seed/cache_read) | §2 (RoutingStrategy enum 6 LiteLLM), §4 completa (3 buckets cascade fallback con `max_fallbacks=5` + exclusion set), §5 (sub-modos filter), §6 parcial (back-pressure), G12 idempotency `RequestFrame`, HUD WS DataParts reconciliation | **✅ IMPLEMENTADO** — `orchestrator::{routing, cascade, idempotency, cost_guard, data_parts}`. `routing.rs` (~20 tests): `RoutingStrategy` enum 6 variantes (`SimpleShuffle`/`LatencyBased{ttl_secs,buffer_ms}`/`UsageBasedV2`/`LeastBusy`/`CostBased`/`Hybrid{branches,default}`/`Custom(Arc<dyn Router>)`), `RoutingConfig` (3 buckets fallback + default_fallbacks + max_fallbacks=5 + cooldown/allowed_fails defaults), `Router` trait, `Condition` enum (TokensAbove/Requires/CostAbove/HasToolCalls/HighStakes), `RouteContext<'a>` snapshot pura, `RouteDecision::{Deploy/NoHealthy}`. `cascade.rs` (~13 tests): `Cascade::next_target(FailureMode, healthy_for)` con weighted failover same-group → bucket escalation → default_fallbacks → max_fallbacks cap. `FailureMode::{RateLimited,BadConfigOrNetwork,ContextWindowOverflow,ContentPolicyRefusal}` + `ExhaustionReason`. `idempotency.rs` (7 tests, G12): `RequestFrame { idempotency_key: Uuid v4, executed_tool_calls, tool_calls_complete }` con `can_cascade()`, `filter_unexecuted(&[OpShape])`. `cost_guard.rs` (8 tests, G11): `AggregationPolicy` trait shape + `LinearCostGuard`/`NoAggregation`. `data_parts.rs` (11 tests): `DataPartBuffer` Vercel AI SDK pattern (mismo id update in-place, transient vs persistent guard, `persistent_only()` post-cascade). M21 migration `journal/schema.rs`: `model_invocations` (19 columns + 3 indexes). `Profile.routing_config: RoutingConfig` añadido (pierde `Eq`, retiene `PartialEq`, `impl Default`). 39 tests nuevos (542 total). clippy + fmt verdes. |
-| 2.2 | Aggregation (opt-in HighStakes) | M22 (`reflection_episodes`) + `council_votes` | §3 (`AggregationMode { Single, MajorityVote AgentForest N∈{1,3,5,9} stop-early 2/3, MoA 3×3 cost guard G11, Council 1-round, SelfRefine cap 2, Reflexion multi-model cap 3 anti-doom-loop }`). Papers: 2402.05120, 2406.04692, 2305.14325, 2303.11366, 2303.17651, 2402.03620 | PENDING |
+| 2.2 | Aggregation (opt-in HighStakes) | M22 (`reflection_episodes` + `council_votes`) | §3 (`AggregationMode { Single, MajorityVote AgentForest N∈{1,3,5,9} stop-early 2/3, MoA 3×3 cost guard G11, Council 1-round, SelfRefine cap 2, Reflexion multi-model cap 3 anti-doom-loop, SelfDiscover skeleton cache }`). Papers: 2402.05120, 2406.04692, 2305.14325, 2303.11366, 2303.17651, 2402.03620 | **✅ IMPLEMENTADO** — `orchestrator/aggregation/` (mod + 6 submodules: `majority_vote`, `moa`, `council`, `reflexion`, `self_refine`, `self_discover`). `enum AggregationMode` (`#[derive(Default)]` con `Single` default + `serde(tag="type", rename_all="snake_case")`) con 7 variantes. `trait Aggregator` (`#[async_trait]`): `async fn aggregate(ctx: AggregationContext) -> Result<FusedResponse, AggregationError>`. `aggregator_for(&mode) -> Option<Arc<dyn Aggregator>>` despacha con unit struct constructors (clippy `default_constructed_unit_structs`). `MajorityVoteAggregator` con `canonicalise()`, `agreement_ratio()`, `shannon_entropy()`, `mode_winner()`, stop-early tras batches de 3. `MoAAggregator` 3×3 layer loop. `CouncilAggregator` con `mode_winner_str()` + schema `council_votes`. `ReflexionAggregator` con `detect_doom_loop()` (2 episodios consecutivos idénticos → abort) + schema `reflection_episodes`. `SelfRefineAggregator` con `line_delta()` + `StopCondition::{Converged,MaxIterations,Stalled}`. `SelfDiscoverAggregator` con `CachedSkeleton` + `SKELETON_CACHE` (`OnceLock<Mutex<HashMap>>`) + `cache_key()` (SHA-256 de URL+prompt) + `reset_cache_for_tests()`. `cost_guard.rs`: 6 mode-specific `AggregationPolicy` impls (`MajorityVoteCostGuard`/`MoACostGuard`/`CouncilCostGuard`/`ReflexionCostGuard`/`SelfRefineCostGuard`/`SelfDiscoverCostGuard`) + 6 tests (14 total). M22 migration `schema.rs`: `reflection_episodes` (id, mission_id, episode_idx, attempt, executor_model, reflexor_model, response, self_reflection, failure_signal, created_at + index) + `council_votes` (id, mission_id, round, debater_model, vote_text, vote_confidence, rationale, created_at + index). `Profile.aggregation: AggregationMode` field añadido (default `Single`). `orchestrator/mod.rs` re-exports `AggregationContext`/`AggregationError`/`AggregationMode`/`AggregationModeSnapshot`/`Aggregator`/`FusedResponse`/`ReflectionEpisodeOut`/`StopCondition` + 6 cost guards. 39 tests nuevos (581 total). clippy + fmt verdes. |
 | 2.3 | Auto-routing Classifier + MCP-aware | — | §7 (TaskTypeClassifier opt-in logistic regression + fastembed-rs BGE-small + linfa MLP, tag pre-filter hot-path `capability_tags` AND `tool_capabilities` MCP G19, Router selector via `model` field RouteLLM `router-mf-0.116`, threshold defaults `coding=0.116`) | PENDING |
 | 2.4 | Feedback Loop + `mf` experimental | M20 affinity cache (in-memory) | §8 completa (reader `model_invocations` GROUP BY `(task_type, model_id)` → `AffinityRow` → `ArcSwap::store`, `RoutingStrategy::Mf { threshold }` A/B testing vs classifier) | PENDING |
 

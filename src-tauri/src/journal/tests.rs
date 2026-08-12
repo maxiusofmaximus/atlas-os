@@ -1801,4 +1801,79 @@ mod model_resets_schema_tests {
             "only the undismissed row should be pending"
         );
     }
+
+    #[test]
+    fn m22_advances_schema_version_to_at_least_22() {
+        let (_tmp, conn) = fresh_conn();
+        let v: i64 = conn
+            .query_row("SELECT MAX(version) FROM schema_version", [], |r| r.get(0))
+            .expect("query");
+        assert!(v >= 22, "expected schema version >= 22 after M22, got {v}");
+    }
+
+    #[test]
+    fn m22_creates_reflection_episodes_table() {
+        let (_tmp, conn) = fresh_conn();
+        let exists: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='reflection_episodes'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("query");
+        assert_eq!(
+            exists, 1,
+            "reflection_episodes table should exist after M22"
+        );
+    }
+
+    #[test]
+    fn m22_creates_council_votes_table() {
+        let (_tmp, conn) = fresh_conn();
+        let exists: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='council_votes'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("query");
+        assert_eq!(exists, 1, "council_votes table should exist after M22");
+    }
+
+    #[test]
+    fn m22_reflection_episodes_rejects_attempt_no_above_3() {
+        let (_tmp, conn) = fresh_conn();
+        let res = conn.execute(
+            "INSERT INTO reflection_episodes (episode_id, mission_id, attempt_no, executor_model,
+                reflexor_model, failure_signal, verbal_reflection, injected_prompt_delta, created_at)
+             VALUES ('ep1', 'm1', 4, 'gpt-4o', 'haiku', 'sig', 'reflection', 'delta', '2026-01-01T00:00:00Z')",
+            [],
+        );
+        assert!(
+            res.is_err(),
+            "attempt_no=4 must be rejected by the CHECK constraint"
+        );
+    }
+
+    #[test]
+    fn m22_reflection_episodes_unique_mission_attempt() {
+        let (_tmp, conn) = fresh_conn();
+        conn.execute(
+            "INSERT INTO reflection_episodes (episode_id, mission_id, attempt_no, executor_model,
+                reflexor_model, failure_signal, verbal_reflection, injected_prompt_delta, created_at)
+             VALUES ('ep1', 'm1', 1, 'gpt-4o', 'haiku', 'sig', 'r1', 'd1', '2026-01-01T00:00:00Z')",
+            [],
+        )
+        .expect("first insert ok");
+        let dup = conn.execute(
+            "INSERT INTO reflection_episodes (episode_id, mission_id, attempt_no, executor_model,
+                reflexor_model, failure_signal, verbal_reflection, injected_prompt_delta, created_at)
+             VALUES ('ep2', 'm1', 1, 'gpt-4o', 'haiku', 'sig2', 'r2', 'd2', '2026-01-01T01:00:00Z')",
+            [],
+        );
+        assert!(
+            dup.is_err(),
+            "duplicate (mission_id, attempt_no) must be rejected by the UNIQUE constraint"
+        );
+    }
 }

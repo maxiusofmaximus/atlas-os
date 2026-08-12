@@ -313,8 +313,13 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Health KPIs` | 24 §7 |
 | `Hermes HUD` | 24 §0, §4.3 (cite); 22 §1 |
 | `HUD Mission Control` | 24 |
-| `Aggregation` (Single/MajorityVote/MoA/Council/SelfRefine/Reflexion) | 04 §3 |
-| `AggregationPolicy` (trait, G11 cost guard) | 04 §6; 04 §Apéndice 2.1 |
+| `Aggregation` (Single/MajorityVote/MoA/Council/SelfRefine/Reflexion/SelfDiscover) | 04 §3; 04 §Apéndice 2.2 |
+| `Aggregator` (trait, `#[async_trait]`) + `aggregator_for()` dispatch | 04 §3; 04 §Apéndice 2.2 |
+| `AggregationMode` enum (7 variantes, `#[serde(tag="type")]`) | 04 §3; 04 §Apéndice 2.2 |
+| `AggregationPolicy` (trait, G11 cost guard) + 6 mode-specific impls | 04 §6; 04 §Apéndice 2.1 + 2.2 |
+| `ReflectionEpisode` (M22 migration `reflection_episodes`, anti-doom-loop `detect_doom_loop()`) | 04 §3; 04 §Apéndice 2.2 |
+| `CouncilVote` (M22 migration `council_votes`) | 04 §3; 04 §Apéndice 2.2 |
+| `SelfDiscover` skeleton cache (`OnceLock<Mutex<HashMap>>`, SHA-256 cache key) | 04 §3; 04 §Apéndice 2.2 |
 | `BackPressure` (`Arc<Semaphore>` lazy-init, G18) | 04 §6; 04 §Apéndice 2.0.5 |
 | `CachePolicy` (Anthropic ephemeral, G1) | 04 §6; 04 §Apéndice 2.0.5 |
 | `Cascade` (3-bucket fallback, exclusion set) | 04 §4; 04 §Apéndice 2.1 |

@@ -15,6 +15,7 @@
 // renders the transition. The persisted histories (`journal_events`,
 // `model_swaps`) keep the original values intact for the audit trail.
 
+pub mod aggregation;
 pub mod backpressure;
 pub mod cache_control;
 pub mod cascade;
@@ -31,6 +32,11 @@ pub mod routing;
 pub mod tokenizer;
 pub mod wire;
 
+pub use aggregation::{
+    AggregationContext, AggregationError, AggregationMode, AggregationModeSnapshot, Aggregator,
+    FusedResponse, ReflectionEpisodeOut, StopCondition,
+};
+
 pub use backpressure::{BackPressure, BackPressureConfig};
 pub use cache_control::{
     extract_cache_creation, extract_cache_read, inject_breakpoints, CachePolicy, CacheTtl,
@@ -38,8 +44,9 @@ pub use cache_control::{
 pub use cascade::{Cascade, CascadeStep, ExhaustionReason, FailureMode};
 pub use cooldown::{CooldownConfig, CooldownOrigin, CooldownOutcome, RetryAfterSource};
 pub use cost_guard::{
-    AggregationCostBreakdown, AggregationCostContext, AggregationPolicy, LinearCostGuard,
-    NoAggregation,
+    AggregationCostBreakdown, AggregationCostContext, AggregationPolicy, CouncilCostGuard,
+    LinearCostGuard, MajorityVoteCostGuard, MoACostGuard, NoAggregation, ReflexionCostGuard,
+    SelfDiscoverCostGuard, SelfRefineCostGuard,
 };
 pub use data_parts::{DataPart, DataPartBuffer};
 pub use error::{ResetKind, SpendLimitError};
