@@ -6,6 +6,16 @@
 use anyhow::Result;
 use rusqlite::Connection;
 
+/// Highest migration version applied by this binary. Single source of truth
+/// for "the schema this binary knows how to produce". Tests assert
+/// `version >= CURRENT_SCHEMA_VERSION` after `migrate()`; the final migration
+/// body writes `params![CURRENT_SCHEMA_VERSION, …]`. Historical migration
+/// literals (1..N-1) are frozen — they are part of the idempotent migration
+/// log and must never be renumbered. When adding M(N+1): bump this const
+/// AND change the final migration's `params![N, …]` to
+/// `params![CURRENT_SCHEMA_VERSION, …]` (same value).
+pub const CURRENT_SCHEMA_VERSION: i64 = 23;
+
 pub fn migrate(conn: &Connection) -> Result<()> {
     // M0 — Schema versioning.
     conn.execute_batch(
@@ -1139,7 +1149,7 @@ pub fn migrate(conn: &Connection) -> Result<()> {
         )?;
         conn.execute(
             "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
-            rusqlite::params![23, chrono::Utc::now().to_rfc3339()],
+            rusqlite::params![CURRENT_SCHEMA_VERSION, chrono::Utc::now().to_rfc3339()],
         )?;
     }
     Ok(())

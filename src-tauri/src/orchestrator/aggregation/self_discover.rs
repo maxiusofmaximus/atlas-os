@@ -145,17 +145,23 @@ fn cache() -> &'static Mutex<HashMap<CacheKey, CachedSkeleton>> {
 #[cfg(test)]
 pub(crate) fn reset_cache_for_tests() {
     if let Some(m) = SKELETON_CACHE.get() {
-        m.lock().unwrap().clear();
+        m.lock()
+            .expect("skeleton cache mutex poisoned; prior writer panicked mid-insert")
+            .clear();
     }
 }
 
 fn lookup(key: &str, _ttl_secs: u64) -> Option<CachedSkeleton> {
-    let guard = cache().lock().unwrap();
+    let guard = cache()
+        .lock()
+        .expect("skeleton cache mutex poisoned; prior writer panicked mid-insert");
     guard.get(key).cloned()
 }
 
 fn insert(key: CacheKey, skeleton: serde_json::Value, modules: Vec<String>) {
-    let mut guard = cache().lock().unwrap();
+    let mut guard = cache()
+        .lock()
+        .expect("skeleton cache mutex poisoned; prior writer panicked mid-insert");
     guard.insert(
         key,
         CachedSkeleton {

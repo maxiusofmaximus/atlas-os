@@ -420,8 +420,14 @@ fn shuffle_select<'a, R: Rng + ?Sized>(
             return RouteDecision::Deploy(d);
         }
     }
-    // Fallback (float rounding): pick the last.
-    RouteDecision::Deploy(eligible.last().unwrap())
+    // Fallback (float rounding): pick the last. The caller (RoutingStrategy::select)
+    // guarantees `eligible` is non-empty (empty returns NoHealthy at line 361), and
+    // `total > 0` above guarantees the slice still has at least one weighted entry.
+    RouteDecision::Deploy(
+        eligible
+            .last()
+            .expect("invariant: eligible non-empty after total > 0 check"),
+    )
 }
 
 fn latency_select<'a, R: Rng + ?Sized>(
@@ -450,7 +456,11 @@ fn latency_select<'a, R: Rng + ?Sized>(
             })
             .then_with(|| a.id.cmp(&b.id))
     });
-    let best_score = score(sorted.first().unwrap());
+    let best_score = score(
+        sorted
+            .first()
+            .expect("invariant: eligible non-empty (caller-guarded) — sorted non-empty"),
+    );
     // Gather all deployments tied for the best score and weighted-shuffle
     // among them so we don't hammer a single one on cold start.
     let ties: Vec<&Deployment> = sorted
@@ -537,13 +547,21 @@ fn cost_select<'a, R: Rng + ?Sized>(
         .filter(|d| (d.weight - max_weight).abs() < 1e-6)
         .collect();
     if heavy.is_empty() {
-        return RouteDecision::Deploy(eligible.first().unwrap());
+        return RouteDecision::Deploy(
+            eligible
+                .first()
+                .expect("invariant: eligible non-empty (caller-guarded) — heavy.is_empty() branch"),
+        );
     }
     // Among the heaviest (treated as "preferred for cost" by the
     // operator's weight assignment), shuffle.
     let mut shuffled = heavy.clone();
     shuffled.shuffle(rng);
-    RouteDecision::Deploy(shuffled.first().unwrap())
+    RouteDecision::Deploy(
+        shuffled
+            .first()
+            .expect("invariant: heavy non-empty after early-return above"),
+    )
 }
 
 #[cfg(test)]

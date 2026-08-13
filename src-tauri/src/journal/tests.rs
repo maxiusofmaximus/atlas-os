@@ -1883,7 +1883,10 @@ mod model_resets_schema_tests {
         let v: i64 = conn
             .query_row("SELECT MAX(version) FROM schema_version", [], |r| r.get(0))
             .expect("query");
-        assert!(v >= 23, "expected schema version >= 23 after M23, got {v}");
+        assert!(
+            v >= crate::journal::schema::CURRENT_SCHEMA_VERSION,
+            "expected schema version >= CURRENT_SCHEMA_VERSION after migrate(), got {v}"
+        );
     }
 
     #[test]
