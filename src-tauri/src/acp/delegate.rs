@@ -1,4 +1,4 @@
-// OpenCode OS — ACP delegate helpers for `/opencode exec step` and
+// Atlas OS — ACP delegate helpers for `/opencode exec step` and
 // `/opencode fix` (RFC 28 §B Phase 1.5d item 4).
 //
 // Per RFC 28 §B line 123 the binary registers `opencode exec step

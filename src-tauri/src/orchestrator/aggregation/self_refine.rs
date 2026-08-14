@@ -1,4 +1,4 @@
-// OpenCode OS Ã¢â‚¬â€ SelfRefine aggregator (RFC 04 Ã‚Â§3, sub-fase 2.2).
+// Atlas OS Ã¢â‚¬â€ SelfRefine aggregator (RFC 04 Ã‚Â§3, sub-fase 2.2).
 //
 // Ports "Self-Refine: Iterative Refinement with Self-Feedback" (arxiv
 // 2303.17651, Madaan et al.). A single LLM acts as generator,

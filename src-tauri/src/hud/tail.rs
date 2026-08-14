@@ -1,4 +1,4 @@
-// OpenCode OS — HUD HTTP tail routes (RFC 24 §2 / §3 / §16).
+// Atlas OS — HUD HTTP tail routes (RFC 24 §2 / §3 / §16).
 //
 // Phase 1 exposes each of the 9 Journal `*_tail` helpers as a single
 // `GET /tail/<kind>` route. Each route returns the latest `N` rows

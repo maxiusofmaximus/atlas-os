@@ -1,4 +1,4 @@
-// OpenCode OS — Firecrawl facade errors (RFC 28 Section E).
+// Atlas OS — Firecrawl facade errors (RFC 28 Section E).
 //
 // `firecrawl::FirecrawlError` is the SDK's transport-level enum. We
 // lift it into a stable in-process enum so callers (CLI `research`,
@@ -7,7 +7,7 @@
 // adds new variants or splits `HttpError`/`HttpRequestFailed` (it
 // already carries `action`/`reqwest::Error` redundantly, so the SDK
 // is likely to merge them in a future minor). Stable facade = no
-// breaking-change ripple in OpenCode OS consumers.
+// breaking-change ripple in Atlas OS consumers.
 //
 // `thiserror::Error` keeps `Display` and `From` impls derived so
 // consumers can `?` up the stack, including from `anyhow::Result`.
@@ -15,7 +15,7 @@
 use thiserror::Error;
 
 /// Error returned by every `firecrawl::facade` call. Translates the
-/// SDK's enum into OpenCode-OS-shaped variants; nothing here leaks a
+/// SDK's enum into Atlas-OS-shaped variants; nothing here leaks a
 /// `reqwest::Error` or other transient SDK type to the caller.
 #[derive(Debug, Error)]
 pub enum FirecrawlFacadeError {
@@ -23,7 +23,7 @@ pub enum FirecrawlFacadeError {
     /// the keyless cloud endpoint would be used. Callers MAY downgrade
     /// to the keyless free tier (`scrape`/`search` only, rate-limited),
     /// or surface this to the operator as "configure a key".
-    #[error("firecrawl key missing: set FIRECRAWL_API_KEY or OPENCODE_FIRECRAWL_URL to use this surface")]
+    #[error("firecrawl key missing: set FIRECRAWL_API_KEY or ATLAS_FIRECRAWL_URL (legacy: ATLAS_FIRECRAWL_URL) to use this surface")]
     MissingApiKey,
 
     /// The caller-supplied URL failed `url::Url::parse`. Isolation from

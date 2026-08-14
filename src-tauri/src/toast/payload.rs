@@ -1,4 +1,4 @@
-// OpenCode OS — Toast payload types (RFC 28 Section F).
+// Atlas OS — Toast payload types (RFC 28 Section F).
 //
 // `ToastKind` enum + `ToastStatus` enum + `ToastPayload` DTO + the
 // `opencode://` deep-link parser. The enum is the semantic

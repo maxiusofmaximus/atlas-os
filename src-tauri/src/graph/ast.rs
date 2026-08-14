@@ -1,8 +1,8 @@
-// OpenCode OS — AST extractor for EXTRACTED provenance (RFC 28 §C).
+// Atlas OS — AST extractor for EXTRACTED provenance (RFC 28 §C).
 //
 // Gated behind `codebase-graph`. Uses tree-sitter with two grammars
 // (rust, svelte) to extract call/import edges from the project's own
-// sources — the "meta-skill" in RFC 28: OpenCode OS maps itself into
+// sources — the "meta-skill" in RFC 28: Atlas OS maps itself into
 // a mission graph so the Learning Engine can flag when a new skill
 // duplicates a kernel route.
 //

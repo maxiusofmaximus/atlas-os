@@ -1,8 +1,8 @@
-// OpenCode OS — Calendar ICS HUD route handler (RFC 28 Section G).
+// Atlas OS — Calendar ICS HUD route handler (RFC 28 Section G).
 //
 // Single axum endpoint mounted on the HUD Mission Control server:
 //
-//     GET /opencode-calendar.ics
+//     GET /atlas-calendar.ics
 //
 // Returns a `text/calendar` body (RFC 5545) synthesized by
 // `CalendarWriter::render` from the mission projection
@@ -74,7 +74,7 @@ fn ics_error_response(
     (
         axum::http::StatusCode::INTERNAL_SERVER_ERROR,
         headers,
-        format!("opencode-calendar.ics: {err}"),
+        format!("atlas-calendar.ics: {err}"),
     )
 }
 

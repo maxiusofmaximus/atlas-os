@@ -1,4 +1,4 @@
-// OpenCode OS — single entry-point for the "create a mission from a
+// Atlas OS — single entry-point for the "create a mission from a
 // raw prompt" flow. Sits between IPC / CLI and the engine stack so
 // both surfaces call the same code path (RFC 25 §3.1.1 SOP).
 //

@@ -1,6 +1,6 @@
 # 03 - Engine Architecture
 
-OpenCode OS está formado por **diez motores** independientes. Algunos son continuos, otros reactivos. Esta especificación define responsabilidades, interfaces y eventos de cada uno.
+Atlas OS está formado por **diez motores** independientes. Algunos son continuos, otros reactivos. Esta especificación define responsabilidades, interfaces y eventos de cada uno.
 
 ---
 
@@ -180,7 +180,7 @@ LanguageIdResolver {
 }
 ```
 
-VS Code enruta cada `textDocument/*` al servidor cuyo `documentSelector` coincide con el LanguageId del documento activo (https://code.visualstudio.com/docs/languages/overview). OpenCode OS implementa el mismo patrón: al abrir `foo.ts` se arranca/resume el `typescript-language-server`; al abrir `bar.py` se arranca `pylsp`/`pyright`. Múltiples archivos de distintos lenguajes → múltiples procesos servidor activos en paralelo.
+VS Code enruta cada `textDocument/*` al servidor cuyo `documentSelector` coincide con el LanguageId del documento activo (https://code.visualstudio.com/docs/languages/overview). Atlas OS implementa el mismo patrón: al abrir `foo.ts` se arranca/resume el `typescript-language-server`; al abrir `bar.py` se arranca `pylsp`/`pyright`. Múltiples archivos de distintos lenguajes → múltiples procesos servidor activos en paralelo.
 
 ### 9.4 `ProjectSymbolTable`
 

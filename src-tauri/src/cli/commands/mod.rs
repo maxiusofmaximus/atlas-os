@@ -1,4 +1,4 @@
-// OpenCode OS — CLI dispatch for subcommands.
+// Atlas OS — CLI dispatch for subcommands.
 // Path: `src-tauri/src/cli/bin/opencode.rs` uses this `commands/` dir.
 
 pub mod audit;

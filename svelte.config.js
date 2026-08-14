@@ -1,4 +1,4 @@
-// OpenCode OS — SvelteKit config (Tauri 2 CSR mode)
+// Atlas OS — SvelteKit config (Tauri 2 CSR mode)
 // See RFC 25 §3.3 — adapter-static, Svelte 5 runes, no SSR.
 import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';

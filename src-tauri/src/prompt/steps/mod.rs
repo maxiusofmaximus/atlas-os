@@ -1,4 +1,4 @@
-// OpenCode OS — Pipeline step modules (RFC 23 §2). Each step is a pure
+// Atlas OS — Pipeline step modules (RFC 23 §2). Each step is a pure
 // transformation; the runner in `super::runner` threads them together.
 
 pub mod capture;

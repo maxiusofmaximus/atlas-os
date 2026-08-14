@@ -1,4 +1,4 @@
-// OpenCode OS — `opencode toast` subcommand (RFC 28 Section F).
+// Atlas OS — `atlas toast` subcommand (RFC 28 Section F).
 //
 // Sub-actions gated behind the `toast` Cargo feature:
 //

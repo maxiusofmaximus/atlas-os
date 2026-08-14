@@ -1,4 +1,4 @@
-// OpenCode OS — Pipeline runner for RFC 23 §2.
+// Atlas OS — Pipeline runner for RFC 23 §2.
 //
 // The runner is intentionally a free function over `&mut VerdictBuilder`,
 // not a trait object. Each step is a pure transformation: mutate the

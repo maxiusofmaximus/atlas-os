@@ -1,13 +1,13 @@
-// OpenCode OS — Firecrawl facade (RFC 28 Section E).
+// Atlas OS — Firecrawl facade (RFC 28 Section E).
 //
-// Stable in-process surface over the firecrawl SDK. Every OpenCode OS
+// Stable in-process surface over the firecrawl SDK. Every Atlas OS
 // consumer (CLI `research`, future graph_ingest, future `webfetch`
 // replacement, future Rust MCP server) calls through these types —
 // never through `firecrawl::Client` directly. That decoupling is the
 // whole point of the "adapter facade" pattern documented in RFC 28
 // §E: it lets the SDK bump major versions, change options field
 // names, or add new parser models without rippling breakage across
-// the OpenCode OS codebase.
+// the Atlas OS codebase.
 //
 // Defaults baked into every `*Options::default()`:
 //   * `only_main_content = true`   — strip chrome by default (matches
@@ -141,7 +141,7 @@ pub struct ExtractOptions {
 }
 
 // ---------------------------------------------------------------------------
-// Results — Canonical OpenCode OS shapes, decoupled from the SDK.
+// Results — Canonical Atlas OS shapes, decoupled from the SDK.
 // ---------------------------------------------------------------------------
 
 /// One scraped URL. Minimal surface: only the fields a downstream

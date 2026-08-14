@@ -1,4 +1,4 @@
-// OpenCode OS — Orchestrator error types (RFC 28 §H).
+// Atlas OS — Orchestrator error types (RFC 28 §H).
 //
 // `SpendLimitError` is the typed envelope for the two failure modes
 // that carry a `resets_at` future timestamp:
@@ -61,10 +61,10 @@ impl ResetKind {
 /// and survive in `model_resets` row precedent.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SpendLimitError {
-    /// Provider id as known to OpenCode OS: `openai`, `anthropic`,
+    /// Provider id as known to Atlas OS: `openai`, `anthropic`,
     /// `omniroute`, `local`, etc.
     pub provider: String,
-    /// Model id as known to OpenCode OS: e.g. `claude-3-5-sonnet`.
+    /// Model id as known to Atlas OS: e.g. `claude-3-5-sonnet`.
     pub model: String,
     /// HTTP status observed (`429`, `402`, `403`).
     pub status_code: u16,

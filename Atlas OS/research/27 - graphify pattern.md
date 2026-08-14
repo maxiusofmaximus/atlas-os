@@ -1,6 +1,6 @@
 # RFC 28 Research: graphify (graphify.com)
 
-**Date:** 2026-07-25 · **Author:** opencode research agent · **For:** RFC 28 (Knowledge-graph layer for OpenCode OS)
+**Date:** 2026-07-25 · **Author:** opencode research agent · **For:** RFC 28 (Knowledge-graph layer for Atlas OS)
 **Status:** Verified against live URLs; URLs that returned no usable content are flagged `not found`.
 
 ---
@@ -15,7 +15,7 @@
 - **Vendor / author:** Safi Shamsi (GitHub `safishamsi`), organization `Graphify-Labs`. LinkedIn page `graphify-labs` exists. YC **S26** badge on the repo (early stage).
 - **Repo:** https://github.com/Graphify-Labs/graphify — **95.4k stars**, 9.2k forks, 1,253 commits, branch tag `v8`. Apache-2.0 (also ships MIT/NOTICE files).
 - **Pricing:** Core free + Apache-2.0, no account. There is an "Enterprise (early access)" tier — merge-gate verification, graph-aware review, engineering digest — **self-hosted** in your own infra. (graphify.com/pricing)
-- **Single-binary / Python rule:** Graphify is a **Python 3.10+ package** (`uv tool install graphifyy`). This **violates RFC 25 §11** for OpenCode OS if we ship it inside the binary. Decision: **adopt the pattern, NOT the dependency** (see §5).
+- **Single-binary / Python rule:** Graphify is a **Python 3.10+ package** (`uv tool install graphifyy`). This **violates RFC 25 §11** for Atlas OS if we ship it inside the binary. Decision: **adopt the pattern, NOT the dependency** (see §5).
 
 ## 2. How the graph model works (verified on graphify.com/concepts + /docs)
 
@@ -61,7 +61,7 @@ Corroborating sources (all reachable, content confirmed via DuckDuckGo index):
 
 **Reddit (r/LocalLLaMA, r/MachineLearning, r/AutonomousAgents):** `not found` — Reddit blocked the webfetch (bot verification wall). No verified Reddit URLs in this report.
 
-## 5. Five actionable ideas for OpenCode OS (RFC 28)
+## 5. Five actionable ideas for Atlas OS (RFC 28)
 
 Graphify is **Python → cannot be a runtime dependency** (RFC 25 §11 single-binary, AGENTS.md no-Python). We **adopt its design pattern in Rust + our existing SQLite journal.**
 
@@ -78,8 +78,8 @@ Graphify is **Python → cannot be a runtime dependency** (RFC 25 §11 single-bi
 ## 6. Technical integration decision
 
 - **No Rust crate exists for graphify.** `graphify` ships only as Python + MCP server. Importing Python would break single-binary (RFC 25 §11) and AGENTS.md §6.
-- **MCP HTTP server option (`python -m graphify.serve --transport http`)** is the only runtime-compatible path, and it is **opt-in, not bundled**: a user who already runs graphify on their machine could point OpenCode OS at `http://127.0.0.1:8080/mcp` as a skill-backend MCP tool → **zero new binary weight**. Document this as an **optional external MCP** in RFC 28 §"Integrations", not a hard dependency.
-- **Primary path = re-implement the pattern in Rust.** Concrete stack: existing `rusqlite` + new table `mission_graph`; `petgraph` crate (already mature Rust) for in-memory traversal (`shortest_path`, `god_nodes`, `get_neighbors`); `tree-sitter` Rust bindings (we may already pull these for the planned LSP host RFC 25 §3.6) for `EXTRACTED` edges on OpenCode OS's own codebase as a meta-skill. SvelteKit HUD gets a `<GraphView>` component reading axum JSON.
+- **MCP HTTP server option (`python -m graphify.serve --transport http`)** is the only runtime-compatible path, and it is **opt-in, not bundled**: a user who already runs graphify on their machine could point Atlas OS at `http://127.0.0.1:8080/mcp` as a skill-backend MCP tool → **zero new binary weight**. Document this as an **optional external MCP** in RFC 28 §"Integrations", not a hard dependency.
+- **Primary path = re-implement the pattern in Rust.** Concrete stack: existing `rusqlite` + new table `mission_graph`; `petgraph` crate (already mature Rust) for in-memory traversal (`shortest_path`, `god_nodes`, `get_neighbors`); `tree-sitter` Rust bindings (we may already pull these for the planned LSP host RFC 25 §3.6) for `EXTRACTED` edges on Atlas OS's own codebase as a meta-skill. SvelteKit HUD gets a `<GraphView>` component reading axum JSON.
 
 **Justification for `petgraph` (RFC 22 entry required):** mature, pure-Rust, MIT/Apache-2.0, no native deps, single-binary-safe. Replaces any need for graphify's Python Leiden impl with `petgraph`'s built-in algorithms or a small Rust Leiden port (one extra crate, justify separately).
 

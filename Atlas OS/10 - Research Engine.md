@@ -115,7 +115,7 @@ Cada una de las consensos lleva score (0–100) y referencias citadas.
 
 ## 6. Motor de búsqueda concreto
 
-OpenCode OS orquesta varias herramientas:
+Atlas OS orquesta varias herramientas:
 - `webfetch` para páginas citadas
 - query GitHub Issues / Discussions vía `gh` (CLIs → ver `08 - CLI.md`)
 - búsqueda arXiv (MCP dedicado o webfetch con parseo)

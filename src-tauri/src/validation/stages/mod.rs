@@ -1,4 +1,4 @@
-// OpenCode OS — Validation stage modules (RFC 14 §1, §2). Each stage is
+// Atlas OS — Validation stage modules (RFC 14 §1, §2). Each stage is
 // a pure transformation that consumes the workspace snapshot + the `Diff`
 // being validated and returns a `StageSummary`. The runner threads them
 // together; each stage is independently unit-tested.

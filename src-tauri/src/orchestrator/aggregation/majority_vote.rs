@@ -1,4 +1,4 @@
-// OpenCode OS Ã¢â‚¬â€ MajorityVote aggregator (RFC 04 Ã‚Â§3, sub-fase 2.2).
+// Atlas OS Ã¢â‚¬â€ MajorityVote aggregator (RFC 04 Ã‚Â§3, sub-fase 2.2).
 //
 // Ports the Agent Forest finding from "More Agents Is All You Need"
 // (arxiv 2402.05120, Li et al., TMLR): scaling purely with parallel
@@ -15,7 +15,7 @@
 //     the same semantic value collapse to one bucket.
 //
 // The floored paper does NOT use stop-early; we add it (annotated as
-// a contribution in RFC 22) because OpenCode OS is interactive and a
+// a contribution in RFC 22) because Atlas OS is interactive and a
 // 9-sample majority on a low-difficulty prompt silently burns the
 // operator's wallet.
 

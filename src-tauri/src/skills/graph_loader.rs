@@ -1,4 +1,4 @@
-// OpenCode OS — Skill graph template loader (RFC 23 §7.3 / RFC 28 §C item 5).
+// Atlas OS — Skill graph template loader (RFC 23 §7.3 / RFC 28 §C item 5).
 //
 // Gated behind `dag_mode`. A skill optionally ships a 4th file,
 // `graph.toml`, declaring a reusable sub-graph template (nodes + edges

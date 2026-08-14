@@ -1,4 +1,4 @@
-// OpenCode OS — Repair Engine runner (RFC 15).
+// Atlas OS — Repair Engine runner (RFC 15).
 //
 // Phase 1: heuristic-only. The runner consumes a failed `ValidationReport`
 // + the `Diff` that was being validated, classifies the failure (RFC 15 §2),

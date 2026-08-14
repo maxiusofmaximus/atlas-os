@@ -1,4 +1,4 @@
-// OpenCode OS — Step 5 + Step 6: Clarification generation + Auto-Resolve
+// Atlas OS — Step 5 + Step 6: Clarification generation + Auto-Resolve
 // (RFC 23 §2 steps 5 and 6).
 //
 // Phase 1: STORM K=3 perspectives, deterministic. Each detected gap with

@@ -1,4 +1,4 @@
-// OpenCode OS — HUD axum server entry point.
+// Atlas OS — HUD axum server entry point.
 // RFC 24 §1 layout, §4 events, §16 mobile remote access.
 // Bare bones for Phase 0; expanded Roadmap Fase 8 — UI v2.
 
@@ -32,7 +32,7 @@ pub async fn serve(state: Arc<AppState>, shutdown: CancellationToken) {
     state.set_hud_port(addr.port());
 
     // Persist the port to `~/.opencode/profiles/<id>/hud_port.txt` so the
-    // headless `opencode hud` CLI (which has no AppState) can recover it.
+    // headless `atlas hud` CLI (which has no AppState) can recover it.
     {
         let port_file = state.profile_root().join("hud_port.txt");
         if let Err(e) = std::fs::write(&port_file, addr.port().to_string()) {
@@ -99,7 +99,7 @@ pub async fn serve(state: Arc<AppState>, shutdown: CancellationToken) {
     // same feature that compiles the ICS writer.
     #[cfg(feature = "calendar-ics")]
     let app = app.route(
-        "/opencode-calendar.ics",
+        "/atlas-calendar.ics",
         get(crate::calendar::ics_route::get_calendar_ics),
     );
 

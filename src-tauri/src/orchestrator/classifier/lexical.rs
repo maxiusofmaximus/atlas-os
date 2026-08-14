@@ -1,4 +1,4 @@
-// OpenCode OS — Lexical task-type classifier (RFC 04 §7 sub-fase 2.3).
+// Atlas OS — Lexical task-type classifier (RFC 04 §7 sub-fase 2.3).
 //
 // `LexicalClassifier` regex-counts keyword tokens in the prompt and
 // picks the task bucket with the highest score (ties broken by the

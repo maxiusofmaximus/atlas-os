@@ -1,4 +1,4 @@
-// OpenCode OS — Orchestrator module (RFC 27 §B).
+// Atlas OS — Orchestrator module (RFC 27 §B).
 //
 // Hosts the model hot-swap primitive. The full Model Orchestrator
 // routing policy (RFC 04 §2 / §6) arrives in Phase 2; this Phase-1

@@ -1,10 +1,10 @@
-// OpenCode OS — Calendar ICS writer (RFC 28 Section G — WRITE path).
+// Atlas OS — Calendar ICS writer (RFC 28 Section G — WRITE path).
 //
 // `CalendarWriter::from_missions(&[IcsMission]) -> String` builds the
-// RFC 5545 iCalendar feed served at `GET /opencode-calendar.ics` on
+// RFC 5545 iCalendar feed served at `GET /atlas-calendar.ics` on
 // the HUD axum server. The feed is read-only — `METHOD:PUBLISH` per
 // RFC 5545 §3.14.6 — and exists so a user can subscribe via
-// `webcal://127.0.0.1:{port}/opencode-calendar.ics?token=...` from
+// `webcal://127.0.0.1:{port}/atlas-calendar.ics?token=...` from
 // Outlook / Apple Calendar / Google Calendar.
 //
 // Mapping (RFC 28 §G.2.1):
@@ -37,7 +37,7 @@ use crate::calendar::error::Result;
 use crate::calendar::payload::IcsMission;
 
 /// Production id emitted in the `PRODID` calendar property.
-const PROD_ID: &str = "-//OpenCode OS//Calendar//EN";
+const PROD_ID: &str = "-//Atlas OS//Calendar//EN";
 
 /// Build the `ICALendar` text from a slice of `IcsMission` projections.
 ///
@@ -55,7 +55,7 @@ impl CalendarWriter {
         cal.push(ics::properties::CalScale::new("GREGORIAN"));
         cal.push(ics::properties::Method::new("PUBLISH"));
         // RFC 7986 — `NAME` improves calendar UI tab display.
-        cal.push(ics::properties::Name::new("OpenCode OS"));
+        cal.push(ics::properties::Name::new("Atlas OS"));
         // RFC 7986 — `REFRESH-INTERVAL` hints desktop clients to poll
         // hourly. Outlook ignores it (asks the user); Apple/Google
         // honour it. Value is an ISO 8601 duration.
@@ -306,7 +306,7 @@ mod tests {
             "missing REFRESH-INTERVAL in: {text}",
         );
         assert!(text.contains("PT1H"), "missing PT1H in: {text}");
-        assert!(text.contains("NAME:OpenCode OS"));
+        assert!(text.contains("NAME:Atlas OS"));
     }
 
     #[test]

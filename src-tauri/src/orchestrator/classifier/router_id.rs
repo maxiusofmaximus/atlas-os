@@ -1,4 +1,4 @@
-// OpenCode OS — Router selector via `model` field (RFC 04 §7 sub-fase 2.3,
+// Atlas OS — Router selector via `model` field (RFC 04 §7 sub-fase 2.3,
 // research/29 line 243 "non-obvious pattern #1").
 //
 // The caller's `model` string can be a literal model id (`"gpt-5"`) OR

@@ -1,9 +1,9 @@
-// OpenCode OS Ã¢â‚¬â€ Reflexion aggregator (RFC 04 Ã‚Â§3, sub-fase 2.2).
+// Atlas OS Ã¢â‚¬â€ Reflexion aggregator (RFC 04 Ã‚Â§3, sub-fase 2.2).
 //
 // Ports "Reflexion: Language Agents with Verbal Reinforcement
 // Learning" (arxiv 2303.11366, Shinn et al.). The paper uses a single
 // LLM as both executor and reflexor; sub-fase 2.2 extends this to
-// multi-model (executor caro + reflexor barato) as an OpenCode OS
+// multi-model (executor caro + reflexor barato) as an Atlas OS
 // contribution Ã¢â‚¬â€ annotated in RFC 22 Ã‚Â§2 because the paper does not
 // validate this variant.
 //

@@ -1,4 +1,4 @@
-// OpenCode OS — Execution Supervisor (RFC 19). Replaces the external
+// Atlas OS — Execution Supervisor (RFC 19). Replaces the external
 // `supervisor.ps1` `while ($true) { ... }` loop (RFC 19 §7) with an
 // in-kernel state machine that keeps the system alive WITHOUT entering
 // an infinite loop. The supervisor owns:

@@ -1,4 +1,4 @@
-// OpenCode OS — Request-frame idempotency (RFC 04 §6, sub-fase 2.1, G12).
+// Atlas OS — Request-frame idempotency (RFC 04 §6, sub-fase 2.1, G12).
 //
 // When the orchestrator cascades to a fallback deployment, the
 // retried request must not silently re-execute tool calls that the

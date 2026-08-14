@@ -1,4 +1,4 @@
-// OpenCode OS — Validation Engine runner (RFC 14).
+// Atlas OS — Validation Engine runner (RFC 14).
 //
 // Phase 1: heuristic-only. The runner takes a `Diff` (from the Coding
 // Engine) and threads it through the stage cascade in `StageKind::pipeline_order()`.

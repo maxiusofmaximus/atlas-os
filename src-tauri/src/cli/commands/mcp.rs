@@ -1,4 +1,4 @@
-// OpenCode OS — `opencode mcp` stub (RFC 07; full impl Phase 5).
+// Atlas OS — `atlas mcp` stub (RFC 07; full impl Phase 5).
 use anyhow::Result;
 use clap::{Args, Subcommand};
 

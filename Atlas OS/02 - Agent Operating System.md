@@ -6,9 +6,9 @@ El núcleo del producto. Define el **kernel** que coordina los motores, los mode
 
 ## 1. Analogía
 
-OpenCode OS se comporta como un sistema operativo:
+Atlas OS se comporta como un sistema operativo:
 
-| SO tradicional | OpenCode OS |
+| SO tradicional | Atlas OS |
 |---|---|
 | Kernel | Agent Engine Kernel |
 | Scheduler de procesos | Scheduler de agentes / modelos |
@@ -184,7 +184,7 @@ El **Execution Supervisor** (`19-propio`) enmarca toda la cadena con checkpoints
 
 ## 5. Modos de operación
 
-OpenCode OS define **tres ejes ortogonales**:
+Atlas OS define **tres ejes ortogonales**:
 
 - **Execution Modes** (cuán autónomo es el agente — ver `21 - Execution Modes.md` §1): `MANUAL_CLASSIC` / `HUMAN_IN_LOOP` / `AUTOPILOT` / `AUTONOMOUS`.
 - **Modo de uso** (cómo se interpreta el prompt — ver `21 - Execution Modes.md` §12 y `23 - Prompt Understanding & Refinement.md` §8): `ask` / `architect` / `code` / `context`.

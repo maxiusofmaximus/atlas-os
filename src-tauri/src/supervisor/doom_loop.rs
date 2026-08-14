@@ -1,4 +1,4 @@
-// OpenCode OS — Doom-loop detector (RFC 19 §6).
+// Atlas OS — Doom-loop detector (RFC 19 §6).
 //
 // The detector is a rolling-window counter keyed on
 // `{tool_name}|{normalized_input_hash}` (RFC 19 §6 `detector.key`).

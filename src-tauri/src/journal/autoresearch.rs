@@ -1,4 +1,4 @@
-// OpenCode OS — Autoresearch loop kernel (RFC 28 �A, derived from
+// Atlas OS — Autoresearch loop kernel (RFC 28 �A, derived from
 //   karpathy/autoresearch program.md, MIT, Copyright (c) 2025-2026
 //   Andrej Karpathy).
 //

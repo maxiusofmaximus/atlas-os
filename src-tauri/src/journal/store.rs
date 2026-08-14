@@ -1,4 +1,4 @@
-// OpenCode OS — Journal store: typed row representations exposed via IPC.
+// Atlas OS — Journal store: typed row representations exposed via IPC.
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

@@ -1,4 +1,4 @@
-// OpenCode OS — Planner DAG emitter (RFC 12 §3.1 / RFC 28 §C item 4).
+// Atlas OS — Planner DAG emitter (RFC 12 §3.1 / RFC 28 §C item 4).
 //
 // Gated behind `dag_mode`. The default Planning Engine output stays the
 // linear `Plan { steps: Vec<Step> }` contract from RFC 12 §3; when a

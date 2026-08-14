@@ -1,4 +1,4 @@
-// OpenCode OS — SvelteKit ambient types.
+// Atlas OS — SvelteKit ambient types.
 // See https://kit.svelte.dev/docs/types#app
 
 declare global {

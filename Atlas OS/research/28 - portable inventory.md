@@ -1,4 +1,4 @@
-# Inventario Exhaustivo de Portabilidad — Repos fuente → Rust/OpenCode OS
+# Inventario Exhaustivo de Portabilidad — Repos fuente → Rust/Atlas OS
 
 **Fecha:** 2026-07-25 · **Orquestador:** opencode (z-ai/glm-5.2)
 **Source:** 4 repos públicos MIT/Apache-2.0 (permite portar con atribución)

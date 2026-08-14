@@ -1,4 +1,4 @@
-// OpenCode OS — mission graph (RFC 28 §C).
+// Atlas OS — mission graph (RFC 28 §C).
 //
 // Pattern derived from `safishamsi/graphify` (Apache-2.0, Copyright
 // Graphify Labs): nodes + edges tagged with EXTRACTED | INFERRED |

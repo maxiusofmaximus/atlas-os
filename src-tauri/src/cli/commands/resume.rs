@@ -1,4 +1,4 @@
-// OpenCode OS — `opencode resume <mission_id>` subcommand (RFC 25 §3.9 /
+// Atlas OS — `opencode resume <mission_id>` subcommand (RFC 25 §3.9 /
 // RFC 19). Loads the latest `MissionCheckpoint`, re-runs the Planning
 // Engine from the upstream consolidated/verdict, and drives the
 // Coding → Validation → Repair loop afresh using the supervisor-

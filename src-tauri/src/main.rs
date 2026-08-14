@@ -1,7 +1,7 @@
-// OpenCode OS — Rust entry point (Tauri 2 desktop).
-// OpenCode OS is a Tauri 2 desktop app whose Rust core also serves a local
+// Atlas OS — Rust entry point (Tauri 2 desktop).
+// Atlas OS is a Tauri 2 desktop app whose Rust core also serves a local
 // axum WebSocket server for the HUD Mission Control (RFC 24) and a sidecar CLI
-// (`opencode`) for headless use (RFC 25 §3.9, RFC 08).
+// (`atlas`) for headless use (RFC 25 §3.9, RFC 08).
 // The core survives webview crashes: the axum server runs in a separate Tokio
 // task and stays up even if the Tauri window is destroyed (RFC 25 §2, RFC 19).
 #![deny(clippy::all)]
@@ -10,12 +10,12 @@
 
 use std::sync::Arc;
 
-use opencode_os::AppState;
+use atlas_os::AppState;
 use tauri::Manager;
 use tokio_util::sync::CancellationToken;
 use tracing_subscriber::EnvFilter;
 
-/// Boot the `OpenCode OS` desktop shell.
+/// Boot the `Atlas OS` desktop shell.
 ///
 /// Spawns the HUD axum server and the LSP host on dedicated Tokio runtimes
 /// kept alive independently of the Tauri webview, then enters the Tauri
@@ -27,7 +27,7 @@ pub fn run() {
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| EnvFilter::new("info,opencode_os=debug")),
+                .unwrap_or_else(|_| EnvFilter::new("info,atlas_os=debug")),
         )
         .with_target(true)
         .with_span_events(tracing_subscriber::fmt::format::FmtSpan::CLOSE)
@@ -36,7 +36,7 @@ pub fn run() {
     let state = match AppState::bootstrap() {
         Ok(s) => Arc::new(s),
         Err(err) => {
-            tracing::error!(error = %err, "failed to bootstrap OpenCode OS; aborting");
+            tracing::error!(error = %err, "failed to bootstrap Atlas OS; aborting");
             std::process::exit(1);
         }
     };
@@ -56,7 +56,7 @@ pub fn run() {
                 .thread_name("oc-hud-worker")
                 .build()
                 .expect("failed to build HUD runtime");
-            runtime.block_on(opencode_os::hud::serve(hud_state, hud_shutdown_clone));
+            runtime.block_on(atlas_os::hud::serve(hud_state, hud_shutdown_clone));
         })
         .expect("failed to spawn HUD thread");
 
@@ -69,7 +69,7 @@ pub fn run() {
                 .thread_name("oc-lsp-worker")
                 .build()
                 .expect("failed to build LSP runtime");
-            runtime.block_on(opencode_os::lsp::host::serve(lsp_state));
+            runtime.block_on(atlas_os::lsp::host::serve(lsp_state));
         })
         .expect("failed to spawn LSP thread");
 
@@ -85,7 +85,7 @@ pub fn run() {
         .setup(|app| {
             tracing::info!(
                 version = env!("CARGO_PKG_VERSION"),
-                "OpenCode OS desktop started"
+                "Atlas OS desktop started"
             );
             let state = app.state::<Arc<AppState>>();
             tracing::info!(hud_url = %state.hud_url(), "HUD Mission Control reachable");
@@ -100,12 +100,12 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            opencode_os::core::ipc::mission_new,
-            opencode_os::core::ipc::mission_list,
-            opencode_os::core::ipc::hud_url,
-            opencode_os::core::ipc::journal_tail,
-            opencode_os::core::ipc::audit_tail,
-            opencode_os::core::ipc::approval_decide,
+            atlas_os::core::ipc::mission_new,
+            atlas_os::core::ipc::mission_list,
+            atlas_os::core::ipc::hud_url,
+            atlas_os::core::ipc::journal_tail,
+            atlas_os::core::ipc::audit_tail,
+            atlas_os::core::ipc::approval_decide,
         ])
         .run(tauri::generate_context!())
         .expect("Tauri shell failed to start");

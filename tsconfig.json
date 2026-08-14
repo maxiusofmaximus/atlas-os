@@ -1,4 +1,4 @@
-// OpenCode OS — TypeScript config (SvelteKit generated + Tauri 2 strict).
+// Atlas OS — TypeScript config (SvelteKit generated + Tauri 2 strict).
 {
   "extends": "./.svelte-kit/tsconfig.json",
   "compilerOptions": {

@@ -1,15 +1,15 @@
-// OpenCode OS — ACP slash commands advertised via `available_commands_update`
+// Atlas OS — ACP slash commands advertised via `available_commands_update`
 // (RFC 28 §B Phase 1.5d item 4).
 //
 // Microsoft Intelligent Terminal surfaces agent-provided slash commands to
 // the operator UI when the agent emits a `session/update` notification
 // whose `SessionUpdate` variant is `AvailableCommandsUpdate`. Per RFC 28 §B
 // (lines 122-123) we advertise five commands mapping onto the existing
-// `opencode` CLI surface:
+// `atlas` CLI surface:
 //
-//   /opencode mission new    → `opencode mission new` (RFC 25 §3.9)
-//   /opencode fork            → `opencode fork` (RFC 25 §3.9)
-//   /opencode resume          → `opencode resume` (RFC 19)
+//   /opencode mission new    → `atlas mission new` (RFC 25 §3.9)
+//   /opencode fork            → `atlas fork` (RFC 25 §3.9)
+//   /opencode resume          → `atlas resume` (RFC 19)
 //   /opencode exec step       → `opencode exec step` (RFC 27 §F)
 //   /opencode fix [hint]      → Repair engine (RFC 15). Captures the active
 //                                IT pane scrollback via `wtcli active-pane`
@@ -42,7 +42,7 @@ pub const CMD_EXEC_STEP: &str = "opencode exec step";
 pub const CMD_FIX: &str = "opencode fix";
 pub const CMD_RESTART: &str = "opencode restart";
 
-/// Build the canonical catalogue of OpenCode OS slash commands for ACP.
+/// Build the canonical catalogue of Atlas OS slash commands for ACP.
 ///
 /// The order is stable on the wire so IT can render a predictable menu:
 /// mission creation first, then session lifecycle (fork/resume), then the
@@ -52,7 +52,7 @@ pub fn build_available_commands() -> Vec<AvailableCommand> {
     vec![
         AvailableCommand::new(
             CMD_MISSION_NEW,
-            "Create a new OpenCode OS mission from a raw prompt.",
+            "Create a new Atlas OS mission from a raw prompt.",
         ),
         AvailableCommand::new(
             CMD_FORK,

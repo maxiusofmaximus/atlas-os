@@ -1,4 +1,4 @@
-// OpenCode OS — Tauri build script.
+// Atlas OS — Tauri build script.
 // Generates Tauri capability/permissions and exposes them at compile time.
 fn main() {
     // tauri_build reads tauri.conf.json + capabilities/ and emits build artifacts.

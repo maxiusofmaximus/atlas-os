@@ -1,4 +1,4 @@
-// OpenCode OS — `opencode fork <mission_id>` subcommand (RFC 25 §3.9).
+// Atlas OS — `opencode fork <mission_id>` subcommand (RFC 25 §3.9).
 // Cursor's fork pattern: clone an existing mission under a new UUID,
 // copy its verdict + consolidated rows, and return immediately so the
 // operator can `opencode plan <new_id>` / `opencode run <new_id>` with a

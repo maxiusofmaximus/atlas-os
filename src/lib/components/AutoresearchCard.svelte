@@ -11,10 +11,7 @@
      `MissionPhase::Autoresearch` is integrated into the runner. -->
 
 <script lang="ts">
-  import type {
-    AutoresearchSnapshot,
-    AutoresearchCancel,
-  } from '$stores/hud';
+  import type { AutoresearchSnapshot, AutoresearchCancel } from '$stores/hud';
   import { postAutoresearchCancel } from '$stores/hud';
 
   interface Props {
@@ -118,7 +115,11 @@
       </div>
       <div>
         <dt>best</dt>
-        <dd class={snapshot.best_metric != null && snapshot.best_metric < snapshot.baseline_metric ? 'better' : ''}>
+        <dd
+          class={snapshot.best_metric != null && snapshot.best_metric < snapshot.baseline_metric
+            ? 'better'
+            : ''}
+        >
           {fmtMetric(snapshot.best_metric)}
         </dd>
       </div>
@@ -128,13 +129,23 @@
       </div>
     </dl>
 
-    <div class="progress" role="progressbar" aria-valuenow={snapshot.step_count} aria-valuemax={snapshot.max_steps}>
+    <div
+      class="progress"
+      role="progressbar"
+      aria-valuenow={snapshot.step_count}
+      aria-valuemax={snapshot.max_steps}
+    >
       <div class="bar" style:width="{pct(snapshot.step_count, snapshot.max_steps)}%"></div>
     </div>
 
     {#if candidates.length > 0}
       <svg class="spark" viewBox="0 0 120 32" preserveAspectRatio="none" aria-hidden="true">
-        <path d={sparkline(candidates, snapshot.baseline_metric)} stroke="#58a6ff" fill="none" stroke-width="1.5" />
+        <path
+          d={sparkline(candidates, snapshot.baseline_metric)}
+          stroke="#58a6ff"
+          fill="none"
+          stroke-width="1.5"
+        />
       </svg>
     {:else}
       <p class="hint">Awaiting first candidate…</p>
@@ -185,13 +196,33 @@
     color: #8b949e;
     background: #21262d;
   }
-  .outcome.tag-running { color: #58a6ff; background: rgba(88, 166, 255, 0.12); }
-  .outcome.tag-improved { color: #56d364; background: rgba(86, 211, 100, 0.12); }
-  .outcome.tag-plateau  { color: #f0883e; background: rgba(240, 136, 62, 0.12); }
-  .outcome.tag-timeout  { color: #d29922; background: rgba(210, 153, 34, 0.12); }
-  .outcome.tag-aborted  { color: #f85149; background: rgba(248, 81, 73, 0.12); }
-  .outcome.tag-idle     { color: #6e7681; }
-  .empty { color: #8b949e; font-size: 0.85rem; }
+  .outcome.tag-running {
+    color: #58a6ff;
+    background: rgba(88, 166, 255, 0.12);
+  }
+  .outcome.tag-improved {
+    color: #56d364;
+    background: rgba(86, 211, 100, 0.12);
+  }
+  .outcome.tag-plateau {
+    color: #f0883e;
+    background: rgba(240, 136, 62, 0.12);
+  }
+  .outcome.tag-timeout {
+    color: #d29922;
+    background: rgba(210, 153, 34, 0.12);
+  }
+  .outcome.tag-aborted {
+    color: #f85149;
+    background: rgba(248, 81, 73, 0.12);
+  }
+  .outcome.tag-idle {
+    color: #6e7681;
+  }
+  .empty {
+    color: #8b949e;
+    font-size: 0.85rem;
+  }
   .metrics {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -209,7 +240,9 @@
     font-family: 'SF Mono', Consolas, monospace;
     font-size: 0.9rem;
   }
-  .metrics dd.better { color: #56d364; }
+  .metrics dd.better {
+    color: #56d364;
+  }
   .progress {
     height: 6px;
     background: #0d1117;
@@ -226,7 +259,8 @@
     height: 32px;
     display: block;
   }
-  .hint, .cmd {
+  .hint,
+  .cmd {
     margin: 0;
     font-size: 0.78rem;
     color: #8b949e;

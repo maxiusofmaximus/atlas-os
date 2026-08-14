@@ -1,4 +1,4 @@
-// OpenCode OS — HUD §H card pipeline (RFC 28 §H.3 / §H.4 / §H.7 item 9).
+// Atlas OS — HUD §H card pipeline (RFC 28 §H.3 / §H.4 / §H.7 item 9).
 // Maps the persistent `ModelResetRow` (M19) onto the JSON payloads
 // the Svelte `<SpendLimitErrorCard>` / `<ModelReadyCard>` components
 // subscribe to via the kernel-bus WS stream.

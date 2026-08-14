@@ -1,4 +1,4 @@
-// OpenCode OS — Toast SQLite queue (RFC 28 Section F).
+// Atlas OS — Toast SQLite queue (RFC 28 Section F).
 //
 // Platform-agnostic CRUD over the `toast_queue` + `toast_history`
 // tables. The dispatcher (`scheduler::ToastDriver`) pulls rows via

@@ -1,4 +1,4 @@
-// OpenCode OS — `opencode profile` subcommand (RFC 25 §4).
+// Atlas OS — `atlas profile` subcommand (RFC 25 §4).
 use anyhow::Result;
 use clap::{Args, Subcommand};
 

@@ -1,4 +1,4 @@
-// OpenCode OS — Posting `.posting.yaml` format port (RFC 28 §D — Phase 1.5a §D-2).
+// Atlas OS — Posting `.posting.yaml` format port (RFC 28 §D — Phase 1.5a §D-2).
 //
 // Ported from `darrenburns/posting/src/posting/collection.py` (Apache-2.0,
 // Copyright Darren Burns). The schema (`RequestModel`, `Header`, `QueryParam`,
@@ -6,9 +6,9 @@
 // `Option<T>` fields and `#[serde(default)]`. The `scripts` field is **never
 // serialized or deserialized** — see AGENTS.md §6 security boundary: importing
 // third-party posting collections that carry arbitrary Python scripts is a known
-// attack surface; OpenCode OS rejects the field outright.
+// attack surface; Atlas OS rejects the field outright.
 //
-// `entry_to_posting_yaml` maps an `AuditEntry` (the OpenCode OS Journal row) to
+// `entry_to_posting_yaml` maps an `AuditEntry` (the Atlas OS Journal row) to
 // this schema, then serializes via `serde_yaml`. For HTTP-shaped audit entries
 // (`action == "http_request"`), the inputs JSON is unmarshaled into the typed
 // request fields (method/url/headers/body). For non-HTTP entries (`tool_call`,
@@ -130,12 +130,12 @@ pub struct PostingCollection {
     /// here AND a README.md update in the snapshot dir (RFC 28 §D Riesgos §1).
     pub posting_version: String,
     pub request: PostingRequestModel,
-    /// `x-opencode-exported` is a provenance-line for the snapshot dir.
+    /// `x-atlas-exported` is a provenance-line for the snapshot dir.
     /// Serialized as `x_opencode_exported` (serde rename below).
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        rename = "x-opencode-exported"
+        rename = "x-atlas-exported"
     )]
     pub x_opencode_exported: Option<String>,
 }
@@ -143,9 +143,9 @@ pub struct PostingCollection {
 /// Top-of-file comment line emitted before the YAML body.
 ///
 /// Per RFC 28 §D, every snapshot file begins with a comment line identifying
-/// the export origin. `# x-opencode-exported: RFC 28 §D` makes the snapshot
+/// the export origin. `# x-atlas-exported: RFC 28 §D` makes the snapshot
 /// self-describing for downstream git review.
-pub const X_OPENCODE_EXPORTED_HEADER: &str = "# x-opencode-exported: RFC 28 §D";
+pub const X_ATLAS_EXPORTED_HEADER: &str = "# x-atlas-exported: RFC 28 §D";
 
 /// Carrier struct that wraps a `PostingCollection` so that for non-HTTP
 /// audit entries we can flatten the extra `x-opencode-*` keys onto the top
@@ -160,7 +160,7 @@ struct PostingCarrier {
     x_opencode_extra: Option<serde_json::Value>,
 }
 
-/// Map an `AuditEntry` (OpenCode OS Journal row) to a `PostingCollection`
+/// Map an `AuditEntry` (Atlas OS Journal row) to a `PostingCollection`
 /// representing the posting `.posting.yaml` schema.
 ///
 /// # Mapping rules
@@ -209,7 +209,7 @@ fn build_extra_payload(entry: &AuditEntry) -> Option<serde_json::Value> {
 }
 
 /// Serialize the collection to `.posting.yaml` form as a String, prefixed with
-/// the standard `# x-opencode-exported: RFC 28 §D` comment.
+/// the standard `# x-atlas-exported: RFC 28 §D` comment.
 pub fn entry_to_posting_yaml(entry: &AuditEntry) -> String {
     let collection = audit_entry_to_posting_collection(entry);
     let carrier = PostingCarrier {
@@ -222,7 +222,7 @@ pub fn entry_to_posting_yaml(entry: &AuditEntry) -> String {
             entry.seq, entry.action
         )
     });
-    format!("{}\n{}", X_OPENCODE_EXPORTED_HEADER, body)
+    format!("{}\n{}", X_ATLAS_EXPORTED_HEADER, body)
 }
 
 fn parse_http_request_inputs(entry: &AuditEntry) -> PostingRequestModel {
@@ -356,7 +356,7 @@ mod tests {
             "url": "https://example.com/"
         }));
         let yaml = entry_to_posting_yaml(&entry);
-        assert!(yaml.starts_with("# x-opencode-exported: RFC 28 §D\n"));
+        assert!(yaml.starts_with("# x-atlas-exported: RFC 28 §D\n"));
         assert!(yaml.contains("posting_version: '1'"));
         assert!(yaml.contains("method: GET"));
         assert!(yaml.contains("url: https://example.com/"));
@@ -505,7 +505,7 @@ mod tests {
             outputs: serde_json::json!({"verdict_id": "v-1"}),
         };
         let yaml = entry_to_posting_yaml(&entry);
-        assert!(yaml.starts_with("# x-opencode-exported: RFC 28 §D\n"));
+        assert!(yaml.starts_with("# x-atlas-exported: RFC 28 §D\n"));
         assert!(yaml.contains("x-opencode-action: swap_model"));
         assert!(yaml.contains("x-opencode-inputs:"));
         assert!(yaml.contains("from: model-a"));
@@ -536,7 +536,7 @@ mod tests {
         }));
         let yaml = entry_to_posting_yaml(&entry);
         let parsed: PostingCollection =
-            serde_yaml::from_str(yaml.trim_start_matches(X_OPENCODE_EXPORTED_HEADER).trim())
+            serde_yaml::from_str(yaml.trim_start_matches(X_ATLAS_EXPORTED_HEADER).trim())
                 .expect("emitted YAML must parse back into PostingCollection");
         assert_eq!(parsed.request.method, "PATCH");
         assert_eq!(parsed.request.url, "https://example.com/api/v1/items/42");

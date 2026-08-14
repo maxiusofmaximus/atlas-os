@@ -13,7 +13,7 @@
 - **Pool swarm de Kimi K2.7**: no se pudo verificar documentación primaria. Lo que sí está documentado es soporte multi-modelo + delegación con subagentes aislados. Kimi CLI / Moonshot figuran como proveedor oficial de AionUi.
 - **vs OpenClaw**: Hermes aporta **sandboxing real** (6 backends: local, Docker, SSH, Daytona, Singularity, Modal; root read-only; capabilities droppadas; namespace isolation) mientras que OpenClaw es criticado por ejecutar código arbitrario sin sandbox por defecto.
 - **"Senior engineer 24/7"**: lo logra con (a) vida en VPS idle-casi-gratis, (b) cron en lenguaje natural, (c) gateway multi-canal (Telegram/Discord/Slack/WhatsApp/Teams/Signal/Matrix/Email), (d) memoria FTS5 cross-session + summarización + Honcho user modeling, (e) auto-skills.
-- **Lecciones absorbidas en OpenCode OS**:
+- **Lecciones absorbidas en Atlas OS**:
   - 19 - Execution Supervisor: status bar con coste y compresiones (ya estaba como telemetría; reforzado ahora).
   - 05 - Swarm: subagents `background` y patrones `queue|steer|interrupt` se incorporan al Swimming de roles.
   - 18 - Security: el principio "sandbox por defecto" de Hermes se confirma; ya estaba en nuestro doc.
@@ -107,7 +107,7 @@ Patrones evolutivos continuos (AI Scientist v2): el agente *muta su prompt* y *r
 | Cursor Cloud Agents | *"iterate until validated"* | sandbox + time | demos over diffs |
 | Cursor Automations | schedules/triggers; memory tool cross-run | cron + "Avoid racing other agents" | always-on |
 | Hermes | `/background`, worktrees | - | VPS idle-casi-gratis |
-| **OpenCode OS (nuestro)** | AUTONOMOUS | `doom_loop` hard-deny + budget hard + goal_drift | los cuatro modos de `21` |
+| **Atlas OS (nuestro)** | AUTONOMOUS | `doom_loop` hard-deny + budget hard + goal_drift | los cuatro modos de `21` |
 
 ## 6. Cambios aplicados a los RFCs como consecuencia
 
@@ -146,7 +146,7 @@ Ronda de investigación lanzada con 3 subagentes en paralelo. Hallazgos aplicado
 
 Estudiados: **CrewAI**, **Microsoft AutoGen**, **LangGraph** (LangChain), **DSPy**, **Agno**, **Letta** (MemGPT), **Temporal**, **Apache Airflow**, **n8n**, **Windmill**, **Hermes**, **AionUI**, **Manus**, **Cognition Devin**, **Factory Droids**, **Sakana FuguCoT**, **Cline/Roo**, **Cursor**, **Claude Code**, **OpenCode CLI**, **Aider**, **Continue.dev**, **LangGraph-derived (LangChain Agents / Convergence)**, **Inferflow**, **Portkey + Devwrat/Krrish chat-arena**, **Pydantic AI**, **Magentic-One** (Microsoft), **Google AITaC / Agent Builder**, **Salesforce Agentforce**, **AWS Bedrock Agents**, **MuleSoft Tyestion**, **IBMAutomation**.
 
-TOP 10 lecciones absorbidas en OpenCode OS:
+TOP 10 lecciones absorbidas en Atlas OS:
 
 1. **Temporal workflow engine** — Durable Execution con checkpointing event-sourced. Le aplicamos al `19 - Execution Supervisor.md` para persistir checkpoints en SQLite + reanudar desde cualquier estado.
 2. **LangGraph state graph** — explícit conditional edges; reemplaza el prompt-implicitacio control flow de Claude Code. Lo aplicamos en `12 - Planning Engine.md` (output Plan se modela como DAG).
@@ -161,11 +161,11 @@ TOP 10 lecciones absorbidas en OpenCode OS:
 
 TOP 10 patrones arquitecturales comunes:
 
-1. **Event-sourced Journal** (Temporal, Airflow, OpenCode OS, Letta) — único source of truth, replays any state.
-2. **Worktrees own per subagent** (Droids, Cursor Cloud Agents, OpenCode OS).
-3. **Capability graph + skill picker** (AionUI, OpenCode OS, Copilot Spaces).
+1. **Event-sourced Journal** (Temporal, Airflow, Atlas OS, Letta) — único source of truth, replays any state.
+2. **Worktrees own per subagent** (Droids, Cursor Cloud Agents, Atlas OS).
+3. **Capability graph + skill picker** (AionUI, Atlas OS, Copilot Spaces).
 4. **Anti-loop mecánico** (OpenCode CLI's `doom_loop`, Sakana Fugu, nuestro `19`).
-5. **Budget hard + compaction limit** (Cursor Cloud Agents, OpenCode OS AUTONOMOUS).
+5. **Budget hard + compaction limit** (Cursor Cloud Agents, Atlas OS AUTONOMOUS).
 6. **Multi-key rotation** (AionUI `ApiKeyManager`).
 7. **Chain-of-Thought trail persistente** (Manus, Magentic-One).
 8. **Demos over diffs** (Cursor Cloud Agents).
@@ -175,14 +175,14 @@ TOP 10 patrones arquitecturales comunes:
 TOP 10 features que colegimos y aplicamos:
 
 1. Multi-model orchestration (CrewAI + AionUI).
-2. Per-role model assignment (Swarm de OpenCode OS, §3 de `05`).
-3. Subagent tree fork (Cursor fork, OpenCode OS §3.2).
+2. Per-role model assignment (Swarm de Atlas OS, §3 de `05`).
+3. Subagent tree fork (Cursor fork, Atlas OS §3.2).
 4. Background isolate task (`Hermes /background`).
-5. Cron / scheduled (OpenCode OS Fase 9 Roadmap, AionUI Team Mode).
+5. Cron / scheduled (Atlas OS Fase 9 Roadmap, AionUI Team Mode).
 6. Steer while running (`Hermes /busy steer`).
 7. Approvals pauserule (Hermes, propio en `24 §5`).
 8. Vector KB semantic recall (Letta, DSPy, reflexion).
-9. Cost audit live (Hermes HUD, OpenCode OS `24` Cost view).
+9. Cost audit live (Hermes HUD, Atlas OS `24` Cost view).
 10. WebSocket health status (Hermes HUD).
 
 ### 8.2 Prompt Understanding & Refinement
@@ -190,7 +190,7 @@ TOP 10 features que colegimos y aplicamos:
 Estudiados y citados en `23 - Prompt Understanding & Refinement.md` §2.1:
 
 - **Self-Refine** (Madaan et al. 2023, https://arxiv.org/abs/2303.17651) — paso 7 de la pipeline.
-- **Reflexion** (Shinn et al. 2023, https://arxiv.org/abs/2303.11366) — paso 4 recupera memorias verbales. **Contribución OpenCode OS (sub-fase 2.2):** el paper original usa el mismo LLM para executor y reflexor; nosotros separamos roles y usamos un reflexor ~4× más barato (rate × 1/4 en `ReflexionCostGuard`). Generalización NO validada en el paper — anotada como contribution de OpenCode OS. Implementado en `orchestrator/aggregation/reflexion.rs` con `detect_doom_loop()` (2 episodios consecutivos con `failure_signal` idéntico → abort mission, RFC 19 doom-loop guard).
+- **Reflexion** (Shinn et al. 2023, https://arxiv.org/abs/2303.11366) — paso 4 recupera memorias verbales. **Contribución Atlas OS (sub-fase 2.2):** el paper original usa el mismo LLM para executor y reflexor; nosotros separamos roles y usamos un reflexor ~4× más barato (rate × 1/4 en `ReflexionCostGuard`). Generalización NO validada en el paper — anotada como contribution de Atlas OS. Implementado en `orchestrator/aggregation/reflexion.rs` con `detect_doom_loop()` (2 episodios consecutivos con `failure_signal` idéntico → abort mission, RFC 19 doom-loop guard).
 - **AN-2.3-a `linfa` MLP deferral (sub-fase 2.3 auto-routing, 2026-08-12).** RFC 04 §7 (pre-2.3 wording), RFC 20 line 78 y `research/29` line 241 mencionaban "2-layer MLP `linfa`" como clasificador. Context7 verification (`npx ctx7 docs /rust-ml/linfa "neural network feed forward multilayer perceptron nn training backprop"`, 2026-08-12) retornó *no documentation match* — `linfa` NO es un MLP feed-forward module, sólo logistic regression + clustering + SVM. Una MLP hand-rolled sería ~200 LOC de matrix math para ganancias marginales: HybridLLM (arXiv:2404.14618 §4.3 Fig. 5) muestra que logistic regression con BGE-small ya alcanza ~94% de la accuracy del MLP con un peso-footprint un orden de magnitude menor. **Decisión**: la MLP queda deferred a Phase 2.5+ como optimización; la sub-fase 2.3 embarca `LogisticRegressionClassifier` (multi-class one-vs-rest multinomial softmax scratch-built en `orchestrator/classifier/log_reg.rs`, sin dep `linfa` — esto cumple AGENTS.md §6 boundary rule "no new external deps"). Cualquier MLP futura entra vía la misma `AutoRouterConfig.weights_path` (formato extendido sin romper la schema logreg JSON). Documentación completa in RFC 04 §7.1.
 - **Tree of Thoughts** (Yao et al. 2023, https://arxiv.org/abs/2305.10601) — paso 2.
 - **RePrompt** (Chen et al. 2024, https://arxiv.org/abs/2406.11132) — ajuste de prompts futuros.
@@ -228,7 +228,7 @@ Output aplicado: `24 - HUD Mission Control.md` con 23 secciones, 8 views interca
 
 - **NEW** `23 - Prompt Understanding & Refinement.md` — pipeline 9 pasos, tipado de gap_types, PublicUnderstandingVerdict, MissionConsolidated, comando `/refine`, skill `prompt-clarify`, modos `ask`/`architect`/`code`/`context` ortogonales a Execution Modes.
 - **NEW** `24 - HUD Mission Control.md` — panel HUD con 8 views, 15+ campos por tarjeta, WebSocket events, approvals queue con pauserule, cost & recursos view, health KPIs, skill/MCP drag-drop en caliente, audit timeline con hash chain, demos over diffs, worktrees visuales.
-- **NEW** `25 - Stack Técnico Multiplataforma.md` — Tauri 2 + Rust 1.84+ + SvelteKit 2 + SQLite/sqlite-vec + fastembed-rs + Tower-LSP + axum WebSocket + Docker/Podman/Firejail/Job-Object sandbox + OS keychain + 13 providers (3 locales + 10 free cloud + paid tier) + `opencode` CLI Rust.
+- **NEW** `25 - Stack Técnico Multiplataforma.md` — Tauri 2 + Rust 1.84+ + SvelteKit 2 + SQLite/sqlite-vec + fastembed-rs + Tower-LSP + axum WebSocket + Docker/Podman/Firejail/Job-Object sandbox + OS keychain + 13 providers (3 locales + 10 free cloud + paid tier) + `atlas` CLI Rust.
 - UPDATED `12 - Planning Engine.md` §2 — input cambiado a `MissionConsolidated`; §7 reforzado con gate de `verdict.confidence`.
 - UPDATED `10 - Research Engine.md` §11 — añadido `probe_feasibility` consumido por `23 §2.2`.
 - UPDATED `21 - Execution Modes.md` §12 — añadido eje ortogonal `Modo de uso`.
@@ -349,7 +349,7 @@ Adoptar **adapter facade** pattern: `src-tauri/src/firecrawl/{mod, facade, clien
 
 ### 11.4 Binary-size budget
 
-- Binario OpenCode OS actual: ~30-45 MB (RFC 25).
+- Binario Atlas OS actual: ~30-45 MB (RFC 25).
 - `firecrawl` crate: < 800 KB incremental (reqwest ya presente para axum). Aceptable.
 - `firecrawl-mcp` (MCP SDK): ~1.5 MB. Postergado hasta que sea necesario (no en Phase 1.5).
 - Budget total Phase 1.5 (§A+§C+§B+§E) < 5 MB incremental sobre el binario base.
@@ -360,12 +360,12 @@ RFC 25 §11 exige single binary. `firecrawl` crate: no requiere Python, no insta
 
 ### 11.6 Licencia y atribución
 
-`firecrawl 2.12.1` MIT — compatible conOpenCode OS (RFC 28 apéndice). Per-module attribution required en `src-tauri/src/firecrawl/mod.rs`: campo `// Ported from firecrawl 2.12.1 (MIT, Mendable AI, https://github.com/mendableai/firecrawl)` — no, no es porting, es uso directo del crate. Atribución distinta: declaración de uso de crate externo en `src-tauri/Cargo.toml` y `OpenCode OS/28 - External Tool Integration.md` apéndice licencias.
+`firecrawl 2.12.1` MIT — compatible conAtlas OS (RFC 28 apéndice). Per-module attribution required en `src-tauri/src/firecrawl/mod.rs`: campo `// Ported from firecrawl 2.12.1 (MIT, Mendable AI, https://github.com/mendableai/firecrawl)` — no, no es porting, es uso directo del crate. Atribución distinta: declaración de uso de crate externo en `src-tauri/Cargo.toml` y `Atlas OS/28 - External Tool Integration.md` apéndice licencias.
 
 ### 11.7 Cambios aplicados
 
 - ADDED §E a RFC 28 (lines 308-399): source items, adapter facade rationale, 6 objectives, Rust change plan, CLI commands plan, 10-item checklist (all ⏳), 7 risks, atribución.
-- UPDATED `26 - Index & Cross-References.md` - +2 rows (Firecrawl adapter facade, `opencode research`).
+- UPDATED `26 - Index & Cross-References.md` - +2 rows (Firecrawl adapter facade, `atlas research`).
 - UPDATED este archivo con §11 round 4.
 - UPDATED RFC 28 "Orden recomendado" para incluir §E quinto (post-graphify).
 
@@ -392,7 +392,7 @@ RFC 28 §F (Windows Toast notifications), §G (Windows Calendar integration) y �
 
 1. Para §F: una crate Rust maintained que exponga WinRT Toast con `on_activated`/`on_dismissed` callbacks y `register()` para AUMID desde apps desktop no-MSIX. `tauri-plugin-notification` fue considerado porque ya es Tauri-ecosystem.
 2. Para §G: una solución a la escritura bidireccional al calendario nativo (Outlook/Apple/Google) sin depender de capabilities WinRT restringidas. WinRT `AppointmentManager` y `Microsoft.Graph.Calendar`fueron evaluados; la vía `.ics` (RFC 5545) servida vía el axum HUD server y la vía Microsoft Graph REST (`/me/calendarView`) resultaron complementarias.
-3. Para §H: patrones provenientes de AI coding tools reales (Cline, Cursor, Aider, Copilot) en su manejo de 429/spend-limit, identificación del "discriminador competitivo" — qué feature NINGÚN tool ofrece hoy, y cómo OpenCode OS puede adueñarse del espacio.
+3. Para §H: patrones provenientes de AI coding tools reales (Cline, Cursor, Aider, Copilot) en su manejo de 429/spend-limit, identificación del "discriminador competitivo" — qué feature NINGÚN tool ofrece hoy, y cómo Atlas OS puede adueñarse del espacio.
 
 La investigación cubrió ~30 URLs entre crates.io, repos de crates, PRs de Cline/MIT-licensed AI tools y docs de providers LLM.
 
@@ -413,7 +413,7 @@ Scheduler: NO via `ScheduledToastNotification` (WinRT scheduling API) porque nin
 
 **Reject WinRT `AppointmentManager`**: requiere capability restringida `appointmentsSystem` (manifest). En apps desktop no-MSIX (Tauri 2 default, `.exe` instalado sin MSIX), `ShowAddAppointmentAsync`/`FindAppointmentsAsync`/etc. devuelven `E_ACCESSDENIED (0x80070005)` porque la capability está condicionada al ser UWP package sandboxed. Esto viola RFC 25 §11 (single-binary, sin capabilities restringidas) y AGENTS.md §6.
 
-**WRITE side: `ics = "0.5.8"`** (crates.io ID `ics`, autor `hummingly`, repo `https://github.com/hummingly/ics`, MIT OR Apache-2.0). Pure Rust RFC 5545 generator. axum HUD server añade `GET /opencode-calendar.ics?token={base64url(16 bytes)}` que emite el feed por demanda. Subscription URL `webcal://127.0.0.1:{port}/opencode-calendar.ics?token=...`. Outlook/Apple Calendar soportan `webcal://` nativamente; Google Calendar vía "From URL" settings. RRULE soporta cadencias `FREQ=WEEKLY;BYDAY=MO;COUNT=8` para autoresearch recurring.
+**WRITE side: `ics = "0.5.8"`** (crates.io ID `ics`, autor `hummingly`, repo `https://github.com/hummingly/ics`, MIT OR Apache-2.0). Pure Rust RFC 5545 generator. axum HUD server añade `GET /atlas-calendar.ics?token={base64url(16 bytes)}` que emite el feed por demanda. Subscription URL `webcal://127.0.0.1:{port}/atlas-calendar.ics?token=...`. Outlook/Apple Calendar soportan `webcal://` nativamente; Google Calendar vía "From URL" settings. RRULE soporta cadencias `FREQ=WEEKLY;BYDAY=MO;COUNT=8` para autoresearch recurring.
 
 **READ side: `graph-rs-sdk = "3.0.1"`** (crates.io ID `graph-rs-sdk`, autor `sreeise`, repo `https://github.com/sreeise/graph-rs-sdk`, MIT, ~600 stars). `features = ["interactive-auth"]` abre popup wry webview (mismo engine que Tauri 2) para primer OAuth flow interactivo. Scopes `Calendars.Read` + `offline_access`. Refresh token en SQLite encrypted (AES-256-GCM via `aes-gcm 0.10`). Endpoint `GET /me/calendarView?startDateTime=...&endDateTime=...`, poller 60s desde `AppState`. Output: `AppState.context_busy_windows: Vec<BusyWindow>` consultado por Planning engine antes de encolar turn proactivo.
 
@@ -427,7 +427,7 @@ Scheduler: NO via `ScheduledToastNotification` (WinRT scheduling API) porque nin
 - **PR #10963** ([cline/cline#10963](https://github.com/cline/cline/pull/10963)) — retry middleware con jitter ±25% + parse `Retry-After` header + `x-ratelimit-reset` header.
 - **PR #10141** ([cline/cline#10141](https://github.com/cline/cline/pull/10141)) — bail-out cuando `Retry-After > threshold` (default 60s): para el retry loop en lugar de esperar.
 
-**OmniRoute envelope handling**: OpenCode OS usa OmniRoute ([github.com/diegosouzapw/OmniRoute](https://github.com/diegosouzapw/OmniRoute), MIT, 35k stars, 290+ providers, 500+ models, default branch `release/v3.8.50`) como un único OpenAI-compatible provider. OmniRoute normaliza headers upstream (`x-ratelimit-reset`, `anthropic-ratelimit-*-reset`, `Retry-After`) a un único campo `error.resets_at` en su JSON envelope:
+**OmniRoute envelope handling**: Atlas OS usa OmniRoute ([github.com/diegosouzapw/OmniRoute](https://github.com/diegosouzapw/OmniRoute), MIT, 35k stars, 290+ providers, 500+ models, default branch `release/v3.8.50`) como un único OpenAI-compatible provider. OmniRoute normaliza headers upstream (`x-ratelimit-reset`, `anthropic-ratelimit-*-reset`, `Retry-After`) a un único campo `error.resets_at` en su JSON envelope:
 
 ```json
 {
@@ -445,7 +445,7 @@ Scheduler: NO via `ScheduledToastNotification` (WinRT scheduling API) porque nin
 
 OpenCode NO parsea headers del provider upstream directamente cuando se usa OmniRoute — simplifica el código. Para providers directos (sin OmniRoute), sí se parsea el header específico y se mapea al mismo formato.
 
-**Discriminador competitivo identificado**: NINGÚN AI coding tool comercial (Cline, Cursor, Aider, Copilot, Continue) **proactivamente notifica** al usuario cuando un model vuelve a estar disponible tras un rate-limit o spend-cap. Cline viene close con `SpendLimitError` card pero es reactiva — el usuario debe reintentar manualmente. OpenCode OS capturando `reset_at`, persistiéndolo en SQLite, y disparando una Toast `kind='model_ready'` cuando el reset cumple es único. Ser PRIMERO en ofrecerlo es ventaja competitiva tangible.
+**Discriminador competitivo identificado**: NINGÚN AI coding tool comercial (Cline, Cursor, Aider, Copilot, Continue) **proactivamente notifica** al usuario cuando un model vuelve a estar disponible tras un rate-limit o spend-cap. Cline viene close con `SpendLimitError` card pero es reactiva — el usuario debe reintentar manualmente. Atlas OS capturando `reset_at`, persistiéndolo en SQLite, y disparando una Toast `kind='model_ready'` cuando el reset cumple es único. Ser PRIMERO en ofrecerlo es ventaja competitiva tangible.
 
 **OpenRouter polling**: `X-RateLimit-Reset` header en 429 + `GET /api/v1/key` para tracking. No polling activo — sólo reacciona a 429. OpenRouter no expone webhook.
 

@@ -1,4 +1,4 @@
-// OpenCode OS — Coding Engine tests (RFC 13).
+// Atlas OS — Coding Engine tests (RFC 13).
 //
 // Phase 1: behavioural tests for the heuristic runner. Covers the two
 // return shapes (`Emitted` / `Rejected`) and the four rejection reasons

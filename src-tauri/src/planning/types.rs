@@ -1,4 +1,4 @@
-// OpenCode OS — Planning Engine canonical types (RFC 12 §3).
+// Atlas OS — Planning Engine canonical types (RFC 12 §3).
 //
 // These structs are the cross-RFC contract between the Planning Engine and
 // the rest of the kernel:

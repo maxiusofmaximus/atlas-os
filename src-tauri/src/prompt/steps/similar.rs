@@ -1,4 +1,4 @@
-// OpenCode OS — Step 4: Search Similar Missions (RFC 23 §2, step 4).
+// Atlas OS — Step 4: Search Similar Missions (RFC 23 §2, step 4).
 //
 // Phase 1: placeholder. The real sqlite-vec cosine lookup lives behind a
 // trait (`SimilarMissionsLookup`) that the Journal will implement once the

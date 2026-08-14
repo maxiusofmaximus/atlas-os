@@ -1,4 +1,4 @@
-// OpenCode OS — Coding Engine (RFC 13).
+// Atlas OS — Coding Engine (RFC 13).
 //
 // The Coding Engine emits structured `Diff`s from a `Plan` + `Step`
 // (RFC 13 §2). It REJECTS rather than panics when a guard fires so the

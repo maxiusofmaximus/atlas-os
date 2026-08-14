@@ -1,17 +1,17 @@
-// OpenCode OS — Microsoft Intelligent Terminal ACP server skeleton
+// Atlas OS — Microsoft Intelligent Terminal ACP server skeleton
 // (RFC 28 §B Phase 1.5d item 3 + item 4).
 //
-// This stub turns the OpenCode CLI into a first-class ACP agent:
+// This stub turns the Atlas CLI into a first-class ACP agent:
 //
-//   * `initialize` is answered with `agentInfo: "OpenCode OS"` plus an
+//   * `initialize` is answered with `agentInfo: "Atlas OS"` plus an
 //     `agentCapabilities` block that advertises `loadSession=false` and no
 //     MCP / session-list / fork surfaces yet,
 //   * `session/new` synthesises a fresh `SessionId` from `uuid::v4` and
-//     immediately streams a `session/update` carrying the OpenCode OS
+//     immediately streams a `session/update` carrying the Atlas OS
 //     slash-command catalogue (`available_commands_update`), so the IT
-//     operator sees `/opencode fix`, `/opencode exec step`,
-//     `/opencode restart`, `/opencode mission new`, ``/opencode fork``,
-//     `/opencode resume` as soon as the session opens,
+//     operator sees `/atlas fix`, `/atlas exec step`,
+//     `/atlas restart`, `/atlas mission new`, ``/atlas fork``,
+//     `/atlas resume` as soon as the session opens,
 //   * `session/prompt` immediately stops with `StopReason::Refusal` and
 //     streams a single `session/update` chunk carrying a sentinel text
 //     explaining "Phase 1.5d: agent host loop not wired" before the prompt
@@ -20,7 +20,7 @@
 //     and otherwise dropped — the stub never enters a host loop, so there is
 //     no in-flight work to cancel.
 //
-// The entry point is `run_server`. It is invoked by the `opencode` binary
+// The entry point is `run_server`. It is invoked by the `atlas` binary
 // when Microsoft IT detection requests an ACP stdio loop (see RFC 28 §B
 // item 4 wiring in `src-tauri/src/cli/bin/opencode.rs`). The crate
 // re-exports this module under the `acp-server` feature flag (see `lib.rs`).
@@ -28,8 +28,8 @@
 // Slash-command catalogue + delegate helpers live in
 //   * `commands`:    `available_commands_update` builder + ACP
 //                    `AvailableCommand` definitions.
-//   * `delegate`:    parsing of `/opencode fix [hint]`, `/opencode exec step`,
-//                    `/opencode restart` argv + `wtcli` capture stub.
+//   * `delegate`:    parsing of `/atlas fix [hint]`, `/atlas exec step`,
+//                    `/atlas restart` argv + `wtcli` capture stub.
 //   * `mode_mapping`: bidirectional `SupervisorState` ↔ ACP `AcpMode` table.
 //
 // No `// TODO`s live in this file. Every branch is the deliberate behaviour
@@ -53,7 +53,7 @@ use agent_client_protocol::{
 };
 use uuid::Uuid;
 
-/// Entry point invoked by the `opencode` binary when Microsoft IT detection
+/// Entry point invoked by the `atlas` binary when Microsoft IT detection
 /// requests an ACP stdio loop. Drives the JSON-RPC server over stdio until
 /// the client disconnects or the transport closes. Item 4 wires the binary
 /// (`src-tauri/src/cli/bin/opencode.rs`) to call this when env detection
@@ -62,7 +62,7 @@ use uuid::Uuid;
 pub async fn run_server() -> agent_client_protocol::Result<()> {
     Agent
         .builder()
-        .name("opencode")
+        .name("atlas")
         .on_receive_request(
             async |request: InitializeRequest, responder, _connection| {
                 let response = build_initialize_response(request.protocol_version);
@@ -146,11 +146,9 @@ pub async fn run_server() -> agent_client_protocol::Result<()> {
 /// `agentInfo` block without driving the stdio transport.
 pub fn build_initialize_response(protocol_version: ProtocolVersion) -> InitializeResponse {
     let agent_capabilities = AgentCapabilities::new().load_session(false);
-    let agent_info = agent_client_protocol::schema::v1::Implementation::new(
-        "opencode",
-        env!("CARGO_PKG_VERSION"),
-    )
-    .title("OpenCode OS");
+    let agent_info =
+        agent_client_protocol::schema::v1::Implementation::new("atlas", env!("CARGO_PKG_VERSION"))
+            .title("Atlas OS");
     InitializeResponse::new(protocol_version)
         .agent_capabilities(agent_capabilities)
         .agent_info(agent_info)
@@ -183,7 +181,7 @@ mod tests {
     }
 
     #[test]
-    fn initialize_response_carries_opencode_os_title() {
+    fn initialize_response_carries_atlas_os_title() {
         let response = build_initialize_response(ProtocolVersion::V1);
         assert_eq!(response.protocol_version, ProtocolVersion::V1);
         assert!(!response.agent_capabilities.load_session);
@@ -191,8 +189,8 @@ mod tests {
             .agent_info
             .as_ref()
             .expect("agent_info is set by build_initialize_response");
-        assert_eq!(info.name, "opencode");
-        assert_eq!(info.title.as_deref(), Some("OpenCode OS"));
+        assert_eq!(info.name, "atlas");
+        assert_eq!(info.title.as_deref(), Some("Atlas OS"));
         assert_eq!(info.version, env!("CARGO_PKG_VERSION"));
     }
 

@@ -1,4 +1,4 @@
-// OpenCode OS — Kernel Bus: typed events + commands.
+// Atlas OS — Kernel Bus: typed events + commands.
 // See RFC 02 §3.1 and RFC 24 §4.1 for the taxonomy of `HudEvent`s.
 // Implements at-least-once delivery with `idempotency_key` (RFC 02 §3.1.2).
 use serde::{Deserialize, Serialize};
@@ -92,7 +92,7 @@ pub enum BusEventKind {
     HudServed {
         hud_port: u16,
     },
-    /// User-stamped steer message (RFC 25 §3.9 `opencode steer`,
+    /// User-stamped steer message (RFC 25 §3.9 `atlas steer`,
     /// `SteerAgent` kernel command). The host process publishes this
     /// event on the bus whenever the operator injects a steer mid-run;
     /// the Execution Supervisor resets its DoomLoopDetector when it
@@ -160,7 +160,7 @@ pub enum BusEventKind {
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SwapInitiator {
-    /// Operator invoked `opencode swap-model` or clicked the HUD control.
+    /// Operator invoked `atlas swap-model` or clicked the HUD control.
     User,
     /// Model Orchestrator fail-over (RFC 04 §6) — previous model was
     /// hard-down or over cost threshold.

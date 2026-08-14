@@ -1,12 +1,12 @@
-# AGENTS.md — OpenCode OS project guide for AI coding agents
+# AGENTS.md — Atlas OS project guide for AI coding agents
 
-This file documents conventions and commands for AI agents working on the OpenCode OS codebase. opencode reads it auto-magically as part of every boot so agents know what to do here.
+This file documents conventions and commands for AI agents working on the Atlas OS codebase. opencode reads it auto-magically as part of every boot so agents know what to do here.
 
 ## 1. Project layout
 
 ```
 /
-├── OpenCode OS/              # All RFCs (00 - 26). READ THESE BEFORE CHANGES.
+├── Atlas OS/              # All RFCs (00 - 26). READ THESE BEFORE CHANGES.
 ├── src-tauri/                # Rust core (Tauri 2 + axum HUD + LSP + CLI)
 │   ├── src/
 │   │   ├── core/             # AppState, Kernel Bus, IPC
@@ -158,19 +158,19 @@ If Context7 is unreacheable, fall back to `find-docs` skill + `webfetch` over of
 
 ## 6. Boundary rules
 
-- **No adding módulos nuevos de monolithic features.** New engines go in their own RFC first (`OpenCode OS/NN - …md`), then code.
+- **No adding módulos nuevos de monolithic features.** New engines go in their own RFC first (`Atlas OS/NN - …md`), then code.
 - **No cargo features beyond what's already in `Cargo.toml`.** If you must add one, update `26 §5` and `Cargo.toml` together.
 - **No new external tools bundled** (no Conda, noasdf, no pyinstaller). We are a single-binary distribution (`25 §11`).
 
 ## 7. Where RFCs live when something is unclear
 
-See `OpenCode OS/26 - Index & Cross-References.md` for a complete map. Quick pointers:
-- Adding a new subagent role? `OpenCode OS/05 - Swarm.md`.
-- Editing IDs (state machine) for doom loop? `OpenCode OS/19 - Execution Supervisor.md`.
-- Editing HUD card anatomy? `OpenCode OS/24 - HUD Mission Control.md` §3.
-- New prompt understanding step? `OpenCode OS/23 - Prompt Understanding & Refinement.md`.
-- Adding a new model provider? `OpenCode OS/04 - Model Orchestrator.md` (and `25 §3.8`).
-- Changing CLI commands? `OpenCode OS/08 - CLI.md` and `25 §3.9`.
+See `Atlas OS/26 - Index & Cross-References.md` for a complete map. Quick pointers:
+- Adding a new subagent role? `Atlas OS/05 - Swarm.md`.
+- Editing IDs (state machine) for doom loop? `Atlas OS/19 - Execution Supervisor.md`.
+- Editing HUD card anatomy? `Atlas OS/24 - HUD Mission Control.md` §3.
+- New prompt understanding step? `Atlas OS/23 - Prompt Understanding & Refinement.md`.
+- Adding a new model provider? `Atlas OS/04 - Model Orchestrator.md` (and `25 §3.8`).
+- Changing CLI commands? `Atlas OS/08 - CLI.md` and `25 §3.9`.
 
 ## 8. Agent bootstrap reminder
 
@@ -178,7 +178,7 @@ After cloning:
 1. `pnpm install` (will populate `node_modules` and pull Rust deps on next build).
 2. Install Rust toolchain if missing: `rustup show` triggers the prompt.
 3. Run `pnpm tauri:dev` for the first time — this will download Rust crates (~slow first time, ~3 minutes).
-4. Open the HUD at the URL printed by `opencode hud` once the desktop app boots.
+4. Open the HUD at the URL printed by `atlas hud` once the desktop app boots.
 
 ## 9. We do not commit unless asked
 

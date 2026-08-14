@@ -1,4 +1,4 @@
-// OpenCode OS — MCP tool-capability-aware routing pre-filter (RFC 04 §7
+// Atlas OS — MCP tool-capability-aware routing pre-filter (RFC 04 §7
 // sub-fase 2.3, "tag pre-filter hot-path" research/29 line 242, gap G19).
 //
 // Before the auto-router invokes the `TaskTypeClassifier`, the

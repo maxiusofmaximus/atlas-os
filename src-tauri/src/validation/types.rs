@@ -1,4 +1,4 @@
-// OpenCode OS — Validation Engine canonical types (RFC 14 §3).
+// Atlas OS — Validation Engine canonical types (RFC 14 §3).
 //
 // The Validation Engine emits structured `StageSummary`s (RFC 14 §3 "stage
 // summaries canónicos"), never raw log strings. The Repair Engine (RFC 15)

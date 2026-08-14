@@ -1,4 +1,4 @@
-// OpenCode OS — Step 2: Parse Intent (RFC 23 §2, step 2).
+// Atlas OS — Step 2: Parse Intent (RFC 23 §2, step 2).
 //
 // Heuristic implementation: no LLM. Native code only.
 //

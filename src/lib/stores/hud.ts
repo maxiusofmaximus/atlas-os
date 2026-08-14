@@ -1,4 +1,4 @@
-// OpenCode OS — HUD Svelte store (RFC 24 §4).
+// Atlas OS — HUD Svelte store (RFC 24 §4).
 // Connects to the local axum WebSocket server; keeps a rolling buffer of
 // the last 200 kernel-bus events so any subscribed component can render
 // Mission Control from anywhere.

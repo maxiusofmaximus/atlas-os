@@ -1,6 +1,6 @@
 # 06 - Skills
 
-OpenCode OS no acumula skills. Las **comprime, las asocia a motores, las prioriza y las muestra al usuario**. Aquí inventamos algo que todavía no existe en ningún editor de código ni CLI.
+Atlas OS no acumula skills. Las **comprime, las asocia a motores, las prioriza y las muestra al usuario**. Aquí inventamos algo que todavía no existe en ningún editor de código ni CLI.
 
 ---
 
@@ -34,7 +34,7 @@ conflicts:
 auto_generated: false
 verified: true
 version: 1.4.2
-author: opencode-os
+author: atlas-os
 license: MIT
 home: ./skills/react-ui-expert/
 ```
@@ -123,7 +123,7 @@ Bajo esa presión el editor **mejora solo**.
 
 ## 6. Detección de skills disponibles
 
-OpenCode OS escanea:
+Atlas OS escanea:
 - `~/.opencode/skills/**` y `.opencode/skills/**` (estilo Claude)
 - `~/.agents/skills/**` (estilo InsForge)
 - MCPs que aportan *tools* (ver `07 - MCP.md`)
@@ -152,11 +152,11 @@ El Planner respeta conflicts y nunca programa dos skills conflictivas en el mism
 
 ## 9. Skills cerradas vs abiertas
 
-OpenCode OS soporta skills **abiertas** (en YAML/Markdown) y **cerradas** (paquetes firmados). Las skills cerradas requieren firma criptográfica (ver `18 - Security.md`) para instalarse — esto resuelve la crítica contra OpenClaw (skills sin sandbox).
+Atlas OS soporta skills **abiertas** (en YAML/Markdown) y **cerradas** (paquetes firmados). Las skills cerradas requieren firma criptográfica (ver `18 - Security.md`) para instalarse — esto resuelve la crítica contra OpenClaw (skills sin sandbox).
 
 ## 10. Reemplazo de la lista plana original
 
-El antiguo harness tenía una lista de ~18 herramientas (Zod, Prisma, Biome, Knip, Socket, Snyk, etc.). En OpenCode OS, esas herramientas son **skills** dentro del Skill Graph, cada una:
+El antiguo harness tenía una lista de ~18 herramientas (Zod, Prisma, Biome, Knip, Socket, Snyk, etc.). En Atlas OS, esas herramientas son **skills** dentro del Skill Graph, cada una:
 - con `engine` asignado,
 - con `compatible_models`,
 - con `priority` derivada del dominio,

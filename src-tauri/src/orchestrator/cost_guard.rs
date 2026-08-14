@@ -1,4 +1,4 @@
-// OpenCode OS — Cost guard / aggregation policy trait (RFC 04 §6,
+// Atlas OS — Cost guard / aggregation policy trait (RFC 04 §6,
 // sub-fase 2.1, G11).
 //
 // When the orchestrator routes to an aggregation mode (Council, MoA,

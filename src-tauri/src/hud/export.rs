@@ -1,4 +1,4 @@
-// OpenCode OS — HUD audit export routes (RFC 28 §D — Phase 1.5a §D-5).
+// Atlas OS — HUD audit export routes (RFC 28 §D — Phase 1.5a §D-5).
 //
 // Single route attached to the HUD axum server:
 //

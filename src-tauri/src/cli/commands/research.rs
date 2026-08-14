@@ -1,4 +1,4 @@
-// OpenCode OS — `opencode research` subcommand (RFC 28 Section E).
+// Atlas OS — `atlas research` subcommand (RFC 28 Section E).
 //
 // Three sub-actions gated behind the `firecrawl` Cargo feature:
 //
@@ -127,7 +127,7 @@ pub struct ResearchCmd {
 
 pub async fn run(cmd: ResearchCmd, _profile: &str) -> Result<()> {
     let client = FirecrawlClient::from_env().context(
-        "firecrawl client build failed; set FIRECRAWL_API_KEY and optionally OPENCODE_FIRECRAWL_URL",
+        "firecrawl client build failed; set FIRECRAWL_API_KEY and optionally ATLAS_FIRECRAWL_URL (legacy: ATLAS_FIRECRAWL_URL)",
     )?;
     match cmd.action {
         ResearchSub::Scrape(a) => run_scrape(&client, a).await,

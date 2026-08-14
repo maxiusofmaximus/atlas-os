@@ -1,4 +1,4 @@
-// OpenCode OS — Journal: YAML literal block formatter (RFC 28 §D — Fase 0 item PT-003).
+// Atlas OS — Journal: YAML literal block formatter (RFC 28 §D — Fase 0 item PT-003).
 //
 // Ported from `darrenburns/posting/src/posting/yaml.py:str_presenter`
 // (Apache-2.0, Copyright Darren Burns). The Python `str_presenter` registers a
@@ -17,7 +17,7 @@
 //   * Python's `data.splitlines()` becomes Rust's `.lines()`. Both consume
 //     trailing newline and split on `\n` (Python's splitlines additionally
 //     splits on lone `\r`, `\r\n`, and Unicode line boundaries — but the
-//     OpenCode OS Journal strips lone `\r` at INSERT time per RFC 02 §3.4,
+//     Atlas OS Journal strips lone `\r` at INSERT time per RFC 02 §3.4,
 //     so the divergence is contractually unreachable. Using `.lines()` also
 //     gives Rust-native CRLF handling that matches Python's `splitlines()`
 //     for `\r\n` inputs.

@@ -16,7 +16,7 @@ Conductor es una **Mac app nativa** (Swift/AppKit, no Electron) que orquesta mú
 
 ### A.2 Unidades arquitectónicas
 
-| Unidad | Definición | Análogo OpenCode OS |
+| Unidad | Definición | Análogo Atlas OS |
 |---|---|---|
 | **Project** | 1 repository Git. Root de namespaces. | Workspace dir + `journal.sqlite` |
 | **Workspace** | 1 branch + 1 git worktree + 1 agent sandbox. Shippable unit. | `Mission` + Swarm `subagent_id` (RFC 05) |
@@ -38,14 +38,14 @@ Conductor es una **Mac app nativa** (Swift/AppKit, no Electron) que orquesta mú
 ### A.3 Workflow patrón (portable)
 
 1. **Break** el problema en shippable units (1 unit → 1 workspace).
-2. **Spawn** 1 agent por workspace (CLI: `claude`, `codex`, `opencode`, `cursor`).
+2. **Spawn** 1 agent por workspace (CLI: `claude`, `codex`, `atlas`, `cursor`).
 3. **Watch** the Lives board (paralelo, at-a-glance status).
 4. **Review** diff per workspace cuando el agent signal done.
 5. **Run checks** (build/test/lint) from Conductor UI button.
 6. **Merge** → workspace archiva, branch se elimina.
 7. **Re-sync**: workspaces restantes hacen rebase automático sobre el main actualizado.
 
-### A.4 Patrones portables a OpenCode OS
+### A.4 Patrones portables a Atlas OS
 
 | ID | Patrón | Origen Conductor | Destino OC-OS | Phase |
 |---|---|---|---|---|
@@ -61,7 +61,7 @@ Conductor es una **Mac app nativa** (Swift/AppKit, no Electron) que orquesta mú
 ### A.5 No-portable (rechazos conscientes)
 
 - **CRDT real-time co-editing** (CN-005): rechazado para v1 (Roadmap "out of scope"). Re-evaluar cuando Yjs/Automerge en Rust madure (`y-rs` inestable 2026-Q3).
-- **Cursor agent integration**: Conductor soporta Cursor como agent host. OpenCode OS **es** el agent host — no hay nada que integrar.
+- **Cursor agent integration**: Conductor soporta Cursor como agent host. Atlas OS **es** el agent host — no hay nada que integrar.
 - **Mac-only native**: Conductor es Swift/AppKit. Nosotros somos Tauri (cross-platform). El UX pattern (Lives board) es portable; la implementación no.
 
 ---
@@ -99,7 +99,7 @@ Conductor es una **Mac app nativa** (Swift/AppKit, no Electron) que orquesta mú
 
 ### B.4 Puente Rust ↔ Node (terminal-kit)
 
-OpenCode OS core es Rust. terminal-kit es Node. Patrón propuesto:
+Atlas OS core es Rust. terminal-kit es Node. Patrón propuesto:
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -139,8 +139,8 @@ Nate Gentile (YouTuber hardware/PC) documented un setup **dual-PC**:
 - **PC cliente** (thin): donde él juega directamente, accediendo al servidor en vivo.
 - **NO es captura de pantalla** — es **live remote desktop**: input/teclado/ratón del cliente se inyecta en el servidor; el framebuffer del servidor se stream al cliente en tiempo real (<20ms latencia perceptual). Protocolos: Moonlight/Sunshine ( Sunshine = open-source host, Moonlight = open-source client), Parsec, Steam Remote Play.
 
-**Análogo OpenCode OS:**
-- **PC servidor**: corre OpenCode OS con modelos locales (Ollama) o API keys, HUD, journal, engines, ACP server, toast, calendar. Potente CPU/GPU, headless OK.
+**Análogo Atlas OS:**
+- **PC servidor**: corre Atlas OS con modelos locales (Ollama) o API keys, HUD, journal, engines, ACP server, toast, calendar. Potente CPU/GPU, headless OK.
 - **PC cliente / móvil**: accede en **live** al servidor para controlar programación y modelos. No descarga screenshots — render el HUD en vivo y inyecta clicks/teclado.
 
 ### C.2 Por qué NO captura estática (aclaración）
@@ -155,14 +155,14 @@ Early discussionmightoría sugería "captura de pantalla + click injection" — 
 | UX | Laggy, no apto para typing | Fluído, apto para programar |
 | Protocolo | HTTP + S3 | WebRTC / Sunshine / VNC |
 
-### C.3 Arquitectura propuesta (OpenCode OS Live Remote)
+### C.3 Arquitectura propuesta (Atlas OS Live Remote)
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │  PC SERVIDOR (headless OK, GPU potente)                          │
 │                                                                  │
 │  ┌────────────────────┐   ┌──────────────────────────────────┐  │
-│  │ OpenCode OS Rust   │   │  Sunshine host (open-source)     │  │
+│  │ Atlas OS Rust   │   │  Sunshine host (open-source)     │  │
 │  │  core + axum HUD   │◄──┤  - Captura framebuffer Tauri     │  │
 │  │  + ACP + Ollama    │   │  - H.265 encode (NVENC/QSV)      │  │
 │  └─────────┬──────────┘   │  - WebRTC signaling              │  │
@@ -232,7 +232,7 @@ Cliente (Moonlight) envía input events (kbd/mouse/touch) con timestamps. Sunshi
 - Self-hostable sin vendor lock-in.
 - Software renderer + hardware encoder (NVENC/AMF/QSV) available.
 - Clientes nativos para Android, iOS, Windows, Mac, Linux ya existen.
--hbrust-sdk crate permite embed host en OpenCode OS Rust core (no subprocess).
+-hbrust-sdk crate permite embed host en Atlas OS Rust core (no subprocess).
 - Encryption end-to-end, flea relay opcional.
 
 Pattern: cuando una mission requiere GPU heavy (Ollama 70B, Fine-tuning), el usuario arranca el servidor en el PC potent, conecta desde laptop/móvil con RustDesk client, y opera el HUD en vivo. El Journal persiste en el servidor. Sync entre clientes = el kernel es source of truth.

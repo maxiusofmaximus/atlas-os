@@ -1,6 +1,6 @@
 # 00 - Visión
 
-> **OpenCode OS** — Agent Engineering Operating System (AEOS) Specification v1
+> **Atlas OS** — Agent Engineering Operating System (AEOS) Specification v1
 
 ## 1. La tesis
 
@@ -16,11 +16,11 @@ Los editores con IA actuales (Cursor, Windsurf, Claude Code, Hermes, OpenClaw) c
 2. **Son mono-modelo o acoplados a un proveedor.** No saben *cuándo* cambiar de cerebro.
 3. **Pierden contexto al pasar de un archivo a otro.** Modifican un módulo y olvidan el resto del proyecto.
 
-OpenCode OS no resuelve esto con un mejor prompt. Lo resuelve con **arquitectura**.
+Atlas OS no resuelve esto con un mejor prompt. Lo resuelve con **arquitectura**.
 
 ## 3. La diferencia fundamental
 
-| Editor tradicional | OpenCode OS |
+| Editor tradicional | Atlas OS |
 |---|---|
 | Colección de skills | Sistema de motores coordinados |
 | Un modelo piensa | Un orquestador decide qué modelo piensa |
@@ -49,7 +49,7 @@ Esa es la visión. El resto de esta especificación define cómo se implementa.
 
 ## 6. Nombre interno
 
-- **Nombre del producto:** OpenCode OS
+- **Nombre del producto:** Atlas OS
 - **Nombre técnico:** AEOS (Agent Engineering Operating System)
 - **Versión:** v1.0
 - **Naturaleza:** Sistema operativo para agentes de programación

@@ -1,5 +1,5 @@
 <script lang="ts">
-  // OpenCode OS — HUD Mission Control landing page (Phase 1).
+  // Atlas OS — HUD Mission Control landing page (Phase 1).
   // See RFC 24 for the full design. Phase 1 renders:
   //  - HUD URL + WS status (where the axum WS server is bound)
   //  - Live journal stream (kernel bus events)
@@ -275,7 +275,7 @@
 
 <main>
   <header>
-    <h1>OpenCode OS</h1>
+    <h1>Atlas OS</h1>
     <span class="version">v{import.meta.env.VITE_OC_VERSION ?? '0.1.0'}</span>
   </header>
 
@@ -297,9 +297,9 @@
     <h2>Audit export — posting format</h2>
     <p class="hint">
       Export the most recent audit-log entries to <code>.posting.yaml</code> snapshots under
-      <code>{'<profile>'}/snapshots/YYYY-MM-DD/</code>. Closes <em>RFC 27 §3.H Brecha H</em>.
-      Format compatible with <code>darrenburns/posting</code> (Apache-2.0), no runtime dep.
-      See <em>RFC 28 §D</em>.
+      <code>{'<profile>'}/snapshots/YYYY-MM-DD/</code>. Closes <em>RFC 27 §3.H Brecha H</em>. Format
+      compatible with <code>darrenburns/posting</code> (Apache-2.0), no runtime dep. See
+      <em>RFC 28 §D</em>.
     </p>
     <form
       onsubmit={(e) => {
@@ -355,14 +355,10 @@
   <section class="autoresearch">
     <h2>Autoresearch loop</h2>
     <p class="hint">
-      RFC 28 §A. Greedy hill-climbing on git commits; supervisor-owned keep
-      verdict. Card waits for telemetry from <code>opencode mission new --autoresearch</code>.
+      RFC 28 §A. Greedy hill-climbing on git commits; supervisor-owned keep verdict. Card waits for
+      telemetry from <code>opencode mission new --autoresearch</code>.
     </p>
-    <AutoresearchCard
-      snapshot={null}
-      candidates={[]}
-      hudUrl={data.hudUrl}
-    />
+    <AutoresearchCard snapshot={null} candidates={[]} hudUrl={data.hudUrl} />
   </section>
 
   <section class="journal">

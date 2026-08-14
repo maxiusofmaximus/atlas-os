@@ -1,4 +1,4 @@
-// OpenCode OS — graph traversal helpers (RFC 28 §C).
+// Atlas OS — graph traversal helpers (RFC 28 §C).
 //
 // Gated behind `dag_mode` because petgraph is the only cargo dep it
 // pulls. The HUD endpoint `GET /hud/graph/:id` does NOT need this

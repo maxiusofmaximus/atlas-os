@@ -1,6 +1,6 @@
 # autoresearch — Karpathy hill-climbing greedy loop (RFC 28 §A)
 
-This skill wraps Karpathy's `autoresearch/program.md` experiment pattern so OpenCode OS can run it as a typed mission option (`opencode mission new --autoresearch --metric "<deterministic command>"`).
+This skill wraps Karpathy's `autoresearch/program.md` experiment pattern so Atlas OS can run it as a typed mission option (`atlas mission new --autoresearch --metric "<deterministic command>"`).
 
 ## License & provenance
 

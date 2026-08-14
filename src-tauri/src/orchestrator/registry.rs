@@ -1,11 +1,11 @@
-// OpenCode OS — Model registry (RFC 04 §1, Phase 2 sub-fase 2.0).
+// Atlas OS — Model registry (RFC 04 §1, Phase 2 sub-fase 2.0).
 //
 // The registry holds the in-memory index of every `ModelDescriptor`
-// and `Deployment` OpenCode OS knows how to invoke. The schema-of-
+// and `Deployment` Atlas OS knows how to invoke. The schema-of-
 // record is the JSON seed `assets/model_prices_and_context_window.json`
 // (subset of BerriAI/litellm MIT-licensed `model_prices_and_context_window.json`)
 // bundled into the binary via `include_str!` — single-binary safe per
-// RFC 25 §11 and updateable without a rebuild via `opencode models refresh`
+// RFC 25 §11 and updateable without a rebuild via `atlas models refresh`
 // (which writes the new JSON to `<profile_root>/model_prices.json` and
 // hot-swaps the in-memory `Arc<Registry>` via `ArcSwap::store`).
 //
@@ -60,7 +60,7 @@ impl RegistrySeedMeta {
             _comment: String::new(),
             _license: String::new(),
             _version: "test".into(),
-            _schema: "opencode-os-registry-v1".into(),
+            _schema: "atlas-os-registry-v1".into(),
         }
     }
 }
@@ -115,7 +115,7 @@ impl Registry {
     /// Parse the bundled seed JSON. Called at boot via
     /// `Registry::bundled_seed()` — the JSON is `include_str!`'d at
     /// compile time so there's zero filesystem I/O on the happy path;
-    /// `opencode models refresh` may swap it at runtime (sub-fase 2.1).
+    /// `atlas models refresh` may swap it at runtime (sub-fase 2.1).
     pub fn bundled_seed() -> &'static str {
         include_str!("assets/model_prices_and_context_window.json")
     }

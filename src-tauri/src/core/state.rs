@@ -1,9 +1,9 @@
-// OpenCode OS — AppState.
+// Atlas OS — AppState.
 // Single source of truth shared by:
 //  - Tauri desktop frontend (via IPC commands — `core::ipc`)
 //  - Local HUD WebSocket server (`hud::serve`)
 //  - LSP host subprocess pool (`lsp::host`)
-//  - `opencode` CLI binary (`cli/bin/opencode.rs`)
+//  - `atlas` CLI binary (`cli/bin/opencode.rs`)
 //
 // Designed to **survive webview crashes** (RFC 25 §2): the inner state is
 // an Arc around a small bundle of long-lived handles; the webview holds a

@@ -1,4 +1,4 @@
-// OpenCode OS — `opencode plan` subcommand (RFC 25 §3.9).
+// Atlas OS — `atlas plan` subcommand (RFC 25 §3.9).
 // Generates (or regenerates) a Plan from an existing locked mission. The
 // upstream `PublicUnderstandingVerdict` and `MissionConsolidated` are
 // fetched from the Journal (the CLI never holds engine artefacts in

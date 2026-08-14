@@ -6,7 +6,7 @@ El motor que decide **qué cerebro** piensa cada paso. Es el pilar de la diferen
 
 ---
 
-> **Estado de implementación.** Phase 1 materializa sólo el hot-swap RFC 27 §B + reset-window management (RFC 28 §H items 1-13, "SpendLimitError" / "RetryPolicy" / "parse_omnroute" / `handle_spend_limit_error()`). Las secciones §1 (registry), §2 (selección routing), §3 (votación/fusión/debate), §5 (sub-modos local/free/mixto), §6 (presupuesto enforcement), §7 (skill-aware + auto-routing classifier), §8 (feedback loop telemetría) son **PENDING Phase 2 — §1-§7 IMPLEMENTADO, resta §8** — plan refinado con 6 sub-fases atómicas (2.0 Foundation → 2.0.5 Normalization → 2.1 Routing → 2.2 Aggregation → 2.3 Auto-routing → 2.4 Feedback) en `OpenCode OS/research/29 - Phase 2 model orchestrator.md`. Evidencia primaria: 11 papers arxiv cross-verified + LiteLLM + OpenRouter + Aider + async-openai + RouteLLM + Context7 (linfa/fastembed-rs API verification). Auditoría Round 3 detectó 9 gaps críticos (G1 prompt caching, G2 token counter pre-flight, G3 sampling params, G5 cooldown per-provider, G8 tool-call normalization, G11 cost guard pre-aggregation, G12 idempotency, G17 `Retry-After` headers, G18 back-pressure semáforo) que se materializan en sub-fase 2.0.5. Literales Rust existentes: `orchestrator::{mod, error, parse_error, retry}` + `journal::{model_swaps, model_resets}` + `BusEventKind::{ModelSwapped, SpendLimitObserved}`.
+> **Estado de implementación.** Phase 1 materializa sólo el hot-swap RFC 27 §B + reset-window management (RFC 28 §H items 1-13, "SpendLimitError" / "RetryPolicy" / "parse_omnroute" / `handle_spend_limit_error()`). Las secciones §1 (registry), §2 (selección routing), §3 (votación/fusión/debate), §5 (sub-modos local/free/mixto), §6 (presupuesto enforcement), §7 (skill-aware + auto-routing classifier), §8 (feedback loop telemetría) son **PENDING Phase 2 — §1-§7 IMPLEMENTADO, resta §8** — plan refinado con 6 sub-fases atómicas (2.0 Foundation → 2.0.5 Normalization → 2.1 Routing → 2.2 Aggregation → 2.3 Auto-routing → 2.4 Feedback) en `Atlas OS/research/29 - Phase 2 model orchestrator.md`. Evidencia primaria: 11 papers arxiv cross-verified + LiteLLM + OpenRouter + Aider + async-openai + RouteLLM + Context7 (linfa/fastembed-rs API verification). Auditoría Round 3 detectó 9 gaps críticos (G1 prompt caching, G2 token counter pre-flight, G3 sampling params, G5 cooldown per-provider, G8 tool-call normalization, G11 cost guard pre-aggregation, G12 idempotency, G17 `Retry-After` headers, G18 back-pressure semáforo) que se materializan en sub-fase 2.0.5. Literales Rust existentes: `orchestrator::{mod, error, parse_error, retry}` + `journal::{model_swaps, model_resets}` + `BusEventKind::{ModelSwapped, SpendLimitObserved}`.
 
 ---
 
@@ -39,7 +39,7 @@ El orquestador mantiene un registry de modelos. Cada entrada:
 }
 ```
 
-> **Lecciones integradas de AionUI** (`iOfficeAI/AionUi`, Apache-2.0, 29.3k★): AionUi no rutea automáticamente por complejidad/costo/latencia — delega al usuario la selección manual de modelo por conversación o por *assistant preset*. OpenCode OS convierte ese routing en un motor automático, que es **la invención diferencial #1**. Hemos incorporado de AionUi: el *capability tag system* (`text|vision|function_calling|image_generation`), el *protocol auto-detection*, el *multi-key rotation con blacklist de 90s* (ver §3) y las *runtime options* (thought level / mode) que algunos backends exponen.
+> **Lecciones integradas de AionUI** (`iOfficeAI/AionUi`, Apache-2.0, 29.3k★): AionUi no rutea automáticamente por complejidad/costo/latencia — delega al usuario la selección manual de modelo por conversación o por *assistant preset*. Atlas OS convierte ese routing en un motor automático, que es **la invención diferencial #1**. Hemos incorporado de AionUi: el *capability tag system* (`text|vision|function_calling|image_generation`), el *protocol auto-detection*, el *multi-key rotation con blacklist de 90s* (ver §3) y las *runtime options* (thought level / mode) que algunos backends exponen.
 
 ### Proveedores soportados por defecto
 | Proveedor | Tier | Tipo |
@@ -167,7 +167,7 @@ Para decisiones críticas el orquestador puede:
      multi-model: executor caro + reflexor barato. M22 migration
      `reflection_episodes`. Anti-doom-loop: `detect_doom_loop()` aborta
      la mission si `failure_signal` idéntico aparece en 2 episodios
-     consecutivos. **Contribución OpenCode OS:** paper original usa el
+     consecutivos. **Contribución Atlas OS:** paper original usa el
      mismo modelo para executor y reflexor; nosotros separamos roles y
      usamos un reflexor ~4× más barato (anotado en RFC 22 §Research
      Findings).
@@ -269,7 +269,7 @@ M23 migration aporta dos tablas:
 
 RFC 04 §7 (pre-2.3 wording) y RFC 20 line 78 mencionaban "2-layer MLP `linfa`". Context7 verification (`npx ctx7 docs /rust-ml/linfa "neural network feed forward multilayer perceptron nn training backprop"`, 2026-08-12) retornó *no documentation match* — `linfa` no es un MLP feed-forward module, sólo logistic regression + clustering + SVM. Una MLP hand-rolled sería ~200 LOC de matrix math para ganancias marginales: HybridLLM (arXiv:2404.14618 §4.3 Fig. 5) muestra que logistic regression con BGE-small ya alcanza ~94% de la accuracy del MLP con un peso-footprint un orden de magnitude menor. **Deferral decision (documented in RFC 22 §7 AN-2.3-a)**: la MLP queda deferred a Phase 2.5+ como optimización, ES `LinearCostGuard` budget-safe: cualquier MLP futura entra vía la misma `AutoRouterConfig.weights_path` (formato estended, sin romper logreg JSON).
 
-Legacy: el Skill Graph (`OpenCode OS/06 - Skills.md`) almacena `compatible_models` y `recommended_models`. El orquestador **prioriza** los recomendados al disparar una skill (preserva P3 — bất model puede entrar). Las Skills de diseño favorecen Gemini o Claude; las skills de tests priorizan modelos rápidos; las de lógica priorizan razonadores. Phase-2.3 NO rompe eso — la auto-routing layer se situé antes del Skill Graph lookup, mejor: clasifica TASK, despacha al skill compatible, y el skill aporta el MODEL HINT.
+Legacy: el Skill Graph (`Atlas OS/06 - Skills.md`) almacena `compatible_models` y `recommended_models`. El orquestador **prioriza** los recomendados al disparar una skill (preserva P3 — bất model puede entrar). Las Skills de diseño favorecen Gemini o Claude; las skills de tests priorizan modelos rápidos; las de lógica priorizan razonadores. Phase-2.3 NO rompe eso — la auto-routing layer se situé antes del Skill Graph lookup, mejor: clasifica TASK, despacha al skill compatible, y el skill aporta el MODEL HINT.
 
 ## 8. Telemetría `[PARCIAL Phase 1 — Phase 2 sub-fase 2.4 completa el loop affinity]`
 
@@ -287,10 +287,10 @@ Esto retroalimenta la afinidad del orquestador con el tiempo → el sistema **ap
 
 El Orchestrator es agnóstico del transporte de UI. Hasta Phase 1 disponía de dos frontends:
 
-1. **CLI pura** (`opencode` headless binary, RFC 25 §3.9 / RFC 08) — `mission new`, `plan`, `run`, `resume`, `fork`, `steer`, `swap_model`, `exec`, etc.
+1. **CLI pura** (`atlas` headless binary, RFC 25 §3.9 / RFC 08) — `mission new`, `plan`, `run`, `resume`, `fork`, `steer`, `swap_model`, `exec`, etc.
 2. **HUD Mission Control** (WebView via Tauri, RFC 24) — graph cards, fork-tree, audit timeline, autoresearch card (RFC 28 §A), mission graph (RFC 28 §C), WebSockets over axum.
 
-A partir de **RFC 28 §B** (Phase 1.5d) hay un tercer frontend: el **ACP server embebido en `opencode`** que Microsoft Intelligent Terminal auto-detecta vía `WT_COM_CLSID`. Esto NO convierte al Orchestrator en un proceso externo — el ACP server reusa la misma `crate::orchestrator` que los otros dos frontends, simplemente con un transporte JSON-RPC sobre stdio y un envelope de input distinto (`PromptRequest` en vez de `commands::dispatch`). El contrato es:
+A partir de **RFC 28 §B** (Phase 1.5d) hay un tercer frontend: el **ACP server embebido en `atlas`** que Microsoft Intelligent Terminal auto-detecta vía `WT_COM_CLSID`. Esto NO convierte al Orchestrator en un proceso externo — el ACP server reusa la misma `crate::orchestrator` que los otros dos frontends, simplemente con un transporte JSON-RPC sobre stdio y un envelope de input distinto (`PromptRequest` en vez de `commands::dispatch`). El contrato es:
 
 - `initialize` → `build_initialize_response` (sin `mcpCapabilities` en Phase 1.5d; ver RFC 28 §B).
 - `session/new` + `available_commands_update` → los 6 slash commands del catalogue de `acp/commands.rs`.
@@ -306,7 +306,7 @@ Single-binary safety (RFC 25 §11): el ACP frontend no añade subprocess externo
 
 ## Apéndice — Plan refinado Phase 2 (sub-fases atómicas)
 
-**Source:** `OpenCode OS/research/29 - Phase 2 model orchestrator.md`. Evidencia primaria: 11 papers arxiv cross-verified + LiteLLM/OpenRouter/Aider/async-openai/RouteLLM docs.
+**Source:** `Atlas OS/research/29 - Phase 2 model orchestrator.md`. Evidencia primaria: 11 papers arxiv cross-verified + LiteLLM/OpenRouter/Aider/async-openai/RouteLLM docs.
 
 | Sub-fase | Título | Migración | Cobertura | Estado |
 |---|---|---|---|---|
@@ -319,5 +319,5 @@ Single-binary safety (RFC 25 §11): el ACP frontend no añade subprocess externo
 
 **KPIs Phase 2:** coste LLM por mission ≤ Phase 1 × 0.6 (RouteLLM evidence >2× savings); routing overhead < 5ms p95 (ArcSwap lock-free); re-ingresos model crash 100%; feedback loop `was_correct` < 30s tras verdict usuario.
 
-**Sub-pases deferrables (Future Work anotados, no en Phase 2):** G4 streaming partial aggregation, G6 circuit-breaker half-open state, G7 provider-level health HUD, G9 vision/multimodal routing capability mask, G10 Ollama `supports_tools` CSV, G13 HUD approval card aggregation, G15 `opencode calibrate-classifier` CLI, G16 offline eval harness `opencode eval`, G19 MCP tool-capability-aware routing (`pre_filter` skeleton + `McpServerCatalog` trait en 2.3, integración con `rmcp` real registry deferred a 2.5+), G20 response cache separado de prompt cache provider, AN-2.3-a linfa MLP feed-forward (deferral — `linfa` no lo tiene, scratch impl deferred a Phase 2.5+).
+**Sub-pases deferrables (Future Work anotados, no en Phase 2):** G4 streaming partial aggregation, G6 circuit-breaker half-open state, G7 provider-level health HUD, G9 vision/multimodal routing capability mask, G10 Ollama `supports_tools` CSV, G13 HUD approval card aggregation, G15 `opencode calibrate-classifier` CLI, G16 offline eval harness `atlas eval`, G19 MCP tool-capability-aware routing (`pre_filter` skeleton + `McpServerCatalog` trait en 2.3, integración con `rmcp` real registry deferred a 2.5+), G20 response cache separado de prompt cache provider, AN-2.3-a linfa MLP feed-forward (deferral — `linfa` no lo tiene, scratch impl deferred a Phase 2.5+).
 

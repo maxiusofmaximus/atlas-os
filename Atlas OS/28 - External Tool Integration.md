@@ -7,7 +7,7 @@
 
 **Scope:** Adds four loosely-coupled integration surfaces (§A–§D) on top of RFCs 02–27, using migrations **M13/M14/M15** (free per preamble). No new external runtime dependency is bundled — three new crates, all single-binary-safe. Karpathy tweet and graphify URL honesty preserved (§C claims no first-hand tweet fetch).
 
-### Source-derivation map (inventario portabilidad — `OpenCode OS/research/28 - portable inventory.md`)
+### Source-derivation map (inventario portabilidad — `Atlas OS/research/28 - portable inventory.md`)
 
 Every algorithm, file format, or pattern implemented in this RFC is derived verbatim or via translation from one of four MIT/Apache-2.0 source repos. Public attribution appears in each module's module-level prose. **No code is taken from non-OSS sources; no runtime dep on any of them stays in the binary.**
 
@@ -106,13 +106,13 @@ Derived from [`microsoft/intelligent-terminal`](https://github.com/microsoft/int
 - **IT-002** `wt-agent-hooks/<cli>/wt-agent-hooks/hooks/send-event.ps1` (~250 LOC, byte-identical across subtrees) — **exit-0 trap discipline**: `trap { exit 0 }` + outer try/catch. Stdio is prompt-injection vector. 5MB diagnostic rotation threshold. CLI-source detection via args. Copy_uso verbatim of PowerShell script + our own emit-event cargo bin.
 - **IT-003** `wt-agent-hooks/<cli>/hooks.json` (~70 LOC) — 10-hook domain → WTA topic mapping table. Copy_uso of schema; generate per-CLI variants programmatically.
 - **IT-004** `doc/specs/llm-agent-event-integration.md` (~400 LOC) — **OSC 9001 in-band zero-dep event envelope** spec + 7 standard agent event types. Cited verbatim as spec basis.
-- **IT-005** `doc/wtcli-commands.md` (~150 LOC) — 17 wtcli subcommands. Used as clap-derive enum inspiration for `opencode` CLI.
+- **IT-005** `doc/wtcli-commands.md` (~150 LOC) — 17 wtcli subcommands. Used as clap-derive enum inspiration for `atlas` CLI.
 - **IT-013** `tools/wta/src/main.rs` (~4500 LOC) — `clap` subcommand dispatch reference, idiomatic `anyhow::Result` patterns.
 - **IT-014** `tools/wta/src/event.rs` (~200 LOC) — `Event { r#type, method, params: serde_json::Map }` struct. **Direct port hint** — 1:1 schema with §D OSC envelope.
 
 ### Objetivos
 
-Hacer que `opencode` sea un **ACP agent de primera clase** detectable por Intelligent Terminal 0.1+ (autodetecta OpenCode en PATH, README §Get Started). El usuario arrastra `/opencode fix`, `/opencode restart`, `/opencode exec step` en el pane. HUD Mission Control sigue siendo el surface visual canonical; el pane es *entrada ligera diaria*.
+Hacer que `atlas` sea un **ACP agent de primera clase** detectable por Intelligent Terminal 0.1+ (autodetecta OpenCode en PATH, README §Get Started). El usuario arrastra `/opencode fix`, `/opencode restart`, `/opencode exec step` en el pane. HUD Mission Control sigue siendo el surface visual canonical; el pane es *entrada ligera diaria*.
 
 ### Cambios Rust
 
@@ -161,7 +161,7 @@ Persistido por worker Rust que consume `wtcli listen --event "agent.*" --json` (
 ### Riesgos
 
 - **ACP v2 aún draft**: `unstable_session_fork` rompe sin semver guarantee. Anclar `agent-client-protocol = "=2.0.0"` con `=` exact version. Cualquier bump ACP exige RFC update.
-- **Windows-only**: IT es MSIX, Win10 build 19041+. En macOS/Linux, `opencode` sin IT funciona normalmente pero ACP server idles. Feature flag `acp-server` default off; on solo detectando `WT_COM_CLSID`.
+- **Windows-only**: IT es MSIX, Win10 build 19041+. En macOS/Linux, `atlas` sin IT funciona normalmente pero ACP server idles. Feature flag `acp-server` default off; on solo detectando `WT_COM_CLSID`.
 - **PowerShell hooks chez IT evolucionan**: nuestra implementación debe leer `hooks-upgrade-state.json` e idempotente skip si la version bundle IT ≥ nuestra.
 - **Multi-agent tracking limitation**: faq Q8 dice IT solo trackea el MISMO agent para pane + delegate. Si usuario usa delegate con CLI diferente, nuestra HUD session list no lo verá. Documentado.
 - **Token cost de replay**: `session/load` reenviar Journal M1–M12 al pane completo puede ser Mbytes. Mitigación: payload truncation con `outputByteLimit` del spec.
@@ -182,13 +182,13 @@ Derived from [`safishamsi/graphify`](https://github.com/Graphify-Labs/graphify) 
 
 ### Objetivos
 
-Adoptar el **patrón** (NO la dependencia Python — graphify es Python, viola RFC 25 §11 / AGENTS.md §6). Cuatro usos internos: (1) RFC 19 state machine como DAG navegable en SQLite; (2) HUD `<GraphView>`; (3) skills como graph templates (RFC 23); (4) Planner emite DAG. Un quinto uso **opcional externo**: usuario con graphify MCP HTTP ya instalado puede apuntar OpenCode OS skill-backend a él — **zero binary weight**.
+Adoptar el **patrón** (NO la dependencia Python — graphify es Python, viola RFC 25 §11 / AGENTS.md §6). Cuatro usos internos: (1) RFC 19 state machine como DAG navegable en SQLite; (2) HUD `<GraphView>`; (3) skills como graph templates (RFC 23); (4) Planner emite DAG. Un quinto uso **opcional externo**: usuario con graphify MCP HTTP ya instalado puede apuntar Atlas OS skill-backend a él — **zero binary weight**.
 
 ### Cambios Rust
 
 - `src-tauri/src/graph/mod.rs` (nuevo): `MissionGraph { nodes: Vec<Node>, edges: Vec<Edge> }`, `Node { id, kind, label, provenance: EXTRACTED|INFERRED|AMBIGUOUS, attrs_json }`, `Edge { src, dst, kind: calls|imports|transitions_to|depends_on, precondition, guard, visit_count }`.
 - `src-tauri/src/graph/traverse.rs`: `shortest_path`, `god_nodes`, `get_neighbors`, `community_partition` (**comunidades via union-find simple, NO Leiden** — ver Riesgos). Usa `petgraph` (MIT/Apache-2.0, pure Rust).
-- `src-tauri/src/graph/ast.rs`: `tree-sitter` + 2 grammars (`tree-sitter-rust`, `tree-sitter-svelte`) para `EXTRACTED` edges del propio codebase de OpenCode OS como meta-skill. Justification single-binary-safe: tree-sitter es C puro linked estáticamente, ya usado por muchos crates Rust.
+- `src-tauri/src/graph/ast.rs`: `tree-sitter` + 2 grammars (`tree-sitter-rust`, `tree-sitter-svelte`) para `EXTRACTED` edges del propio codebase de Atlas OS como meta-skill. Justification single-binary-safe: tree-sitter es C puro linked estáticamente, ya usado por muchos crates Rust.
 - `src-tauri/src/hud/server.rs`: nuevo endpoint `GET /hud/graph/:mission_id` devuelve JSON directo desde SQLite. **Sin infra nueva**.
 - `src-tauri/src/planner/graph_emitter.rs` (RFC 12 refactor): Planner emite JSON matching `mission_graph` — un **DAG**, no lista lineal. Branching when Coder subagent multiple paths; Validator scores branches; Repair rewrites edges failing. **Detrás de feature flag `dag_mode`** (default off) — lineal por defecto, migrar gradualmente.
 - `src-tauri/src/skills/loader.rs`: 4th skill file `graph.toml` declarando sub-graph template (nodes+edges+preconditions). Load = insert en `mission_graph` con fresh IDs.
@@ -273,7 +273,7 @@ Cerrar el gap implícito de audit log retention/snapshot portability (mencionado
 
 - `src-tauri/src/journal/export/posting.rs` (nuevo): `fn entry_to_yaml(entry: &AuditEntry) -> String` con `serde_yaml` + helper `literal_block` (equivalente a `str_presenter` de posting). **Ignora el campo `scripts`** al escribir (los entries no tienen scripts; si importamos collections de terceros, también ignora — security boundary AGENTS.md §6).
 - `src-tauri/src/journal/export/retention.rs` (nuevo): worker SQLite hook; antes de purgar entries `age >= ttl_days`, exporta a `~/.opencode/snapshots/YYYY-MM-DD/*.posting.yaml`.
-- `src-tauri/src/cli/bin/opencode.rs`: `opencode audit --export-posting -n 50 -o ./snapshots/`. Hardcodeamos `posting_version: "1"` con comentario `# x-opencode-exported: RFC 28 §D`. Si posting sube major, bump manual.
+- `src-tauri/src/cli/bin/opencode.rs`: `opencode audit --export-posting -n 50 -o ./snapshots/`. Hardcodeamos `posting_version: "1"` con comentario `# x-atlas-exported: RFC 28 §D`. Si posting sube major, bump manual.
 - Mapeo: `http_request` entry → `RequestModel` 1:1. `tool_call` non-HTTP → omits `method/url`, usa extension keys bajo `x-opencode-*` (YAML permite keys arbitrarias).
 
 ### Comandos CLI nuevos
@@ -332,7 +332,7 @@ Esto evita el anti-patrón "cada consumer llama firecrawl directo con su propio 
    - `facade.rs` — tipos canónicos + traits: `async fn scrape_url(url, opts) -> Result<ScrapedDocument>`, `search_web(query, opts) -> Result<Vec<SearchResult>>`, `crawl_site(url, limit) -> Result<CrawlBatch>`, `extract_structured(urls, schema) -> Result<ExtractResult>`. Cada fn maneja credenciales, retry, redacción internamente.
    - `client.rs` — wrapper fino sobre `firecrawl::Client` (singleton lazy-static con `FIRECRAWL_API_KEY` desde env o `profiles::Profile::secret`).
    - `error.rs` — enum `FirecrawlFacadeError { MissingApiKey, RateLimited, Network, Api(FirecrawlError) }` con `thiserror`.
-3. Sub-comando CLI `opencode research` (gated `firecrawl`): `opencode research scrape <url>`, `opencode research search <query>`, `opencode research crawl <url> --limit N`. Usa `facade`. Output a stdout en JSON line-delimited (consumible por pipes).
+3. Sub-comando CLI `atlas research` (gated `firecrawl`): `opencode research scrape <url>`, `opencode research search <query>`, `opencode research crawl <url> --limit N`. Usa `facade`. Output a stdout en JSON line-delimited (consumible por pipes).
 4. **MCP server nativo Rust** (opcional, post-§E MVP): si perfilamos y Node `firecrawl-mcp` startup cost duele, escribimos `src-tauri/src/firecrawl/mcp.rs` usando `firecrawl-mcp = "0.7.1"` SDK Rust para servir MCP tools sobre stdio. Decisión postergada hasta medir cuello de botella — primer corte: perfil hosted keyless endpoint o subprocess Node.
 5. Reemplazar todas las llamadas internas a `webfetch` por `facade::scrape_url` cuando el feature esté ON; si OFF, mantener `webfetch` como fallback hardcoded (no romper single-binary invariant).
 6. Cerrar el loop graphify: cuando `dag_mode` + `codebase-graph` + `firecrawl` co-ocurren, un `graph_ingest` step opt-in puede enriquecer nodos con metadata scrapeada. Spec detalle se añade a RFC 16 §3 (structural graph diffing) post-§E MVP.
@@ -365,15 +365,15 @@ Ninguno en MVP. Posible futuro: badge "firecrawl connected" en HUD settings pane
 - **RFC 22 §11 Round 4** — audit exhaustivo de `firecrawl = "2.12.1"`: licensia, maintainers, MSRV, deps transitivas, binary-size, single-binary-safety. (Añadido por separado en este commit.)
 - **RFC 16 §3** — placeholder: "structured graph diffing MAY enqueue scrape enrichment when feature `firecrawl` está ON; spec completo tras §E MVP".
 - **Este archivo (RFC 28 §E)** — checklist de implementación (ver abajo).
-- **RFC 26** — cross-ref rows nuevos (`firecrawl facade`, `opencode research`).
+- **RFC 26** — cross-ref rows nuevos (`firecrawl facade`, `atlas research`).
 
 ### §E Checklist (no ejecutar hasta post-graphify)
 
 1. ✅ `Cargo.toml` feature `firecrawl` + dep `firecrawl = "2.12.1"` (optional, `default-features = false`). `cargo check --features firecrawl` limpio.
 2. ✅ `src-tauri/src/firecrawl/{mod, error}.rs` — `FirecrawlFacadeError` enum (7 variantes) + módulo skeleton (atribución MIT/Mendable en module prose).
-3. ✅ `src-tauri/src/firecrawl/client.rs` — `FirecrawlClient::from_env()` / `::from_explicit()` con `FirecrawlEndpoint::{Cloud, SelfHosted}` y `FirecrawlKey::{Bearer, None}`; honra `FIRECRAWL_API_KEY` + `OPENCODE_FIRECRAWL_URL`. 8 tests env-var mutex.
+3. ✅ `src-tauri/src/firecrawl/client.rs` — `FirecrawlClient::from_env()` / `::from_explicit()` con `FirecrawlEndpoint::{Cloud, SelfHosted}` y `FirecrawlKey::{Bearer, None}`; honra `FIRECRAWL_API_KEY` + `ATLAS_FIRECRAWL_URL`. 8 tests env-var mutex.
 4. ✅ `src-tauri/src/firecrawl/facade.rs` — `scrape_url`, `search_web`, `crawl_site`, `extract_structured` con redacción PII (email/phone/card) default ON; DTOs SDK-agnostic (`ScrapedDocument`, `SearchResult`, `CrawlBatch`, `ExtractResult`); builders de opciones y traductores de tipos SDK→facade. 18 tests + 1 `#[ignore]` e2e.
-5. ✅ `src-tauri/src/cli/commands/research.rs` — sub-comando clap `ResearchCmd` (`scrape|search|crawl|extract`) wired en `opencode` CLI headless. 7 tests clap parsing + DTOs JSON output.
+5. ✅ `src-tauri/src/cli/commands/research.rs` — sub-comando clap `ResearchCmd` (`scrape|search|crawl|extract`) wired en `atlas` CLI headless. 7 tests clap parsing + DTOs JSON output.
 6. ✅ Integración `webfetch` fallback path: el CLI responde con un `FirecrawlFacadeError::MissingApiKey` claro cuando la feature está ON pero no hay key; con feature OFF el sub-comando no se compila (monomorphization skipped, no runtime cost). El fallback de webfetch hacia el orchestrador interno se spec-añadirá post-§E MVP (RFC 23 §4 hook).
 7. ✅ Tests e2e optativos: `scrape_url_e2e` `#[ignore]` tras `FIRECRAWL_API_KEY`, no corren en CI sin key.
 8. ✅ Docs + atribución: module-level prose citando firecrawl MIT (Copyright Mendable AI Inc.) en `src/firecrawl/mod.rs` + apéndice atribución abajo.
@@ -403,7 +403,7 @@ Ninguno en MVP. Posible futuro: badge "firecrawl connected" en HUD settings pane
 
 **Status: ✅ items 1-8 implementados, commit `d6e6e23`.** Item 9 (smoke script `tools/toast-smoke.ps1`) post-MVP. Item 10 (docs README troubleshooting AUMID) post-MVP.
 
-OpenCode OS corre como shell desktop (Tauri 2) pero también como headless CLI/ACP server. Cuando el proceso está ocioso o el webview está minimizado, las notificaciones nativas del SO son el canal correcto para señales asíncronas: reset-window de modelo, fin de turn largo, fallo crítico, calendar reminder. Esta sección define cómo OpenCode OS configura AUMID + Start Menu shortcut y dispara Toasts via `winrt-toast-reborn`, persiste historial en SQLite, y responde a activaciones (deep-link al HUD).
+Atlas OS corre como shell desktop (Tauri 2) pero también como headless CLI/ACP server. Cuando el proceso está ocioso o el webview está minimizado, las notificaciones nativas del SO son el canal correcto para señales asíncronas: reset-window de modelo, fin de turn largo, fallo crítico, calendar reminder. Esta sección define cómo Atlas OS configura AUMID + Start Menu shortcut y dispara Toasts via `winrt-toast-reborn`, persiste historial en SQLite, y responde a activaciones (deep-link al HUD).
 
 ### F.1 Crate decision
 
@@ -426,7 +426,7 @@ OpenCode OS corre como shell desktop (Tauri 2) pero también como headless CLI/A
 
 ```rust
 const AUMID: &str = "dev.opencode.OpenCodeOS.HUD";
-const DISPLAY_NAME: &str = "OpenCode OS — Mission Control";
+const DISPLAY_NAME: &str = "Atlas OS — Mission Control";
 const ICON_PATH: &str = "icons/icon.png"; // bundle-relative
 
 winrt_toast_reborn::register(AUMID, DISPLAY_NAME, ICON_PATH)?;
@@ -522,7 +522,7 @@ Cada `fire_toast` escribe en `toast_history` (tabla append-only, sin cleanup) pa
 2. **Non-MSIX desktop activation**: WinRT Toast activation desde desktop (no-MSIX) requiere el Start Menu shortcut creado por `register()` — si falla, los toasts aparecen pero los clicks no regresan al proceso. Mitigación: `register_aumid()` corre en boot y loguea el error; los callbacks se mantienen activos (WinRT permite registry-creation lazy si el AUMID existe con otro valor de DisplayName). Si toast.exe no está registrado en absoluto, los toasts siguen siendo visibles pero no deep-linkable.
 3. **AUMID registration conflict**: Si otra app reusa `dev.opencode.OpenCodeOS.HUD` (improbable), WinRT enruta los callbacks al último registrante. Mitigación: AUMID namespace `dev.opencode.OpenCodeOS.*` único al proyecto.
 4. **Sobrevive crash del proceso**: queue en SQLite → re-backfill en boot. El driver polls `next_pending` en arranque, así todo `pending` whose `fire_at <= now` dispara inmediatamente.
-5. **Linux/macOS parity**: `ToastDispatcher::Stub` logueea via `tracing::info!`. Deep-link callbacks no aplican (no hay AUMID). El HUD WebSocket sirve como canal alternativo y `opencode hud` arranca el server de nuevo.
+5. **Linux/macOS parity**: `ToastDispatcher::Stub` logueea via `tracing::info!`. Deep-link callbacks no aplican (no hay AUMID). El HUD WebSocket sirve como canal alternativo y `atlas hud` arranca el server de nuevo.
 6. **WinRT ToastManager no-Send**: Resuelto con std::thread dedicado + mpsc channel entre el dispatcher handle y el worker; el driver tokio invoca via `tokio::task::spawn_blocking`. Future remain `Send`.
 
 ### F.9 Atribución (apéndice)
@@ -536,7 +536,7 @@ Cada `fire_toast` escribe en `toast_history` (tabla append-only, sin cleanup) pa
 
 **Status: ⏳ documentado, implementación pendiente (post-Toast §F).**
 
-OpenCode OS planifica (RFC 12 Planning) runs de validación, retrospectives (RFC 16) y schedules de `autoresearch` cadencia. Hoy estas viven en el `journal` SQLite sin affordance para el usuario que quiere verlas en su calendario nativo (Outlook, Apple Calendar, Google Calendar). §G define dos direcciones con un único stack: **WRITE** (OpenCode OS publica eventos via `.ics` feed servido desde el HUD axum server) y **READ** (OpenCode OS consume el Microsoft Graph `/me/calendarView` endpoint para leer eventos del usuario e inyectarlos como contexto al Planning engine).
+Atlas OS planifica (RFC 12 Planning) runs de validación, retrospectives (RFC 16) y schedules de `autoresearch` cadencia. Hoy estas viven en el `journal` SQLite sin affordance para el usuario que quiere verlas en su calendario nativo (Outlook, Apple Calendar, Google Calendar). §G define dos direcciones con un único stack: **WRITE** (Atlas OS publica eventos via `.ics` feed servido desde el HUD axum server) y **READ** (Atlas OS consume el Microsoft Graph `/me/calendarView` endpoint para leer eventos del usuario e inyectarlos como contexto al Planning engine).
 
 ### G.1 Decision: reject WinRT `AppointmentManager`
 
@@ -544,12 +544,12 @@ WinRT `Windows.ApplicationModel.Appointments.AppointmentManager` requiere la cap
 
 Alternativa: **win32 ICalendar via COM** no tiene Rust bindings mantenidos y depende de Outlook instalado (no cross-platform). Alternativa: **Microsoft Graph REST** — sí cross-platform, funciona con cualquier cliente de calendario que el usuario haya federado a Microsoft 365.
 
-### G.2 WRITE: `GET /opencode-calendar.ics`
+### G.2 WRITE: `GET /atlas-calendar.ics`
 
 #### G.2.1 axum HUD route
 
 ```rust
-.route("/opencode-calendar.ics", get(handler_calendar_ics))
+.route("/atlas-calendar.ics", get(handler_calendar_ics))
 ```
 
 No requiere auth (los IDs en la URL son opacos y unguessable — `?token={base64url(random 16 bytes)}`). El feed es **read-only** (RFC 5545 `METHOD:PUBLISH`). Cadencia: served on demand; el consumidor (Outlook/Apple/Google) polla cada N horas.
@@ -588,11 +588,11 @@ Output: `ICalendar::to_string()` produce el RFC 5545 text completo (con proper l
 
 #### G.2.3 `webcal://` subscription URL
 
-OpenCode OS prints en `opencode hud` boot:
+Atlas OS prints en `atlas hud` boot:
 
 ```
 Calendar subscription URL:
-  webcal://127.0.0.1:{port}/opencode-calendar.ics?token={token}
+  webcal://127.0.0.1:{port}/atlas-calendar.ics?token={token}
 ```
 
 El usuario lo añade una vez en Outlook / Apple Calendar / Google Calendar. outlook/Apple aceptan `webcal://` nativamente; Google Calendar requiere meterlo como "From URL" en calendar settings.
@@ -656,7 +656,7 @@ pub fn next_free_slot(&self, turn_eta: Duration) -> Option<(chrono::DateTime<Utc
 | `src-tauri/src/calendar/graph_reader.rs` | `CalendarReader::poll()` — Graph `/me/calendarView` poll, parse `Event` Graph object → `BusyWindow`. |
 | `src-tauri/src/calendar/auth.rs` | Interactive auth (wry popup) + refresh token en SQLite encrypted (AES-256-GCM). |
 | `src-tauri/src/journal/schema.rs` | M18 migration: `calendar_busy_windows` table + `calendar_auth` (encrypted refresh token). Schema 17→18. |
-| `src-tauri/src/hud/server.rs` | Añadir `.route("/opencode-calendar.ics", get(handler_calendar_ics))`. (Ver §G.2.1.) |
+| `src-tauri/src/hud/server.rs` | Añadir `.route("/atlas-calendar.ics", get(handler_calendar_ics))`. (Ver §G.2.1.) |
 | `src-tauri/src/core/state.rs` | `AppState` agrega `context_busy_windows: Arc<RwLock<Vec<BusyWindow>>>`. Spawn poller 60s. |
 | `src-tauri/src/lib.rs` | `#[cfg(feature = "calendar")] pub mod calendar;` |
 
@@ -671,7 +671,7 @@ pub fn next_free_slot(&self, turn_eta: Duration) -> Option<(chrono::DateTime<Utc
 - [ ] **Item 7**: `AppState::new()` integration — spawn Graph poller 60s. `AppState.context_busy_windows` poblado.
 - [ ] **Item 8**: `Planning::next_free_slot()` —Consulta `context_busy_windows` antes de encolar turn proactivo. Integration test.
 - [ ] **Item 9**: `docs/calendar-integration.md` — README: cómo subscribir webcal, cómo autorizar Graph login.
-- [ ] **Item 10**: `tools/calendar-smoke.ps1` — dispara servidor, fetch `/opencode-calendar.ics`, valida RFC 5545 estructura con `icalendar` Python lib o `vevent` crate.
+- [ ] **Item 10**: `tools/calendar-smoke.ps1` — dispara servidor, fetch `/atlas-calendar.ics`, valida RFC 5545 estructura con `icalendar` Python lib o `vevent` crate.
 
 ### G.7 Riesgos
 
@@ -694,7 +694,7 @@ pub fn next_free_slot(&self, turn_eta: Duration) -> Option<(chrono::DateTime<Utc
 
 **Status: ⏳ documentado, implementación pendiente (post-Calendar §G).**
 
-OpenCode OS usa models LLM via upstream providers o vía OmniRoute gateway (§3.8 RFC 25). Cuando un model hittea un rate limit (429) o un spend cap (402/403), los providers devuelven headers/timestamps indicando cuándo el model se resetea y puede volver a usarse. Ningún AI coding tool comercial (Cline, Cursor, Aider, Copilot) **proactivamente notifica** al usuario cuando el model vuelve a estar disponible — el usuario debe reintentar manualmente. OpenCode OS capturar `reset_at` desde la respuesta de error, persiste hasta llegada la hora, y dispara una Toast notification `kind='model_ready'` cuando el reset cumple. Esta es una feature diferencial frente a la competencia.
+Atlas OS usa models LLM via upstream providers o vía OmniRoute gateway (§3.8 RFC 25). Cuando un model hittea un rate limit (429) o un spend cap (402/403), los providers devuelven headers/timestamps indicando cuándo el model se resetea y puede volver a usarse. Ningún AI coding tool comercial (Cline, Cursor, Aider, Copilot) **proactivamente notifica** al usuario cuando el model vuelve a estar disponible — el usuario debe reintentar manualmente. Atlas OS capturar `reset_at` desde la respuesta de error, persiste hasta llegada la hora, y dispara una Toast notification `kind='model_ready'` cuando el reset cumple. Esta es una feature diferencial frente a la competencia.
 
 ### H.1 Pattern source: Cline PRs #10207, #10963, #10141
 
@@ -709,7 +709,7 @@ Esto se porta a Rust usando:
 
 ### H.2 OmniRoute: parsing de la envelope de error
 
-OpenCode OS usa OmniRoute como un único OpenAI-compatible provider (no parsea headers upstream directamente — OmniRoute los normaliza). OmniRoute devuelve una JSON envelope:
+Atlas OS usa OmniRoute como un único OpenAI-compatible provider (no parsea headers upstream directamente — OmniRoute los normaliza). OmniRoute devuelve una JSON envelope:
 
 ```json
 {
@@ -806,9 +806,9 @@ Para 429s sin SpendLimitError (rate-limit transitorio), el `Orchestrator` retry-
 | `src/lib/components/ModelReadyCard.svelte` | Svelte 5 runes. Botón "Resume". |
 | `src/lib/stores/hud.ts` | `SpendLimitErrorCard` y `ModelReadyCard` types + renderers. |
 | `src-tauri/src/profiles/mod.rs` | `Profile::bail_out_threshold_secs: u64` (default 60) + `Profile::backup_profile_id: Option<String>`. |
-| `OpenCode OS/24 - HUD Mission Control.md` | Section §3.3 addendum: SpendLimit / ModelReady card anatomy. |
-| `OpenCode OS/04 - Model Orchestrator.md` | Section §9 addendum: retry policy + bail-out + reset-window. |
-| `OpenCode OS/06 - Profiles.md` | `bail_out_threshold_secs` + `backup_profile_id` profile fields. |
+| `Atlas OS/24 - HUD Mission Control.md` | Section §3.3 addendum: SpendLimit / ModelReady card anatomy. |
+| `Atlas OS/04 - Model Orchestrator.md` | Section §9 addendum: retry policy + bail-out + reset-window. |
+| `Atlas OS/06 - Profiles.md` | `bail_out_threshold_secs` + `backup_profile_id` profile fields. |
 
 ### H.7 Checklist
 
@@ -837,7 +837,7 @@ Para 429s sin SpendLimitError (rate-limit transitorio), el `Orchestrator` retry-
 ### H.9 Atribución (apéndice)
 
 - `src-tauri/src/orchestrator/{error,parse_error,retry}.rs` — `"Pattern adapted from Cline (Apache-2.0) PRs #10207 (SpendLimitError card, exempt auto-retry), #10963 (jitter ±25%, Retry-After parse), #10141 (bail-out threshold). https://github.com/cline/cline"`.
-- OmniRoute error envelope: campo `resets_at` field nomalizado por OmniRoute gateway; OpenCode OS no parse upstream provider headers directamente cuando se usa OmniRoute.
+- OmniRoute error envelope: campo `resets_at` field nomalizado por OmniRoute gateway; Atlas OS no parse upstream provider headers directamente cuando se usa OmniRoute.
 
 ---
 
@@ -882,7 +882,7 @@ Para 429s sin SpendLimitError (rate-limit transitorio), el `Orchestrator` retry-
 - **1.5b — §A autoresearch**:
   1. ✅ M13 migration (`autoresearch_runs` + `autoresearch_candidates` with FKs, indexes, CHECK constraints)
   2. ✅ `journal/autoresearch.rs` — pure state machine `tick(state, event) -> AutoresearchOutput` (12 tests). Host supervisor branch (git subprocess + metric_command exec) deferred to Phase 2.
-  3. ✅ CLI flag `--autoresearch --metric --max-steps --timebox` on `opencode mission new` (stub — emits info, persists `mission` row; Phase 2 supervisor will populate `autoresearch_runs`).
+  3. ✅ CLI flag `--autoresearch --metric --max-steps --timebox` on `atlas mission new` (stub — emits info, persists `mission` row; Phase 2 supervisor will populate `autoresearch_runs`).
   4. ✅ HUD card `AutoresearchCard.svelte` + WS channel via `BusEventKind::AutoresearchCancelled` + `POST /autoresearch/cancel` endpoint (8 tests).
   5. ✅ RFC 19 §11 "Modo Autoresearch" patch
   6. ⏳ Real-world hill-climbing run on a lint metric as acceptance test — deferred to Phase 2 (requires host-side loop shell-out);
@@ -952,11 +952,11 @@ Para 429s sin SpendLimitError (rate-limit transitorio), el `Orchestrator` retry-
   1. ✅ Crates: `agent-client-protocol = "2.0"` (Apache-2.0, MSRV 1.88) gated behind new feature `acp-server` (default OFF en `Cargo.toml`). Sólo `unstable_session_fork` feature activada; `Stdio` builtin del core crate reemplaza cualquier helper tokio externo — verify de Jul 2026 confirmó que `sacp-tokio` es un stack paralelo (Symposium) que vendor-lock-ea, y que `agent-client-protocol-tokio` no existe en el line v2.0.0. `cargo check --features acp-server` compila limpio (cargo download crate + 1 sub-dep `agent-client-protocol-derive`); default build sin acp-server no arrastra la dep.
   2. ✅ M14 migration — `agent_session_events` (id PK, ts INT NOT NULL, pane_id TEXT NULL, event_type TEXT NOT NULL, agent TEXT NOT NULL, task_id TEXT NULL, payload_json TEXT NOT NULL) + indexes `idx_ase_ts` (ts) + `idx_ase_task` (task_id). Schema version 13→14. Tabla NOT feature-gated (cheap; lets HUD read pane telemetry on non-Windows), pero el `wtcli listen` worker que la pobla sí está gated `acp-server`. Schema tests: 5 (≥14, table exists, indexes exists, nullable task/pane roundtrip, envelope payload_json preserved verbatim).
   3. ✅ `acp/{mod, mode_mapping, commands, delegate}` servidos + wire binario. `mod/run_server()` entry point (gated `acp-server`) — handlers de `initialize`/`session/new` (ahora emite `available_commands_update` con el catalogue de `commands.rs`)/`session/prompt` + notificación `$/cancel_request` usando el builder `Agent.builder().on_receive_request(...).connect_to(Stdio::new())` del crate oficial; `session/prompt` responde `StopReason::Refusal` con un chunk `AgentMessageChunk` explicando "Phase 1.5d: agent host loop not wired" (no es `// TODO` — es el comportamiento stub). `mode_mapping.rs` — tabla bidireccional RFC 19 `SupervisorState` {Plan,Exec,Review} ↔ ACP `AcpMode` {Architect,Code,Ask}. `commands.rs` (item 4) — catalogue de 6 slash commands con `build_available_commands_update()`. `delegate.rs` (item 4) — `parse_delegate` + `DelegateOutcome` + `capture_active_pane_scrollback` stub. Binario `cli/bin/opencode.rs` (item 4) detecta `WT_COM_CLSID` y rutea a `run_server()`. Tests: 4 mod + 7 mode_mapping + 5 commands + 10 delegate = 26 tests combinados. Default 262, combined `acp-server,dag_mode,codebase-graph` 352 (+15 sobre item 3).
-  4. ✅ CLI plumbing para `/opencode fix`, `/opencode restart`, `/opencode exec step`, `/opencode mission new`. `/opencode fix` captura vía `wtcli active-pane`+`capture-pane --last-prompt`, enruta al engine Repair (RFC 15). NUEVO: `acp/commands.rs` (5 tests) — `AvailableCommand` catalogue (6 commands, `/opencode fix` con `UnstructuredCommandInput`; resto sin input) + `build_available_commands_update()` que envuelve `SessionUpdate::AvailableCommandsUpdate` y se emitido por `session/new` handler en `mod.rs`. `acp/delegate.rs` (10 tests) — `parse_delegate(line, cwd)` reconoce `/opencode exec step <mission_id> <step_id>`, `/opencode fix [hint]`, `/opencode restart`; multi-token matcher `match_command_head` (sliding prefix vs CMD_EXEC_STEP/CMD_MISSION_NEW/.../CMD_RESUME, maneja con o sin `/` inicial); stub `capture_active_pane_scrollback() -> Result<CapturedScrollback, CaptureError>` (Err en non-Windows o ausencia de `WT_COM_CLSID` o `StubNotWired` en este commit; subprocess real lands en item 5). `DelegateOutcome` enum: ExecStep / FixRequested / RestartRequested / NotImplemented. Binario `opencode.rs` reescrito: `should_run_acp_server()` detecta `WT_COM_CLSID` ó `OPENCODE_ACP_FORCE=1` (cfg(feature = "acp-server") gating); `run_acp_server()` inicializa tracing y llama `opencode_os::acp::run_server()`. Defecto: cae al CLI reciclando `commands::dispatch`. Default 262, combined `acp-server,dag_mode,codebase-graph` 352 (+15 sobre 337 de item 3). `cargo check/clippy --features acp-server -- -D warnings` limpio; `cargo fmt --check` limpio.
+  4. ✅ CLI plumbing para `/opencode fix`, `/opencode restart`, `/opencode exec step`, `/opencode mission new`. `/opencode fix` captura vía `wtcli active-pane`+`capture-pane --last-prompt`, enruta al engine Repair (RFC 15). NUEVO: `acp/commands.rs` (5 tests) — `AvailableCommand` catalogue (6 commands, `/opencode fix` con `UnstructuredCommandInput`; resto sin input) + `build_available_commands_update()` que envuelve `SessionUpdate::AvailableCommandsUpdate` y se emitido por `session/new` handler en `mod.rs`. `acp/delegate.rs` (10 tests) — `parse_delegate(line, cwd)` reconoce `/opencode exec step <mission_id> <step_id>`, `/opencode fix [hint]`, `/opencode restart`; multi-token matcher `match_command_head` (sliding prefix vs CMD_EXEC_STEP/CMD_MISSION_NEW/.../CMD_RESUME, maneja con o sin `/` inicial); stub `capture_active_pane_scrollback() -> Result<CapturedScrollback, CaptureError>` (Err en non-Windows o ausencia de `WT_COM_CLSID` o `StubNotWired` en este commit; subprocess real lands en item 5). `DelegateOutcome` enum: ExecStep / FixRequested / RestartRequested / NotImplemented. Binario `opencode.rs` reescrito: `should_run_acp_server()` detecta `WT_COM_CLSID` ó `ATLAS_ACP_FORCE=1` (cfg(feature = "acp-server") gating); `run_acp_server()` inicializa tracing y llama `atlas_os::acp::run_server()`. Defecto: cae al CLI reciclando `commands::dispatch`. Default 262, combined `acp-server,dag_mode,codebase-graph` 352 (+15 sobre 337 de item 3). `cargo check/clippy --features acp-server -- -D warnings` limpio; `cargo fmt --check` limpio.
   5. ✅ `wtcli listen --json` worker → events SQLite (Channel 2). Worker Rust spawn del subprocess, parseo JSON-lines, UPSERT en M14. NUEVO: `src-tauri/src/journal/agent_events.rs` (6 tests, módulo non-gated) — `AgentSessionEventRow` (typed row 1:1 con M14), `insert_agent_session_event(conn, ts, pane_id, event_type, agent, task_id, payload_json)`, `agent_session_events_tail(conn, last)`, `agent_session_events_for_pane(conn, pane_id)`. `Journal` añade los wrappers `insert_agent_session_event`, `agent_session_events_tail`, `agent_session_events_for_pane`. `src-tauri/src/acp/listen_worker.rs` (11 tests, gated acp-server via submodule) — `AgentEventEnvelope` + `AgentEventParams` (serde Deserialize+Serialize, `event` con `#[serde(default)]` para reconocer "field-missing" como `MissingEvent`), `parse_envelope(line)` (rejects empty/non-event type/non-agent_event method/missing event), `timestamp_to_epoch_seconds(ts)` (RFC3339→i64, 0 fallback), `persist_envelope(conn, line)` → `PersistOutcome::{Inserted, Dropped}` (Inserted pánico en persistencia failure en Phase 1.5d; Phase 2 surfaceará `SpawnError::Persist`), `spawn_listener()` stub returning `SpawnError::{UnsupportedPlatform, NoWtComClsid, StubNotWired}`. Subprocess real (tokio::spawn `wtcli listen --event "agent.*" --json` + buffered line reader) lands con el host-loop effort de item 5+ / item 6. Default 268 (+6 agent_events), combined `acp-server,dag_mode,codebase-graph` 369 (+11 sobre 358). `cargo check/clippy --features acp-server -- -D warnings` limpio; `cargo fmt --check` limpio.
   6. ✅ RFC 04/19 patches — ACP como frontend más (al lado de HUD/CLI); `session/set_mode` override de state documentado en RFC 19 §6. NUEVO: RFC 19 §6.1.2 añadido — tabla bidireccional ACP mode ↔ `SupervisorState` (architect→plan, code→exec, ask→review), reglas de override (no resetea `mission_failure_count`, anti-hand-stall en `recovering`), persistencia Journal M6 audit con `action = "set_mode_override"` + `source: "acp"`. Override en `dag_mode` se inserta como edge `transitions_to` con `guard = "acp_human_override"`. RFC 04 §9 añadido — frontends del Orchestrator (CLI pura §1, HUD webview §2, ACP server §3 RFC 28 §B) contratación método por método (initialize/session-new/session-prompt/set-mode/cancel) y single-binary safety via ` Stdio` builtin + tokio runtime reuso. **Handler `session/set_mode` implementado en `acp/mod.rs`** (no es sólo documentación): recibe `SetSessionModeRequest`, `tracing::info!` con session_id + mode_tag + `Option<SupervisorState>` parseado via `mode_mapping::parse_acp_mode_id`, responde `SetSessionModeResponse::new()`, y emite `SessionUpdate::CurrentModeUpdate` notification via `SessionNotification` para que IT refleje. 3 tests nuevos en `acp::tests`: set_mode_response_is_default, current_mode_update_round_trips, unknown_acp_mode_is_parsed_as_none. Default 268, combined 372 (+3 sobre 369).
-  7. ✅ Install README: cómo IT Settings.json apunta a `opencode` como delegate-agent (Alt+Shift+B); troubleshooting para `WT_COM_CLSID` discovery. NUEVO: `docs/intelligent-terminal-integration.md` (9.8KB) — operator-facing install guide: prereqs (build `--features acp-server`, IT 0.1.1+ Win10 build 19041+), `opencode` on `PATH`, register `opencode` como IT delegate-agent en `Settings.json` (JSONC example con `agents.opencode` + `delegateAgent: "opencode"`), built-in slash commands table (6 commands con behaviour summary), `agent_session_events` worker explanation (Channel 2 + M14 schema), troubleshooting `WT_COM_CLSID` discovery (5 diagnostic steps con `OPENCODE_ACP_FORCE=1` override para smoke tests), uninstall recipe. Cross-refs al RFC 28 §B + RFC 19 §6.1.2 + RFC 04 §9 + `src-tauri/specs/osc-9001.md` + `agent-client-protocol` crate. MS trademark note (per Microsoft policy, user-facing surfaces = "agent pane integration", never "Intelligent Terminal").
-  8. ✅ Manual validation en IT 0.1.1+ instalado (Windows build 19041+). Script smoke-test: `opencode mission new` desde pane, slash commands, Hud deep-link en `agent.task.completed._meta.hud_url`. NUEVO: `tools/acp-smoke.ps1` (156 LOC) — power-shell smoke-test script that pipes JSON-RPC 2.0 requests at `opencode --features acp-server` via `OPENCODE_ACP_FORCE=1` (no IT install required to run the protocol smoke). 15 assertions covers (1) initialize returns the OpenCode OS agentInfo, (2) session/new response carries a v4 UUID sessionId, (3) `available_commands_update` notification advertises the 6 slash-command catalogue (`opencode mission new` first, `opencode fix` fifth), (4) `/opencode fix` slash on session/prompt streams `agent_message_chunk` BEFORE the `stopReason: refusal` response (handler order), (5) `session/set_mode` returns response THEN emits `current_mode_update` notification echoing the requested mode. Exit code 0 on full pass, non-zero on first failure (these are the only oils for CI pip upload). Stale note: `cargo build --manifest-path src-tauri/Cargo.toml --bin opencode --features acp-server` must precede invocation. Script run localmente during this item commit: 15/15 assertions pass, exit 0. Fix derivado: `run_acp_server()` en `cli/bin/opencode.rs` ahora redirige tracing stderr via `with_writer(std::io::stderr)` (era stdout, breakpoints JSON-RPC stream) — ACP stdout stays clean.
+  7. ✅ Install README: cómo IT Settings.json apunta a `atlas` como delegate-agent (Alt+Shift+B); troubleshooting para `WT_COM_CLSID` discovery. NUEVO: `docs/intelligent-terminal-integration.md` (9.8KB) — operator-facing install guide: prereqs (build `--features acp-server`, IT 0.1.1+ Win10 build 19041+), `atlas` on `PATH`, register `atlas` como IT delegate-agent en `Settings.json` (JSONC example con `agents.opencode` + `delegateAgent: "opencode"`), built-in slash commands table (6 commands con behaviour summary), `agent_session_events` worker explanation (Channel 2 + M14 schema), troubleshooting `WT_COM_CLSID` discovery (5 diagnostic steps con `ATLAS_ACP_FORCE=1` override para smoke tests), uninstall recipe. Cross-refs al RFC 28 §B + RFC 19 §6.1.2 + RFC 04 §9 + `src-tauri/specs/osc-9001.md` + `agent-client-protocol` crate. MS trademark note (per Microsoft policy, user-facing surfaces = "agent pane integration", never "Intelligent Terminal").
+  8. ✅ Manual validation en IT 0.1.1+ instalado (Windows build 19041+). Script smoke-test: `atlas mission new` desde pane, slash commands, Hud deep-link en `agent.task.completed._meta.hud_url`. NUEVO: `tools/acp-smoke.ps1` (156 LOC) — power-shell smoke-test script that pipes JSON-RPC 2.0 requests at `opencode --features acp-server` via `ATLAS_ACP_FORCE=1` (no IT install required to run the protocol smoke). 15 assertions covers (1) initialize returns the Atlas OS agentInfo, (2) session/new response carries a v4 UUID sessionId, (3) `available_commands_update` notification advertises the 6 slash-command catalogue (`atlas mission new` first, `opencode fix` fifth), (4) `/opencode fix` slash on session/prompt streams `agent_message_chunk` BEFORE the `stopReason: refusal` response (handler order), (5) `session/set_mode` returns response THEN emits `current_mode_update` notification echoing the requested mode. Exit code 0 on full pass, non-zero on first failure (these are the only oils for CI pip upload). Stale note: `cargo build --manifest-path src-tauri/Cargo.toml --bin opencode --features acp-server` must precede invocation. Script run localmente during this item commit: 15/15 assertions pass, exit 0. Fix derivado: `run_acp_server()` en `cli/bin/opencode.rs` ahora redirige tracing stderr via `with_writer(std::io::stderr)` (era stdout, breakpoints JSON-RPC stream) — ACP stdout stays clean.
 
 ---
 
@@ -968,7 +968,7 @@ Para 429s sin SpendLimitError (rate-limit transitorio), el `Orchestrator` retry-
 | `sacp-tokio` | latest stable | Apache-2.0 | Runtime helper JSON-RPC stdio loop sobre nuestro tokio existente | ~150 KB |
 | `petgraph` | latest stable | MIT/Apache-2.0 | Pure Rust graph traversal; sustituye necesidad de Python Leiden | ~200 KB |
 | `tree-sitter` | latest stable | MIT | C runtime linked estático, ya usado por ecosistema Rust | ~3 MB |
-| `tree-sitter-rust` | latest stable | MIT | Grammar para EXTRACTED edges en codebase OpenCode OS | ~1.5 MB |
+| `tree-sitter-rust` | latest stable | MIT | Grammar para EXTRACTED edges en codebase Atlas OS | ~1.5 MB |
 | `tree-sitter-svelte` | latest stable | MIT | Grammar para EXTRACTED edges en frontend Svelte | ~1.5 MB |
 | `serde_yaml` | `0.9` | MIT/Apache-2.0 | (ya plausible en Cargo.toml; verificar) | ~300 KB |
 
@@ -1000,12 +1000,12 @@ Para 429s sin SpendLimitError (rate-limit transitorio), el `Orchestrator` retry-
 
 ## Apéndice — Research sources internos
 
-- `OpenCode OS/research/27 - graphify pattern.md` (graphify.com pattern, Karpathy tweet corroboration)
-- `OpenCode OS/research/27 - posting format.md` (posting.sh dev-only, hurl alternative rechazada)
-- `OpenCode OS/research/27 - intelligent terminal.md` (Microsoft IT, ACP spec, 7 ideas)
-- `OpenCode OS/research/28 - portable inventory.md` — **inventario exhaustivo de 30 ítems portables** (GR-001..012, PT-001..012, IT-001..014, AR-001..013) con URLs source exactas, LOCs, costes (XS/S/M/L), atribuciones jurídicas, y recomendación de portado por cost-benefit en 4 fases (0/1/2/3).
-- `OpenCode OS/research/28 - conductor & alt surfaces.md` — **análisis Conductor (conductor.build) + comparativa 4 libs terminal-UI + roadmap remote-live dual-PC**. Sector A: 8 patrones portables (CN-001..008) de Conductor para Fase 4 (Swarm). Sector B: comparativa InquirerPy/Inquirer.js/rich/terminal-kit — recomienda `cronvel/terminal-kit` (MIT) como base sister IDE-in-a-terminal (`src/cli-tui/` Node sub-paquete conecta al mismo Kernel Bus WS). Sector C: remote-live modelo Nate Gentile (NO captura estática — video stream <60ms + input forward) con RustDesk (Apache-2.0) host embed en Rust. Sector D: phasing Fase 4/5/6/v2.
-- `OpenCode OS/research/29 - Phase 2 model orchestrator.md` — **plan refinado Fase 2 Multi-model Orchestration** con evidencia primaria (11 papers arxiv cross-verified + LiteLLM + OpenRouter + Aider + async-openai + RouteLLM + docs.rs). 6 sub-fases atómicas commiteables: 2.0 Foundation (Provider enum + ModelRegistry M20 + JSON seed + Aider tri-model Profile) **✅ IMPLEMENTADO** — `orchestrator::{provider, registry}` (20 builtin + Custom, ProviderWire serde-safe, Registry con from_seed/from_bundled_seed/resolve/filter_by_resource_mode/filter_by_capability, 18-model LiteLLM MIT seed bundled, M20 migration 4 tablas, Profile tri-model + resource_mode + effective_*, 24 tests), 2.0.5 Provider Normalization Layer (gaps críticos G1 prompt caching, G2 token counter pre-flight, G5 cooldown per-provider, G8 ToolCall enum cross-provider, G17 Retry-After, G18 back-pressure semáforo) **✅ IMPLEMENTADO** — `orchestrator::{wire, tokenizer, cache_control, cooldown, backpressure}` (wire ~24 tests OpShape+ToolCall normalize/denormalize, tokenizer ~17 tests tiktoken-rs 0.6 o200k_base BPE + CharRatio fallback, cache_control 25 tests Anthropic ephemeral breakpoints+extract, cooldown 21 tests per-provider default + RetryAfterSource + DurationClampExt, backpressure ~20 tests Arc<Semaphore> lazy-init + try_acquire/acquire async + reset_for + plan_reconfigure no-unsafe). Cargo `tiktoken-rs = "0.6"`. 109 tests nuevos, 483 total. clippy/fmt/svelte-check/vitest verdes. 2.1 Routing Policy (RoutingStrategy enum 6 LiteLLM + M21 model_invocations + 3-buckets cascade fallback + G12 idempotency) **✅ IMPLEMENTADO** — `orchestrator::{routing, cascade, idempotency, cost_guard, data_parts}` (routing ~20 tests RoutingStrategy enum 6 variantes SimpleShuffle/LatencyBased/UsageBasedV2/LeastBusy/CostBased/Hybrid+Custom, RouteContext snapshot pura, RoutingConfig 3 buckets+max_fallbacks=5; cascade ~13 tests Cascade::next_target(FailureMode,healthy_for) weighted failover+bucket escalation+max_fallbacks cap+ExhaustionReason; idempotency 7 tests G12 RequestFrame can_cascade+filter_unexecuted; cost_guard 8 tests G11 AggregationPolicy trait shape+LinearCostGuard+NoAggregation; data_parts 11 tests DataPartBuffer Vercel AI SDK pattern transient vs persistent; M21 model_invocations 19 columns + 3 indexes; Profile.routing_config añadido pierde Eq retiene PartialEq impl Default). 39 tests nuevos, 542 total. clippy/fmt verdes. 2.2 Aggregation ✅ IMPLEMENTADO (orchestrator/aggregation/ mod + 6 submodules, AggregationMode 7 variantes serde-tagged, trait Aggregator async-trait, aggregator_for() unit-struct dispatch, 6 mode-specific AggregationPolicy cost guards, M22 reflection_episodes+council_votes, Profile.aggregation field, 39 tests nuevos 581 total, clippy/fmt verdes), 2.3 Auto-routing Classifier + MCP-aware **✅ IMPLEMENTADO** (sub-fase 2.3) — `orchestrator/classifier/` (mod + 5 submódulos: lexical/log_reg/embedding/router_id/mcp_filter). `TaskType` enum (12 concretos + Unknown), `TaskTypeClassifier` trait `#[async_trait]`, `AutoRouterConfig` (off-by-default), `McpToolFilter::pre_filter()` (G19 capability_tags AND tool_names), `RouterId::parse()` "router-auto-0.5"/"router-mf-0.116"/Literal fallback. `LexicalClassifier` regex-counts con word-boundary (12 buckets), `LogisticRegressionClassifier` multi-class softmax scratch (NO `linfa` — deferral AN-2.3-a en RFC 22 §8.2: linfa no tiene MLP feed-forward per Context7 verification, HybridLLM arXiv:2404.14618 §4.3 muestra logreg ya ~94% del MLP), `EmbeddingClassifier` fastembed-rs BGE-small 384-dim feature-gated. M23 migration (`task_classifier_decisions` UNIQUE por `(prompt_hash, classifier_kind)` + `model_affinity_cache` PK compuesta + `INSERT OR REPLACE`). `Profile.auto_router: AutoRouterConfig` añadido. Defaults RouteLLM-mf calibrated: `coding=0.116/plan=0.05/chat=0.20/fix=0.10`. 63 tests nuevos (638 total). clippy + fmt + svelte-check + vitest verdes. 2.4 Feedback Loop (`mf` experimental A/B vs classifier + affinity reader GROUP BY `(task_type, model_id)` → `ArcSwap::store` + `aggregation_cost_estimate` impl real). Auditoría Round 3 detectó 9 gaps críticos y 11 deferrables (G4/G6/G7/G9/G10/G13/G14/G15/G16/G19/G20) — todos categorizados.
+- `Atlas OS/research/27 - graphify pattern.md` (graphify.com pattern, Karpathy tweet corroboration)
+- `Atlas OS/research/27 - posting format.md` (posting.sh dev-only, hurl alternative rechazada)
+- `Atlas OS/research/27 - intelligent terminal.md` (Microsoft IT, ACP spec, 7 ideas)
+- `Atlas OS/research/28 - portable inventory.md` — **inventario exhaustivo de 30 ítems portables** (GR-001..012, PT-001..012, IT-001..014, AR-001..013) con URLs source exactas, LOCs, costes (XS/S/M/L), atribuciones jurídicas, y recomendación de portado por cost-benefit en 4 fases (0/1/2/3).
+- `Atlas OS/research/28 - conductor & alt surfaces.md` — **análisis Conductor (conductor.build) + comparativa 4 libs terminal-UI + roadmap remote-live dual-PC**. Sector A: 8 patrones portables (CN-001..008) de Conductor para Fase 4 (Swarm). Sector B: comparativa InquirerPy/Inquirer.js/rich/terminal-kit — recomienda `cronvel/terminal-kit` (MIT) como base sister IDE-in-a-terminal (`src/cli-tui/` Node sub-paquete conecta al mismo Kernel Bus WS). Sector C: remote-live modelo Nate Gentile (NO captura estática — video stream <60ms + input forward) con RustDesk (Apache-2.0) host embed en Rust. Sector D: phasing Fase 4/5/6/v2.
+- `Atlas OS/research/29 - Phase 2 model orchestrator.md` — **plan refinado Fase 2 Multi-model Orchestration** con evidencia primaria (11 papers arxiv cross-verified + LiteLLM + OpenRouter + Aider + async-openai + RouteLLM + docs.rs). 6 sub-fases atómicas commiteables: 2.0 Foundation (Provider enum + ModelRegistry M20 + JSON seed + Aider tri-model Profile) **✅ IMPLEMENTADO** — `orchestrator::{provider, registry}` (20 builtin + Custom, ProviderWire serde-safe, Registry con from_seed/from_bundled_seed/resolve/filter_by_resource_mode/filter_by_capability, 18-model LiteLLM MIT seed bundled, M20 migration 4 tablas, Profile tri-model + resource_mode + effective_*, 24 tests), 2.0.5 Provider Normalization Layer (gaps críticos G1 prompt caching, G2 token counter pre-flight, G5 cooldown per-provider, G8 ToolCall enum cross-provider, G17 Retry-After, G18 back-pressure semáforo) **✅ IMPLEMENTADO** — `orchestrator::{wire, tokenizer, cache_control, cooldown, backpressure}` (wire ~24 tests OpShape+ToolCall normalize/denormalize, tokenizer ~17 tests tiktoken-rs 0.6 o200k_base BPE + CharRatio fallback, cache_control 25 tests Anthropic ephemeral breakpoints+extract, cooldown 21 tests per-provider default + RetryAfterSource + DurationClampExt, backpressure ~20 tests Arc<Semaphore> lazy-init + try_acquire/acquire async + reset_for + plan_reconfigure no-unsafe). Cargo `tiktoken-rs = "0.6"`. 109 tests nuevos, 483 total. clippy/fmt/svelte-check/vitest verdes. 2.1 Routing Policy (RoutingStrategy enum 6 LiteLLM + M21 model_invocations + 3-buckets cascade fallback + G12 idempotency) **✅ IMPLEMENTADO** — `orchestrator::{routing, cascade, idempotency, cost_guard, data_parts}` (routing ~20 tests RoutingStrategy enum 6 variantes SimpleShuffle/LatencyBased/UsageBasedV2/LeastBusy/CostBased/Hybrid+Custom, RouteContext snapshot pura, RoutingConfig 3 buckets+max_fallbacks=5; cascade ~13 tests Cascade::next_target(FailureMode,healthy_for) weighted failover+bucket escalation+max_fallbacks cap+ExhaustionReason; idempotency 7 tests G12 RequestFrame can_cascade+filter_unexecuted; cost_guard 8 tests G11 AggregationPolicy trait shape+LinearCostGuard+NoAggregation; data_parts 11 tests DataPartBuffer Vercel AI SDK pattern transient vs persistent; M21 model_invocations 19 columns + 3 indexes; Profile.routing_config añadido pierde Eq retiene PartialEq impl Default). 39 tests nuevos, 542 total. clippy/fmt verdes. 2.2 Aggregation ✅ IMPLEMENTADO (orchestrator/aggregation/ mod + 6 submodules, AggregationMode 7 variantes serde-tagged, trait Aggregator async-trait, aggregator_for() unit-struct dispatch, 6 mode-specific AggregationPolicy cost guards, M22 reflection_episodes+council_votes, Profile.aggregation field, 39 tests nuevos 581 total, clippy/fmt verdes), 2.3 Auto-routing Classifier + MCP-aware **✅ IMPLEMENTADO** (sub-fase 2.3) — `orchestrator/classifier/` (mod + 5 submódulos: lexical/log_reg/embedding/router_id/mcp_filter). `TaskType` enum (12 concretos + Unknown), `TaskTypeClassifier` trait `#[async_trait]`, `AutoRouterConfig` (off-by-default), `McpToolFilter::pre_filter()` (G19 capability_tags AND tool_names), `RouterId::parse()` "router-auto-0.5"/"router-mf-0.116"/Literal fallback. `LexicalClassifier` regex-counts con word-boundary (12 buckets), `LogisticRegressionClassifier` multi-class softmax scratch (NO `linfa` — deferral AN-2.3-a en RFC 22 §8.2: linfa no tiene MLP feed-forward per Context7 verification, HybridLLM arXiv:2404.14618 §4.3 muestra logreg ya ~94% del MLP), `EmbeddingClassifier` fastembed-rs BGE-small 384-dim feature-gated. M23 migration (`task_classifier_decisions` UNIQUE por `(prompt_hash, classifier_kind)` + `model_affinity_cache` PK compuesta + `INSERT OR REPLACE`). `Profile.auto_router: AutoRouterConfig` añadido. Defaults RouteLLM-mf calibrated: `coding=0.116/plan=0.05/chat=0.20/fix=0.10`. 63 tests nuevos (638 total). clippy + fmt + svelte-check + vitest verdes. 2.4 Feedback Loop (`mf` experimental A/B vs classifier + affinity reader GROUP BY `(task_type, model_id)` → `ArcSwap::store` + `aggregation_cost_estimate` impl real). Auditoría Round 3 detectó 9 gaps críticos y 11 deferrables (G4/G6/G7/G9/G10/G13/G14/G15/G16/G19/G20) — todos categorizados.
 - Hallazgos automáticos de `karpathy/autoresearch`: prepare.py readonly + train.py editable + program.md skill. Hill-climbing greedy: baseline → edit → git commit → run → grep métrica → keep/reset --hard. Karpathy tweet 9 Mar 2026: "the goal is not to emulate a single PhD student, it is to emulate a research community" — multi-agente via branches (deferido a RFC 29).
 
 ## Apéndice — Atribución obligatoria por módulo

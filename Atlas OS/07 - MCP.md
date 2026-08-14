@@ -1,12 +1,12 @@
 # 07 - MCP
 
-Model Context Protocol — soporte nativo, pero **seguro**. La crítica pública contra OpenClaw es que ejecuta MCPs sin sandbox ni verificación. OpenCode OS resuelve eso.
+Model Context Protocol — soporte nativo, pero **seguro**. La crítica pública contra OpenClaw es que ejecuta MCPs sin sandbox ni verificación. Atlas OS resuelve eso.
 
 ---
 
 ## 1. Soporte MCP
 
-OpenCode OS implementa el protocolo MCP estándar (Anthropic / comunidad). Cualquier MCP server compatible puede configurarse como tool provider.
+Atlas OS implementa el protocolo MCP estándar (Anthropic / comunidad). Cualquier MCP server compatible puede configurarse como tool provider.
 
 ### Registro
 ```jsonc
@@ -67,7 +67,7 @@ Si el hash no coincide → bloqueado.
 
 ## 4. allowlist de tools
 
-Cada MCP expone tools; OpenCode OS no las habilita por defecto. Solo las listadas en `allowed_tools` se hacen accesibles al agente. Esto evita que un MCP malicioso exponga, por ejemplo, `fs.delete` o `shell.exec` sin que el usuario lo consienta.
+Cada MCP expone tools; Atlas OS no las habilita por defecto. Solo las listadas en `allowed_tools` se hacen accesibles al agente. Esto evita que un MCP malicioso exponga, por ejemplo, `fs.delete` o `shell.exec` sin que el usuario lo consienta.
 
 ## 5. Rutas críticas
 

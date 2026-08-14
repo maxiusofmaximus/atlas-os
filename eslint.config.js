@@ -1,4 +1,4 @@
-// OpenCode OS — ESLint flat config (Svelte 5 + TypeScript strict).
+// Atlas OS — ESLint flat config (Svelte 5 + TypeScript strict).
 // See AGENTS.md for the policy enforced by these rules.
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
@@ -48,7 +48,7 @@ export default [
       'src-tauri/gen/**',
       'node_modules/**',
       'docs/**',
-      'OpenCode OS/**',
+      'Atlas OS/**',
     ],
   },
 ];

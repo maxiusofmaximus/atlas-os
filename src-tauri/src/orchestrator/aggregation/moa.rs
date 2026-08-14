@@ -1,4 +1,4 @@
-// OpenCode OS Ã¢â‚¬â€ Mixture-of-Agents aggregator (RFC 04 Ã‚Â§3, sub-fase 2.2).
+// Atlas OS Ã¢â‚¬â€ Mixture-of-Agents aggregator (RFC 04 Ã‚Â§3, sub-fase 2.2).
 //
 // Ports the layered architecture from "Mixture-of-Agents Enhances
 // Large Language Model Capabilities" (arxiv 2406.04692, Wang et al.):

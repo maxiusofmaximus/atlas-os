@@ -207,7 +207,7 @@ El downgrade no aborta el trabajo en curso — se preserva en un checkpoint del 
 
 ## 8. Mapa failure modes → mitigación
 
-| Failure mode conocido en otros editores | Mitigación en OpenCode OS |
+| Failure mode conocido en otros editores | Mitigación en Atlas OS |
 |---|---|
 | Doom loop mecánico (Aider, Cline) | `DoomLoopDetector` trip tras 3 reps → `ask`/`hard_deny` según mode |
 | Cost runaway (Cursor Cloud Agents) | `max_cost_usd` obligatorio en `AUTONOMOUS` |
@@ -282,7 +282,7 @@ Override del usuario vía `.opencode/modes.json`.
 | Aider | ⚠️ /auto, architect mode | ❌ | ❌ | ❌ | ⚠️ verify | ❌ |
 | Hermes | ✅ background | ❌ | ❌ | ❌ | ✅ | ❌ |
 | Continue.dev | ⚠️ ambient | ❌ | ❌ | ✅ (LSP) | ❌ | ⚠️ |
-| **OpenCode OS** | ✅ AUTONOMOUS | ✅ hard-deny mecánico | ✅ obligatorio | ✅ MANUAL_CLASSIC + LSP | ✅ HUMAN_IN_LOOP | ✅ AUTOPILOT |
+| **Atlas OS** | ✅ AUTONOMOUS | ✅ hard-deny mecánico | ✅ obligatorio | ✅ MANUAL_CLASSIC + LSP | ✅ HUMAN_IN_LOOP | ✅ AUTOPILOT |
 
 ---
 

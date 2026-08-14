@@ -1,4 +1,4 @@
-// OpenCode OS — HUD autoresearch control routes (RFC 28 §A — Phase 1.5b §A-3).
+// Atlas OS — HUD autoresearch control routes (RFC 28 §A — Phase 1.5b §A-3).
 //
 // Single route attached to the HUD axum server:
 //

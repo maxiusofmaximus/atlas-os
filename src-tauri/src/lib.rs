@@ -1,6 +1,6 @@
-// OpenCode OS — shared library crate (workspace).
+// Atlas OS — shared library crate (workspace).
 // Exposes `AppState` consumed by both the Tauri desktop binary and the
-// headless `opencode` CLI (RFC 25 §3.9). See RFC 25 §2 for the topology.
+// headless `atlas` CLI (RFC 25 §3.9). See RFC 25 §2 for the topology.
 
 #[cfg(feature = "acp-server")]
 pub mod acp;

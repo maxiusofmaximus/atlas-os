@@ -8,7 +8,7 @@
 
 ## Context
 
-OpenCode OS needs a local, embedded durable store for:
+Atlas OS needs a local, embedded durable store for:
 
 - Append-only audit log (RFC 24 §10) with hash-chained rows.
 - Kernel Bus event journal (RFC 02 §3.1) — at-least-once delivery with

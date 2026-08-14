@@ -1,6 +1,6 @@
 # 24 - HUD Mission Control
 
-> Panel de mando integrado de OpenCode OS. No es un dashboard de métricas pasivas: es el **centro de control de misión** donde un humano coordina un swarm de agentes y aprueba/steer las decisiones en caliente. Presenta al usuario el trabajo de los subagentes como Jira presenta tickets, como Cursor presenta demos, como Notion presenta documentos, como n8n presenta un canvas de ejecución, y como Hermes HUD presenta health en vivo — todo en un único espacio de trabajo web y desktop multiplataforma.
+> Panel de mando integrado de Atlas OS. No es un dashboard de métricas pasivas: es el **centro de control de misión** donde un humano coordina un swarm de agentes y aprueba/steer las decisiones en caliente. Presenta al usuario el trabajo de los subagentes como Jira presenta tickets, como Cursor presenta demos, como Notion presenta documentos, como n8n presenta un canvas de ejecución, y como Hermes HUD presenta health en vivo — todo en un único espacio de trabajo web y desktop multiplataforma.
 
 ---
 
@@ -24,7 +24,7 @@ Ninguno de los dos ofrece **simultáneamente**:
 9. Execution Mode selector 🕊 / 🤝 / 🛫 / 🚀 (`21`) y **Modo de uso** `ask` / `architect` / `code` / `context` (`23`) — ambos visibles como badges.
 10. Mission consolidated panel que muestra el `PublicUnderstandingVerdict` (`23`) antes de desbloquear el Planning Engine.
 
-La integración de las 10 es propia de OpenCode OS. Hermes cumple 5, 7 (parcial), 9 (parcial); el resto no.
+La integración de las 10 es propia de Atlas OS. Hermes cumple 5, 7 (parcial), 9 (parcial); el resto no.
 
 ---
 
@@ -386,12 +386,12 @@ La Audit timeline del §10 puede exportarse a disco como colección de archivos 
 **Mapping audit entry → posting request** (`src-tauri/src/journal/export/posting.rs::entry_to_posting_yaml`):
 - HTTP entries (`action == "http_request"`) → typed fields: `method`, `url`, `headers`, `query_params`, `body`, `auth` (basic/digest/bearer_token).
 - Non-HTTP entries → campos `x-opencode-*` (extension keys) preservando `actor`, `action`, `inputs`, `outputs`, `previous_hash`, `this_hash`, `signature`, `timestamp` (mapeados desde `AuditEntry`).
-- Header fijo: `x-opencode-exported: RFC 28 §D` (campo `x_opcode_exported` en el struct, serializado con `serde(rename = "x-opencode-exported")`) como provenance-line del snapshot dir, self-describing para git review.
+- Header fijo: `x-atlas-exported: RFC 28 §D` (campo `x_opcode_exported` en el struct, serializado con `serde(rename = "x-atlas-exported")`) como provenance-line del snapshot dir, self-describing para git review.
 - **Campo `scripts:` deliberadamente ausente** — security boundary AGENTS.md §6. Boundaries enforced en struct + reject de top-level `scripts:` en tests.
 
 **Compatibilidad:** parses clean con `yq` / `posting --collection` / `serde_yaml::from_str`. Snapshot bundle incluye `README.md` con versión de schema y `posting_version`.
 
-Referencias: RFC 28 §D para derivación de algoritmos y apéndice de atribución; `OpenCode OS/research/27 - posting format.md` para investigación de port del helper `str_presenter` → `literal_block`.
+Referencias: RFC 28 §D para derivación de algoritmos y apéndice de atribución; `Atlas OS/research/27 - posting format.md` para investigación de port del helper `str_presenter` → `literal_block`.
 
 ---
 

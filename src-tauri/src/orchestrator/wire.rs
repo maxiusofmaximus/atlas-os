@@ -64,7 +64,7 @@ impl OpShape {
 }
 
 /// Generador de ids neutros. Estilo `opc_` para distinguir rápidente
-/// `opencode` de los ids `call_` (OpenAI) y `toolu_` (Anthropic). El
+/// `atlas` de los ids `call_` (OpenAI) y `toolu_` (Anthropic). El
 /// serializador del provider reescribe el prefijo.
 pub fn next_id() -> String {
     use std::sync::atomic::{AtomicU64, Ordering};

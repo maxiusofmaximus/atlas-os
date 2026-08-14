@@ -1,7 +1,7 @@
-// OpenCode OS — `opencode run <mission_id>` subcommand (RFC 25 §3.9).
+// Atlas OS — `opencode run <mission_id>` subcommand (RFC 25 §3.9).
 // Drives Coding → Validation → Repair against the latest persisted Plan
 // for a mission. The Prompt Understanding and Planning phases have
-// already run (`opencode mission new` / `opencode plan`); `run` re-uses
+// already run (`atlas mission new` / `atlas plan`); `run` re-uses
 // their Journal rows and never regenerates them.
 //
 // Phase 1 — no Execution Supervisor loop / heartbeats: the host process

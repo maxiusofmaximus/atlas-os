@@ -1,4 +1,4 @@
-// OpenCode OS — load HUD URL via Tauri invoke (or fallback to env).
+// Atlas OS — load HUD URL via Tauri invoke (or fallback to env).
 // Phase 0: the HUD URL only becomes known after the Rust core binds the
 // axum server to an ephemeral port. We ask the Rust side for it. If not
 // running under Tauri (e.g. `pnpm dev` without the desktop shell), the

@@ -1,4 +1,4 @@
-// OpenCode OS — Routing policy (RFC 04 §2 / §6, sub-fase 2.1).
+// Atlas OS — Routing policy (RFC 04 §2 / §6, sub-fase 2.1).
 //
 // The orchestrator's routing layer picks one `Deployment` out of the
 // healthy set for a given `model_id` group according to a

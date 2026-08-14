@@ -1,11 +1,11 @@
-// OpenCode OS — OmniRoute envelope + HTTP header parser (RFC 28 §H.2 / §H.5).
+// Atlas OS — OmniRoute envelope + HTTP header parser (RFC 28 §H.2 / §H.5).
 //
 // Translates the three known sources of a reset-window hint into the
 // single in-memory `SpendLimitError` envelope used downstream by the
 // orchestrator:
 //
 // 1. **OmniRoute envelope** — JSON body returned by OmniRoute gateway
-//    (the OpenAI-compatible endpoint OpenCode OS uses) when an
+//    (the OpenAI-compatible endpoint Atlas OS uses) when an
 //    upstream provider rate-limits or spend-limits a request. The
 //    envelope normalizes upstream-specific headers into a single
 //    `error.resets_at` RFC 3339 timestamp.
@@ -55,7 +55,7 @@ pub enum ParseError {
 }
 
 /// Typed view of the OmniRoute error envelope (`RFC 28 §H.2`).
-/// Only the fields OpenCode OS consults are deserialized; the rest
+/// Only the fields Atlas OS consults are deserialized; the rest
 /// pass through `#[serde(other)]` of the `kind` enum intact.
 #[derive(Debug, Deserialize)]
 pub struct OmniRouteEnvelope {
@@ -84,7 +84,7 @@ pub struct OmniRouteErrorBody {
 /// propagate or a malformed 4xx the gateway opted to surface), and
 /// `Err(ParseError)` when the JSON is unparseable or the timestamp
 /// doesn't round-trip — that's an upgrade mismatch between OmniRoute
-/// and OpenCode OS, and the caller should log it + fall back.
+/// and Atlas OS, and the caller should log it + fall back.
 pub fn parse_omniroute(body: &[u8]) -> Result<Option<SpendLimitError>, ParseError> {
     let env: OmniRouteEnvelope = serde_json::from_slice(body)
         .map_err(|e| ParseError::Malformed(format!("json decode: {e}")))?;

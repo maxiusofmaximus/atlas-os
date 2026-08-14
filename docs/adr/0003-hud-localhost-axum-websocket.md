@@ -32,7 +32,7 @@ a mobile phone or another local browser can connect to the same WS stream.
   `hud` store (`src/lib/stores/hud.ts`).
 - The exact port is published by `AppState::set_hud_port` after bind and
   persisted to `~/.opencode/profiles/<id>/hud_port.txt` so the headless
-  `opencode hud` CLI can recover it later.
+  `atlas hud` CLI can recover it later.
 - Graceful shutdown: `main.rs` owns a `CancellationToken`; the
   `on_window_event(CloseRequested)` handler cancels it, axum stops accepting,
   active requests drain, and `hud_handle.join()` returns cleanly before

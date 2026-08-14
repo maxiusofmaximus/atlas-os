@@ -1,38 +1,117 @@
 {
   "$schema": "https://opencode.ai/schemas/hooks.json",
   "_attribution": "Schema copied from microsoft/intelligent-terminal wt-agent-hooks/<cli>/hooks.json (MIT). Copyright Microsoft Corporation. Generator: tools/gen-hooks.ps1 (RFC 28 §B Fase 0).",
-  "_note": "Placeholder gemini is replaced by gen-hooks.ps1 with the actual CLI name. Placeholder ${OPENCODE_PLUGIN_ROOT} is resolved by OpenCode OS at install time.",
+  "_note": "Placeholder gemini is replaced by gen-hooks.ps1 with the actual CLI name. Placeholder ${OPENCODE_PLUGIN_ROOT} is resolved by Atlas OS at install time.",
   "hooks": {
     "SessionStart": [
-      { "matcher": ".*", "hooks": [{ "type": "command", "command": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${OPENCODE_PLUGIN_ROOT}/hooks/send-event.ps1\" -CliSource gemini agent.session.start" }] }
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${OPENCODE_PLUGIN_ROOT}/hooks/send-event.ps1\" -CliSource gemini agent.session.start"
+          }
+        ]
+      }
     ],
     "SessionEnd": [
-      { "matcher": ".*", "hooks": [{ "type": "command", "command": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${OPENCODE_PLUGIN_ROOT}/hooks/send-event.ps1\" -CliSource gemini agent.session.end" }] }
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${OPENCODE_PLUGIN_ROOT}/hooks/send-event.ps1\" -CliSource gemini agent.session.end"
+          }
+        ]
+      }
     ],
     "Notification": [
-      { "matcher": ".*", "hooks": [{ "type": "command", "command": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${OPENCODE_PLUGIN_ROOT}/hooks/send-event.ps1\" -CliSource gemini agent.notification" }] }
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${OPENCODE_PLUGIN_ROOT}/hooks/send-event.ps1\" -CliSource gemini agent.notification"
+          }
+        ]
+      }
     ],
     "UserPromptSubmit": [
-      { "matcher": ".*", "hooks": [{ "type": "command", "command": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${OPENCODE_PLUGIN_ROOT}/hooks/send-event.ps1\" -CliSource gemini agent.prompt.submit" }] }
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${OPENCODE_PLUGIN_ROOT}/hooks/send-event.ps1\" -CliSource gemini agent.prompt.submit"
+          }
+        ]
+      }
     ],
     "PreToolUse": [
-      { "matcher": ".*", "hooks": [{ "type": "command", "command": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${OPENCODE_PLUGIN_ROOT}/hooks/send-event.ps1\" -CliSource gemini agent.tool.starting" }] }
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${OPENCODE_PLUGIN_ROOT}/hooks/send-event.ps1\" -CliSource gemini agent.tool.starting"
+          }
+        ]
+      }
     ],
     "PostToolUse": [
-      { "matcher": ".*", "hooks": [{ "type": "command", "command": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${OPENCODE_PLUGIN_ROOT}/hooks/send-event.ps1\" -CliSource gemini agent.tool.finished" }] }
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${OPENCODE_PLUGIN_ROOT}/hooks/send-event.ps1\" -CliSource gemini agent.tool.finished"
+          }
+        ]
+      }
     ],
     "PostToolUseFailure": [
-      { "matcher": ".*", "hooks": [{ "type": "command", "command": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${OPENCODE_PLUGIN_ROOT}/hooks/send-event.ps1\" -CliSource gemini agent.tool.failed" }] }
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${OPENCODE_PLUGIN_ROOT}/hooks/send-event.ps1\" -CliSource gemini agent.tool.failed"
+          }
+        ]
+      }
     ],
     "StopFailure": [
-      { "matcher": ".*", "hooks": [{ "type": "command", "command": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${OPENCODE_PLUGIN_ROOT}/hooks/send-event.ps1\" -CliSource gemini agent.error" }] }
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${OPENCODE_PLUGIN_ROOT}/hooks/send-event.ps1\" -CliSource gemini agent.error"
+          }
+        ]
+      }
     ],
     "Stop": [
-      { "matcher": ".*", "hooks": [{ "type": "command", "command": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${OPENCODE_PLUGIN_ROOT}/hooks/send-event.ps1\" -CliSource gemini agent.stop" }] }
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${OPENCODE_PLUGIN_ROOT}/hooks/send-event.ps1\" -CliSource gemini agent.stop"
+          }
+        ]
+      }
     ],
     "SubagentStop": [
-      { "matcher": ".*", "hooks": [{ "type": "command", "command": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${OPENCODE_PLUGIN_ROOT}/hooks/send-event.ps1\" -CliSource gemini agent.subagent.stop" }] }
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${OPENCODE_PLUGIN_ROOT}/hooks/send-event.ps1\" -CliSource gemini agent.subagent.stop"
+          }
+        ]
+      }
     ]
   }
 }
-

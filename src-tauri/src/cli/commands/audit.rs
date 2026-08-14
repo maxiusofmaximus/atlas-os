@@ -1,4 +1,4 @@
-// OpenCode OS — `opencode audit` (RFC 24 §10 / RFC 28 §D — Phase 1.5a §D-4).
+// Atlas OS — `atlas audit` (RFC 24 §10 / RFC 28 §D — Phase 1.5a §D-4).
 //
 // Subcommand surface:
 //   * `opencode audit [-n N]`      — print tail (existing behavior)

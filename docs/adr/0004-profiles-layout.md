@@ -8,7 +8,7 @@
 
 ## Context
 
-OpenCode OS must run multiple parallel agent workspaces on the same machine
+Atlas OS must run multiple parallel agent workspaces on the same machine
 without:
 
 1. Cross-contaminating SQLite journals (each profile is its own audit log).
@@ -33,7 +33,7 @@ A profile maps 1-to-1 to a directory:
       skills/            # installed skills (skill.toml + mailbox)
       embeddings/        # sqlite-vec cache
       hud_port.txt       # last bound HUD port (recovered by the CLI)
-      current            # symlink target set by `opencode profile switch`
+      current            # symlink target set by `atlas profile switch`
   current                # text file naming the active ProfileId
 ```
 
@@ -49,7 +49,7 @@ A profile maps 1-to-1 to a directory:
 
 - **No `~/.ocahs`-style monolith**: each profile is fully independent.
   Deleting a profile is `rm -rf ~/.opencode/profiles/<id>`.
-- **CLI/desktop coherence**: the desktop shell and `opencode` CLI see the
+- **CLI/desktop coherence**: the desktop shell and `atlas` CLI see the
   same active profile because they both read the same `~/.opencode/current`.
 - **Concurrent desktop launches in different profiles**: each desktop
   process points at a different `hud_port.txt` and the browser picks the
@@ -62,7 +62,7 @@ A profile maps 1-to-1 to a directory:
 
 - **Single shared journal for all profiles**: contradicts RFC 22 §1 (no
   cross-work-tree contamination).
-- **Profile ids as UUIDs**: worse UX; users switch `opencode profile switch
+- **Profile ids as UUIDs**: worse UX; users switch `atlas profile switch
 acme-research`, not GUID gibberish.
 - **Store state in the worktree itself (`.opencode/` in the repo)**: makes
   the worktree a single-tenant artefact and breaks "agent supervises five

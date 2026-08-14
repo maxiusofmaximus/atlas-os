@@ -1,4 +1,4 @@
-// OpenCode OS — Step 1: Capture (RFC 23 §2.1).
+// Atlas OS — Step 1: Capture (RFC 23 §2.1).
 //
 // Phase 1: normalisation only. The raw prompt is trimmed, runs of whitespace
 // are collapsed, and a single trailing newline (if any) is dropped. Nothing

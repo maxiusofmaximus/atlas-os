@@ -193,7 +193,7 @@ Per AGENTS.md §9: commits atómicos, no PRs. Cada sub-fase produce cargo check 
 - `enum Provider { OpenAI, Anthropic, Gemini, VertexAI, Bedrock, Azure, Ollama, LmStudio, OpenRouter, Custom(Arc<dyn Config>) }` en `src-tauri/src/orchestrator/provider.rs`.
 - `trait Config` async-openai-style: `Box<dyn Config>` para Custom variant, match exhaustivo para hardcoded.
 - M20 migration: SQLite tables `models`, `deployments`, `model_aliases`, `model_groups`.
-- JSON seed: `src-tauri/src/orchestrator/assets/model_prices_and_context_window.json` (bundle LiteLLM MIT) cargado en `OnceLock` vía `include_str!`. `opencode models refresh` re-sincroniza desde el JSON sin rebuild.
+- JSON seed: `src-tauri/src/orchestrator/assets/model_prices_and_context_window.json` (bundle LiteLLM MIT) cargado en `OnceLock` vía `include_str!`. `atlas models refresh` re-sincroniza desde el JSON sin rebuild.
   - **License audit**: LiteLLM `model_prices_and_context_window.json` MIT. Atribución en module-level prose.
 - `ArcSwap<Registry>` para lock-free reads. `DashMap<DeploymentId, (Instant, u32)>` para cooldown.
 - `Profile` extendido: `architect_model`, `editor_model`, `weak_model` (todos `Option<ModelId>`, default = `main_model`).

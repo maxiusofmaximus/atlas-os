@@ -1,4 +1,4 @@
-// OpenCode OS — `agent_session_events` row + persistence helpers
+// Atlas OS — `agent_session_events` row + persistence helpers
 // (RFC 28 §B, M14 migration, item 5).
 //
 // M14 populates this table with one row per OSC 9001 envelope consumed
@@ -34,7 +34,7 @@ pub struct AgentSessionEventRow {
     /// Namespaced event type, e.g. `agent.task.completed`, `agent.error`,
     /// `copilot.plan.updated`.
     pub event_type: String,
-    /// Self-reported agent identity (e.g. `opencode`, `copilot-cli`).
+    /// Self-reported agent identity (e.g. `atlas`, `copilot-cli`).
     pub agent: String,
     /// Task id when the event is task-scoped (`agent.task.*`, `agent.tool.*`,
     /// `agent.error` with `task_id`); `None` for `agent.started` /

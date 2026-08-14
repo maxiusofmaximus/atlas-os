@@ -1,11 +1,11 @@
-// OpenCode OS — Toast notifications module (RFC 28 Section F).
+// Atlas OS — Toast notifications module (RFC 28 Section F).
 //
 // Provides a Windows Toast notification scheduler backed by a SQLite
 // queue so notifications survive process crashes. The two building
 // blocks are independent:
 //
 // 1. `ToastQueue` — the journal-backed queue CRUD. Platform-agnostic
-//    Rust + SQLite; compiles on any target the rest of OpenCode OS
+//    Rust + SQLite; compiles on any target the rest of Atlas OS
 //    does. The M17 migration in `journal::schema` creates the
 //    `toast_queue` + `toast_history` tables.
 //

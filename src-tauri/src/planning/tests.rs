@@ -1,4 +1,4 @@
-// OpenCode OS — Planning Engine tests (RFC 12).
+// Atlas OS — Planning Engine tests (RFC 12).
 //
 // Phase 1: behavioural tests for the heuristic runner. The contract under
 // test is the RFC 12 §7 gate (`verdict.confidence` floor + `Plan.confidence`
@@ -74,7 +74,7 @@ mod fixtures {
             verdict_id: verdict.verdict_id,
             generated_at: chrono::Utc::now().to_rfc3339(),
             mission_statement: "Migrate the rating service to sqlite-vec.".into(),
-            success_criteria: vec!["`cargo test -p opencode-os` passes after edits.".into()],
+            success_criteria: vec!["`cargo test -p atlas-os` passes after edits.".into()],
             non_goals: vec![],
             accepted_assumptions: vec![],
             suggested_mode: RecommendedMode::Code,

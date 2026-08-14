@@ -1,4 +1,4 @@
-// OpenCode OS — LSP host placeholder.
+// Atlas OS — LSP host placeholder.
 // Real LSP multiplexer arrives Phase 2 (Roadmap §Fase 2). The host will:
 //  * detect LanguageId by extension (RFC 03 §9.3 LanguageIdResolver),
 //  * spawn language servers as subprocesses,

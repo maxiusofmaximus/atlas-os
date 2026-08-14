@@ -1,4 +1,4 @@
-// OpenCode OS — Embedding task-type classifier (RFC 04 §7 sub-fase 2.3).
+// Atlas OS — Embedding task-type classifier (RFC 04 §7 sub-fase 2.3).
 //
 // Heavy-path backend: fastembed-rs BGE-small-en-v1.5 (384 dim) ONNX
 // embeddings fed through a 2-layer MLP. This is the only backend

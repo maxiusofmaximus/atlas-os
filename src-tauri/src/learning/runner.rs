@@ -1,4 +1,4 @@
-// OpenCode OS — Learning Engine runner (RFC 16 §2 / §3 / §7).
+// Atlas OS — Learning Engine runner (RFC 16 §2 / §3 / §7).
 //
 // The runner is a pure function of a `RepairReport`. It does NOT call
 // the model, does NOT touch disk, does NOT consult the Skill Graph —

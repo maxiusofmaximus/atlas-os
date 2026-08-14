@@ -1,4 +1,4 @@
-// OpenCode OS — Journal: SQLite + sqlite-vec (RFC 02 §3.4, RFC 25 §3.4).
+// Atlas OS — Journal: SQLite + sqlite-vec (RFC 02 §3.4, RFC 25 §3.4).
 // WAL mode, single file per profile: `~/.opencode/profiles/<id>/journal.db`.
 // Schema is minimal in Phase 0 — Roadmap §Fase 0; expanded in later phases.
 

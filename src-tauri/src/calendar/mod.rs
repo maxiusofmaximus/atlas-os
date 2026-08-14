@@ -1,4 +1,4 @@
-// OpenCode OS — Calendar integration module (RFC 28 Section G).
+// Atlas OS — Calendar integration module (RFC 28 Section G).
 //
 // Provides two independent surfaces that share a single SQLite-backed
 // `calendar_busy_windows` table (M18):

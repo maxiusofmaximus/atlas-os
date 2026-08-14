@@ -1,9 +1,9 @@
-// OpenCode OS — `model_resets` row + persistence helpers (RFC 28 §H, M19).
+// Atlas OS — `model_resets` row + persistence helpers (RFC 28 §H, M19).
 //
 // M19 populates this table with one row per `(provider, model,
 // resets_at)` triple observed from an upstream provider error (429
 // rate-limit or 402/403 spend-cap). Each row records the reset
-// window OpenCode OS will respect: when `resets_at` arrives, the
+// window Atlas OS will respect: when `resets_at` arrives, the
 // scheduler in §F fires a `kind='model_ready'` Toast (and the row's
 // `toast_id` records the queue row used). Persistent rows survive
 // process restarts — crash recovery rehydrates the scheduler's

@@ -1,4 +1,4 @@
-// OpenCode OS — Auto-routing classifier (RFC 04 §7, Phase 2 sub-fase 2.3).
+// Atlas OS — Auto-routing classifier (RFC 04 §7, Phase 2 sub-fase 2.3).
 //
 // The auto-routing layer classifies a prompt into one of the task types
 // the orchestrator understands, then the routing policy can pick a
@@ -401,7 +401,7 @@ impl AutoRouterConfig {
 
     /// Per research/29 line 244 calibration idempotency test: writing
     /// the same threshold twice must be a no-op. Used by the future
-    /// `opencode router calibrate` CLI (G15, Phase 2.5+).
+    /// `atlas router calibrate` CLI (G15, Phase 2.5+).
     pub fn upsert_threshold(&mut self, task: TaskType, t: f64) {
         let prev = self.thresholds.insert(task, t);
         debug_assert!(prev.is_some() || !self.thresholds.contains_key(&task));

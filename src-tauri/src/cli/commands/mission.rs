@@ -1,4 +1,4 @@
-// OpenCode OS — `opencode mission` subcommand (Phase 1).
+// Atlas OS — `atlas mission` subcommand (Phase 1).
 // Drives a prompt end-to-end through the heuristic pipeline so the CLI
 // matches the desktop binary's surface area:
 //
@@ -75,7 +75,7 @@ struct PipeSummary {
 }
 
 /// (crate-visible) result of `run_steps_loop` so sibling subcommands
-/// (`opencode run`, `opencode resume`) and `core::pipeline` can drive
+/// (`atlas run`, `atlas resume`) and `core::pipeline` can drive
 /// the Coding → Validation → Repair loop against an already-loaded
 /// Plan without re-thinking the orchestration.
 pub(crate) struct StepsResult {
@@ -216,7 +216,7 @@ pub(crate) fn run_single_step(
 /// Drive Coding → Validation → Repair over every edit-capable step of
 /// `plan`. Read-only steps are skipped (RFC 13 §2). Diffs, validation
 /// reports, and repair runs are all persisted to the Journal so the HUD
-/// / `opencode journal` can replay them. Two `MissionCheckpoint`s are
+/// / `atlas journal` can replay them. Two `MissionCheckpoint`s are
 /// persisted per call (RFC 19 §5) — one at `Executing` entry and one at
 /// `Done`/`Halted` exit — so `opencode resume <mission_id>` finds a row
 /// to load.
@@ -459,7 +459,7 @@ fn print_summary(s: &PipeSummary, pid: &crate::profiles::ProfileId, prompt: &str
     println!("  repair_runs    = {n}", n = s.repair_count);
     println!("  elapsed_ms     = {ms}", ms = s.elapsed_ms);
     println!();
-    println!("next: `opencode journal -n 20`   /   HUD: `opencode hud` for live view");
+    println!("next: `opencode journal -n 20`   /   HUD: `atlas hud` for live view");
 }
 
 /// Drive the prompt → planning → coding → validation → repair loop for

@@ -1,4 +1,4 @@
-// OpenCode OS — HUD diff-annotation routes (RFC 27 §E).
+// Atlas OS — HUD diff-annotation routes (RFC 27 §E).
 //
 // Two routes attached to the HUD axum server:
 //

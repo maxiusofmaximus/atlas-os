@@ -1,4 +1,4 @@
-// OpenCode OS — Cascade failover (RFC 04 §6, sub-fase 2.1).
+// Atlas OS — Cascade failover (RFC 04 §6, sub-fase 2.1).
 //
 // The cascade is the orchestrator's escalation policy: when the
 // primary `Deployment` for a request returns a non-retryable error

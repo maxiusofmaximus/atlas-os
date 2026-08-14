@@ -1,4 +1,4 @@
-// OpenCode OS — ACP `wtcli listen --json` worker (RFC 28 §B item 5).
+// Atlas OS — ACP `wtcli listen --json` worker (RFC 28 §B item 5).
 //
 // The worker is the long-running task that spawns a `wtcli listen
 // --event "agent.*" --json` subprocess, reads its stdout one JSON-line

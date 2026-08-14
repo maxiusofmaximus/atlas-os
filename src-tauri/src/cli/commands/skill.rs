@@ -1,4 +1,4 @@
-// OpenCode OS — `opencode skill` stub (RFC 06; full impl Phase 5).
+// Atlas OS — `atlas skill` stub (RFC 06; full impl Phase 5).
 use anyhow::Result;
 use clap::{Args, Subcommand};
 

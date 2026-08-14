@@ -1,4 +1,4 @@
-// OpenCode OS — Learning graphs store (RFC 28 §C item 6, RFC 16 §3
+// Atlas OS — Learning graphs store (RFC 28 §C item 6, RFC 16 §3
 // "Por grafo de misión exitoso"). Persists successful mission-graph
 // instances and retrieves the top-k most similar ones by cosine over
 // a `fastembed-rs`-derived `intent_signature` embedding.

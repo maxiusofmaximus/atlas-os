@@ -1,11 +1,11 @@
-# OpenCode OS — ACP smoke-test script (RFC 28 §B item 8)
+# Atlas OS — ACP smoke-test script (RFC 28 §B item 8)
 #
-# Pipes a sequence of JSON-RPC 2.0 requests at the OpenCode OS ACP
+# Pipes a sequence of JSON-RPC 2.0 requests at the Atlas OS ACP
 # host loop on stdin, drives the corresponding responses + notifications
 # on stdout, and asserts that the protocol contract holds. In Phase
 # 1.5d the host loop is the `agent-client-protocol::Stdio` builtin
-# served by `opencode_os::acp::run_server`; we invoke it via
-# OPENCODE_ACP_FORCE=1 so the smoke test does not require IT to be
+# served by `atlas_os::acp::run_server`; we invoke it via
+# ATLAS_ACP_FORCE=1 so the smoke test does not require IT to be
 # installed on the box.
 #
 # Usage:
@@ -56,7 +56,7 @@ if (-not (Test-Path $Bin)) {
     exit 2
 }
 
-$env:OPENCODE_ACP_FORCE = "1"
+$env:ATLAS_ACP_FORCE = "1"
 $psi = New-Object System.Diagnostics.ProcessStartInfo
 $psi.FileName = (Resolve-Path $Bin).Path
 $psi.RedirectStandardInput = $true
@@ -64,7 +64,7 @@ $psi.RedirectStandardOutput = $true
 $psi.RedirectStandardError = $true
 $psi.UseShellExecute = $false
 $psi.CreateNoWindow = $true
-$psi.EnvironmentVariables["OPENCODE_ACP_FORCE"] = "1"
+$psi.EnvironmentVariables["ATLAS_ACP_FORCE"] = "1"
 $proc = [System.Diagnostics.Process]::Start($psi)
 
 try {
@@ -81,7 +81,7 @@ try {
     Assert-True ($null -ne $resp) "initialize returned a JSON-RPC envelope"
     Assert-True ($resp.id -eq 1) "initialize response id matches request"
     Assert-True ($resp.result.agentInfo.name -eq "opencode") "agentInfo.name=`"opencode`""
-    Assert-True ($resp.result.agentInfo.title -eq "OpenCode OS") "agentInfo.title=`"OpenCode OS`""
+    Assert-True ($resp.result.agentInfo.title -eq "Atlas OS") "agentInfo.title=`"Atlas OS`""
 
     Send-JsonRpc $proc @{
         jsonrpc = "2.0"

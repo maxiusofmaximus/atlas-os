@@ -1,4 +1,4 @@
-// OpenCode OS — Rust tests for the Journal store.
+// Atlas OS — Rust tests for the Journal store.
 // Phase 0 happy-path: open a temp-profile journal, publish an event, tail it.
 #[cfg(test)]
 mod journal_store_tests {

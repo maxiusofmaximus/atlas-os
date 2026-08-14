@@ -1,4 +1,4 @@
-// OpenCode OS — Firecrawl client factory (RFC 28 Section E).
+// Atlas OS — Firecrawl client factory (RFC 28 Section E).
 //
 // `firecrawl::Client` is constructed from (api_url, api_key?) — both
 // strings — and is internally a `reqwest::Client` clone. We expose a
@@ -13,10 +13,12 @@
 //   * `FIRECRAWL_API_KEY`     — canonically the Firecrawl cloud key
 //                                (matches the SDK's own env-var name
 //                                from the quickstart docs).
-//   * `OPENCODE_FIRECRAWL_URL` — self-hosted base URL override. When
+//   * `ATLAS_FIRECRAWL_URL` — self-hosted base URL override. When
 //                                set, the SDK is pointed at the
 //                                self-hosted instance; when unset,
 //                                `https://api.firecrawl.dev` is used.
+//     `ATLAS_FIRECRAWL_URL` is honoured as a legacy fallback for
+//     existing users.
 //
 // A `FirecrawlKey::None` (i.e. neither env var is set) is valid: the
 // SDK supports a keyless free tier on the cloud endpoint. The facade
@@ -70,15 +72,17 @@ impl FirecrawlClient {
     ///
     /// Resolution order:
     ///
-    /// 1. If `OPENCODE_FIRECRAWL_URL` is set → self-hosted endpoint.
-    ///    `FIRECRAWL_API_KEY`, if set, is forwarded as the bearer key.
+    /// 1. If `ATLAS_FIRECRAWL_URL` (or legacy `ATLAS_FIRECRAWL_URL`) is
+    ///    set → self-hosted endpoint. `FIRECRAWL_API_KEY`, if set, is
+    ///    forwarded as the bearer key.
     /// 2. Otherwise → cloud endpoint at the SDK default. Bearer key is
     ///    `FIRECRAWL_API_KEY` if set, else `None` (keyless free tier).
     ///
     /// Empty/whitespace-only values are treated as `None` to avoid a
     /// blank `Bearer` header that the SDK would then send.
     pub fn from_env() -> Result<Self, FirecrawlFacadeError> {
-        let raw_url_env = env::var_os("OPENCODE_FIRECRAWL_URL");
+        let raw_url_env =
+            env::var_os("ATLAS_FIRECRAWL_URL").or_else(|| env::var_os("ATLAS_FIRECRAWL_URL"));
         let raw_key_env = env::var_os("FIRECRAWL_API_KEY");
         let api_key: Option<String> = raw_key_env
             .and_then(|s| s.to_str().map(str::trim).map(String::from))
@@ -144,13 +148,18 @@ mod tests {
 
     fn with_clean_env<F: FnOnce()>(f: F) {
         let _g = ENV_LOCK.lock().unwrap();
-        let url_b = env::var_os("OPENCODE_FIRECRAWL_URL");
+        let atlas_b = env::var_os("ATLAS_FIRECRAWL_URL");
+        let opencode_b = env::var_os("ATLAS_FIRECRAWL_URL");
         let key_b = env::var_os("FIRECRAWL_API_KEY");
-        env::remove_var("OPENCODE_FIRECRAWL_URL");
+        env::remove_var("ATLAS_FIRECRAWL_URL");
+        env::remove_var("ATLAS_FIRECRAWL_URL");
         env::remove_var("FIRECRAWL_API_KEY");
         f();
-        if let Some(v) = url_b {
-            env::set_var("OPENCODE_FIRECRAWL_URL", v);
+        if let Some(v) = atlas_b {
+            env::set_var("ATLAS_FIRECRAWL_URL", v);
+        }
+        if let Some(v) = opencode_b {
+            env::set_var("ATLAS_FIRECRAWL_URL", v);
         }
         if let Some(v) = key_b {
             env::set_var("FIRECRAWL_API_KEY", v);
@@ -186,7 +195,7 @@ mod tests {
     )]
     fn self_hosted_when_url_is_set() {
         with_clean_env(|| {
-            env::set_var("OPENCODE_FIRECRAWL_URL", "http://localhost:3000");
+            env::set_var("ATLAS_FIRECRAWL_URL", "http://localhost:3000");
             let c = FirecrawlClient::from_env().expect("env ok");
             assert_eq!(c.endpoint, FirecrawlEndpoint::SelfHosted);
         });

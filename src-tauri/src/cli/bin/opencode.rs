@@ -1,4 +1,4 @@
-// OpenCode OS — `opencode` CLI entry point (RFC 08, RFC 25 §3.9).
+// Atlas OS — `atlas` CLI entry point (RFC 08, RFC 25 §3.9).
 // Shares the same Rust core as the Tauri desktop binary but runs headless.
 // Useful for CI, headless Linux servers, and scripting.
 // Subcommands declared here mirror the table in RFC 25 §3.9.
@@ -13,12 +13,14 @@
 // or Windows without IT) the binary falls through to the legacy CLI.
 //
 // To force the ACP host loop without IT installed (e.g. for manual ACP
-// client smoke tests), set environment variable `OPENCODE_ACP_FORCE=1`
+// client smoke tests), set environment variable `ATLAS_ACP_FORCE=1`
 // alongside a build with `--features acp-server`. This is documented for
 // operators only and is not part of the production flow.
+// `ATLAS_ACP_FORCE` is also honoured as a legacy fallback for existing
+// users who already have it set in their shell environment.
 
+use atlas_os::cli::{commands, proto::Cli};
 use clap::Parser;
-use opencode_os::cli::{commands, proto::Cli};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -29,8 +31,8 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     let filter = match cli.verbose {
-        0 => "warn,opencode_os=info",
-        1 => "info,opencode_os=debug",
+        0 => "warn,atlas_os=info",
+        1 => "info,atlas_os=debug",
         2 => "debug",
         _ => "trace",
     };
@@ -44,7 +46,7 @@ async fn main() -> anyhow::Result<()> {
         Some(cmd) => commands::dispatch(cmd, &active).await,
         None => {
             println!(
-                "opencode {} — run `opencode --help` for usage",
+                "atlas {} — run `atlas --help` for usage",
                 env!("CARGO_PKG_VERSION")
             );
             Ok(())
@@ -57,7 +59,10 @@ async fn main() -> anyhow::Result<()> {
 /// module-level doc for the two triggers.
 #[cfg(feature = "acp-server")]
 fn should_run_acp_server() -> bool {
-    std::env::var_os("WT_COM_CLSID").is_some() || std::env::var_os("OPENCODE_ACP_FORCE").is_some()
+    std::env::var_os("WT_COM_CLSID").is_some()
+        || std::env::var_os("ATLAS_ACP_FORCE")
+            .or_else(|| std::env::var_os("ATLAS_ACP_FORCE"))
+            .is_some()
 }
 
 #[cfg(not(feature = "acp-server"))]
@@ -71,12 +76,12 @@ async fn run_acp_server() -> anyhow::Result<()> {
     // transport. Route logs to stderr so the IT host (or a smoke-test
     // harness) sees them out-of-band.
     let _ = tracing_subscriber::fmt()
-        .with_env_filter("info,opencode_os=debug")
+        .with_env_filter("info,atlas_os=debug")
         .with_target(true)
         .with_writer(std::io::stderr)
         .try_init();
     tracing::info!("acp-server: handing stdin/stdout to ACP JSON-RPC host loop");
-    opencode_os::acp::run_server()
+    atlas_os::acp::run_server()
         .await
         .map_err(|e| anyhow::anyhow!("acp server error: {e:?}"))
 }
@@ -85,6 +90,6 @@ async fn run_acp_server() -> anyhow::Result<()> {
 async fn run_acp_server() -> anyhow::Result<()> {
     // Unreachable — `should_run_acp_server` always returns false when the
     // feature is disabled. The stub exists so the function-level `cfg`
-    // branches compile without dragging `opencode_os::acp` into the bin.
+    // branches compile without dragging `atlas_os::acp` into the bin.
     anyhow::bail!("acp-server feature is not enabled")
 }

@@ -1,4 +1,4 @@
-// OpenCode OS — Vite config
+// Atlas OS — Vite config
 // See RFC 25 §3.3 — SvelteKit + Tauri 2 internal host.
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vitest/config';

@@ -77,7 +77,7 @@ El swarm no comparte un único contexto (eso saturaría tokens). Comparte:
 
 ## 5. Pool swarm estilo Kimi
 
-OpenCode OS admite **pool swarms**: un solo rol con **N instancias** intercambiables (por ejemplo 3 Backends) para acelerar tareas largas.
+Atlas OS admite **pool swarms**: un solo rol con **N instancias** intercambiables (por ejemplo 3 Backends) para acelerar tareas largas.
 
 Configuración del pool:
 ```json

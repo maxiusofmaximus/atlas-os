@@ -66,7 +66,7 @@ dependencies = [
  "blocking",
  "futures",
  "futures-concurrency",
- "rustc-hash",
+ "rustc-hash 2.1.3",
  "rustix",
  "schemars 1.2.1",
  "serde",
@@ -505,6 +505,73 @@ dependencies = [
 ]
 
 [[package]]
+name = "atlas-os"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "agent-client-protocol",
+ "anyhow",
+ "async-trait",
+ "axum",
+ "chrono",
+ "clap",
+ "dirs 5.0.1",
+ "eventsource-stream",
+ "fastembed",
+ "firecrawl",
+ "futures",
+ "futures-util",
+ "git2",
+ "graph-rs-sdk",
+ "hex",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "ics",
+ "indexmap 2.14.0",
+ "keyring",
+ "lsp-types 0.97.0",
+ "notify",
+ "notify-debouncer-full",
+ "once_cell",
+ "parking_lot",
+ "petgraph",
+ "rand 0.8.7",
+ "reqwest 0.12.28",
+ "ring",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sha2",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-clipboard-manager",
+ "tauri-plugin-dialog",
+ "tauri-plugin-fs",
+ "tauri-plugin-opener",
+ "tauri-plugin-os",
+ "tauri-plugin-process",
+ "tauri-plugin-shell",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tiktoken-rs",
+ "tokio",
+ "tokio-util",
+ "toml 0.8.2",
+ "tower 0.5.3",
+ "tower-http",
+ "tower-lsp",
+ "tracing",
+ "tracing-subscriber",
+ "tree-sitter",
+ "tree-sitter-rust",
+ "tree-sitter-svelte-next",
+ "uuid",
+ "winrt-toast-reborn",
+]
+
+[[package]]
 name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -660,12 +727,27 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
 name = "bit-set"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0700ddab506f33b20a03b13996eccd309a48e5ff77d0d95926aa0210fb4e95f1"
+dependencies = [
+ "bit-vec 0.6.3",
+]
+
+[[package]]
+name = "bit-set"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08807e080ed7f9d5433fa9b275196cfc35414f66a0c79d864dc51a0d825231a3"
 dependencies = [
- "bit-vec",
+ "bit-vec 0.8.0",
 ]
+
+[[package]]
+name = "bit-vec"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "349f9b6a179ed607305526ca489b34ad0a41aed5f7980fa90eb03160b69598fb"
 
 [[package]]
 name = "bit-vec"
@@ -768,6 +850,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf88ba1141d185c399bee5288d850d63b8369520c1eafc32a0430b5b6c287bf4"
 dependencies = [
  "tinyvec",
+]
+
+[[package]]
+name = "bstr"
+version = "1.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f7dc094d718f2e1c1559ad110e27eeaae14a5465d3d56dd6dbd793079fbd530"
+dependencies = [
+ "memchr",
+ "regex-automata",
+ "serde_core",
 ]
 
 [[package]]
@@ -1694,7 +1787,7 @@ version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "521e380c0c8afb8d9a1e83a1822ee03556fc3e3e7dbc1fd30be14e37f9cb3f89"
 dependencies = [
- "bit-set",
+ "bit-set 0.8.0",
  "cssparser 0.36.0",
  "foldhash 0.2.0",
  "html5ever 0.38.0",
@@ -1947,6 +2040,17 @@ name = "fallible-streaming-iterator"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7360491ce676a36bf9bb3c56c1aa791658183a54d2744120f27285738d90465a"
+
+[[package]]
+name = "fancy-regex"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "531e46835a22af56d1e3b66f04844bed63158bc094a628bec1d321d9b4c44bf2"
+dependencies = [
+ "bit-set 0.5.3",
+ "regex-automata",
+ "regex-syntax",
+]
 
 [[package]]
 name = "fastembed"
@@ -4595,72 +4699,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "opencode-os"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "agent-client-protocol",
- "anyhow",
- "async-trait",
- "axum",
- "chrono",
- "clap",
- "dirs 5.0.1",
- "eventsource-stream",
- "fastembed",
- "firecrawl",
- "futures",
- "futures-util",
- "git2",
- "graph-rs-sdk",
- "hex",
- "http-body-util",
- "hyper",
- "hyper-util",
- "ics",
- "indexmap 2.14.0",
- "keyring",
- "lsp-types 0.97.0",
- "notify",
- "notify-debouncer-full",
- "once_cell",
- "parking_lot",
- "petgraph",
- "rand 0.8.7",
- "reqwest 0.12.28",
- "ring",
- "rusqlite",
- "serde",
- "serde_json",
- "serde_yaml",
- "sha2",
- "tauri",
- "tauri-build",
- "tauri-plugin-clipboard-manager",
- "tauri-plugin-dialog",
- "tauri-plugin-fs",
- "tauri-plugin-opener",
- "tauri-plugin-os",
- "tauri-plugin-process",
- "tauri-plugin-shell",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tokio-util",
- "toml 0.8.2",
- "tower 0.5.3",
- "tower-http",
- "tower-lsp",
- "tracing",
- "tracing-subscriber",
- "tree-sitter",
- "tree-sitter-rust",
- "tree-sitter-svelte-next",
- "uuid",
- "winrt-toast-reborn",
-]
-
-[[package]]
 name = "openssl"
 version = "0.10.81"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5403,7 +5441,7 @@ dependencies = [
  "pin-project-lite",
  "quinn-proto",
  "quinn-udp",
- "rustc-hash",
+ "rustc-hash 2.1.3",
  "rustls",
  "socket2",
  "thiserror 2.0.18",
@@ -5424,7 +5462,7 @@ dependencies = [
  "rand 0.10.2",
  "rand_pcg 0.10.2",
  "ring",
- "rustc-hash",
+ "rustc-hash 2.1.3",
  "rustls",
  "rustls-pki-types",
  "slab",
@@ -5955,6 +5993,12 @@ dependencies = [
 
 [[package]]
 name = "rustc-hash"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
+
+[[package]]
+name = "rustc-hash"
 version = "2.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6b1e7f9a428571be2dc5bc0505c13fb6bf936822b894ec87abf8a08a4e51742d"
@@ -6183,7 +6227,7 @@ dependencies = [
  "phf 0.13.1",
  "phf_codegen 0.13.1",
  "precomputed-hash",
- "rustc-hash",
+ "rustc-hash 2.1.3",
  "servo_arc 0.4.3",
  "smallvec",
 ]
@@ -7447,6 +7491,22 @@ dependencies = [
  "quick-error 2.0.1",
  "weezl",
  "zune-jpeg",
+]
+
+[[package]]
+name = "tiktoken-rs"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44075987ee2486402f0808505dd65692163d243a337fc54363d49afac41087f6"
+dependencies = [
+ "anyhow",
+ "base64 0.21.7",
+ "bstr",
+ "fancy-regex",
+ "lazy_static",
+ "parking_lot",
+ "regex",
+ "rustc-hash 1.1.0",
 ]
 
 [[package]]

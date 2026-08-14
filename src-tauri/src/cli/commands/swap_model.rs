@@ -1,4 +1,4 @@
-// OpenCode OS — `opencode swap-model <mission_id> <model_id>` subcommand
+// Atlas OS — `opencode swap-model <mission_id> <model_id>` subcommand
 // (RFC 25 §3.9 + RFC 27 §B). Hot-swaps the model driving a mission
 // mid-flight: rewrites the latest verdict/plan via the Orchestrator and
 // records a `model_swaps` row + `BusEventKind::ModelSwapped` so the HUD

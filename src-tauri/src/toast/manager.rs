@@ -1,4 +1,4 @@
-// OpenCode OS — Toast dispatcher (RFC 28 Section F).
+// Atlas OS — Toast dispatcher (RFC 28 Section F).
 //
 // Two implementations of the dispatch protocol:
 //
@@ -43,7 +43,7 @@ pub enum DispatchOutcome {
 pub const AUMID: &str = "dev.opencode.OpenCodeOS.HUD";
 
 #[cfg(windows)]
-pub const DISPLAY_NAME: &str = "OpenCode OS — Mission Control";
+pub const DISPLAY_NAME: &str = "Atlas OS — Mission Control";
 
 #[cfg(windows)]
 pub fn register_aumid(icon_path: Option<&Path>) -> ToastResult<()> {

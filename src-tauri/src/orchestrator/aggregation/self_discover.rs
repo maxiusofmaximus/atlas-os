@@ -1,4 +1,4 @@
-// OpenCode OS Ã¢â‚¬â€ SelfDiscover aggregator (RFC 04 Ã‚Â§3, sub-fase 2.2).
+// Atlas OS Ã¢â‚¬â€ SelfDiscover aggregator (RFC 04 Ã‚Â§3, sub-fase 2.2).
 //
 // Ports "Self-Discover: Large Language Models Self-Compose Reasoning
 // Structures" (arxiv 2402.03620, Zhou et al., Google DeepMind). The

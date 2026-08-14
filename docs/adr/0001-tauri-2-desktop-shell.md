@@ -8,7 +8,7 @@
 
 ## Context
 
-OpenCode OS is an Agent Engineering Operating System whose Rust core must
+Atlas OS is an Agent Engineering Operating System whose Rust core must
 outlive a webview crash (the agent loop cannot die because the renderer the
 user happens to be looking at died). We need a desktop shell that:
 
@@ -28,8 +28,8 @@ Use **Tauri 2** as the desktop shell.
   server, LSP host, etc.).
 - The webview is WebView2 (Win), WKWebView (macOS), WebKitGTK (Linux) — no
   Chromium bundled.
-- The desktop binary and the headless `opencode` CLI share the same
-  `opencode-os` library crate (RFC 25 §3.9): no Node, no Electron
+- The desktop binary and the headless `atlas` CLI share the same
+  `atlas-os` library crate (RFC 25 §3.9): no Node, no Electron
   main-process split.
 
 ## Consequences

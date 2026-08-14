@@ -1,4 +1,4 @@
-// OpenCode OS — Execution Supervisor canonical types (RFC 19).
+// Atlas OS — Execution Supervisor canonical types (RFC 19).
 //
 // The Execution Supervisor replaces the external `supervisor.ps1`
 // `while ($true)` loop (RFC 19 §7) with an in-kernel state machine that

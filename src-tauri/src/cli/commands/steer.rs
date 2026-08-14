@@ -1,8 +1,8 @@
-// OpenCode OS — `opencode steer <mission_id> "msg"` subcommand
+// Atlas OS — `opencode steer <mission_id> "msg"` subcommand
 // (RFC 25 §3.9). Injects a steering message mid-run.
 //
 // Phase 1 has no live supervisor process; we persist the message to the
-// Journal as a `SteerAgent` BusEvent so the next `opencode resume` /
+// Journal as a `SteerAgent` BusEvent so the next `atlas resume` /
 // desktop-binary run will see it via `journal.publish`. The subcommand
 // returns immediately (no agent is spawned headless — that is Phase 6
 // supervisor territory).

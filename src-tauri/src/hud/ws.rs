@@ -1,4 +1,4 @@
-// OpenCode OS — HUD WebSocket handler (RFC 24 §4).
+// Atlas OS — HUD WebSocket handler (RFC 24 §4).
 // Each client gets its own socket. The server:
 //  1. subscribes to the kernel-bus broadcast channel,
 //  2. fans-out events as JSON to the connected client.

@@ -1,6 +1,6 @@
-# 27 - Research: `posting` TUI (darrenburns) — Applicability to OpenCode OS
+# 27 - Research: `posting` TUI (darrenburns) — Applicability to Atlas OS
 
-**Investigación deep-dive** para alimentar un RFC sobre integración parcial en OpenCode OS
+**Investigación deep-dive** para alimentar un RFC sobre integración parcial en Atlas OS
 (Rust/Tauri 2/SvelteKit/axum/SQLite). Fuentes verificadas entre 2026-07-25.
 
 ---
@@ -58,7 +58,7 @@ Docs referencia: <https://posting.sh/guide/requests/>, /collections/, /scripting
 
 ---
 
-## 3. Ideas extrapolables a OpenCode OS
+## 3. Ideas extrapolables a Atlas OS
 
 ### (a) RFC 24 §10 AuditLog → export YAML on-disk
 
@@ -119,7 +119,7 @@ de `[a]` badges y handler de tecla única. Issue/RFC distinto (UX HUD, no postin
 
 Conclusión: la únicia alternativa Rust-native real y mantenida es **hurl**. Su formato `.hurl`
 (plain-text, no YAML) es más test-orientado (asserts, captures) que desarrollador-orientado.
-Posting elige YAML para diffs/VC; hurl elige DSL para asserts. **Para OpenCode OS, el formato
+Posting elige YAML para diffs/VC; hurl elige DSL para asserts. **Para Atlas OS, el formato
 YAML de posting es mejor ajuste a nuestro journal SQLite-typed** (rows→YAML es directo;
 rows→hurl DSL pierde semántica).
 
@@ -134,7 +134,7 @@ No recomiendo `hurlfmt` ni `atavia` (no existen — evitar inventar).
 2. **AGENTS.md §6 boundary**: *"No new external tools bundled (no Conda, no pyinstaller)"* —
    un subprocess `posting` violates literalmente. Evitar.
 3. **Scripts Python en YAML** son superficie de ataque: ejecutan `setup/on_request/on_response`
-   en proceso, sin sandbox. Si importamos collections de terceros en OpenCode OS para
+   en proceso, sin sandbox. Si importamos collections de terceros en Atlas OS para
    MCP request bundles (3c), **debemos ignorar la key `scripts`** al parsear. Documentar
    explícitamente en el RFC.
 4. **`=httpx`/`=pydantic` dependency leakage**: el schema asume esos tipos. Si re-implementamos

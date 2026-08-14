@@ -1,7 +1,7 @@
-﻿# OpenCode OS — Reset-Window smoke-test script (RFC 28 §H item 13)
+﻿# Atlas OS — Reset-Window smoke-test script (RFC 28 §H item 13)
 #
 # Drives the §H subsystem end-to-end:
-#   1. Spawns `opencode journal -k spend_limit_observed` against a scratch
+#   1. Spawns `atlas journal -k spend_limit_observed` against a scratch
 #      profile to confirm the journal schema (M19 `model_resets` table)
 #      is reachable from the produced binary.
 #   2. Validates that the SDK build carries the §H symbols by inspecting
@@ -56,7 +56,7 @@ if (-not (Test-Path -LiteralPath $Bin)) {
     exit 2
 }
 
-Write-Host "OpenCode OS — reset-window smoke test" -ForegroundColor Cyan
+Write-Host "Atlas OS — reset-window smoke test" -ForegroundColor Cyan
 Write-Host "Binary: $Bin"
 
 # ---------- 1. Confirm §H parser + HUD card serialisers compiled ----------

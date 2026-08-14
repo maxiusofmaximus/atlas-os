@@ -1,4 +1,4 @@
-// OpenCode OS — Calendar MS Graph auth (RFC 28 Section G — READ path).
+// Atlas OS — Calendar MS Graph auth (RFC 28 Section G — READ path).
 //
 // Placeholder — full implementation lands in §G items 5-8 (post-MVP).
 // The shape of the public surface is documented in `mod.rs` and

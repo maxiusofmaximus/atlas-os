@@ -1,4 +1,4 @@
-// OpenCode OS — Aggregation engine (RFC 04 §3, sub-fase 2.2).
+// Atlas OS — Aggregation engine (RFC 04 §3, sub-fase 2.2).
 //
 // When the orchestrator routes to an aggregation mode for a mission
 // running in `ExecutionMode::HighStakes` (RFC 19), it must fuse the
@@ -16,7 +16,7 @@
 //    to the `council_votes` table (M22).
 // 4. `Reflexion` — Verbal Reinforcement Learning (arxiv 2303.11366,
 //    Shinn et al.). Multi-model: executor caro + reflexor barato is
-//    an OpenCode OS contribution (the paper uses a single model;
+//    an Atlas OS contribution (the paper uses a single model;
 //    see RFC 22 §2 for the attribution note). Anti-doom-loop guard
 //    aborts when 2 consecutive episodes share the same `failure_signal`.
 // 5. `SelfRefine` — Iterative Refinement with Self-Feedback (arxiv
@@ -157,7 +157,7 @@ pub enum AggregationMode {
         stop_condition: StopCondition,
     },
     /// Reflexion verbal reinforcement learning (arxiv 2303.11366).
-    /// Multi-model: executor caro + reflexor barato. OpenCode OS
+    /// Multi-model: executor caro + reflexor barato. Atlas OS
     /// contribution (paper uses same model). Anti-doom-loop guard
     /// aborts on 2 consecutive identical `failure_signal` (RFC 19).
     Reflexion { memory_buffer_size: u8 },

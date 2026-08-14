@@ -8,7 +8,7 @@
 
 ## 1. Prerequisites
 
-1. **OpenCode OS** built with the `toast` feature (default OFF):
+1. **Atlas OS** built with the `toast` feature (default OFF):
 
    ```powershell
    pnpm install
@@ -82,7 +82,7 @@ backup_profile_id = "personal"  # clicked by the "Switch Provider" button
 
 When the profile file is missing or malformed, the runtime falls back to the in-code defaults (`bail_out_threshold_secs = 60`, `backup_profile_id = None`). The "Switch Provider" button on the `SpendLimitErrorCard` is **disabled** when `backup_profile_id` is `None` — a one-profile setup simply doesn't surface the button.
 
-Edit `profile.toml` by hand — there's no CLI yet (planned: `opencode profile edit`). Reload by restarting the desktop app (the file is read once at boot).
+Edit `profile.toml` by hand — there's no CLI yet (planned: `atlas profile edit`). Reload by restarting the desktop app (the file is read once at boot).
 
 ### 3.3 Toast cooldown (10 min per `(provider, model)`)
 
@@ -105,7 +105,7 @@ The `SpendLimitErrorCard`'s "Request Increase" button writes a `localStorage` ke
     Select-String "model_ready|spend_limit_observed"
   ```
   If you see `spend_limit_observed` entries but no `model_ready`, the row never reached `fire_at_ms` — either the desktop app exited before the reset, or `toast_id` is `NULL` (the toast enqueue step was skipped).
-- Open the HUD (`opencode hud`) and check the Card column. The `model_ready` Toast payload itself is best verified via the kernel-bus WS stream — `tail -f /tail/model_swaps` does NOT show Toasts; use the WS subscription on `ws://127.0.0.1:<port>/ws`.
+- Open the HUD (`atlas hud`) and check the Card column. The `model_ready` Toast payload itself is best verified via the kernel-bus WS stream — `tail -f /tail/model_swaps` does NOT show Toasts; use the WS subscription on `ws://127.0.0.1:<port>/ws`.
 
 ### 4.2 The card never appears on rate-limit
 

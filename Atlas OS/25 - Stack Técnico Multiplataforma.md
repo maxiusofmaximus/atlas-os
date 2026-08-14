@@ -1,6 +1,6 @@
 # 25 - Stack Técnico Multiplataforma
 
-> Define la pila concreta que corre OpenCode OS en **Windows, Linux y macOS** sin depender de otros de un sistema operativo y sin obligar al usuario a instalar Node.js/Python/servidores externos. El resultado es un binario único (Tauri 2 / Rust) con frontend web, que puede correr tanto como app de escritorio responsive como servicio local accesible desde el móvil, manteniendo **cero dependencias externas** salvo el OS.
+> Define la pila concreta que corre Atlas OS en **Windows, Linux y macOS** sin depender de otros de un sistema operativo y sin obligar al usuario a instalar Node.js/Python/servidores externos. El resultado es un binario único (Tauri 2 / Rust) con frontend web, que puede correr tanto como app de escritorio responsive como servicio local accesible desde el móvil, manteniendo **cero dependencias externas** salvo el OS.
 
 La elección no es casual. Reemplazar la combinación típica "Electron + Node + Python + Postgres/Annoy + Redis" por **"Tauri 2 + Rust + SQLite/sqlite-vec + LSP"** logra:
 
@@ -93,7 +93,7 @@ Ventajas físicas:
 ### 3.1 Tauri 2 (`tauri@2`, Rust 1.84+)
 
 - **Por qué sí:** Rust-side, multi-OS, webview nativo (WebView2 en Windows, WebKitGTK en Linux, WKWebView en macOS). Tamaño de installer <30MB. Acumula por bundle sidecars non-bloqueante (path Tauri *sidecar* API).
-- **Por qué no Electron:** 200+ MB, Chromium bundled, mayor RR, vulnerabilidades supply-chain Node. AionUI usa Electron; OpenCode OS supera eso mismo stack.
+- **Por qué no Electron:** 200+ MB, Chromium bundled, mayor RR, vulnerabilidades supply-chain Node. AionUI usa Electron; Atlas OS supera eso mismo stack.
 - **Por qué no Flutter / Qt:**  UI no-nativa, lenta derecho "web dev workflow" del equipo, ecosistema skills/MCP vive en JS/TS (`06 - Skills.md`).
 - Build lockfile: `Cargo.lock` + `tauri.conf.json`+ `bun.lockb` o `pnpm-lock.yaml`.
 
@@ -263,7 +263,7 @@ Tauri Updater (built-in): firma con clave pública del proyecto del manifest. El
 - Actualizar el frontend Svelte.
 - Actualizar Skills (separately; Skills via `skill install`).
 
-Los manifests se publican en el repo de OpenCode OS Releases (GitHub). Se respeta `16(force=false)` por default.
+Los manifests se publican en el repo de Atlas OS Releases (GitHub). Se respeta `16(force=false)` por default.
 
 ### 3.12 Telemetría local, sin cloud
 
@@ -393,7 +393,7 @@ Reproducible builds: optional **Nix flakes** para skill marketplace (`18`).
 | Componente | Size |
 |---|---|
 | `OpenCodeOS.exe` (Windows installer) | 30-45 MB |
-| `opencode` binario Linux | 25-40 MB estátic |
+| `atlas` binario Linux | 25-40 MB estátic |
 | `OpenCodeOS.dmg` macOS (universal) | 60-80MB (lipo) |
 | `journal.db` recién initial | <100 KB |
 | `journal.db` tras 1 mes uso intenso | 50-500 MB |
@@ -448,7 +448,7 @@ AionUI (https://github.com/iOfficeAI/AionUi, Apache-2.0) usa:
 
 ¿Por qué no usar AionUI directly?
 - Se necesita reemplazar Python por Rust para tener single-binary, cero runtime Python.
-- El ruteo manual de AionUI obliga el ** humano a plan de conocimiento avanzado**. OpenCode OS lo automatiza en Model Orchestrator (`04`) con seus lessons AionUI.
+- El ruteo manual de AionUI obliga el ** humano a plan de conocimiento avanzado**. Atlas OS lo automatiza en Model Orchestrator (`04`) con seus lessons AionUI.
 - El orquestador propio de AionUI no respeta los user tags multi-key, fail-over automatic y capability tagging. OpenCodeOS sí.
 - AionUI no tiene HUD Mission Control; nosotros integramos (`24`).
 - AionUI no tiene Skills auto-compresoras (`06`); nosotros sí.
@@ -464,7 +464,7 @@ AionUI sirve como referencia sólida de UX de config (perfiles, modelo override 
 - Sandboxing Windows sin Podman en WSL2 no soporta attach-TTY para interactive tools; ciertos skills `pty` caen al category `Forbidden` o Workspaces Windows + Job Object que restringen sin TTY.
 - Mobile UI: HUD desde el móvil es read-only + approvals + steer. La edición/in scripting no se soporta en vía móvil.
 - Reverse-engineering binary LSPs en casos de vendors cerrados (ej. `vscode-language-server` for Microsoft-cosas) no garantizado.
-- No self-hosted marketplace backend por default: un SaaS mantenido por OpenCode OS redistribuye skills firmadas; perfil completo tiene local **mirror** opcional.
+- No self-hosted marketplace backend por default: un SaaS mantenido por Atlas OS redistribuye skills firmadas; perfil completo tiene local **mirror** opcional.
 
 ---
 
@@ -473,7 +473,7 @@ AionUI sirve como referencia sólida de UX de config (perfiles, modelo override 
 - `02 - Agent Operating System.md` — Kernel corre en el Rust core.
 - `05 - Swarm.md` — swarm coordinator corre en Rust core, subagentes spawn via subprocess.
 - `07 - MCP.md` — MCP servers spawn via subprocess + stdio.
-- `08 - CLI.md` — `opencode` CLI creado vía `clap`, corre en el mismo binario.
+- `08 - CLI.md` — `atlas` CLI creado vía `clap`, corre en el mismo binario.
 - `09 - Vector Knowledge.md` — sqlite-vec + fastembed-rs son implementation concreta.
 - `10 - Research Engine.md` — HTTP client `reqwest` para buscar fuentes externas.
 - `11 - Context Engine.md` — SQLite + LSP alimentan el contexto real-time.

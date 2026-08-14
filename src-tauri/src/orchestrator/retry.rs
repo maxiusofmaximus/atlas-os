@@ -1,4 +1,4 @@
-// OpenCode OS — Retry policy with jitter and bail-out (RFC 28 §H.5).
+// Atlas OS — Retry policy with jitter and bail-out (RFC 28 §H.5).
 //
 // When the orchestrator receives a 429 rate-limit (without a
 // `SpendLimitError` payload) or a transient 5xx, a `RetryPolicy`

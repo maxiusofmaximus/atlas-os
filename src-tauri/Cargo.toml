@@ -1,23 +1,23 @@
 [package]
-name = "opencode-os"
+name = "atlas-os"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.84"
-description = "OpenCode OS — Agent Engineering Operating System (AEOS) v1"
+description = "Atlas OS — Agent Engineering Operating System (AEOS) v1"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/opencode-os/opencode-os"
-default-run = "opencode-os"
+repository = "https://github.com/atlas-os/atlas-os"
+default-run = "atlas-os"
 
 [lib]
-name = "opencode_os"
+name = "atlas_os"
 path = "src/lib.rs"
 
 [[bin]]
-name = "opencode-os"
+name = "atlas-os"
 path = "src/main.rs"
 
 [[bin]]
-name = "opencode"
+name = "atlas"
 path = "src/cli/bin/opencode.rs"
 
 [features]
@@ -36,7 +36,7 @@ dag_mode = ["dep:petgraph"]
 # graph `EXTRACTED` provenance. Adds tree-sitter (~3 MB C runtime
 # linked statically) + 2 grammars (~1 MB). Off by default — major
 # binary size impact; enable when you want the meta-skill that maps
-# OpenCode OS's own Rust + Svelte sources into `mission_graph_*`.
+# Atlas OS's own Rust + Svelte sources into `mission_graph_*`.
 codebase-graph = ["dep:tree-sitter", "dep:tree-sitter-rust", "dep:tree-sitter-svelte-next"]
 # RFC 28 Section B — Microsoft Intelligent Terminal ACP server. The
 # OpenCode CLI becomes a first-class ACP agent (stdio JSON-RPC, v1
@@ -59,7 +59,7 @@ acp-server = ["dep:agent-client-protocol"]
 # `src/firecrawl/client.rs`. Off by default — pulls in reqwest deps that
 # are transitively present already, plus a small SDK-shaped surface that
 # adds ~250 KB to a desktop build. Self-hosted instances can be
-# configured by setting `OPENCODE_FIRECRAWL_URL` instead of
+# configured by setting `ATLAS_FIRECRAWL_URL` instead of
 # `FIRECRAWL_API_KEY`; the facade handles both paths. No native deps —
 # pure Rust, single-binary safe (RFC 25 §11).
 firecrawl = ["dep:firecrawl"]

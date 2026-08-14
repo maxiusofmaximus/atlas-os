@@ -1,4 +1,4 @@
-// OpenCode OS — Journal schema migrations (Phase 0, Roadmap Fase 0).
+// Atlas OS — Journal schema migrations (Phase 0, Roadmap Fase 0).
 // Each migration is idempotent. KERNEL_BUS event_id is the idempotency key —
 // re-publishing the same event is silently dropped (NOT replaced), per
 // RFC 02 §3.1.2 (at-least-once delivery with idempotent consumers).
@@ -820,7 +820,7 @@ pub fn migrate(conn: &Connection) -> Result<()> {
     //   re-observed (e.g. poller fetches an unchanged envelope each
     //   minute). `resets_at` is unix-millis absolute (the moment the
     //   provider says the model will be usable again). `observed_at`
-    //   is when OpenCode OS saw the error. `status_code` is 429/402/403;
+    //   is when Atlas OS saw the error. `status_code` is 429/402/403;
     //   `error_type` is `rate_limit | spend_limit | NULL` (the OmniRoute
     //   envelope's `error.type` field when going via OmniRoute, NULL
     //   when the provider is hit directly and didn't classify).

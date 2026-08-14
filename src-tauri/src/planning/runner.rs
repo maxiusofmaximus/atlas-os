@@ -1,4 +1,4 @@
-// OpenCode OS — Planning Engine runner (RFC 12 §2, §7).
+// Atlas OS — Planning Engine runner (RFC 12 §2, §7).
 //
 // The runner is a free function over a locked `MissionConsolidated` plus its
 // associated `PublicUnderstandingVerdict`. It produces a `Plan` even when

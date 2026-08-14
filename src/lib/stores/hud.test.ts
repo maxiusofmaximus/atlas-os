@@ -1,4 +1,4 @@
-// OpenCode OS — tests for the HUD Svelte store.
+// Atlas OS — tests for the HUD Svelte store.
 // Phase 0: verifies initial state shape and the `toWsUrl` canonicaliser
 // that the desktop shell and any future remote-HUD embedder (RFC 24 §16)
 // depend on.

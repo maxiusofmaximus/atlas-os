@@ -1,4 +1,4 @@
-// OpenCode OS — Calendar payloads & mappings (RFC 28 Section G).
+// Atlas OS — Calendar payloads & mappings (RFC 28 Section G).
 //
 // Types shared by both halves of §G (WRITE `calendar-ics` and READ
 // `calendar-graph`):

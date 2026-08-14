@@ -1,4 +1,4 @@
-// OpenCode OS — Mission graph store (RFC 28 §C item 7, RFC 24 §3.3
+// Atlas OS — Mission graph store (RFC 28 §C item 7, RFC 24 §3.3
 // graph cards). Read side of the M15 `mission_graph_nodes` /
 // `mission_graph_edges` tables. The write side (Planner DAG emitter,
 // Skills `graph.toml` loader, AST extractor) lives in the

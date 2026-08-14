@@ -1,4 +1,4 @@
-// OpenCode OS — Validation Engine (RFC 14). Validates a `Diff` produced
+// Atlas OS — Validation Engine (RFC 14). Validates a `Diff` produced
 // by the Coding Engine (RFC 13) through a stage cascade and emits a
 // structured `ValidationReport`. Phase 1 is heuristic-only; stage
 // signatures are stable and the real toolchain integrations arrive in

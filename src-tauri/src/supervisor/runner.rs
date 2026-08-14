@@ -1,4 +1,4 @@
-// OpenCode OS — Execution Supervisor runner (RFC 19 §6.1 state machine).
+// Atlas OS — Execution Supervisor runner (RFC 19 §6.1 state machine).
 //
 // The runner is a pure function: `tick(state, event) -> (state, actions)`.
 // It owns no timers, no threads, no disk; the host (Tauri main thread

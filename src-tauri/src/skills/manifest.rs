@@ -1,4 +1,4 @@
-// OpenCode OS — Skill manifest parser + Skill Graph (RFC 06).
+// Atlas OS — Skill manifest parser + Skill Graph (RFC 06).
 //
 // Phase 1的实现范围:
 //
@@ -471,7 +471,7 @@ mod tests {
             conflicts = ["vue-ui-expert"]
             auto_generated = false
             verified = true
-            author = "opencode-os"
+            author = "atlas-os"
             license = "MIT"
             home = "./skills/react-ui-expert/"
         "#;

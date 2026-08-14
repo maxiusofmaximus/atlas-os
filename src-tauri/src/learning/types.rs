@@ -1,4 +1,4 @@
-// OpenCode OS — Learning Engine canonical types (RFC 16).
+// Atlas OS — Learning Engine canonical types (RFC 16).
 //
 // The Learning Engine converts each Repair outcome into a reusable
 // `Pattern` (a draft rule) so the kernel never repeats the same mistake

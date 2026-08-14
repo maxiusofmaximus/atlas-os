@@ -1,5 +1,5 @@
-// OpenCode OS — CLI top-level arguments (RFC 08).
-// Declared in the library so both the `opencode` headless binary and any
+// Atlas OS — CLI top-level arguments (RFC 08).
+// Declared in the library so both the `atlas` headless binary and any
 // future embedder reuse the same `clap` schema.
 
 use clap::{Parser, Subcommand};
@@ -13,15 +13,15 @@ use super::commands::{
     ResumeCmd, RunCmd, SkillCmd, SteerCmd, SwapModelCmd,
 };
 #[derive(Parser, Debug)]
-#[command(name = "opencode", version, propagate_version = true)]
-#[command(about = "OpenCode OS — Agent Engineering Operating System", long_about = None)]
+#[command(name = "atlas", version, propagate_version = true)]
+#[command(about = "Atlas OS — Agent Engineering Operating System", long_about = None)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
 
     /// Profile to use. Defaults to the value persisted at
     /// `~/.opencode/current`, or `default` on a fresh install. Use
-    /// `opencode profile switch <name>` to change it.
+    /// `atlas profile switch <name>` to change it.
     #[arg(long, global = true, env = "OC_PROFILE")]
     pub profile: Option<String>,
 

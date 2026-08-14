@@ -1,4 +1,4 @@
-// OpenCode OS — Calendar MS Graph reader (RFC 28 Section G — READ path).
+// Atlas OS — Calendar MS Graph reader (RFC 28 Section G — READ path).
 //
 // Placeholder — full implementation lands in §G items 5-8 (post-MVP),
 // backed by `graph-rs-sdk` / `aes-gcm` / `ring` dependencies that are

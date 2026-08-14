@@ -1,4 +1,4 @@
-// OpenCode OS — modular core submodule.
+// Atlas OS — modular core submodule.
 // Holds the AppState (single shared state for the kernel bus + journal),
 // the IPC command handlers invoked from the Tauri frontend, the
 // kernel-bus event types (RFC 02 §3.1), and the unified mission

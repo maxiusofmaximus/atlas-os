@@ -1,4 +1,4 @@
-// OpenCode OS Ã¢â‚¬â€ Council aggregator (RFC 04 Ã‚Â§3, sub-fase 2.2).
+// Atlas OS Ã¢â‚¬â€ Council aggregator (RFC 04 Ã‚Â§3, sub-fase 2.2).
 //
 // Ports "Improving Factuality and Reasoning in Language Models through
 // Multiagent Debate" (arxiv 2305.14325, Du et al.). Each agent

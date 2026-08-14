@@ -1,4 +1,4 @@
-// OpenCode OS — Toast scheduler driver (RFC 28 Section F).
+// Atlas OS — Toast scheduler driver (RFC 28 Section F).
 //
 // A single `tokio::spawn` task that polls the SQLite `toast_queue`
 // for overdue `pending` rows, dispatches them via the configured

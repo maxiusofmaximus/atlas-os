@@ -1,4 +1,4 @@
-// OpenCode OS — Step 7: Consolidate verdict + MissionConsolidated
+// Atlas OS — Step 7: Consolidate verdict + MissionConsolidated
 // (RFC 23 §2 step 7 and §4).
 //
 // Heuristic impl of Self-Refine (Madaan et al. 2023). The critic loop runs

@@ -1,4 +1,4 @@
-// OpenCode OS — `opencode journal` tail command (RFC 19).
+// Atlas OS — `atlas journal` tail command (RFC 19).
 use anyhow::Result;
 use clap::Args;
 

@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "OpenCode OS",
+  "productName": "Atlas OS",
   "version": "0.1.0",
   "identifier": "com.opencode-os.app",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "OpenCode OS",
+        "title": "Atlas OS",
         "width": 1440,
         "height": 900,
         "minWidth": 1024,
@@ -33,7 +33,7 @@
     "targets": ["msi", "deb", "rpm", "appimage", "dmg"],
     "icon": ["icons/icon.ico", "icons/icon.png", "icons/icon.icns"],
     "resources": ["../skills/"],
-    "copyright": "2026 OpenCode OS Authors",
+    "copyright": "2026 Atlas OS Authors",
     "category": "DeveloperTool",
     "shortDescription": "Agent Engineering Operating System.",
     "longDescription": "Multi-agent, multi-model programming editor with auto-routing, swarm orchestration, and HUD Mission Control."

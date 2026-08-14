@@ -1,4 +1,4 @@
-// OpenCode OS — Learning Engine (RFC 16). Derives reusable
+// Atlas OS — Learning Engine (RFC 16). Derives reusable
 // `Pattern`s from `RepairReport`s so the kernel never repeats the same
 // mistake twice (RFC 16 §2 Reflection Loop). Phase 1 is heuristic-only:
 // the runner consumes a `RepairReport` and emits one `LearnOutcome`

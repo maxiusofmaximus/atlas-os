@@ -1,4 +1,4 @@
-// OpenCode OS — Logistic regression task-type classifier (RFC 04 §7
+// Atlas OS — Logistic regression task-type classifier (RFC 04 §7
 // sub-fase 2.3).
 //
 // Multi-class one-vs-rest logistic regression trained offline and

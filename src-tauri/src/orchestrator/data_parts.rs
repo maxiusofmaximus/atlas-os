@@ -1,4 +1,4 @@
-// OpenCode OS — HUD Data-Parts reconciliation (RFC 04 §6 / RFC 24,
+// Atlas OS — HUD Data-Parts reconciliation (RFC 04 §6 / RFC 24,
 // sub-fase 2.1, G13).
 //
 // The HUD WebSocket pushes streaming model output to the webview

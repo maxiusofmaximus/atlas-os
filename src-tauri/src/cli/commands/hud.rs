@@ -1,4 +1,4 @@
-// OpenCode OS — `opencode hud` subcommand: prints HUD URL for the profile.
+// Atlas OS — `atlas hud` subcommand: prints HUD URL for the profile.
 use anyhow::Result;
 use clap::Args;
 
@@ -23,7 +23,7 @@ pub async fn run(_: HudCmd, profile: &str) -> Result<()> {
         }
         _ => {
             println!("HUD not running for profile {pid} (no port published yet).");
-            println!("Hint: start `opencode-os-desktop` (Tauri) which spawns the HUD server.");
+            println!("Hint: start `atlas-os-desktop` (Tauri) which spawns the HUD server.");
         }
     }
     Ok(())

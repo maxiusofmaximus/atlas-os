@@ -1,4 +1,4 @@
-// OpenCode OS — Journal export subsystem (RFC 28 §D).
+// Atlas OS — Journal export subsystem (RFC 28 §D).
 //
 // Three responsibilities:
 //   1. `posting` — map an `AuditEntry` to posting's `.posting.yaml` schema and
@@ -10,7 +10,7 @@
 //      `posting/tests/test_curl_export.py` (PT-006).
 //
 // Attribution: format schema derived from `darrenburns/posting` (Apache-2.0,
-// Copyright Darren Burns). See `OpenCode OS/research/28 - portable inventory.md`
+// Copyright Darren Burns). See `Atlas OS/research/28 - portable inventory.md`
 // item PT-001 / PT-002 / PT-003 / PT-006.
 
 pub mod posting;

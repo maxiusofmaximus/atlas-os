@@ -1,10 +1,10 @@
-// OpenCode OS — Toast facade errors (RFC 28 Section F).
+// Atlas OS — Toast facade errors (RFC 28 Section F).
 //
 // `ToastFacadeError` is the single error type surfaced out of the
 // `crate::toast` module. Every fallible call (queue CRUD, AUMID
 // registration, WinRT dispatch, deep-link parsing) maps its underlying
 // error into one of the variants below so consumers (the scheduler
-// driver, the CLI `opencode toast` subcommand, the AppState boot
+// driver, the CLI `atlas toast` subcommand, the AppState boot
 // sequence) don't have to know about `winrt_toast_reborn::Error`,
 // `rusqlite::Error`, or `chrono::ParseError` individually.
 //

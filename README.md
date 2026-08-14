@@ -41,7 +41,7 @@ into via the shared Kernel Bus, Journal and HUD contract.
 │         invoke()      │      ws://127.0.0.1:<ephemeral>/ws        │
 │                       v                                            │
 │  ┌──────────────────────────────────────────────────────────┐    │
-│  │   Rust core (opencode-os lib crate, RFC 25 §2)          │    │
+│  │   Rust core (atlas-os lib crate, RFC 25 §2)          │    │
 │  │   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐       │    │
 │  │   │ AppState    │  │ Journal     │  │ Kernel Bus  │       │    │
 │  │   │ (RFC 25 §3)│  │ SQLite+vec  │  │ broadcast   │       │    │
@@ -56,7 +56,7 @@ into via the shared Kernel Bus, Journal and HUD contract.
 │  │   └─────────────┘  └─────────────┘  └─────────────┘       │    │
 │  └──────────────────────────────────────────────────────────┘    │
 │                                                                   │
-│  Headless CLI (`opencode` binary, RFC 08) shares the same lib.    │
+│  Headless CLI (`atlas` binary, RFC 08) shares the same lib.    │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -72,7 +72,7 @@ choices behind Atlas OS:
 
 ```
 atlas-os/
-├── OpenCode OS/              27 RFCs (00–26) — the spec
+├── Atlas OS/              27 RFCs (00–26) — the spec
 ├── docs/adr/                 Architectural Decision Records
 ├── src-tauri/                Rust core (Tauri 2 + axum HUD + LSP + journal + CLI)
 │   ├── src/
@@ -153,7 +153,7 @@ model swaps, autoresearch card, graph view), headless CLI with `exec/audit/journ
 namespaces, multi-profile. **Phase 1.5 — RFC 28 External Tool Integration**:
 §D AuditLog YAML export ✅, §A Karpathy autoresearch loop ✅, §C graphify-pattern
 mission graph (`petgraph` + `tree-sitter` feature-gated) ✅, §B Microsoft Intelligent
-Terminal ACP server planned (Phase 1.5d). The 29 RFCs (00–28) in `OpenCode OS/`
+Terminal ACP server planned (Phase 1.5d). The 29 RFCs (00–28) in `Atlas OS/`
 describe the roadmap through Phase 7.
 
 ## License

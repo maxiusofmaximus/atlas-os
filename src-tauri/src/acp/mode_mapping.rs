@@ -1,4 +1,4 @@
-// OpenCode OS — ACP SessionMode ↔ RFC 19 Execution Supervisor state
+// Atlas OS — ACP SessionMode ↔ RFC 19 Execution Supervisor state
 // mapping (RFC 28 §B Phase 1.5d item 3).
 //
 // Microsoft Intelligent Terminal exposes three canonical session modes the

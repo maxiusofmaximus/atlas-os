@@ -1,4 +1,4 @@
-// OpenCode OS — Orchestrator providers (RFC 04 §1, Phase 2 sub-fase 2.0).
+// Atlas OS — Orchestrator providers (RFC 04 §1, Phase 2 sub-fase 2.0).
 //
 // The `Provider` enum and `Config` trait are pattern-ported from
 // `64bit/async-openai` (MIT, Copyright 64bit) — the canonical Rust
@@ -23,7 +23,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-/// All first-class providers OpenCode OS knows how to reach natively.
+/// All first-class providers Atlas OS knows how to reach natively.
 /// Variants mirror RFC 04 §1 plus RFC 25 §3.8's 14-provider list; the
 /// `Custom` variant holds any user-defined backend registered via
 /// `opencode models register-custom`.

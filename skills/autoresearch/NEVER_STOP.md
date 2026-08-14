@@ -2,16 +2,16 @@
      Source: https://github.com/karpathy/autoresearch/blob/master/program.md
      Copyright (c) 2025-2026 Andrej Karpathy.
      This file quotes the two governing guards ("NEVER STOP" + "rewind sparingly")
-     verbatim so they can be cited by other OpenCode OS skills (RFC 23 §7) without
+     verbatim so they can be cited by other Atlas OS skills (RFC 23 §7) without
      having to re-quote the full program.md. -->
 
 # NEVER STOP — Autoresearch autonomy guards
 
-> Two guards, extracted verbatim from `karpathy/autoresearch/program.md`, govern every autonomous hill-climbing loop in OpenCode OS (RFC 28 §A).
+> Two guards, extracted verbatim from `karpathy/autoresearch/program.md`, govern every autonomous hill-climbing loop in Atlas OS (RFC 28 §A).
 
 ## NEVER STOP
 
-> **NEVER STOP**: Once the experiment loop has begun (after the initial setup), do NOT pause to ask the human if you should continue. Do NOT ask "should I keep going?" or "is this a good stopping point?". The human might be asleep, or gone from a computer and expects you to continue working *indefinitely* until you are manually stopped. You are autonomous. If you run out of ideas, think harder — read papers referenced in the code, re-read the in-scope files for new angles, try combining previous near-misses, try more radical architectural changes. The loop runs until the human interrupts you, period.
+> **NEVER STOP**: Once the experiment loop has begun (after the initial setup), do NOT pause to ask the human if you should continue. Do NOT ask "should I keep going?" or "is this a good stopping point?". The human might be asleep, or gone from a computer and expects you to continue working _indefinitely_ until you are manually stopped. You are autonomous. If you run out of ideas, think harder — read papers referenced in the code, re-read the in-scope files for new angles, try combining previous near-misses, try more radical architectural changes. The loop runs until the human interrupts you, period.
 
 ## Rewind sparingly, if ever
 
@@ -31,16 +31,16 @@
 
 ---
 
-## How OpenCode OS translates these guards (RFC 28 §A)
+## How Atlas OS translates these guards (RFC 28 §A)
 
 These guards are **not** pluggable prompt engineering for the agent's LLM — that would be brittle. They map to hard Rust invariants in `src-tauri/src/supervisor/loop.rs::Autoresearch`:
 
-| Guard in `program.md`                          | Rust invariant in OpenCode OS supervisor                                                |
-|---|---|
-| NEVER STOP                                     | No user-input `await` between candidates; the loop runs unconditionally until `Mission.options.max_steps` or `timebox_seconds` hit, regardless of LLM idle. |
-| Rewind sparingly                               | `git reset --hard` is only permitted after `metric_after >= metric_baseline_at_step`. Reverted candidates are persisted to `autoresearch_candidates.kept=0` for audit; streak detection: 3 consecutive reverts → `outcome=plateau` abort (doom-loop guard, RFC 19). |
-| Crash discipline                               | Typos/NaN/etc. score 0.0 → discard; persisted to DB as `kept=0`; loop continues unchanged. |
-| Timeout gravity                                | `tokio::time::timeout(Duration::from_secs(timebox_seconds))` per candidate; 10-minute wall-clock ceiling enforced. |
-| Pacing model                                   | Used only for HUD telemetry estimate, not for agent behavior. `AutoresearchCard.svelte` shows ETA based on observed per-step time. |
+| Guard in `program.md` | Rust invariant in Atlas OS supervisor                                                                                                                                                                                                                            |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| NEVER STOP            | No user-input `await` between candidates; the loop runs unconditionally until `Mission.options.max_steps` or `timebox_seconds` hit, regardless of LLM idle.                                                                                                         |
+| Rewind sparingly      | `git reset --hard` is only permitted after `metric_after >= metric_baseline_at_step`. Reverted candidates are persisted to `autoresearch_candidates.kept=0` for audit; streak detection: 3 consecutive reverts → `outcome=plateau` abort (doom-loop guard, RFC 19). |
+| Crash discipline      | Typos/NaN/etc. score 0.0 → discard; persisted to DB as `kept=0`; loop continues unchanged.                                                                                                                                                                          |
+| Timeout gravity       | `tokio::time::timeout(Duration::from_secs(timebox_seconds))` per candidate; 10-minute wall-clock ceiling enforced.                                                                                                                                                  |
+| Pacing model          | Used only for HUD telemetry estimate, not for agent behavior. `AutoresearchCard.svelte` shows ETA based on observed per-step time.                                                                                                                                  |
 
 The autonomous stance is enforced by code, not by prompt. The LLM proposes ideas; the supervisor decides `keep`/`discard` numerically.

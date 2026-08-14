@@ -1,4 +1,4 @@
-// OpenCode OS — Coding Engine canonical types (RFC 13 §2, §8).
+// Atlas OS — Coding Engine canonical types (RFC 13 §2, §8).
 //
 // The Coding Engine emits `Diff`s, never full-file rewrites (RFC 13 §8):
 //   - The Reviewer subagent validates diffs.

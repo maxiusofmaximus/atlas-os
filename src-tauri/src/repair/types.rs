@@ -1,4 +1,4 @@
-// OpenCode OS — Repair Engine canonical types (RFC 15).
+// Atlas OS — Repair Engine canonical types (RFC 15).
 //
 // The Repair Engine converts a failed `ValidationReport` into a micro
 // cycle: classify → analyse → propose → apply (via Coding) → re-validate.

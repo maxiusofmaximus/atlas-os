@@ -1,4 +1,4 @@
-// OpenCode OS — Calendar facade errors (RFC 28 Section G).
+// Atlas OS — Calendar facade errors (RFC 28 Section G).
 //
 // `CalendarError` is the single error type surfaced out of the
 // `crate::calendar` module. Every fallible call (queue CRUD, ICS

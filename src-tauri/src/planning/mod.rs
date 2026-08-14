@@ -1,4 +1,4 @@
-// OpenCode OS — Planning Engine (RFC 12).
+// Atlas OS — Planning Engine (RFC 12).
 //
 // The Planning Engine is the motor that *only thinks*. It consumes a
 // locked `MissionConsolidated` (RFC 23 §4) plus its associated

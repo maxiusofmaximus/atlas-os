@@ -1,4 +1,4 @@
-// OpenCode OS — Journal export retention worker (RFC 28 §D — Phase 1.5a §D-3).
+// Atlas OS — Journal export retention worker (RFC 28 §D — Phase 1.5a §D-3).
 //
 // SQLite-driven hook that exports aging audit_log rows to disk before purging
 // them. Atomic write port is GR-004 (graphify/paths.py:_atomic_replace); here
@@ -175,7 +175,7 @@ mod tests {
             .to_string_lossy()
             .contains("2026-07-25\\audit_1.posting.yaml"));
         let content = std::fs::read_to_string(written_path).unwrap();
-        assert!(content.contains("# x-opencode-exported: RFC 28 §D"));
+        assert!(content.contains("# x-atlas-exported: RFC 28 §D"));
         assert!(content.contains("posting_version: '1'"));
     }
 

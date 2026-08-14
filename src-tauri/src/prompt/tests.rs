@@ -1,4 +1,4 @@
-// OpenCode OS — Prompt Understanding Pipeline tests (RFC 23).
+// Atlas OS — Prompt Understanding Pipeline tests (RFC 23).
 // Phase 1: serialisation round-trips for the canonical types. Behavioural
 // tests for the heuristic detectors land alongside their step modules.
 

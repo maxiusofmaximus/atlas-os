@@ -1,8 +1,8 @@
-// OpenCode OS — `opencode exec` namespace (RFC 27 §3.F).
+// Atlas OS — `atlas exec` namespace (RFC 27 §3.F).
 //
 // A self-documenting CLI surface that an LLM-driven Phase 2 driver can
 // invoke from inside a step to drive the orchestrator without the
-// `opencode run`/`resume` host loop. Phase 1 ships four stubs that
+// `atlas run`/`resume` host loop. Phase 1 ships four stubs that
 // reuse the existing engine + Journal backends:
 //
 //   opencode exec step   <plan_id> <step_id>   → Coding → Validation → (Repair) for one step
@@ -384,7 +384,7 @@ mod tests {
     fn exec_wait_finds_report_for_diff_via_tail() {
         let (_dir, journal) = fresh_journal();
         let plan = plan_with_one_step(&journal, "build auth folder and add tests");
-        // Use the full loop so we exercise the same path as `opencode run`.
+        // Use the full loop so we exercise the same path as `atlas run`.
         let steps = super::super::mission::run_steps_loop(
             &journal,
             &plan,

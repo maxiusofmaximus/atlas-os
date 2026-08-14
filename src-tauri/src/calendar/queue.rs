@@ -1,4 +1,4 @@
-// OpenCode OS — Calendar BusyWindow SQLite CRUD (RFC 28 Section G).
+// Atlas OS — Calendar BusyWindow SQLite CRUD (RFC 28 Section G).
 //
 // Platform-agnostic CRUD over the `calendar_busy_windows` table (M18).
 // Two callers populate it:

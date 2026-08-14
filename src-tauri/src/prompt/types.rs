@@ -1,4 +1,4 @@
-// OpenCode OS — Prompt Understanding Pipeline canonical types (RFC 23 §3-§4).
+// Atlas OS — Prompt Understanding Pipeline canonical types (RFC 23 §3-§4).
 //
 // These structs are the cross-RFC contract between the Prompt Understanding
 // Pipeline and the rest of the kernel:

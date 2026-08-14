@@ -1,4 +1,4 @@
-// OpenCode OS — Profiles (RFC 25 §4, RFC 22 §1 Hermes pattern).
+// Atlas OS — Profiles (RFC 25 §4, RFC 22 §1 Hermes pattern).
 // A profile == a worktree-bound workspace with its own Journal, models,
 // skills cache, embeddings. Switching profile rewrites `~/.opencode/current`.
 
@@ -59,7 +59,7 @@ pub fn default_profile_dir() -> anyhow::Result<PathBuf> {
 }
 
 /// Path to `~/.opencode/current` — the persistent pointer used by both the
-/// CLI (`opencode` binary uses the active profile on every invocation) and
+/// CLI (`atlas` binary uses the active profile on every invocation) and
 /// the desktop shell (boot ups select the same profile the CLI last set).
 fn current_file() -> anyhow::Result<PathBuf> {
     let home = dirs::home_dir().context("could not resolve user home directory")?;
@@ -85,7 +85,7 @@ pub fn current() -> ProfileId {
     }
 }
 
-/// Persist `id` as the active profile for the next `opencode` invocation
+/// Persist `id` as the active profile for the next `atlas` invocation
 /// and the next desktop launch. Best-effort: logs a warning if the write
 /// fails so the rest of the switch flow can still proceed.
 pub fn set_current(id: &ProfileId) -> anyhow::Result<()> {

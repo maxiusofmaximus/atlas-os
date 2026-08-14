@@ -1,4 +1,4 @@
-// OpenCode OS — Tauri IPC command handlers.
+// Atlas OS — Tauri IPC command handlers.
 // Invoked from the SvelteKit frontend via `@tauri-apps/api/core::invoke`.
 // Each handler is thin — persists to the Journal, fans out to the Kernel
 // Bus, and returns a friendly result. Heavy work happens in the engines

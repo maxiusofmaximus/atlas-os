@@ -1,16 +1,16 @@
 # 27 - Orchestration Fundamentals
 
-> Audit comparativo de 4 orquestadores de agentes de IA de 2025-2026 — `tmux-orchestrator-ai-code`, `orca`, `herdr`, `traycer` — con AionUI como referencia estructural. Extrae **6 principios fundacionales** que se repiten entre todos, mapea qué tanto OpenCode OS cumple cada uno, y lista **8 brechas concretas** contra los fundamentos. Las brechas son el input de Phase 2+; este RFC es el spec para dirigir trabajo futuro en lugar de abrir frentes ad-hoc.
+> Audit comparativo de 4 orquestadores de agentes de IA de 2025-2026 — `tmux-orchestrator-ai-code`, `orca`, `herdr`, `traycer` — con AionUI como referencia estructural. Extrae **6 principios fundacionales** que se repiten entre todos, mapea qué tanto Atlas OS cumple cada uno, y lista **8 brechas concretas** contra los fundamentos. Las brechas son el input de Phase 2+; este RFC es el spec para dirigir trabajo futuro en lugar de abrir frentes ad-hoc.
 
 ---
 
 ## 1. Contexto y motivación
 
-OpenCode OS funde 27 RFCs en una specificación densa, pero la inspiración inicial fue mayormente AionUI (`22 §3`) y Hermes. El campo se ha movido rápidamente entre el lanzamiento de la primera especificación (`00 Vision`, junio 2025) y ahora (Q3 2026): orquestadores de agentes pasaron de ser experimentos pequeños a productos comerciales estabilizados con 20k+★ y miles de commits. Antes de cerrar Phase 2 (LLM-driven), hacemos un audit comparativo para:
+Atlas OS funde 27 RFCs en una specificación densa, pero la inspiración inicial fue mayormente AionUI (`22 §3`) y Hermes. El campo se ha movido rápidamente entre el lanzamiento de la primera especificación (`00 Vision`, junio 2025) y ahora (Q3 2026): orquestadores de agentes pasaron de ser experimentos pequeños a productos comerciales estabilizados con 20k+★ y miles de commits. Antes de cerrar Phase 2 (LLM-driven), hacemos un audit comparativo para:
 
 1. **Validar las decisiones ya tomadas** (Tauri vs Electron, SQLite + Journal, axiom WS que sobrevive webview crashes, spec-first).
 2. **Identificar principios fundacionales** que no hemos articulado explícitamente pero que subyacen a las decisiones del Phase 1.
-3. **Catalogar brechas** específicas donde OpenCode OS está detrás del estado del arte y priorizarlas para Phase 2+.
+3. **Catalogar brechas** específicas donde Atlas OS está detrás del estado del arte y priorizarlas para Phase 2+.
 
 Las fuentes auditadas son los 4 orquestadores más representativos de la categoría:
 
@@ -39,7 +39,7 @@ Cada agente tiene su propio FS o pane separado. No comparten estado de archivos 
 - herdr: pane por agent, registry persistente.
 - tmux-orchestrator: window tmux por agente (PM/Engineer/Orchestrator).
 
-**Implicación:** OpenCode OS RFC 05 (Swarm) define subagentes virtuales con roles, pero no especifica worktrees físicos por subagente. **Esta es una brecha estructural (§3.A).**
+**Implicación:** Atlas OS RFC 05 (Swarm) define subagentes virtuales con roles, pero no especifica worktrees físicos por subagente. **Esta es una brecha estructural (§3.A).**
 
 ### §2.2 Estado visible at-a-glance
 
@@ -51,7 +51,7 @@ El operador siempre sabe en segundos quién está `blocked / working / done` sin
 - orca: cada agente tiene status pill.
 - traycer: workspace con cards por Task.
 
-**Implicación:** OpenCode OS HUD (RFC 24) tiene tail boxes por artefacto (verdicts, plans, diffs, etc.), pero NO tiene códigos de color por **step state**. La granularidad es mission-level, no step-level. **Brecha G (§3).**
+**Implicación:** Atlas OS HUD (RFC 24) tiene tail boxes por artefacto (verdicts, plans, diffs, etc.), pero NO tiene códigos de color por **step state**. La granularidad es mission-level, no step-level. **Brecha G (§3).**
 
 ### §2.3 Remote attach / persistence detach
 
@@ -62,7 +62,7 @@ El agente runtime sobrevive a la desconexión del client. Reattach desde cualqui
 - herdr: SSH reattach is just `herdr` from another terminal.
 - orca: `orca serve` en headless Linux box, attach desde desktop/mobile.
 
-**Implicación:** OpenCode OS complies — el servidor axum WS sobrevive webview crashes (`25 §3.2`), y el motor Rust no reside en el webview. Esta propiedad está satisfecha por la arquitectura Tauri 2.
+**Implicación:** Atlas OS complies — el servidor axum WS sobrevive webview crashes (`25 §3.2`), y el motor Rust no reside en el webview. Esta propiedad está satisfecha por la arquitectura Tauri 2.
 
 ### §2.4 Reflexividad — el orquestador puede ser orchestrated
 
@@ -74,7 +74,7 @@ El orquestador expone una API que los propios agentes pueden invocar. Phase 2 (L
 - herdr: Unix socket API + agent skill doc.
 - traycer: agent-to-agent delegate/review/negotiate.
 
-**Implicación:** OpenCode OS RFC 03 §3.5 IPC existe para Tauri webview calls, pero NO hay una API CLI que el LLM pueda invocar desde dentro de un step. `opencode spawn-step` y similares no existen. **Brecha F (§3).**
+**Implicación:** Atlas OS RFC 03 §3.5 IPC existe para Tauri webview calls, pero NO hay una API CLI que el LLM pueda invocar desde dentro de un step. `opencode spawn-step` y similares no existen. **Brecha F (§3).**
 
 ### §2.5 BYOA — Bring Your Own Agent
 
@@ -86,7 +86,7 @@ El orquestador no te fideliza a un modelo. Acepta tu suscripción existente (Cod
 - herdr: detección automática de 15+ agentes.
 - traycer: BYOA + native inference opcional como default.
 
-**Implicación:** OpenCode OS RFC 04 Model Orchestrator soporta 13 providers HTTP. Pero Phase 1 no ha expuesto un endpoint "trae tu propio agente CLI" — un wrapper que delege al agente CLI del operador en lugar de llamar a un LLM HTTP. **Brecha: implícita en la arquitectura, no documentada explícitamente.** Aceptable para Phase 1, debe explicitarse en Phase 2.
+**Implicación:** Atlas OS RFC 04 Model Orchestrator soporta 13 providers HTTP. Pero Phase 1 no ha expuesto un endpoint "trae tu propio agente CLI" — un wrapper que delege al agente CLI del operador en lugar de llamar a un LLM HTTP. **Brecha: implícita en la arquitectura, no documentada explícitamente.** Aceptable para Phase 1, debe explicitarse en Phase 2.
 
 ### §2.6 Spec-first — sin spec, no hay mission
 
@@ -98,7 +98,7 @@ Cada mission parte de un documento estructurado. Sin spec, el agente deriva. Los
 - traycer: "Traycer brings spec-first development to AI coding workflows".
 - orca: project_spec.md antes de crear worktree.
 
-**Implicación:** OpenCode OS RFC 23 (Prompt Understanding & Refinement) parsea el prompt y produce `MissionConsolidated` con `mission_statement`, `deliverables`, `constraints`. **Esta propiedad está satisfecha.** La único a mejorar es exponer el spec generado en un documento legible (no solo un row JSON en el Journal) — mejora de UX, no estructural.
+**Implicación:** Atlas OS RFC 23 (Prompt Understanding & Refinement) parsea el prompt y produce `MissionConsolidated` con `mission_statement`, `deliverables`, `constraints`. **Esta propiedad está satisfecha.** La único a mejorar es exponer el spec generado en un documento legible (no solo un row JSON en el Journal) — mejora de UX, no estructural.
 
 ---
 
@@ -147,9 +147,9 @@ Las 8 brechas concretas que el audit identifica. Cada una está entrada como `(p
 
 **Patrón:** §2.4 orca CLI + herdr socket API.
 
-**Status:** ✅ **Implementado en Phase 1.** Nuevo sub-comando `opencode exec` namespace en `src-tauri/src/cli/commands/exec.rs` con cuatro acciones: `step <plan_id> <step_id>` (run único via `run_single_step`), `wait <diff_id>` (lookup validation report row), `tail <kind> <N>` (replay de 9 tipos de tail), `publish <kind> <payload>` (bus event persist en journal). Refactor: `run_single_step` extraído de `run_steps_loop` en `mission.rs`, compartido con `exec step`.
+**Status:** ✅ **Implementado en Phase 1.** Nuevo sub-comando `atlas exec` namespace en `src-tauri/src/cli/commands/exec.rs` con cuatro acciones: `step <plan_id> <step_id>` (run único via `run_single_step`), `wait <diff_id>` (lookup validation report row), `tail <kind> <N>` (replay de 9 tipos de tail), `publish <kind> <payload>` (bus event persist en journal). Refactor: `run_single_step` extraído de `run_steps_loop` en `mission.rs`, compartido con `exec step`.
 
-**Propuesta:** Añadir sub-comandos del namespace `opencode exec` que el LLM puede invocar desde un step. Subset inicial: `opencode exec step <plan_id> <step_id>` (run único), `opencode exec wait <diff_id>` (block hasta report), `opencode exec tail <kind> <N>` (readJournal tail), `opencode exec publish <kind> <payload>` (emite BusEvent). Sin necesidad de orchestration loop — el LLM lo hace. Documentar en `08 CLI` §A.
+**Propuesta:** Añadir sub-comandos del namespace `atlas exec` que el LLM puede invocar desde un step. Subset inicial: `opencode exec step <plan_id> <step_id>` (run único), `opencode exec wait <diff_id>` (block hasta report), `opencode exec tail <kind> <N>` (readJournal tail), `opencode exec publish <kind> <payload>` (emite BusEvent). Sin necesidad de orchestration loop — el LLM lo hace. Documentar en `08 CLI` §A.
 
 ### §3.G — State-color at-a-glance en HUD **(P0, S, HUD) — IMPLEMENTADO Phase 1**
 
@@ -165,7 +165,7 @@ Las 8 brechas concretas que el audit identifica. Cada una está entrada como `(p
 
 **Status:** RFC 23 produce `MissionConsolidated` con `mission_statement`, `deliverables`, `constraints` — pero solo vive como JSON payload en `mission_consolidated` table.
 
-**Propuesta:** Añadir `opencode spec show <mission_id>` que formatea el JSON como markdown human-legible y lo imprime / escribe a `~/.opencode/{profile}/specs/{mission_id}.md`. Esto es post-Prompt, pre-Planning. Permite al operador editar el spec a mano antes de planear. Empata con `opencode plan` ya existente.
+**Propuesta:** Añadir `opencode spec show <mission_id>` que formatea el JSON como markdown human-legible y lo imprime / escribe a `~/.opencode/{profile}/specs/{mission_id}.md`. Esto es post-Prompt, pre-Planning. Permite al operador editar el spec a mano antes de planear. Empata con `atlas plan` ya existente.
 
 ---
 
@@ -244,7 +244,7 @@ READMEs oficiales consultados vía webfetch (Jul 2026):
 - https://github.com/traycerai/traycer (Electron+Bun/TS, 406 commits, MIT, 738★).
 - https://github.com/iOfficeAI/AionUi (referencia estructural histórica, Electron+React).
 
-OpenCode OS RFC cross-references:
+Atlas OS RFC cross-references:
 
 - §2.1 → 05 Swarm, 19 Supervisor
 - §2.2 → 24 HUD

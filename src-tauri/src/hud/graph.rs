@@ -1,4 +1,4 @@
-// OpenCode OS — HUD graph read route (RFC 28 §C item 7, RFC 24 §3.3
+// Atlas OS — HUD graph read route (RFC 28 §C item 7, RFC 24 §3.3
 // graph cards).
 //
 //   GET /graph/:mission_id   200 { mission_id, nodes, edges }

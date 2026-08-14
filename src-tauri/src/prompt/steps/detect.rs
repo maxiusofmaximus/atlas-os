@@ -1,4 +1,4 @@
-// OpenCode OS — Step 3: Detect Ambiguities (RFC 23 §1, §2.3).
+// Atlas OS — Step 3: Detect Ambiguities (RFC 23 §1, §2.3).
 //
 // Heuristic detectors for the 10 anti-patterns `C1..C10`. Each detector
 // is keyword/length/regex-driven; together they emit the `gaps[]` array of
