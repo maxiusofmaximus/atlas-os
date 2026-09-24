@@ -281,6 +281,57 @@ pub fn apply_user_profile(gaps: &mut Vec<Gap>, gaps_identified: &[String], raw: 
     false
 }
 
+/// RFC 32 Phase 5 sub-fase 5.4 — one consultable learned rule projected
+/// as a prompt-time hint. Built by the caller from
+/// `Journal::list_consultable_rules` + `learned_rule_when_then`
+/// (`candidate` / `active` only — deprecated rules never reach here).
+/// `trigger` is the `RuleWhen.pattern` tag; `hint` the `RuleThen.diff_hint`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LearnedHint {
+    pub rule_id: String,
+    pub trigger: String,
+    pub hint: String,
+}
+
+/// Match consultable hints against the raw prompt (same
+/// case-insensitive substring rule as `apply_user_profile`) and render
+/// each hit as a `[rule <id>] <hint>` observation line. Returns the
+/// rendered lines in input order. Empty triggers never match.
+pub fn match_learned_hints(hints: &[LearnedHint], raw: &str) -> Vec<String> {
+    let lower = raw.to_ascii_lowercase();
+    let mut out = Vec::new();
+    for h in hints {
+        let trigger = h.trigger.trim().to_ascii_lowercase();
+        if trigger.is_empty() || !lower.contains(&trigger) {
+            continue;
+        }
+        let line = format!("[rule {}] {}", h.rule_id, h.hint);
+        if !out.contains(&line) {
+            out.push(line);
+        }
+    }
+    out
+}
+
+/// Append `match_learned_hints` output to `observations`, skipping lines
+/// already present. Returns the number of lines added. Pure: the
+/// pipeline verdict gains context hints without touching gaps,
+/// confidence or clarification flow.
+pub fn apply_learned_hints(
+    observations: &mut Vec<String>,
+    hints: &[LearnedHint],
+    raw: &str,
+) -> usize {
+    let mut added = 0;
+    for line in match_learned_hints(hints, raw) {
+        if !observations.contains(&line) {
+            observations.push(line);
+            added += 1;
+        }
+    }
+    added
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -386,5 +437,69 @@ mod tests {
             "i'm new to this, expose via kubernetes ingress"
         ));
         assert_eq!(g.len(), n);
+    }
+
+    fn learned_hint(trigger: &str, hint: &str) -> LearnedHint {
+        LearnedHint {
+            rule_id: "r-2026-07-04-001".into(),
+            trigger: trigger.into(),
+            hint: hint.into(),
+        }
+    }
+
+    #[test]
+    fn learned_rule_match_injects_hint_observation() {
+        let hints = vec![learned_hint("no_println", "remove println statements")];
+        let mut observations = vec!["domain=backend".to_string()];
+        let added = apply_learned_hints(
+            &mut observations,
+            &hints,
+            "fix the no_println lint in the billing module",
+        );
+        assert_eq!(added, 1);
+        assert!(observations
+            .iter()
+            .any(|o| o == "[rule r-2026-07-04-001] remove println statements"));
+    }
+
+    #[test]
+    fn learned_rule_no_match_injects_nothing() {
+        let hints = vec![learned_hint("no_println", "remove println statements")];
+        let mut observations = vec!["domain=backend".to_string()];
+        let added = apply_learned_hints(
+            &mut observations,
+            &hints,
+            "refactor the billing module for clarity",
+        );
+        assert_eq!(added, 0);
+        assert_eq!(observations.len(), 1);
+    }
+
+    #[test]
+    fn learned_hint_with_empty_trigger_never_matches() {
+        let hints = vec![learned_hint("   ", "remove println statements")];
+        let mut observations = Vec::new();
+        assert_eq!(
+            apply_learned_hints(&mut observations, &hints, "anything at all"),
+            0
+        );
+        assert!(observations.is_empty());
+    }
+
+    #[test]
+    fn learned_hint_match_is_case_insensitive_and_deduped() {
+        let hints = vec![
+            learned_hint("NO_Println", "remove println statements"),
+            learned_hint("no_println", "remove println statements"),
+        ];
+        let mut observations =
+            vec!["[rule r-2026-07-04-001] remove println statements".to_string()];
+        let added = apply_learned_hints(
+            &mut observations,
+            &hints,
+            "fix NO_PRINTLN in the billing module",
+        );
+        assert_eq!(added, 0);
+        assert_eq!(observations.len(), 1);
     }
 }

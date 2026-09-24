@@ -1,7 +1,9 @@
-// Atlas OS — `atlas learn` Reflection Engine CLI (RFC 16 §2, RFC 32 Phase 5 sub-fase 5.1).
+// Atlas OS — `atlas learn` Reflection Engine CLI (RFC 16 §2, RFC 32 Phase 5
+// sub-fases 5.1 + 5.3).
 //
 // Thin verbs over the Journal `learned_rules` (M30) writers that 5.0
-// materialised and 5.1 formalises:
+// materialised and 5.1 formalises, plus the System One compaction tail
+// (5.3) over `journal_events`:
 //
 //   * `rules` — list newest rules (id, lifecycle, priority, was_correct, n_applied).
 //   * `promote` — advance `draft → candidate → active` via
@@ -9,11 +11,17 @@
 //     (default `PROMOTE_THRESHOLD`) so a draft is only trusted after
 //     repeated correct runs.
 //   * `deprecate` — retire any lifecycle to `deprecated` (priority 0).
+//   * `compact` — compact a mission's `journal_events` tail once it
+//     exceeds `COMPACTION_THRESHOLD` (rolling-window stub summary →
+//     `compaction_events`).
+//   * `summary` — print the latest compacted summary for a mission.
 
 use anyhow::Result;
 use clap::{Args, Subcommand};
 
-use crate::learning::PROMOTE_THRESHOLD;
+use crate::learning::{
+    needs_compaction_with_threshold, summarize, COMPACTION_THRESHOLD, PROMOTE_THRESHOLD,
+};
 
 #[derive(Args, Debug)]
 pub struct LearnCmd {
@@ -42,6 +50,21 @@ pub enum LearnAction {
         /// Rule id (`r-YYYY-MM-DD-NNN`).
         id: String,
     },
+    /// Compact a mission's `journal_events` tail (System One, 5.3).
+    /// No-op when the tail is at or below `--threshold`.
+    Compact {
+        /// Mission id (UUID string).
+        #[arg(long)]
+        mission: String,
+        /// Tail length above which compaction fires.
+        #[arg(long, default_value_t = COMPACTION_THRESHOLD)]
+        threshold: usize,
+    },
+    /// Print the latest compacted summary for a mission (5.3).
+    Summary {
+        /// Mission id (UUID string).
+        mission_id: String,
+    },
 }
 
 pub async fn run(cmd: LearnCmd, profile: &str) -> Result<()> {
@@ -49,6 +72,10 @@ pub async fn run(cmd: LearnCmd, profile: &str) -> Result<()> {
         LearnAction::Rules { last } => list_rules(profile, last),
         LearnAction::Promote { id, min_correct } => promote_rule(profile, &id, min_correct),
         LearnAction::Deprecate { id } => deprecate_rule(profile, &id),
+        LearnAction::Compact { mission, threshold } => {
+            compact_mission(profile, &mission, threshold)
+        }
+        LearnAction::Summary { mission_id } => print_summary(profile, &mission_id),
     }
 }
 
@@ -101,5 +128,32 @@ fn deprecate_rule(profile: &str, id: &str) -> Result<()> {
     let journal = open_journal(profile)?;
     let next = journal.deprecate_rule(id)?;
     println!("deprecated `{id}` (lifecycle {})", next.lifecycle);
+    Ok(())
+}
+
+fn compact_mission(profile: &str, mission_id: &str, threshold: usize) -> Result<()> {
+    let journal = open_journal(profile)?;
+    let count = journal.mission_entry_count(mission_id)?;
+    if !needs_compaction_with_threshold(count, threshold) {
+        println!("no compaction needed for `{mission_id}` ({count} entries <= {threshold})");
+        return Ok(());
+    }
+    let entries = journal.mission_entries(mission_id, count as i64)?;
+    let summary = summarize(mission_id, &entries);
+    let event_id = journal.save_compaction_event(&summary)?;
+    println!(
+        "compacted `{mission_id}`: {} → {} entries (event {event_id})",
+        summary.entries_before, summary.entries_after,
+    );
+    println!("  {}", summary.summary);
+    Ok(())
+}
+
+fn print_summary(profile: &str, mission_id: &str) -> Result<()> {
+    let journal = open_journal(profile)?;
+    match journal.compacted_summary(mission_id)? {
+        Some(summary) => println!("compacted summary for `{mission_id}`:\n  {summary}"),
+        None => println!("(no compaction recorded yet for `{mission_id}`)"),
+    }
     Ok(())
 }

@@ -8,7 +8,9 @@ pub mod runner;
 pub mod steps;
 pub mod types;
 
-pub use runner::{run, PipelineOptions};
+pub use runner::{
+    run, run_with_learned_rules, run_with_profile, run_with_profile_and_rules, PipelineOptions,
+};
 pub use types::*;
 
 #[cfg(test)]

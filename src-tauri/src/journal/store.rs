@@ -233,3 +233,18 @@ pub struct DiffAnnotationRow {
     pub author: String,
     pub created_at: String,
 }
+
+/// Row projection of `compaction_events` (M30) for the 5.3 System One
+/// compaction tail (`atlas learn summary`) and the HUD history panel.
+/// Append-only; one row per compaction of a mission's `journal_events`
+/// tail. The full stub summary lives in `summary` verbatim.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CompactionEventRow {
+    pub id: String,
+    pub mission_id: String,
+    pub entries_before: i64,
+    pub entries_after: i64,
+    pub summary: String,
+    pub model_id: String,
+    pub created_at: String,
+}

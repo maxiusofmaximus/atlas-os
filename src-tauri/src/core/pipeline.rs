@@ -12,7 +12,7 @@ use anyhow::{Context, Result};
 use uuid::Uuid;
 
 use crate::planning::runner::{ClarificationAnswer, PlanningInput};
-use crate::prompt::runner::{run as run_prompt, PipelineOptions};
+use crate::prompt::runner::{run_with_profile_and_rules, PipelineOptions};
 
 /// Light-weight per-run summary surfaced to callers. The full
 /// step-by-step artefacts live in the Journal (`prompt_verdicts`,
@@ -47,13 +47,20 @@ pub fn run_mission(
     let started = Instant::now();
     let _session_id = Uuid::new_v4();
 
-    // 1) prompt → verdict + (optional) consolidated mission
-    let (verdict, consolidated_opt) = run_prompt(
+    // 1) prompt → verdict + (optional) consolidated mission.
+    // 5.4: consultable learned rules (`candidate` / `active`) ride along
+    // as `[rule <id>] <hint>` observations when their trigger matches
+    // the prompt. Best-effort — a Journal read failure degrades to the
+    // heuristic-only pipeline instead of failing mission creation.
+    let hints = consultable_hints(journal);
+    let (verdict, consolidated_opt) = run_with_profile_and_rules(
         prompt,
         &PipelineOptions {
             force,
             ..PipelineOptions::default()
         },
+        &[],
+        &hints,
     )?;
 
     let (mission_id, consolidated): (Uuid, Option<_>) = match consolidated_opt {
@@ -126,4 +133,34 @@ pub fn run_mission(
         repair_count: steps.repair_count,
         elapsed_ms: started.elapsed().as_millis(),
     })
+}
+
+/// RFC 32 Phase 5 sub-fase 5.4 — project the profile's consultable
+/// learned rules into `LearnedHint`s for the prompt hook. Only rules
+/// with a non-empty `RuleWhen.pattern` trigger and a non-empty
+/// `RuleThen.diff_hint` become hints; rows whose blobs fail to decode
+/// are skipped. Returns empty (never errors) so the pipeline stays
+/// heuristic-only when the Journal has no usable rules.
+fn consultable_hints(
+    journal: &crate::journal::Journal,
+) -> Vec<crate::prompt::steps::detect::LearnedHint> {
+    use crate::prompt::steps::detect::LearnedHint;
+    let Ok(rows) = journal.list_consultable_rules(50) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for row in rows {
+        let Ok(Some((when, then))) = journal.learned_rule_when_then(&row.id) else {
+            continue;
+        };
+        if when.pattern.trim().is_empty() || then.diff_hint.trim().is_empty() {
+            continue;
+        }
+        out.push(LearnedHint {
+            rule_id: row.id,
+            trigger: when.pattern,
+            hint: then.diff_hint,
+        });
+    }
+    out
 }

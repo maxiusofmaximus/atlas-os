@@ -94,6 +94,33 @@ pub fn run_with_profile(
     options: &PipelineOptions,
     gaps_identified: &[String],
 ) -> anyhow::Result<(PublicUnderstandingVerdict, Option<MissionConsolidated>)> {
+    run_with_profile_and_rules(raw_prompt, options, gaps_identified, &[])
+}
+
+/// RFC 32 Phase 5 sub-fase 5.4 — same pipeline but injects consultable
+/// learned rules (`candidate` / `active` from
+/// `Journal::list_consultable_rules`) as `[rule <id>] <hint>`
+/// observation lines when the `RuleWhen.pattern` trigger matches the
+/// prompt. Hints never touch gaps, confidence or clarification flow;
+/// the bare `run` / `run_with_profile` above pass an empty slice,
+/// preserving their existing behaviour and signatures.
+pub fn run_with_learned_rules(
+    raw_prompt: &str,
+    options: &PipelineOptions,
+    hints: &[detect::LearnedHint],
+) -> anyhow::Result<(PublicUnderstandingVerdict, Option<MissionConsolidated>)> {
+    run_with_profile_and_rules(raw_prompt, options, &[], hints)
+}
+
+/// Full entry point: user-profile C6 resolution (brecha C) + learned-rule
+/// context hints (5.4). Additive — existing callers keep calling `run` /
+/// `run_with_profile` unchanged.
+pub fn run_with_profile_and_rules(
+    raw_prompt: &str,
+    options: &PipelineOptions,
+    gaps_identified: &[String],
+    hints: &[detect::LearnedHint],
+) -> anyhow::Result<(PublicUnderstandingVerdict, Option<MissionConsolidated>)> {
     let session_id = Uuid::new_v4();
     let started = Instant::now();
 
@@ -111,7 +138,7 @@ pub fn run_with_profile(
     // Step 7 — Consolidated Mission + Verdict (Self-Refine heuristic: 2 iters
     // of inner critic re-write — for now both iterations are deterministic
     // rewrites of the intent statement).
-    let (verdict, consolidated_opt) = consolidate::build(
+    let (mut verdict, consolidated_opt) = consolidate::build(
         parsed.clone(),
         gaps,
         similar_missions,
@@ -121,6 +148,8 @@ pub fn run_with_profile(
         started,
         options,
     )?;
+    // Step 7b (5.4) — learned-rule context hints as observations.
+    detect::apply_learned_hints(&mut verdict.observations, hints, raw_prompt);
 
     Ok((verdict, consolidated_opt))
 }

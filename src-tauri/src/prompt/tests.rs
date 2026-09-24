@@ -84,6 +84,57 @@ mod runner_tests {
 }
 
 #[cfg(test)]
+mod learned_hints_tests {
+    use crate::prompt::runner::{
+        run, run_with_learned_rules, run_with_profile_and_rules, PipelineOptions,
+    };
+    use crate::prompt::steps::detect::LearnedHint;
+
+    fn hint() -> LearnedHint {
+        LearnedHint {
+            rule_id: "r-2026-07-04-001".into(),
+            trigger: "no_println".into(),
+            hint: "remove println statements".into(),
+        }
+    }
+
+    #[test]
+    fn rule_match_injects_hint_into_observations() {
+        let (v, _) = run_with_learned_rules(
+            "fix the no_println lint in the billing module",
+            &PipelineOptions::default(),
+            &[hint()],
+        )
+        .expect("run");
+        assert!(v
+            .observations
+            .iter()
+            .any(|o| o == "[rule r-2026-07-04-001] remove println statements"));
+    }
+
+    #[test]
+    fn rule_without_match_injects_nothing() {
+        let (v, _) = run_with_learned_rules(
+            "refactor the billing module for clarity",
+            &PipelineOptions::default(),
+            &[hint()],
+        )
+        .expect("run");
+        assert!(v.observations.iter().all(|o| !o.starts_with("[rule ")));
+    }
+
+    #[test]
+    fn bare_run_preserves_existing_behaviour_without_hints() {
+        let prompt = "fix the no_println lint in the billing module";
+        let (plain, _) = run(prompt, &PipelineOptions::default()).expect("run");
+        assert!(plain.observations.iter().all(|o| !o.starts_with("[rule ")));
+        let (with_profile, _) =
+            run_with_profile_and_rules(prompt, &PipelineOptions::default(), &[], &[]).expect("run");
+        assert_eq!(plain.observations, with_profile.observations);
+    }
+}
+
+#[cfg(test)]
 mod journal_verdict_persistence_tests {
     use crate::journal::Journal;
     use crate::prompt::runner::{run, PipelineOptions};
