@@ -2,7 +2,7 @@
 
 Investiga la pregunta **internet adentro** antes de cualquier decisión crítica. La IA ya no responde *"creo que..."*: responde *"el 83% de las fuentes recomienda X"*.
 
-> **Estado de implementación.** Phase 1/1.5 materializan el CLI `atlas research` (Firecrawl web ingestion, RFC 28 §E, feature-gated). La Fase 3 está planificada con 6 sub-fases atómicas (3.0 Foundation → 3.1 Docs gateway Context7Max → 3.2 anydoc ingestion → 3.3 Collective Engineering Intelligence → 3.4 Hands-on + ramas → 3.5 probe_feasibility + grill gate) en `Atlas OS/research/30 - Phase 3 research engine.md`. **§3.0 Foundation ✅ IMPLEMENTADO** (`research::{report, consensus}` + `journal/research.rs` + M25 schema 24→25 + `ResearchRunKind`/`ConsensusScorer`/`combined_confidence`); **§3.1 Docs gateway ✅ IMPLEMENTADO** (`research::docs_gateway::DocsGateway` + `atlas research docs`, Context7Max vía `ATLAS_CTX7MAX_URL`/`ctx7max` CLI con fallback Context7 MCP shape → official docs, sin crate nueva); **resto PENDING sub-fases 3.2–3.5.** Evidencia: audit RFC 30 (ecosistema + Jev) + HydraFusion (RFC 22 §13) + decisiones A.1–A.4.
+> **Estado de implementación.** Phase 1/1.5 materializan el CLI `atlas research` (Firecrawl web ingestion, RFC 28 §E, feature-gated). La Fase 3 está planificada con 6 sub-fases atómicas (3.0 Foundation → 3.1 Docs gateway Context7Max → 3.2 anydoc ingestion → 3.3 Collective Engineering Intelligence → 3.4 Hands-on + ramas → 3.5 probe_feasibility + grill gate) en `Atlas OS/research/30 - Phase 3 research engine.md`. **§3.0 Foundation ✅ IMPLEMENTADO** (`research::{report, consensus}` + `journal/research.rs` + M25 schema 24→25 + `ResearchRunKind`/`ConsensusScorer`/`combined_confidence`); **§3.1 Docs gateway ✅ IMPLEMENTADO** (`research::docs_gateway::DocsGateway` + `atlas research docs`, Context7Max vía `ATLAS_CTX7MAX_URL`/`ctx7max` CLI con fallback Context7 MCP shape → official docs, sin crate nueva); **§3.2 Document ingestion ✅ IMPLEMENTADO** (`research::ingest::ingest_file` + `atlas research ingest`, parser propio sin crate nueva por audit single-binary-safety RFC 25 §11 — md/txt passthrough, CSV → tabla Markdown, extracción de texto PDF — más `pandoc` externo opt-in para office/epub/rtf, feature `doc-ingest` default-off, fila `research_sources` kind=`document`); **resto PENDING sub-fases 3.3–3.5.** Evidencia: audit RFC 30 (ecosistema + Jev) + HydraFusion (RFC 22 §13) + decisiones A.1–A.4.
 
 ---
 
@@ -124,6 +124,7 @@ Atlas OS orquesta varias herramientas:
 - búsqueda en Reddit (Mis: reddit-mcp o scraper sandbox)
 - StackOverflow API
 - Context7 para docs live (MCP → ver `07 - MCP.md`) — ✅ vía `research::docs_gateway::DocsGateway` (sub-fase 3.1): Context7Max primario (`ATLAS_CTX7MAX_URL` / CLI `ctx7max`), fallback Context7 MCP shape, último recurso webfetch docs oficiales; CLI `atlas research docs <library> "<pregunta>"`.
+- Documentos locales (specs PDF, notas .docx, dumps CSV) — ✅ vía `research::ingest::ingest_file` (sub-fase 3.2, alcance anydoc): md/txt passthrough, CSV → tabla Markdown, texto PDF nativo; office/epub/rtf vía `pandoc` externo opt-in (`ATLAS_PANDOC_BIN` / `PATH`, nunca bundled); CLI `atlas research ingest <file> [--run-id ID] [--raw]` con fila `research_sources` kind=`document`. Feature `doc-ingest` default-off (RFC 25 §11).
 
 ## 7. Salidas
 

@@ -92,4 +92,4 @@ El audit Jev (RFC 30 §2) destila el patrón dominante: un modelo pequeño/barat
 
 1. Commit de este plan.
 2. Actualizar RFC 20 Fase 3 con las 6 sub-fases + RFC 10 con markers IMPLEMENTED/PENDING por sub-fase + RFC 26 catálogo.
-3. Empezar sub-fase 3.0 (Foundation) — M25 + tipos + consensus scorer trait.
+3. ~~Empezar sub-fase 3.0 (Foundation) — M25 + tipos + consensus scorer trait.~~ ✅ 3.0, 3.1 y 3.2 IMPLEMENTADAS — siguiente: sub-fase 3.3 (Collective Engineering Intelligence).

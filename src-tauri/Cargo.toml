@@ -63,6 +63,15 @@ acp-server = ["dep:agent-client-protocol"]
 # `FIRECRAWL_API_KEY`; the facade handles both paths. No native deps —
 # pure Rust, single-binary safe (RFC 25 §11).
 firecrawl = ["dep:firecrawl"]
+# Research Engine Phase 3 sub-fase 3.2 — local document ingestion
+# (anydoc scope: Word/PowerPoint/Excel/OpenDocument/RTF/EPUB/CSV/PDF →
+# Markdown, plan 30 §B 3.2). Empty feature: the `research::ingest`
+# parser is dependency-free by audit decision (RFC 25 §11 — the upstream
+# anydoc toolchain is not a minimal-dependency Rust crate, so the plan's
+# fallback branch applies: owned minimal parser + opt-in external
+# `pandoc`, never bundled). The gate exists so default builds skip the
+# `atlas research ingest` verb until the operator opts in.
+doc-ingest = []
 # RFC 28 Section F — Windows Toast notifications. AUMID registration +
 # interactive Toasts with `on_activated`/`on_dismissed`/`on_failed`
 # callbacks via `winrt-toast-reborn = "0.3.8"` (MIT, by Md. Iftakhar

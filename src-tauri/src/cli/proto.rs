@@ -74,9 +74,11 @@ pub enum Commands {
     /// Journal tail (RFC 19).
     Journal(JournalCmd),
     /// Research: live library docs via the docs gateway (Context7Max →
-    /// Context7 MCP shape → official docs, always available), plus web
-    /// ingestion via Firecrawl — scrape, search, crawl, extract
-    /// (RFC 28 §E, only compiled with the `firecrawl` feature).
+    /// Context7 MCP shape → official docs, always available), local
+    /// document ingestion into Markdown (`ingest`, only compiled with
+    /// the `doc-ingest` feature), plus web ingestion via Firecrawl —
+    /// scrape, search, crawl, extract (RFC 28 §E, only compiled with
+    /// the `firecrawl` feature).
     Research(ResearchCmd),
     /// Toast queue management — enqueue, list, cancel (RFC 28 §F).
     #[cfg(feature = "toast")]

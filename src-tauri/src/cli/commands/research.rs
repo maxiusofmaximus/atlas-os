@@ -1,11 +1,15 @@
 // Atlas OS — `atlas research` subcommand (RFC 28 Section E, RFC 10 §6).
 //
-// Two surfaces share one subcommand:
+// Three surfaces share one subcommand:
 //
 //   * `opencode research docs <library> "<question>" [--limit N]`
 //     (Phase 3 sub-fase 3.1, always compiled — the docs gateway needs
 //     no new crate: Context7Max CLI/API externa plus Context7 MCP and
 //     official-docs fallbacks, RFC 25 §11).
+//   * `opencode research ingest <file> [--run-id ID] [--raw]`
+//     (Phase 3 sub-fase 3.2, gated behind the `doc-ingest` Cargo
+//     feature, default off — dependency-free minimal parser plus
+//     opt-in external `pandoc`, never bundled).
 //   * `scrape` / `search` / `crawl` / `extract`, gated behind the
 //     `firecrawl` Cargo feature (RFC 28 §E):
 //
@@ -18,14 +22,16 @@
 // downstream pipes / skills / graphify ingest. When the `firecrawl`
 // feature is disabled at build time clap reports "no such command" for
 // the gated verbs only — `docs` stays available because the gateway it
-// uses is dependency-free.
+// uses is dependency-free. The same holds for `ingest` behind the
+// `doc-ingest` feature.
 //
 // The CLI never imports `firecrawl::Client` directly — it uses the
 // facade (`crate::firecrawl::facade`) and the env-aware
 // `FirecrawlClient::from_env()`. Credentials / self-host URL /
 // keyless tier are resolved from env vars as documented in
 // `firecrawl::client::FirecrawlClient::from_env`. Likewise the docs
-// verb only touches `crate::research::docs_gateway::DocsGateway`.
+// verb only touches `crate::research::docs_gateway::DocsGateway` and
+// the ingest verb only touches `crate::research::ingest::ingest_file`.
 //
 // Networks errors are bubbled up via `FirecrawlFacadeError` to the
 // CLI's `anyhow::Result` exit path (verbose `--verbose` adds stacks).
@@ -48,6 +54,12 @@ pub enum ResearchSub {
     /// Context7 MCP shape → official docs) and print one JSON line
     /// per snippet.
     Docs(DocsArgs),
+    /// Ingest a local document (md/txt/csv/pdf natively; office/epub/
+    /// rtf via opt-in external `pandoc`) into Markdown and print one
+    /// JSON line. With `--run-id`, also appends a `document` row to
+    /// `research_sources` for that run (auto-creating the run).
+    #[cfg(feature = "doc-ingest")]
+    Ingest(IngestArgs),
     /// Scrape a single URL and print its Markdown content + metadata.
     #[cfg(feature = "firecrawl")]
     Scrape(ScrapeArgs),
@@ -72,6 +84,22 @@ pub struct DocsArgs {
     /// Max number of snippets to print (docs-gateway default 5).
     #[arg(short = 'n', long, default_value_t = 5)]
     pub limit: u32,
+}
+
+#[derive(Args, Debug)]
+#[cfg(feature = "doc-ingest")]
+pub struct IngestArgs {
+    /// Local file to ingest (md/markdown/txt/csv/pdf natively;
+    /// docx/pptx/xlsx/odt/ods/odp/epub/rtf/doc/xls/ppt via `pandoc`).
+    pub file: std::path::PathBuf,
+    /// Research run id to attach the `document` source row to. When the
+    /// run does not exist yet it is created (`running`) so a single
+    /// invocation is demo-complete. Omit for stdout-only (no journal).
+    #[arg(long)]
+    pub run_id: Option<String>,
+    /// Print raw Markdown instead of the JSON envelope.
+    #[arg(long)]
+    pub raw: bool,
 }
 
 #[derive(Args, Debug)]
@@ -160,9 +188,13 @@ pub struct ResearchCmd {
     pub action: ResearchSub,
 }
 
-pub async fn run(cmd: ResearchCmd, _profile: &str) -> Result<()> {
+pub async fn run(cmd: ResearchCmd, profile: &str) -> Result<()> {
+    #[cfg(not(feature = "doc-ingest"))]
+    let _ = profile;
     match cmd.action {
         ResearchSub::Docs(a) => run_docs(a).await,
+        #[cfg(feature = "doc-ingest")]
+        ResearchSub::Ingest(a) => run_ingest(a, profile).await,
         #[cfg(feature = "firecrawl")]
         ResearchSub::Scrape(a) => {
             let client = FirecrawlClient::from_env().context(
@@ -221,6 +253,51 @@ async fn run_docs(a: DocsArgs) -> Result<()> {
             "research docs: no snippets for `{}` (backend {backend}); set ATLAS_CTX7MAX_URL or install ctx7max, or answer via Context7 MCP (AGENTS.md §5)",
             a.library
         );
+    }
+    Ok(())
+}
+
+#[cfg(feature = "doc-ingest")]
+async fn run_ingest(a: IngestArgs, profile: &str) -> Result<()> {
+    let doc = crate::research::ingest::ingest_file(&a.file)
+        .map_err(|e| anyhow::anyhow!("research ingest: {e}"))?;
+    if a.raw {
+        println!("{}", doc.markdown);
+    } else {
+        let json = serde_json::to_string(&IngestOutputJson {
+            source_path: doc.source_path.clone(),
+            format: doc.format.clone(),
+            bytes: doc.bytes,
+            title: doc.title.clone(),
+            markdown: doc.markdown.clone(),
+        })
+        .context("research ingest: output serialisation")?;
+        println!("{json}");
+    }
+    if let Some(run_id) = a.run_id.as_deref() {
+        let run_id = run_id.trim();
+        if run_id.is_empty() {
+            anyhow::bail!("research ingest: --run-id must not be empty");
+        }
+        let pid = crate::profiles::ProfileId::new(profile);
+        let root = crate::profiles::resolve_root(&pid)?;
+        let journal = crate::journal::Journal::open(&root)?;
+        if journal.get_research_run(run_id)?.is_none() {
+            journal.create_research_run(
+                run_id,
+                &doc.title.clone().unwrap_or_else(|| doc.source_path.clone()),
+                &crate::research::ResearchRunStatus::Running,
+            )?;
+        }
+        let source_id = format!("rs-{}", uuid::Uuid::new_v4());
+        journal.add_research_source(
+            &source_id,
+            run_id,
+            crate::research::DOCUMENT_KIND,
+            &doc.source_path,
+            None,
+        )?;
+        eprintln!("research ingest: recorded {source_id} (document) on run {run_id}");
     }
     Ok(())
 }
@@ -336,6 +413,16 @@ struct SearchHitJson {
     snippet: Option<String>,
 }
 
+#[derive(serde::Serialize, Debug)]
+#[cfg(feature = "doc-ingest")]
+struct IngestOutputJson {
+    source_path: String,
+    format: crate::research::DocFormat,
+    bytes: u64,
+    title: Option<String>,
+    markdown: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -356,6 +443,8 @@ mod tests {
                 assert_eq!(a.question, "how to spawn tasks");
                 assert_eq!(a.limit, 5);
             }
+            #[cfg(feature = "doc-ingest")]
+            ResearchSub::Ingest(_) => panic!("expected Docs"),
             #[cfg(feature = "firecrawl")]
             _ => panic!("expected Docs"),
         }
@@ -374,6 +463,8 @@ mod tests {
         .unwrap();
         match cli.action {
             ResearchSub::Docs(a) => assert_eq!(a.limit, 3),
+            #[cfg(feature = "doc-ingest")]
+            ResearchSub::Ingest(_) => panic!("expected Docs"),
             #[cfg(feature = "firecrawl")]
             _ => panic!("expected Docs"),
         }
@@ -389,6 +480,52 @@ mod tests {
     fn parse_docs_requires_library() {
         let r = TestCli::try_parse_from(["test", "docs"]);
         assert!(r.is_err(), "docs without library must error");
+    }
+
+    #[test]
+    #[cfg(feature = "doc-ingest")]
+    fn parse_ingest_subcmd() {
+        let cli = TestCli::try_parse_from(["test", "ingest", "spec.pdf"]).unwrap();
+        match cli.action {
+            ResearchSub::Ingest(a) => {
+                assert_eq!(a.file, std::path::PathBuf::from("spec.pdf"));
+                assert_eq!(a.run_id, None);
+                assert!(!a.raw);
+            }
+            ResearchSub::Docs(_) => panic!("expected Ingest"),
+            #[cfg(feature = "firecrawl")]
+            _ => panic!("expected Ingest"),
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "doc-ingest")]
+    fn parse_ingest_with_run_id_and_raw() {
+        let cli = TestCli::try_parse_from([
+            "test",
+            "ingest",
+            "notes.docx",
+            "--run-id",
+            "rr-001",
+            "--raw",
+        ])
+        .unwrap();
+        match cli.action {
+            ResearchSub::Ingest(a) => {
+                assert_eq!(a.run_id.as_deref(), Some("rr-001"));
+                assert!(a.raw);
+            }
+            ResearchSub::Docs(_) => panic!("expected Ingest"),
+            #[cfg(feature = "firecrawl")]
+            _ => panic!("expected Ingest"),
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "doc-ingest")]
+    fn parse_ingest_requires_file() {
+        let r = TestCli::try_parse_from(["test", "ingest"]);
+        assert!(r.is_err(), "ingest without file must error");
     }
 
     #[test]
