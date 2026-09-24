@@ -38,7 +38,9 @@
 | 27 | [Orchestration Fundamentals](./27%20-%20Orchestration%20Fundamentals.md) | 13.5 KB | Audit comparativo vs `tmux-orchestrator`, `orca`, `herdr`, `traycer`. Extrae 6 principios fundacionales (worktree isolation, at-a-glance state, remote attach, reflexivity, BYOA, spec-first) y cataloga 8 brechas (A–H) contra los fundamentos, con priorización Phase 2+. |
 | 28 | [External Tool Integration](./28%20-%20External%20Tool%20Integration.md) | 98.7 KB | 8 superficies: §A Karpathy autoresearch loop (Hill-climbing con métrica medible, M13 `autoresearch_runs`); §B Microsoft Intelligent Terminal ACP server (M14 `agent_session_events`, slash commands `/opencode fix` `/restart`); §C graphify pattern adoption (M15 `mission_graph` + `petgraph`+`tree-sitter`, `<GraphView>` HUD, skills como graph templates, Planner DAG); §D AuditLog YAML-on-disk export formato posting; §E Firecrawl: web ingestion polyfacética (adapter facade, post-graphify); §F Windows Toast Notifications (AUMID + Start Menu shortcut via `winrt-toast-reborn`, `tokio::sleep_until` SQLite-driven scheduler, `on_activated` deep-link); §G Windows Calendar (`.ics` feed via axum HUD `GET /atlas-calendar.ics` + Microsoft Graph `/me/calendarView` reader via `graph-rs-sdk` `interactive-auth`, refresh token SQLite encrypted); §H Model API reset-window notifications (OmniRoute envelope parsing, `SpendLimitError` card port de Cline PR #10207, `model_ready` Toast — feature diferencial frente a competencia). Fase 1.5 orden §D→§A→§C→§B→§E→§F→§G→§H. **Status Phase 1.5: §D ✅ (`db25379`), §A ✅ (`853da30`), §C ✅ (`cddcbc2`), §B ✅ (`7f8215e`–`4b4924e` items 1-8 todos ✅), §E ✅ items 1-8 (`c228e4a` — adapter facade + CLI research subcommand, items 9-10 post-MVP), §F ✅ items 1-8 (`d6e6e23` — Toast queue + driver + CLI subcommand + M17 schema + AppState integration, item 9 smoke post-MVP), §G ✅ items 1-4 (`8d26528` — WRITE path; items 5-8 READ diferidos a Phase 2), §H ✅ items 1-11 (M19 + `SpendLimitError`/`ResetKind`/`parse_omniroute`/`RetryPolicy`/`handle_spend_limit_error`/`cards.rs`/`SpendLimitErrorCard.svelte`/`ModelReadyCard.svelte`/`Profile` bail-out + backup; items 12-13 pending docs/smoke).** Research internos en `Atlas OS/research/` (`27 - *` 3 docs, `28 - portable inventory.md`, `28 - conductor & alt surfaces.md` — Conductor analysis + terminal-UI comparison + remote-live dual-PC roadmap, `29 - Phase 2 model orchestrator.md` — plan refinado Fase 2 Multi-model Orchestration con evidencia primaria). |
 
-**Total: 29 RFCs, ~272 KB** de especificación.
+| 29 | [Genspark AI Integration](./29%20-%20Genspark%20AI%20Integration.md) | 26.2 KB | Audit comparativo de Genspark AI (MainFunc, $100M Series A) como orquestador de agentes comerciales: Genspark Claw (AI employee persistente multi-canal), AI Workspace 6.0 (super-app 80+ herramientas), Super Agent / MoA (multi-model default). 6 brechas A–F con priorización por dependencia (F/E narrativa → D bundled skills → C user modeling → A cloud serve → B multi-canal) + interpretación de su UI (§4) + fuentes de auditoría (§9). Informativo + priorización — input de Phase 2+. |
+
+**Total: 30 RFCs, ~298 KB** de especificación.
 
 ---
 
@@ -313,6 +315,9 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Health KPIs` | 24 §7 |
 | `Hermes HUD` | 24 §0, §4.3 (cite); 22 §1 |
 | `HUD Mission Control` | 24 |
+| `AffinityIndex` (arc-swap lock-free, clones share snapshot) | 04 §8; 04 §Apéndice 2.4 |
+| `AffinityRow` (+ `MIN_SAMPLES=3` confidence floor) | 04 §8; 04 §Apéndice 2.4 |
+| `AggregationCostContext::from_journal` (real cost guard, G11, sub-fase 2.4) | 04 §6; 04 §Apéndice 2.4 |
 | `Aggregation` (Single/MajorityVote/MoA/Council/SelfRefine/Reflexion/SelfDiscover) | 04 §3; 04 §Apéndice 2.2 |
 | `Aggregator` (trait, `#[async_trait]`) + `aggregator_for()` dispatch | 04 §3; 04 §Apéndice 2.2 |
 | `AggregationMode` enum (7 variantes, `#[serde(tag="type")]`) | 04 §3; 04 §Apéndice 2.2 |
@@ -334,7 +339,10 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `McpServerCatalog` (trait, `NoMcpCatalog` default, G19) | 04 §7; 04 §Apéndice 2.3 |
 | `McpToolFilter` (`pre_filter` capability_tags AND tool-names, G19) | 04 §7; 04 §Apéndice 2.3 |
 | `MLP-linfa deferral` (AN-2.3-a, `linfa` no MLP — Phase 2.5+) | 04 §7.1; 22 §8.2 AN-2.3-a |
-| `Router` trait + `RoutingStrategy` enum (6 LiteLLM variants) | 04 §2; 04 §Apéndice 2.1 |
+| `Router` trait + `RoutingStrategy` enum (6 LiteLLM variants + `Mf` experimental) | 04 §2; 04 §Apéndice 2.1 |
+| `RoutingStrategy::Mf` (strong-vs-weak binary routing, RouteLLM `2406.18665`) | 04 §2; 04 §Apéndice 2.4 |
+| `M24` migration (`model_affinity_cache` mirror + `task_classifier_decisions` CHECK fix, schema 23→24) | 04 §8; 04 §Apéndice 2.4 |
+| `atlas models refresh` (brazo manual del feedback loop affinity) | 04 §8; 08 CLI |
 | `RequestFrame` (idempotency, G12) | 04 §4; 04 §Apéndice 2.1 |
 | `RouterId` (`Literal`/`Auto{strong_pct}`/`Mf{threshold}` parsing) | 04 §7; 04 §Apéndice 2.3 |
 | `TaskType` (12 concretos + Unknown, `as_str`/`parse` round-trip) | 04 §7; 04 §Apéndice 2.3 |

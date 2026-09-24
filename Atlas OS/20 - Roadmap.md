@@ -38,7 +38,7 @@ Cuatro superficies de integración opt-in sobre el core de Fase 1, orden `§D �
 
 Entregable: Atlas OS detectable como ACP agent de primera clase por IT 0.1+ (autodetect PATH), slash commands en pane; HUD sigue siendo surface visual canonical. Toast notifications asyncronous via AUMID-registered deep-links. Calendar WRITE path (ICS feed) — bidireccional completa pendiente Phase 2. Reset-window notifica al usuario cuando el model vuelve a estar disponible — advantage competitiva. Validación manual en IT 0.1.1+ instalado (Windows) + `tools/toast-smoke.ps1`, `tools/calendar-smoke.ps1`, `tools/reset-window-smoke.ps1`.
 
-## Fase 2 — Multi-model Orchestration
+## Fase 2 — Multi-model Orchestration (COMPLETA, sub-fases 2.0 → 2.4)
 
 Plan refinado en `Atlas OS/research/29 - Phase 2 model orchestrator.md` (6 sub-fases atómicas, commits no PRs). Evidencia primaria: 11 papers arxiv cross-verified, LiteLLM docs, OpenRouter docs, Aider README/changelog, async-openai MIDDLEWARE, async-anthropic docs.rs, RouteLLM GitHub, docs.rs (tower/governor/arc-swap/notify/rusqlite/dashmap). Auditoría iterativa Round 3 detectó 9 gaps críticos (G1/G2/G3/G5/G8/G11/G12/G17/G18) que se incorporan en sub-fase 2.0.5 — sin ellos el cascade cross-provider y feedback loop son incorrectos.
 
@@ -80,10 +80,12 @@ Plan refinado en `Atlas OS/research/29 - Phase 2 model orchestrator.md` (6 sub-f
 - Router selector via `model` field (RouteLLM `router-mf-0.116`): caller emite OpenAI shape sin saber si es router-agregado o directo.
 - Threshold defaults RouteLLM: `coding=0.116, plan=0.05, chat=0.2`.
 
-### Sub-fase 2.4 — Feedback Loop + `mf` experimental
-- Reader `model_invocations` GROUP BY `(task_type, model_id)` → `AffinityRow` alimenta `ModelRegistry.affinity` vía `ArcSwap::store`.
-- `RoutingStrategy::Mf { threshold }` experimental (RouteLLM `2406.18665`): `include_bytes!("assets/mf_weights.bin")` <100KB. A/B testing contra classifier log-loss durante 1 semana.
-- `aggregation_cost_estimate()` impl real usando histórico `mean_tokens_in/out`.
+### Sub-fase 2.4 — Feedback Loop + `mf` experimental (COMPLETO, commit `302b170`)
+- Reader `model_invocations` GROUP BY `(task_type, model_id)` → `AffinityRow` alimenta `ModelRegistry.affinity` vía `ArcSwap::store` ✅ — `orchestrator::affinity` (`AffinityIndex` arc-swap lock-free + `AffinityRow` + `MIN_SAMPLES=3`) + `journal::{read_affinity, upsert_affinity_rows}` + M24 mirror (`model_affinity_cache` + `task_classifier_decisions` CHECK fix, schema 23→24).
+- `RoutingStrategy::Mf { threshold }` experimental (RouteLLM `2406.18665`): strong-vs-weak binary routing sobre `classifier_confidence` + `strong_ids` con fallback graceful. **Desviación documentada**: sin `include_bytes!("assets/mf_weights.bin")` pre-trained (G14) — el flavour experimental usa classifier confidence; weights pre-trained + A/B testing contra classifier log-loss postergados a 2.5+.
+- `aggregation_cost_estimate()` impl real ✅: `AggregationCostContext::from_journal()` usando medias histórico `mean_tokens_in/out` — budget guard integra con 2.2.
+- Brazo manual del loop ✅: CLI `atlas models refresh -n <window> --list` (`cli/commands/models.rs`). Cargo: `arc-swap = "1.7"`.
+- M23 `eval_runs` (G16 deferred a 2.5+): no implementada, como estaba planificado.
 
 Entregable: el sistema sabe **cuándo cambiar de cerebro**. KPI: coste LLM por mission ≤ baseline Phase 1 × 0.6 (evidence RouteLLM >2× savings).
 
