@@ -93,8 +93,8 @@ Entregable: el sistema sabe **cuándo cambiar de cerebro**. KPI: coste LLM por m
 
 Plan refinado en `Atlas OS/research/30 - Phase 3 research engine.md` (6 sub-fases atómicas, commits no PRs). Evidencia: audit RFC 30 (ecosistema + Jev — "System One judgments" para el weak-model pre-filter), HydraFusion (RFC 22 §13), decisiones A.1–A.4 (Context7Max fuente primaria, anydoc ingestion, grill-me gate).
 
-### Sub-fase 3.0 — Foundation
-- M25 migration `research_runs`/`research_sources`/`research_consensus` + `ResearchRunReport` tipos canónicos + `trait ConsensusScorer` + `enum ConsensusDimension` + `enum ResearchRunKind {Full,Targeted,Mega}`.
+### Sub-fase 3.0 — Foundation (COMPLETO, delegado a muse-spark-1.3-contributor-free)
+- M25 migration `research_runs` (status/recommended via PRAGMA, idempotente)/`research_sources`/`research_consensus` (PK compuesta + CHECKs) ✅ + `ResearchRunReport` tipos canónicos (`research/report.rs`, validate + round-trip JSON/YAML) + `trait ConsensusScorer` + `enum ConsensusDimension` + `ConsensusScore` (0–100 + refs) + `combined_confidence()` (hands-on ×1.5) + `MIN_SOURCES=3` + `enum ResearchRunKind {Full,Targeted,Mega}` + `ResearchRunStatus` fail-safe. Persistencia `journal/research.rs` (create/complete/get_run, add/list_sources, save/list_consensus idempotente). 20 tests nuevos (678 total). clippy + fmt verdes.
 
 ### Sub-fase 3.1 — Docs gateway (Context7Max adapter)
 - Adapter facade `research/docs_gateway.rs` (estilo firecrawl RFC 28 §E): ctx7max primaria → Context7 MCP → webfetch fallback. `atlas research docs <library> "<question>"`. Sin crate nueva.

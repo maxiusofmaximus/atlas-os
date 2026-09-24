@@ -2,7 +2,7 @@
 
 Investiga la pregunta **internet adentro** antes de cualquier decisión crítica. La IA ya no responde *"creo que..."*: responde *"el 83% de las fuentes recomienda X"*.
 
-> **Estado de implementación.** Phase 1/1.5 materializan el CLI `atlas research` (Firecrawl web ingestion, RFC 28 §E, feature-gated). La Fase 3 está planificada con 6 sub-fases atómicas (3.0 Foundation → 3.1 Docs gateway Context7Max → 3.2 anydoc ingestion → 3.3 Collective Engineering Intelligence → 3.4 Hands-on + ramas → 3.5 probe_feasibility + grill gate) en `Atlas OS/research/30 - Phase 3 research engine.md`. **§1–§11 son PENDING Phase 3.** Evidencia: audit RFC 30 (ecosistema + Jev) + HydraFusion (RFC 22 §13) + decisiones A.1–A.4.
+> **Estado de implementación.** Phase 1/1.5 materializan el CLI `atlas research` (Firecrawl web ingestion, RFC 28 §E, feature-gated). La Fase 3 está planificada con 6 sub-fases atómicas (3.0 Foundation → 3.1 Docs gateway Context7Max → 3.2 anydoc ingestion → 3.3 Collective Engineering Intelligence → 3.4 Hands-on + ramas → 3.5 probe_feasibility + grill gate) en `Atlas OS/research/30 - Phase 3 research engine.md`. **§3.0 Foundation ✅ IMPLEMENTADO** (`research::{report, consensus}` + `journal/research.rs` + M25 schema 24→25 + `ResearchRunKind`/`ConsensusScorer`/`combined_confidence`); **§1–§11 del spec son PENDING sub-fases 3.1–3.5.** Evidencia: audit RFC 30 (ecosistema + Jev) + HydraFusion (RFC 22 §13) + decisiones A.1–A.4.
 
 ---
 
