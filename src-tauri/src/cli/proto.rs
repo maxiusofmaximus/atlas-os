@@ -74,7 +74,9 @@ pub enum Commands {
     /// Journal tail (RFC 19).
     Journal(JournalCmd),
     /// Research: live library docs via the docs gateway (Context7Max →
-    /// Context7 MCP shape → official docs, always available), local
+    /// Context7 MCP shape → official docs, always available), collective
+    /// engineering intelligence (`query`, always available — four
+    /// dimension scorers + fail-safe, RFC 10 §5/§7), local
     /// document ingestion into Markdown (`ingest`, only compiled with
     /// the `doc-ingest` feature), plus web ingestion via Firecrawl —
     /// scrape, search, crawl, extract (RFC 28 §E, only compiled with

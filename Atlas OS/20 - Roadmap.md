@@ -102,8 +102,8 @@ Plan refinado en `Atlas OS/research/30 - Phase 3 research engine.md` (6 sub-fase
 ### Sub-fase 3.2 — Document ingestion (anydoc, feature-gated)
 - Crate `anydoc` (audit single-binary-safety primero) o parser mínimo propio. Feature `doc-ingest` default off. `atlas research ingest <file>`.
 
-### Sub-fase 3.3 — Collective Engineering Intelligence
-- ConsensusScorer impls por dimensión (GitHub/arXiv/docs/community) + scoring 0–100 + confidence combinado ponderado (hands-on ×1.5) + weak-model pre-filter (modelo fuerte solo sintetiza).
+### Sub-fase 3.3 — Collective Engineering Intelligence (COMPLETO, delegado a muse-spark-1.3-contributor-free)
+- `research/collective.rs`: pre-filtro weak-model determinista `prefilter_sources` (A.4) + `classify_source_kind`, 4 scorers (`Community`/`Enterprise`/`Academic`/`Official`, kind-relevance 0–100 + refs, `score_all`/`top_reference`), `HANDS_ON_WEIGHT=1.5`, fail-safe `FAIL_SAFE_CONFIDENCE=0.6` → `NeedingHuman` (`apply_fail_safe`), `build_report` + `ReportSections` al YAML RFC 10 §7, colectores best-effort sin crate nueva (`gh` CLI, arXiv API, docs vía 3.1). CLI `atlas research query "<pregunta>" [--source/--hands-on/--library/--gh-repo/--min-confidence]` con run persistido en M25. 17 tests nuevos + demo YAML verificada. clippy + fmt verdes.
 
 ### Sub-fase 3.4 — Hands-on + ramas de aplicación
 - `research_notes` (evidencia experta firmada) + ramas Opción A/B/C con coste estimado en este código + journal_ref auditable.

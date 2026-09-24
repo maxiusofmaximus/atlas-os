@@ -1,11 +1,17 @@
 // Atlas OS — `atlas research` subcommand (RFC 28 Section E, RFC 10 §6).
 //
-// Three surfaces share one subcommand:
+// Four surfaces share one subcommand:
 //
 //   * `opencode research docs <library> "<question>" [--limit N]`
 //     (Phase 3 sub-fase 3.1, always compiled — the docs gateway needs
 //     no new crate: Context7Max CLI/API externa plus Context7 MCP and
 //     official-docs fallbacks, RFC 25 §11).
+//   * `opencode research query "<pregunta>" [--source URL …]`
+//     `[--hands-on URL …] [--library ID] [--gh-repo OWNER/REPO]`
+//     (Phase 3 sub-fase 3.3, always compiled — the four dimension
+//     scorers plus the weak-model pre-filter and the fail-safe are
+//     dependency-free; live collectors degrade to "no data").
+//     Prints the canonical RFC 10 §7 YAML report to stdout.
 //   * `opencode research ingest <file> [--run-id ID] [--raw]`
 //     (Phase 3 sub-fase 3.2, gated behind the `doc-ingest` Cargo
 //     feature, default off — dependency-free minimal parser plus
@@ -54,6 +60,13 @@ pub enum ResearchSub {
     /// Context7 MCP shape → official docs) and print one JSON line
     /// per snippet.
     Docs(DocsArgs),
+    /// Run collective engineering intelligence over a question
+    /// (weak-model pre-filter → four dimension scorers → weighted
+    /// confidence → fail-safe) and print the RFC 10 §7 YAML report.
+    /// Evidence comes from best-effort live collectors (`gh` CLI,
+    /// arXiv API, docs gateway) plus explicit `--source` / `--hands-on`
+    /// URLs. The run is persisted to the Journal when it opens.
+    Query(QueryArgs),
     /// Ingest a local document (md/txt/csv/pdf natively; office/epub/
     /// rtf via opt-in external `pandoc`) into Markdown and print one
     /// JSON line. With `--run-id`, also appends a `document` row to
@@ -84,6 +97,37 @@ pub struct DocsArgs {
     /// Max number of snippets to print (docs-gateway default 5).
     #[arg(short = 'n', long, default_value_t = 5)]
     pub limit: u32,
+}
+
+#[derive(Args, Debug)]
+pub struct QueryArgs {
+    /// Natural-language research question (RFC 10 §1 trigger).
+    pub question: String,
+    /// Extra evidence URLs (repeatable). Kind is auto-classified by
+    /// host; weight 1.0.
+    #[arg(long = "source")]
+    pub sources: Vec<String>,
+    /// Hands-on expert evidence URLs (repeatable, RFC 10 §3). They
+    /// weigh ×1.5 in the combined confidence.
+    #[arg(long = "hands-on")]
+    pub hands_on: Vec<String>,
+    /// Library id for the official-docs collector (3.1 gateway).
+    #[arg(long)]
+    pub library: Option<String>,
+    /// `OWNER/REPO` scoping the `gh` Issues collector.
+    #[arg(long)]
+    pub gh_repo: Option<String>,
+    /// Max live hits per collector (default 5).
+    #[arg(short = 'n', long, default_value_t = 5)]
+    pub limit: u8,
+    /// Research run id. Defaults to `rr-YYYYMMDD-<8hex>`.
+    #[arg(long)]
+    pub run_id: Option<String>,
+    /// Fail-safe floor override (default `FAIL_SAFE_CONFIDENCE` 0.6,
+    /// RFC 10 §10). Confidence below this marks the run
+    /// `needing_human`.
+    #[arg(long)]
+    pub min_confidence: Option<f64>,
 }
 
 #[derive(Args, Debug)]
@@ -189,10 +233,9 @@ pub struct ResearchCmd {
 }
 
 pub async fn run(cmd: ResearchCmd, profile: &str) -> Result<()> {
-    #[cfg(not(feature = "doc-ingest"))]
-    let _ = profile;
     match cmd.action {
         ResearchSub::Docs(a) => run_docs(a).await,
+        ResearchSub::Query(a) => run_query(a, profile).await,
         #[cfg(feature = "doc-ingest")]
         ResearchSub::Ingest(a) => run_ingest(a, profile).await,
         #[cfg(feature = "firecrawl")]
@@ -255,6 +298,176 @@ async fn run_docs(a: DocsArgs) -> Result<()> {
         );
     }
     Ok(())
+}
+
+async fn run_query(a: QueryArgs, profile: &str) -> Result<()> {
+    use crate::research::{
+        build_report, prefilter_sources, score_all, top_reference, ConsensusDimension,
+        DimensionOutcome, GatherOptions, ReportSections, ResearchRunStatus, FAIL_SAFE_CONFIDENCE,
+    };
+
+    let question = a.question.trim();
+    if question.is_empty() {
+        anyhow::bail!("research query: question must not be empty");
+    }
+    let floor = a.min_confidence.unwrap_or(FAIL_SAFE_CONFIDENCE);
+    if !floor.is_finite() || !(0.0..=1.0).contains(&floor) {
+        anyhow::bail!("research query: --min-confidence must be within 0.0..=1.0");
+    }
+    let run_id = match a.run_id.as_deref().map(str::trim) {
+        Some(id) if !id.is_empty() => id.to_string(),
+        _ => {
+            let date = chrono::Utc::now().format("%Y%m%d");
+            let short = uuid::Uuid::new_v4().simple().to_string();
+            format!("rr-{date}-{}", &short[..8])
+        }
+    };
+
+    let pool = crate::research::collective::gather_evidence(&GatherOptions {
+        query: question.to_string(),
+        library: a.library.clone(),
+        gh_repo: a.gh_repo.clone(),
+        manual: a.sources.clone(),
+        hands_on: a.hands_on.clone(),
+        limit: a.limit,
+    })
+    .await;
+    let filtered = prefilter_sources(&pool);
+    let scores = score_all(&filtered);
+
+    let mut outcomes = Vec::new();
+    for dimension in ConsensusDimension::ALL {
+        match scores.iter().find(|s| s.dimension == dimension) {
+            Some(s) => {
+                let url = top_reference(dimension, &filtered).unwrap_or_default();
+                let host = url
+                    .split("://")
+                    .nth(1)
+                    .unwrap_or(url.as_str())
+                    .split('/')
+                    .next()
+                    .unwrap_or("")
+                    .trim_start_matches("www.")
+                    .trim();
+                let recommendation = if host.is_empty() {
+                    dimension.as_str().to_string()
+                } else {
+                    format!("{}: {host}", dimension.as_str())
+                };
+                outcomes.push(DimensionOutcome {
+                    dimension,
+                    recommendation,
+                    score_100: s.score,
+                    weight: 1.0,
+                });
+            }
+            None => outcomes.push(DimensionOutcome::no_data(dimension)),
+        }
+    }
+
+    let mut ranked = outcomes.clone();
+    ranked.sort_by(|x, y| {
+        y.score_100
+            .partial_cmp(&x.score_100)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    let proposal: Vec<String> = ranked
+        .iter()
+        .enumerate()
+        .map(|(i, o)| {
+            let tag = if i < 26 {
+                ((b'A' + i as u8) as char).to_string()
+            } else {
+                format!("P{}", i + 1)
+            };
+            format!(
+                "{tag}: {} via {} ({:.2})",
+                o.recommendation,
+                o.dimension.as_str(),
+                o.score_100 / 100.0
+            )
+        })
+        .collect();
+    let bugs: Vec<String> = filtered
+        .iter()
+        .map(|s| s.url.as_str())
+        .filter(|u| u.contains("/issues/") || u.contains("/discussions/"))
+        .take(10)
+        .map(String::from)
+        .collect();
+    let authors: Vec<String> = a
+        .hands_on
+        .iter()
+        .map(|s| s.trim())
+        .filter(|u| !u.is_empty())
+        .map(|u| format!("expert note: {u}"))
+        .collect();
+    let enterprise_refs: Vec<String> = filtered
+        .iter()
+        .filter(|s| s.kind.contains("github"))
+        .take(10)
+        .map(|s| s.url.clone())
+        .collect();
+
+    let report = build_report(
+        &run_id,
+        question,
+        &outcomes,
+        filtered.len() as u32,
+        ReportSections {
+            authors,
+            enterprise: enterprise_refs,
+            bugs,
+            proposal,
+            journal_ref: None,
+        },
+    )
+    .map_err(|e| anyhow::anyhow!("research query: report build failed: {e}"))?;
+
+    let status = match Some(report.confidence) {
+        Some(c) if c.is_finite() && c >= floor => ResearchRunStatus::Completed,
+        _ => ResearchRunStatus::NeedingHuman,
+    };
+
+    if let Ok(journal) = open_research_journal(profile) {
+        let _ = journal.create_research_run(&run_id, question, &ResearchRunStatus::Running);
+        for s in &filtered {
+            let source_id = format!("rs-{}", uuid::Uuid::new_v4());
+            let _ = journal.add_research_source(
+                &source_id,
+                &run_id,
+                if s.kind.is_empty() {
+                    "web"
+                } else {
+                    s.kind.as_str()
+                },
+                &s.url,
+                Some(s.weight),
+            );
+        }
+        for s in &scores {
+            let _ =
+                journal.save_research_consensus(&run_id, &s.dimension, s.score, s.note.as_deref());
+        }
+        let _ =
+            journal.complete_research_run(&run_id, &status, report.confidence, &report.recommended);
+    }
+
+    let yaml = serde_yaml::to_string(&report).context("research query: YAML serialisation")?;
+    println!("{yaml}");
+    eprintln!(
+        "research query: run {run_id} status={} confidence={:.2} sources={} (floor {floor})",
+        status.as_str(),
+        report.confidence,
+        filtered.len(),
+    );
+    Ok(())
+}
+
+fn open_research_journal(profile: &str) -> Result<crate::journal::Journal> {
+    let pid = crate::profiles::ProfileId::new(profile);
+    let root = crate::profiles::resolve_root(&pid)?;
+    crate::journal::Journal::open(&root)
 }
 
 #[cfg(feature = "doc-ingest")]
@@ -443,6 +656,7 @@ mod tests {
                 assert_eq!(a.question, "how to spawn tasks");
                 assert_eq!(a.limit, 5);
             }
+            ResearchSub::Query(_) => panic!("expected Docs"),
             #[cfg(feature = "doc-ingest")]
             ResearchSub::Ingest(_) => panic!("expected Docs"),
             #[cfg(feature = "firecrawl")]
@@ -463,6 +677,7 @@ mod tests {
         .unwrap();
         match cli.action {
             ResearchSub::Docs(a) => assert_eq!(a.limit, 3),
+            ResearchSub::Query(_) => panic!("expected Docs"),
             #[cfg(feature = "doc-ingest")]
             ResearchSub::Ingest(_) => panic!("expected Docs"),
             #[cfg(feature = "firecrawl")]
@@ -493,6 +708,7 @@ mod tests {
                 assert!(!a.raw);
             }
             ResearchSub::Docs(_) => panic!("expected Ingest"),
+            ResearchSub::Query(_) => panic!("expected Ingest"),
             #[cfg(feature = "firecrawl")]
             _ => panic!("expected Ingest"),
         }
@@ -516,6 +732,7 @@ mod tests {
                 assert!(a.raw);
             }
             ResearchSub::Docs(_) => panic!("expected Ingest"),
+            ResearchSub::Query(_) => panic!("expected Ingest"),
             #[cfg(feature = "firecrawl")]
             _ => panic!("expected Ingest"),
         }
@@ -652,5 +869,75 @@ mod tests {
     fn parse_scrape_missing_url_errors() {
         let r = TestCli::try_parse_from(["test", "scrape"]);
         assert!(r.is_err());
+    }
+
+    #[test]
+    fn parse_query_subcmd_defaults() {
+        let cli = TestCli::try_parse_from(["test", "query", "Event sourcing vs CRDT?"]).unwrap();
+        match cli.action {
+            ResearchSub::Query(a) => {
+                assert_eq!(a.question, "Event sourcing vs CRDT?");
+                assert!(a.sources.is_empty());
+                assert!(a.hands_on.is_empty());
+                assert_eq!(a.library, None);
+                assert_eq!(a.gh_repo, None);
+                assert_eq!(a.limit, 5);
+                assert_eq!(a.run_id, None);
+                assert_eq!(a.min_confidence, None);
+            }
+            ResearchSub::Docs(_) => panic!("expected Query"),
+            #[cfg(feature = "doc-ingest")]
+            ResearchSub::Ingest(_) => panic!("expected Query"),
+            #[cfg(feature = "firecrawl")]
+            _ => panic!("expected Query"),
+        }
+    }
+
+    #[test]
+    fn parse_query_with_evidence_flags() {
+        let cli = TestCli::try_parse_from([
+            "test",
+            "query",
+            "Which runtime?",
+            "--source",
+            "https://github.com/tokio-rs/tokio/issues/1",
+            "--source",
+            "https://arxiv.org/abs/2401.00001",
+            "--hands-on",
+            "https://internal.example/notes/runbook",
+            "--library",
+            "tokio",
+            "--gh-repo",
+            "tokio-rs/tokio",
+            "--limit",
+            "3",
+            "--run-id",
+            "rr-2026-07-04-001",
+            "--min-confidence",
+            "0.7",
+        ])
+        .unwrap();
+        match cli.action {
+            ResearchSub::Query(a) => {
+                assert_eq!(a.sources.len(), 2);
+                assert_eq!(a.hands_on.len(), 1);
+                assert_eq!(a.library.as_deref(), Some("tokio"));
+                assert_eq!(a.gh_repo.as_deref(), Some("tokio-rs/tokio"));
+                assert_eq!(a.limit, 3);
+                assert_eq!(a.run_id.as_deref(), Some("rr-2026-07-04-001"));
+                assert_eq!(a.min_confidence, Some(0.7));
+            }
+            ResearchSub::Docs(_) => panic!("expected Query"),
+            #[cfg(feature = "doc-ingest")]
+            ResearchSub::Ingest(_) => panic!("expected Query"),
+            #[cfg(feature = "firecrawl")]
+            _ => panic!("expected Query"),
+        }
+    }
+
+    #[test]
+    fn parse_query_requires_question() {
+        let r = TestCli::try_parse_from(["test", "query"]);
+        assert!(r.is_err(), "query without question must error");
     }
 }

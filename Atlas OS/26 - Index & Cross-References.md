@@ -367,7 +367,7 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Multi-key rotation` | 04 §3.1; 22 §2 |
 | `N8n canvas stile reasoning trail` | 24 §13 |
 | `Noob mode` | 17 §11 |
-| `atlas research` (CLI subcommand: `docs` ungated + `ingest` gated `doc-ingest` feature + scrape/search/crawl/extract gated `firecrawl` feature) | 28 §E; 08 (surface); research `30` sub-fases 3.1–3.2 |
+| `atlas research` (CLI subcommand: `docs` ungated + `query` ungated (collective, sub-fase 3.3) + `ingest` gated `doc-ingest` feature + scrape/search/crawl/extract gated `firecrawl` feature) | 28 §E; 08 (surface); research `30` sub-fases 3.1–3.3 |
 | `Outline view Notion` | 24 §14 |
 | `Pauserule` | 24 §5 |
 | `Plan` (estrutura) | 12 §3 |
@@ -395,6 +395,12 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `ResearchRunStatus` (`running`/`completed`/`needing_human` fail-safe) | 10 §10; research `30` sub-fase 3.0 |
 | `ConsensusDimension` (`community`/`enterprise`/`academic`/`official`) | 10 §5; research `30` sub-fase 3.0 |
 | `ConsensusScorer` (trait, `MIN_SOURCES=3` no-data floor) + `ConsensusScore` (0..100 + referencias) | 10 §5; research `30` sub-fase 3.0 |
+| `CommunityScorer`/`EnterpriseScorer`/`AcademicScorer`/`OfficialScorer` (scorers deterministas por dimensión, kind-relevance) + `score_all` + `top_reference` | 10 §5; research `30` sub-fase 3.3 |
+| `prefilter_sources` (weak-model pre-filter determinista A.4: dedupe + drop ruido) + `classify_source_kind` (host → kind) | 10 §5; research `30` sub-fase 3.3 |
+| `HANDS_ON_WEIGHT` (×1.5) + `hands_on_weight()` + `HANDS_ON_KIND` (evidencia experta RFC 10 §3) | 10 §3; research `30` sub-fase 3.3 |
+| `FAIL_SAFE_CONFIDENCE` (0.6) + `apply_fail_safe()` (→ `needing_human`, anti-alucinación RFC 10 §10) | 10 §10; research `30` sub-fase 3.3 |
+| `DimensionOutcome` + `ReportSections` + `build_report()` (YAML canónico RFC 10 §7) | 10 §7; research `30` sub-fase 3.3 |
+| `atlas research query` (collective run completo: `gh` + arXiv + docs gateway + `--source`/`--hands-on`, YAML a stdout, run en M25) | 08 CLI; 10 §5/§7; research `30` sub-fase 3.3 |
 | `DocsGateway` (Context7Max adapter, `ATLAS_CTX7MAX_URL`/`ctx7max` → Context7 MCP → official docs, `from_env`/`query_docs`) + `DocSnippet` (verbatim code hit) + `DocsBackend` | 10 §6; research `30` sub-fase 3.1 |
 | `combined_confidence` (media ponderada, hands-on ×1.5) | 10 §3/§5; research `30` sub-fase 3.0 |
 | `IngestedDocument` (Markdown + provenance `format`/`bytes`/`title`) + `DocFormat` (`Markdown`/`PlainText`/`Csv`/`Pdf`/`PandocAssisted`) + `IngestError` (`UnsupportedFormat`/`ExternalToolMissing`/…) | 10 §6; research `30` sub-fase 3.2 |
