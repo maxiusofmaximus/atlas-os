@@ -390,6 +390,13 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `WinRT AppointmentManager rejected` (capability `appointmentsSystem`) | 28 §G.1; 22 §12 (Round 5) |
 | `ProjectSymbolTable` | 03 §9.4 |
 | `probe_feasibility` | 10 §11; 23 §2.2 |
+| `ResearchRunReport` (YAML canónico RFC 10 §7, `validate()` 0..1) | 10 §7; research `30` sub-fase 3.0 |
+| `ResearchRunKind` (`Full`/`Targeted`/`Mega`, `as_str`/`parse` round-trip) | 10 §1; research `30` sub-fase 3.0 |
+| `ResearchRunStatus` (`running`/`completed`/`needing_human` fail-safe) | 10 §10; research `30` sub-fase 3.0 |
+| `ConsensusDimension` (`community`/`enterprise`/`academic`/`official`) | 10 §5; research `30` sub-fase 3.0 |
+| `ConsensusScorer` (trait, `MIN_SOURCES=3` no-data floor) + `ConsensusScore` (0..100 + referencias) | 10 §5; research `30` sub-fase 3.0 |
+| `combined_confidence` (media ponderada, hands-on ×1.5) | 10 §3/§5; research `30` sub-fase 3.0 |
+| `M25` migration (`research_sources` + `research_consensus`, `status`/`recommended` en `research_runs`) | 10 §7; research `30` sub-fase 3.0 |
 | `Prompt Understanding Pipeline` | 23 §2 |
 | `PublicUnderstandingVerdict` | 23 §3 |
 | `Reasoning trails` (n8n-stile) | 24 §13 |

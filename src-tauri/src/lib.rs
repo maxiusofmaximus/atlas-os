@@ -20,6 +20,7 @@ pub mod planning;
 pub mod profiles;
 pub mod prompt;
 pub mod repair;
+pub mod research;
 pub mod skills;
 pub mod supervisor;
 #[cfg(feature = "toast")]

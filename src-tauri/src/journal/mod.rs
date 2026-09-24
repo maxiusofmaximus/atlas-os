@@ -10,6 +10,7 @@ pub mod learning_graphs;
 #[cfg(feature = "dag_mode")]
 pub mod mission_graph;
 pub mod model_resets;
+pub mod research;
 pub mod schema;
 pub mod store;
 pub mod yaml_format;
@@ -23,6 +24,8 @@ pub use learning_graphs::{LearningGraphRow, ScoredGraph};
 pub use agent_events::AgentSessionEventRow;
 
 pub use model_resets::ModelResetRow;
+
+pub use research::{ResearchConsensusRow, ResearchRunRow, ResearchSourceRow};
 
 pub use store::{
     AuditEntry, CheckpointRow, ConsolidatedRow, DiffAnnotationRow, DiffRow, JournalEntry, Mission,

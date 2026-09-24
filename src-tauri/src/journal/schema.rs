@@ -14,7 +14,7 @@ use rusqlite::Connection;
 /// log and must never be renumbered. When adding M(N+1): bump this const
 /// AND change the final migration's `params![N, …]` to
 /// `params![CURRENT_SCHEMA_VERSION, …]` (same value).
-pub const CURRENT_SCHEMA_VERSION: i64 = 24;
+pub const CURRENT_SCHEMA_VERSION: i64 = 25;
 
 pub fn migrate(conn: &Connection) -> Result<()> {
     // M0 — Schema versioning.
@@ -1202,8 +1202,71 @@ pub fn migrate(conn: &Connection) -> Result<()> {
         )?;
         conn.execute(
             "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![24, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
+    if current < 25 {
+        // M25 — RFC 10 Phase 3 sub-fase 3.0 Foundation:
+        //
+        //   * `research_runs` gains `status` (`running` | `completed` |
+        //     `needing_human`, RFC 10 §10 fail-safe) and `recommended`
+        //     (the winning branch id, RFC 10 §7). Both are nullable so
+        //     pre-3.0 rows (M1 shape) keep reading untouched; new rows
+        //     written by `journal::research` fill them. Added
+        //     conditionally via `PRAGMA table_info` so the migration is
+        //     idempotent on databases that already carry the columns.
+        //   * `research_sources` — one row per evidence hit of a run
+        //     (`kind` ∈ documentation | github | paper | web | document
+        //     | community, `score` 0..1 pre-filter weight, `fetched_at`
+        //     RFC3339). `id` is a uuid v4 string; replays use
+        //     `ON CONFLICT DO NOTHING` at the writer layer.
+        //   * `research_consensus` — one row per `(run_id, dimension)`
+        //     with the 0..100 dimension score plus a free-form `note`
+        //     (cited references live in the YAML report payload, RFC 10
+        //     §7). Composite PK makes the writer `INSERT OR REPLACE`
+        //     idempotent — re-scoring a dimension overwrites, never
+        //     duplicates.
+        if !table_has_column(conn, "research_runs", "status") {
+            conn.execute_batch("ALTER TABLE research_runs ADD COLUMN status TEXT;")?;
+        }
+        if !table_has_column(conn, "research_runs", "recommended") {
+            conn.execute_batch("ALTER TABLE research_runs ADD COLUMN recommended TEXT;")?;
+        }
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS research_sources (
+                id          TEXT PRIMARY KEY,
+                run_id      TEXT NOT NULL REFERENCES research_runs(id),
+                kind        TEXT NOT NULL,
+                url         TEXT NOT NULL,
+                score       REAL,
+                fetched_at  TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_research_sources_run
+                ON research_sources(run_id);
+
+            CREATE TABLE IF NOT EXISTS research_consensus (
+                run_id      TEXT NOT NULL REFERENCES research_runs(id),
+                dimension   TEXT NOT NULL CHECK (dimension IN
+                    ('community','enterprise','academic','official')),
+                score       REAL NOT NULL CHECK (score BETWEEN 0.0 AND 100.0),
+                note        TEXT,
+                PRIMARY KEY (run_id, dimension)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_research_consensus_run
+                ON research_consensus(run_id);",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
             rusqlite::params![CURRENT_SCHEMA_VERSION, chrono::Utc::now().to_rfc3339()],
         )?;
     }
     Ok(())
+}
+
+fn table_has_column(conn: &Connection, table: &str, column: &str) -> bool {
+    let sql = format!("SELECT name FROM pragma_table_info('{table}') WHERE name = ?1");
+    conn.query_row(&sql, rusqlite::params![column], |_| Ok(()))
+        .is_ok()
 }
