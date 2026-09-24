@@ -14,7 +14,7 @@ use rusqlite::Connection;
 /// log and must never be renumbered. When adding M(N+1): bump this const
 /// AND change the final migration's `params![N, …]` to
 /// `params![CURRENT_SCHEMA_VERSION, …]` (same value).
-pub const CURRENT_SCHEMA_VERSION: i64 = 26;
+pub const CURRENT_SCHEMA_VERSION: i64 = 27;
 
 pub fn migrate(conn: &Connection) -> Result<()> {
     // M0 — Schema versioning.
@@ -1296,6 +1296,37 @@ pub fn migrate(conn: &Connection) -> Result<()> {
 
             CREATE INDEX IF NOT EXISTS idx_research_notes_attached
                 ON research_notes(attached_at);",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![26, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
+    if current < 27 {
+        // M27 — RFC 10 Phase 3 sub-fase 3.5 probe_feasibility cache:
+        //
+        //   * `feasibility_cache` — one row per normalised probe
+        //     (`cache_key` = lowercased topic + sorted domain tags, see
+        //     `research::feasibility::cache_key`). `report_json` carries the
+        //     full `FeasibilityReport` so a repeated prompt reuses the
+        //     verdict without re-hitting the registries; `created_at`
+        //     (RFC3339) drives the 12-day TTL check
+        //     (`research::feasibility::is_cache_fresh`, RFC 10 §11.6).
+        //     Writes are `INSERT OR REPLACE` — a fresh probe overwrites a
+        //     stale row for the same key (first write does NOT win here,
+        //     unlike `research_notes`: the cache must converge on the
+        //     newest evidence).
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS feasibility_cache (
+                cache_key   TEXT PRIMARY KEY,
+                topic       TEXT NOT NULL,
+                domains     TEXT NOT NULL,
+                report_json TEXT NOT NULL,
+                created_at  TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_feasibility_cache_created
+                ON feasibility_cache(created_at);",
         )?;
         conn.execute(
             "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",

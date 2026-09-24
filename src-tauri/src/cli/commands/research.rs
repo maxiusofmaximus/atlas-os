@@ -1,7 +1,6 @@
 // Atlas OS — `atlas research` subcommand (RFC 28 Section E, RFC 10 §6).
 //
 // Four surfaces share one subcommand:
-//
 //   * `opencode research docs <library> "<question>" [--limit N]`
 //     (Phase 3 sub-fase 3.1, always compiled — the docs gateway needs
 //     no new crate: Context7Max CLI/API externa plus Context7 MCP and
@@ -25,6 +24,11 @@
 //     (Phase 3 sub-fase 3.4, always compiled — RFC 10 §4 Opción A/B/C
 //     rebuilt from the run's persisted sources + consensus + notes).
 //     Prints one JSON object with the branches and proposal lines.
+//   * `opencode research feasibility "<topic>" [--domain D,…]`
+//     (Phase 3 sub-fase 3.5, always compiled — RFC 10 §11
+//     `probe_feasibility`: the single-domain probe shape fanned out over
+//     a comma-separated `--domain` list, §11.3 gate, 12-day M27 cache,
+//     §10 fail-safe. Prints the §11.8 human-readable block to stdout.)
 //   * `opencode research ingest <file> [--run-id ID] [--raw]`
 //     (Phase 3 sub-fase 3.2, gated behind the `doc-ingest` Cargo
 //     feature, default off — dependency-free minimal parser plus
@@ -88,6 +92,12 @@ pub enum ResearchSub {
     /// sub-fase 3.4) for a persisted run from its sources + consensus +
     /// hands-on notes. Prints one JSON object to stdout.
     Branches(BranchesArgs),
+    /// Verify edge-case capability before the system believes "sí se
+    /// puede" (RFC 10 §11, sub-fase 3.5): probe registries per domain,
+    /// apply the §11.3 gate, reuse the 12-day M27 cache on repeat
+    /// prompts, and fail safe to `needing_human` (RFC 10 §10). Prints
+    /// the §11.8 human-readable block to stdout.
+    Feasibility(FeasibilityArgs),
     /// Ingest a local document (md/txt/csv/pdf natively; office/epub/
     /// rtf via opt-in external `pandoc`) into Markdown and print one
     /// JSON line. With `--run-id`, also appends a `document` row to
@@ -189,6 +199,32 @@ pub struct BranchesArgs {
     /// (Context Engine Project Map summary when available).
     #[arg(long)]
     pub project_hint: Option<String>,
+}
+
+#[derive(Args, Debug)]
+pub struct FeasibilityArgs {
+    /// Edge-case capability to verify, e.g. "casas con impresora 3D"
+    /// (RFC 10 §11.1 `topic`).
+    pub topic: String,
+    /// Comma-separated domains: software,hardware,academic,vendor.
+    /// Empty means all four (RFC 10 §11.2).
+    #[arg(long, default_value = "")]
+    pub domain: String,
+    /// Gate floor: distinct sources required (default 3, RFC 10 §11.3).
+    #[arg(long, default_value_t = 3)]
+    pub min_sources: u8,
+    /// Fail the probe when no artifact evidence was fetched.
+    #[arg(long)]
+    pub require_artifact_evidence: bool,
+    /// Max live hits per domain collector (default 5).
+    #[arg(short = 'n', long, default_value_t = 5)]
+    pub limit: u8,
+    /// Probe id. Defaults to `fp-YYYYMMDD-<8hex>`.
+    #[arg(long)]
+    pub probe_id: Option<String>,
+    /// Skip the 12-day M27 cache and probe live registries.
+    #[arg(long)]
+    pub no_cache: bool,
 }
 
 #[derive(Args, Debug)]
@@ -299,6 +335,7 @@ pub async fn run(cmd: ResearchCmd, profile: &str) -> Result<()> {
         ResearchSub::Query(a) => run_query(a, profile).await,
         ResearchSub::Note(a) => run_note(a, profile).await,
         ResearchSub::Branches(a) => run_branches(a, profile).await,
+        ResearchSub::Feasibility(a) => run_feasibility(a, profile).await,
         #[cfg(feature = "doc-ingest")]
         ResearchSub::Ingest(a) => run_ingest(a, profile).await,
         #[cfg(feature = "firecrawl")]
@@ -677,6 +714,119 @@ fn open_research_journal(profile: &str) -> Result<crate::journal::Journal> {
     crate::journal::Journal::open(&root)
 }
 
+async fn run_feasibility(a: FeasibilityArgs, profile: &str) -> Result<()> {
+    use crate::research::{
+        cache_key, fail_safe_status, is_cache_fresh, metrics_for, mint_probe_id, parse_domains,
+        probe_feasibility, FeasibilityDomain,
+    };
+
+    let topic = a.topic.trim();
+    if topic.is_empty() {
+        anyhow::bail!("research feasibility: topic must not be empty");
+    }
+    if a.min_sources == 0 {
+        anyhow::bail!("research feasibility: --min-sources must be >= 1");
+    }
+    let domains: Vec<FeasibilityDomain> =
+        parse_domains(&a.domain).map_err(|e| anyhow::anyhow!("research feasibility: {e}"))?;
+    let probe_id = match a.probe_id.as_deref().map(str::trim) {
+        Some(id) if !id.is_empty() => id.to_string(),
+        _ => mint_probe_id(),
+    };
+    let key = cache_key(topic, &domains);
+    let domain_tag = domains
+        .iter()
+        .map(|d| d.as_str().to_string())
+        .collect::<Vec<_>>()
+        .join(",");
+
+    if !a.no_cache {
+        if let Ok(journal) = open_research_journal(profile) {
+            if let Ok(Some((cached, created_at))) = journal.get_feasibility_report(&key) {
+                let now = chrono::Utc::now().to_rfc3339();
+                if is_cache_fresh(&created_at, &now) {
+                    print_feasibility(&cached);
+                    eprintln!(
+                        "research feasibility: probe {probe_id} cache hit (key {key}, age within 12d TTL)"
+                    );
+                    return Ok(());
+                }
+            }
+        }
+    }
+
+    let started = std::time::Instant::now();
+    let mut report = probe_feasibility(&probe_id, topic, &domains, a.min_sources, a.limit).await;
+    if a.require_artifact_evidence && report.artifact_evidence.is_empty() {
+        report.found = false;
+        if !report
+            .red_flags
+            .iter()
+            .any(|f| f.contains("no artifact evidence"))
+        {
+            report.red_flags.push("no artifact evidence".to_string());
+            report.red_flags.sort();
+        }
+        report.confidence = 0.0;
+        report.recommended_next_step = format!(
+            "bloquear el avance y pedir confirmación del usuario (RFC 23 §5) \
+             antes de creer que '{topic}' existe: --require-artifact-evidence \
+             sin evidencia. Sin evidencia no hay output (RFC 10 §10 fail-safe)."
+        );
+    }
+    report
+        .validate()
+        .map_err(|e| anyhow::anyhow!("research feasibility: {e}"))?;
+    let status = fail_safe_status(&report);
+    let metrics = metrics_for(&report, started.elapsed().as_millis() as u64);
+
+    if let Ok(journal) = open_research_journal(profile) {
+        let _ = journal.save_feasibility_report(&key, topic, &domain_tag, &report);
+    }
+
+    print_feasibility(&report);
+    eprintln!(
+        "research feasibility: probe {probe_id} status={} confidence={:.2} evidence={} red_flags={} elapsed_ms={} (floor {})",
+        status.as_str(),
+        report.confidence,
+        metrics.evidence_count,
+        metrics.red_flag_count,
+        metrics.elapsed_ms,
+        crate::research::FAIL_SAFE_CONFIDENCE,
+    );
+    Ok(())
+}
+
+fn print_feasibility(report: &crate::research::FeasibilityReport) {
+    println!("Found: {}", report.found);
+    println!("Confidence: {:.2}", report.confidence);
+    println!("Evidence:");
+    if report.artifact_evidence.is_empty() {
+        println!("  [none]");
+    }
+    for (i, e) in report.artifact_evidence.iter().enumerate() {
+        let extra = match (e.stars_or_stargazers, e.last_release_at.as_deref()) {
+            (Some(s), Some(r)) => format!(" ({s} stars, last release {r})"),
+            (Some(s), None) => format!(" ({s} stars)"),
+            (None, Some(r)) => format!(" (last release {r})"),
+            (None, None) => String::new(),
+        };
+        println!(
+            "  [{}] {} ({}, fetched {}){extra}",
+            i + 1,
+            e.url,
+            e.kind.as_str(),
+            e.fetched_at
+        );
+    }
+    if report.red_flags.is_empty() {
+        println!("Red flags: [none]");
+    } else {
+        println!("Red flags: [{}]", report.red_flags.join("; "));
+    }
+    println!("Recommended: {}", report.recommended_next_step);
+}
+
 #[cfg(feature = "doc-ingest")]
 async fn run_ingest(a: IngestArgs, profile: &str) -> Result<()> {
     let doc = crate::research::ingest::ingest_file(&a.file)
@@ -864,7 +1014,9 @@ mod tests {
                 assert_eq!(a.limit, 5);
             }
             ResearchSub::Query(_) => panic!("expected Docs"),
-            ResearchSub::Note(_) | ResearchSub::Branches(_) => panic!("expected Docs"),
+            ResearchSub::Note(_) | ResearchSub::Branches(_) | ResearchSub::Feasibility(_) => {
+                panic!("expected Docs")
+            }
             #[cfg(feature = "doc-ingest")]
             ResearchSub::Ingest(_) => panic!("expected Docs"),
             #[cfg(feature = "firecrawl")]
@@ -886,7 +1038,9 @@ mod tests {
         match cli.action {
             ResearchSub::Docs(a) => assert_eq!(a.limit, 3),
             ResearchSub::Query(_) => panic!("expected Docs"),
-            ResearchSub::Note(_) | ResearchSub::Branches(_) => panic!("expected Docs"),
+            ResearchSub::Note(_) | ResearchSub::Branches(_) | ResearchSub::Feasibility(_) => {
+                panic!("expected Docs")
+            }
             #[cfg(feature = "doc-ingest")]
             ResearchSub::Ingest(_) => panic!("expected Docs"),
             #[cfg(feature = "firecrawl")]
@@ -1095,7 +1249,9 @@ mod tests {
                 assert_eq!(a.min_confidence, None);
             }
             ResearchSub::Docs(_) => panic!("expected Query"),
-            ResearchSub::Note(_) | ResearchSub::Branches(_) => panic!("expected Query"),
+            ResearchSub::Note(_) | ResearchSub::Branches(_) | ResearchSub::Feasibility(_) => {
+                panic!("expected Query")
+            }
             #[cfg(feature = "doc-ingest")]
             ResearchSub::Ingest(_) => panic!("expected Query"),
             #[cfg(feature = "firecrawl")]
@@ -1138,7 +1294,9 @@ mod tests {
                 assert_eq!(a.min_confidence, Some(0.7));
             }
             ResearchSub::Docs(_) => panic!("expected Query"),
-            ResearchSub::Note(_) | ResearchSub::Branches(_) => panic!("expected Query"),
+            ResearchSub::Note(_) | ResearchSub::Branches(_) | ResearchSub::Feasibility(_) => {
+                panic!("expected Query")
+            }
             #[cfg(feature = "doc-ingest")]
             ResearchSub::Ingest(_) => panic!("expected Query"),
             #[cfg(feature = "firecrawl")]
@@ -1244,5 +1402,60 @@ mod tests {
     fn parse_branches_requires_run_id() {
         let r = TestCli::try_parse_from(["test", "branches"]);
         assert!(r.is_err(), "branches without run-id must error");
+    }
+
+    #[test]
+    fn parse_feasibility_subcmd_defaults() {
+        let cli =
+            TestCli::try_parse_from(["test", "feasibility", "casas con impresora 3D"]).unwrap();
+        match cli.action {
+            ResearchSub::Feasibility(a) => {
+                assert_eq!(a.topic, "casas con impresora 3D");
+                assert_eq!(a.domain, "");
+                assert_eq!(a.min_sources, 3);
+                assert!(!a.require_artifact_evidence);
+                assert_eq!(a.limit, 5);
+                assert_eq!(a.probe_id, None);
+                assert!(!a.no_cache);
+            }
+            _ => panic!("expected Feasibility"),
+        }
+    }
+
+    #[test]
+    fn parse_feasibility_with_domains_and_flags() {
+        let cli = TestCli::try_parse_from([
+            "test",
+            "feasibility",
+            "casas con impresora 3D",
+            "--domain",
+            "hardware,vendor,academic",
+            "--min-sources",
+            "2",
+            "--require-artifact-evidence",
+            "--limit",
+            "3",
+            "--probe-id",
+            "fp-2026-07-13-00000001",
+            "--no-cache",
+        ])
+        .unwrap();
+        match cli.action {
+            ResearchSub::Feasibility(a) => {
+                assert_eq!(a.domain, "hardware,vendor,academic");
+                assert_eq!(a.min_sources, 2);
+                assert!(a.require_artifact_evidence);
+                assert_eq!(a.limit, 3);
+                assert_eq!(a.probe_id.as_deref(), Some("fp-2026-07-13-00000001"));
+                assert!(a.no_cache);
+            }
+            _ => panic!("expected Feasibility"),
+        }
+    }
+
+    #[test]
+    fn parse_feasibility_requires_topic() {
+        let r = TestCli::try_parse_from(["test", "feasibility"]);
+        assert!(r.is_err(), "feasibility without topic must error");
     }
 }

@@ -1,6 +1,6 @@
-// Atlas OS — Research runs persistence (RFC 10, Phase 3 sub-fases 3.0 + 3.4,
+// Atlas OS — Research runs persistence (RFC 10, Phase 3 sub-fases 3.0 + 3.4 + 3.5,
 // M25 `research_runs` / `research_sources` / `research_consensus` + M26
-// `research_notes`).
+// `research_notes` + M27 `feasibility_cache`).
 //
 // Same JSON-blob-adjacent pattern as the other Journal writers: the
 // canonical `ResearchRunReport` YAML (RFC 10 §7) is the source of
@@ -295,6 +295,50 @@ impl crate::journal::Journal {
         )?;
         Ok(())
     }
+
+    pub fn save_feasibility_report(
+        &self,
+        cache_key: &str,
+        topic: &str,
+        domains: &str,
+        report: &crate::research::FeasibilityReport,
+    ) -> anyhow::Result<()> {
+        report
+            .validate()
+            .map_err(|e| anyhow::anyhow!("feasibility report invalid: {e}"))?;
+        let json = serde_json::to_string(report)?;
+        let conn = self.conn.lock();
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT OR REPLACE INTO feasibility_cache
+                (cache_key, topic, domains, report_json, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params![cache_key, topic, domains, json, now],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_feasibility_report(
+        &self,
+        cache_key: &str,
+    ) -> anyhow::Result<Option<(crate::research::FeasibilityReport, String)>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT report_json, created_at FROM feasibility_cache WHERE cache_key = ?1",
+        )?;
+        let mut rows = stmt.query_map(rusqlite::params![cache_key], |row| {
+            let json: String = row.get(0)?;
+            let created_at: String = row.get(1)?;
+            Ok((json, created_at))
+        })?;
+        match rows.next().transpose()? {
+            Some((json, created_at)) => {
+                let report: crate::research::FeasibilityReport = serde_json::from_str(&json)?;
+                Ok(Some((report, created_at)))
+            }
+            None => Ok(None),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -477,5 +521,70 @@ mod tests {
         let entries = j.tail(10).unwrap();
         let found = entries.iter().filter(|e| e.kind == "research_run").count();
         assert_eq!(found, 1, "journal_ref must appear once in the audit tail");
+    }
+
+    #[test]
+    fn feasibility_cache_roundtrips_and_refreshes() {
+        use crate::research::{ArtifactEvidence, ArtifactKind, FeasibilityReport};
+        let (_d, j) = fresh();
+        assert!(j.get_feasibility_report("missing").unwrap().is_none());
+        let report = FeasibilityReport {
+            probe_id: "fp-2026-07-13-00000001".into(),
+            topic: "casas con impresión 3D".into(),
+            found: true,
+            artifact_evidence: vec![ArtifactEvidence::new(
+                ArtifactKind::VendorProduct,
+                "https://iconbuild.com/vulcan",
+            )],
+            confidence: 0.67,
+            red_flags: Vec::new(),
+            recommended_next_step: "confirmar con el usuario".into(),
+        };
+        j.save_feasibility_report(
+            "casas|hardware,vendor",
+            &report.topic,
+            "hardware,vendor",
+            &report,
+        )
+        .unwrap();
+        let (back, created_at) = j
+            .get_feasibility_report("casas|hardware,vendor")
+            .unwrap()
+            .expect("cached");
+        assert_eq!(back, report);
+        assert!(!created_at.is_empty());
+        let mut newer = report.clone();
+        newer.confidence = 0.71;
+        j.save_feasibility_report(
+            "casas|hardware,vendor",
+            &newer.topic,
+            "hardware,vendor",
+            &newer,
+        )
+        .unwrap();
+        let (back2, _) = j
+            .get_feasibility_report("casas|hardware,vendor")
+            .unwrap()
+            .expect("cached");
+        assert_eq!(back2.confidence, 0.71);
+    }
+
+    #[test]
+    fn feasibility_cache_rejects_invalid_report() {
+        use crate::research::FeasibilityReport;
+        let (_d, j) = fresh();
+        let bad = FeasibilityReport {
+            probe_id: "fp-x".into(),
+            topic: "x".into(),
+            found: false,
+            artifact_evidence: Vec::new(),
+            confidence: 2.0,
+            red_flags: vec!["no artifact evidence".into()],
+            recommended_next_step: "bloquear".into(),
+        };
+        assert!(j
+            .save_feasibility_report("k", "x", "software", &bad)
+            .is_err());
+        assert!(j.get_feasibility_report("k").unwrap().is_none());
     }
 }
