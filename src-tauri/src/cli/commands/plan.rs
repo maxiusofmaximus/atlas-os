@@ -54,5 +54,22 @@ pub async fn run(cmd: PlanCmd, profile: &str) -> Result<()> {
     } else {
         println!("  next: `opencode run {mid}` once the Coding Engine is wired (Phase 1.5).");
     }
+    let grill = crate::planning::grill_plan(&plan);
+    if grill.question_count == 0 {
+        println!("  grill: pass, no open questions (skill grill-me).");
+    } else {
+        println!(
+            "  grill: {} question(s), {} blocking (skill grill-me, can_lock={}):",
+            grill.question_count, grill.blocking_count, grill.can_lock
+        );
+        for q in &grill.questions {
+            let gate = if q.blocks_lock {
+                "blocks-lock"
+            } else {
+                "advisory"
+            };
+            println!("    - {} [{}:{}] {}", q.id, q.focus, gate, q.question);
+        }
+    }
     Ok(())
 }

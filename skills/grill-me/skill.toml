@@ -1,0 +1,8 @@
+# skill.toml — `grill-me` (plan 30 §A.3, Phase 3 sub-fase 3.5)
+
+id = "grill-me"
+version = "0.1.0"
+description = "Stress-tests a locked plan with relentless branch-by-branch questions before Plan.lock. Raises Plan.confidence above the 0.7 anti-gate (RFC 12 §7)."
+capabilities = ["planning", "plan_review"]
+requires_sandbox = false
+verified = true

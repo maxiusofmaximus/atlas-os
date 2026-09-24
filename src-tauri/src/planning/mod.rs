@@ -16,8 +16,11 @@
 
 #[cfg(feature = "dag_mode")]
 pub mod graph_emitter;
+pub mod grill;
 pub mod runner;
 pub mod types;
+
+pub use grill::{grill_plan, GrillQuestion, GrillReport};
 
 pub use runner::{run, AttachedResearchRun, ClarificationAnswer, PlanningInput};
 pub use types::*;
