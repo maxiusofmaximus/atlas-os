@@ -7,6 +7,7 @@ pub mod autoresearch;
 pub mod export;
 #[cfg(feature = "dag_mode")]
 pub mod learning_graphs;
+pub mod learning_rules;
 #[cfg(feature = "dag_mode")]
 pub mod mission_graph;
 pub mod model_resets;
@@ -34,9 +35,9 @@ pub use swarm::{AgentResume, MailboxMessage, SwarmAgentRow};
 pub use user_profile::{UserProfile, UserProfileError};
 
 pub use store::{
-    AuditEntry, CheckpointRow, ConsolidatedRow, DiffAnnotationRow, DiffRow, JournalEntry, Mission,
-    ModelSwapRow, PatternRow, PlanRow, RepairRunRow, SkillRow, StepStateRow, ValidationReportRow,
-    VerdictRow,
+    AuditEntry, CheckpointRow, ConsolidatedRow, DiffAnnotationRow, DiffRow, JournalEntry,
+    LearnedRuleRow, Mission, ModelSwapRow, PatternRow, PlanRow, RepairRunRow, SkillRow,
+    StepStateRow, ValidationReportRow, VerdictRow,
 };
 
 /// RFC 04 §6 sub-fase 2.4 — one row of `model_invocations` (M21) as

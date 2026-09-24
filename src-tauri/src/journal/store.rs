@@ -206,6 +206,21 @@ pub struct StepStateRow {
     pub updated_at: String,
 }
 
+/// Row projection of `learned_rules` (M30) for the HUD rules panel
+/// (RFC 24 §3) and the 5.4 prompt hook's consultable-rules query. The
+/// `when_trigger` / `then_action` JSON blobs decode into `RuleWhen` /
+/// `RuleThen` via `Journal::learned_rule_when_then`.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LearnedRuleRow {
+    pub id: String,
+    pub priority: i64,
+    pub lifecycle: String,
+    pub was_correct: Option<i64>,
+    pub n_applied: i64,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
 /// Row projection of `diff_annotations` (M12) for the HUD drawer (RFC 27
 /// §E). Append-only; one row per annotation posted against a diff.
 #[derive(Clone, Debug, Serialize, Deserialize)]

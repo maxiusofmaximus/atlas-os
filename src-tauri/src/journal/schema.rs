@@ -14,7 +14,7 @@ use rusqlite::Connection;
 /// log and must never be renumbered. When adding M(N+1): bump this const
 /// AND change the final migration's `params![N, …]` to
 /// `params![CURRENT_SCHEMA_VERSION, …]` (same value).
-pub const CURRENT_SCHEMA_VERSION: i64 = 29;
+pub const CURRENT_SCHEMA_VERSION: i64 = 30;
 
 pub fn migrate(conn: &Connection) -> Result<()> {
     // M0 — Schema versioning.
@@ -1416,6 +1416,64 @@ pub fn migrate(conn: &Connection) -> Result<()> {
 
             CREATE INDEX IF NOT EXISTS idx_agent_mailbox_from
                 ON agent_mailbox(from_agent);",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![29, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
+    if current < 30 {
+        // M30 — RFC 32 Phase 5 sub-fase 5.0 Foundation:
+        //
+        //   * `learned_rules` — one row per promoted `Pattern.rule_id`
+        //     (RFC 16 §2 Reflection Loop, §4 auto-reglas). `id` is the
+        //     human-readable `r-YYYY-MM-DD-NNN`. `when_trigger` carries
+        //     the `RuleWhen` as JSON text; `then_action` the `RuleThen`
+        //     as JSON text (same serde shape the `learning::rules` YAML
+        //     writer emits, so YAML ↔ Journal round-trips without a
+        //     translation layer). `lifecycle` is CHECK-constrained to
+        //     the `RuleLifecycle` tags; `priority` mirrors
+        //     `RuleLifecycle::default_priority` per stage (0 / 30 / 60).
+        //     `was_correct` is nullable (NULL until the 5.1 Reflection
+        //     Engine records the first run verdict); `n_applied` counts
+        //     persisted promotions. Replays use `ON CONFLICT DO NOTHING`
+        //     at the writer layer (first write wins, RFC 02 §3.1.2).
+        //   * `compaction_events` — one row per System One compaction
+        //     (5.3 fills it; 5.0 only materialises the layout). The
+        //     writer lands with `learning::compaction`, so there is no
+        //     writer method yet — only the table + indexes.
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS learned_rules (
+                id           TEXT PRIMARY KEY,
+                when_trigger TEXT NOT NULL,
+                then_action  TEXT NOT NULL,
+                priority     INTEGER NOT NULL DEFAULT 0,
+                lifecycle    TEXT NOT NULL DEFAULT 'draft'
+                             CHECK (lifecycle IN ('draft','candidate','active','deprecated')),
+                was_correct  INTEGER,
+                n_applied    INTEGER NOT NULL DEFAULT 0,
+                created_at   TEXT NOT NULL,
+                updated_at   TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_learned_rules_lifecycle
+                ON learned_rules(lifecycle);
+
+            CREATE INDEX IF NOT EXISTS idx_learned_rules_priority
+                ON learned_rules(priority);
+
+            CREATE TABLE IF NOT EXISTS compaction_events (
+                id             TEXT PRIMARY KEY,
+                mission_id     TEXT NOT NULL,
+                entries_before INTEGER NOT NULL,
+                entries_after  INTEGER NOT NULL,
+                summary        TEXT NOT NULL,
+                model_id       TEXT NOT NULL,
+                created_at     TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_compaction_events_mission
+                ON compaction_events(mission_id);",
         )?;
         conn.execute(
             "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
