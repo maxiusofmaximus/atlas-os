@@ -455,6 +455,8 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Tower-LSP` | 25 §3.6 |
 | `Worktree own per subagent` | 05 §3; 24 §12; 25 §3.2 |
 | `WorktreeManager` (git CLI via `std::process`, sin `git2`) | 05 §4; research `31` sub-fase 4.0 |
+| `SwarmRunner` (pool dispatch por rol + topología RFC 05 §2 + checkpoint por agente) | 05 §2/§4/§5; research `31` sub-fase 4.2 |
+| `FileLockRegistry` (locks determinísticos + caps `max_agents`/`max_files`, RFC 05 §8) | 05 §4/§8; research `31` sub-fase 4.2 |
 | `Worktrees view` | 24 §12 |
 | `Zag Nano Stores` | 25 §3.3 |
 
