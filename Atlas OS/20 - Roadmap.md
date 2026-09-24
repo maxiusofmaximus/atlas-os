@@ -138,10 +138,23 @@ Plan refinado en `Atlas OS/research/31 - Phase 4 swarm.md` (6 sub-fases atómica
 Entregable: 10 agentes cooperan en una mission. **Phase 4 COMPLETA** — M29 registry + presets + pool paralelo + mailbox + rebase + Swarm Console. KPI: latencia end-to-end UI <100ms (RFC 20); re-ingresos sin perder trabajo 100%.
 
 ## Fase 5 — Learning + Compression
-- Reflection Engine formal (de errores → reglas).
-- Compresión de Skills.
-- Auto-reglas `.opencode/rules/`.
-- Ajuste dinámico de prompts.
+
+Plan refinado en `Atlas OS/research/32 - Phase 5 learning + compression.md` (5 sub-fases atómicas, commits no PRs). Evidencia: RFC 30 (System One compaction — fast-jev-compaction pattern), RFC 16 §4/§5 (YAML rules + ajuste dinámico). Gestión: trabajo mecánico pesado delegado a muse-spark-1.3; judgment en el gestor.
+
+### Sub-fase 5.0 — Foundation
+- M30 migration `learned_rules`/`compaction_events` + writer/loader YAML `.opencode/rules/` (RFC 16 §4) + `Journal::{save/promote/deprecate}_rule`.
+
+### Sub-fase 5.1 — Reflection Engine formal
+- Loop error→root cause→regla (dedup por firma) + promoción draft→verified con `was_correct` + deprecate stale + CLI `atlas learn rules/promote/deprecate`.
+
+### Sub-fase 5.2 — Compresión de Skills (RFC 06 §5)
+- Similitud Jaccard determinista (sin embeddings obligatorios) + fusión dry-run/--apply + CLI `atlas skills compress`.
+
+### Sub-fase 5.3 — System One compaction
+- Compaction de history por rolling window (stub determinista, wiring weak_model como follow-up) → `compaction_events` + CLI `atlas learn compact/summary`.
+
+### Sub-fase 5.4 — Ajuste dinámico de prompts (RFC 16 §5)
+- Hook en prompt/runner que inyecta hints desde `learned_rules` consultables (match por trigger).
 
 Entregable: el editor **mejora solo** según el uso.
 
