@@ -14,7 +14,7 @@ use rusqlite::Connection;
 /// log and must never be renumbered. When adding M(N+1): bump this const
 /// AND change the final migration's `params![N, …]` to
 /// `params![CURRENT_SCHEMA_VERSION, …]` (same value).
-pub const CURRENT_SCHEMA_VERSION: i64 = 25;
+pub const CURRENT_SCHEMA_VERSION: i64 = 26;
 
 pub fn migrate(conn: &Connection) -> Result<()> {
     // M0 — Schema versioning.
@@ -1256,6 +1256,46 @@ pub fn migrate(conn: &Connection) -> Result<()> {
 
             CREATE INDEX IF NOT EXISTS idx_research_consensus_run
                 ON research_consensus(run_id);",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![25, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
+    if current < 26 {
+        // M26 — RFC 10 Phase 3 sub-fase 3.4 Hands-on + ramas:
+        //
+        //   * `research_notes` — one row per operator-attached closed case
+        //     (RFC 10 §3 "esto yo lo hice así (profesionalmente)": title,
+        //     project, decision, outcome, confidence 0..1, tags as a JSON
+        //     array string, attached_at RFC3339, signature). `id` is a
+        //     `rn-…` string; replays use `ON CONFLICT DO NOTHING` at the
+        //     writer layer (first write wins, RFC 02 §3.1.2). CHECK on
+        //     `confidence` keeps the 0..1 invariant at the SQL layer so a
+        //     hand-edited DB cannot smuggle an out-of-range weight into
+        //     the ×1.5 fold. Application branches (RFC 10 §4 Opción A/B/C)
+        //     are DERIVED per run via `research::hands_on::build_branches`
+        //     and rendered into the report `proposal:` lines — they are not
+        //     a table because they join live consensus + notes + project
+        //     hint at query time. The per-run `journal_ref` (`jr-…`,
+        //     RFC 10 §7) is a `journal_events` row (`kind='research_run'`,
+        //     `event_id=journal_ref`) so `journal tail` audits it.
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS research_notes (
+                id          TEXT PRIMARY KEY,
+                title       TEXT NOT NULL,
+                project     TEXT,
+                decision    TEXT NOT NULL,
+                outcome     TEXT,
+                confidence  REAL NOT NULL CHECK (confidence BETWEEN 0.0 AND 1.0),
+                tags_json   TEXT NOT NULL DEFAULT '[]',
+                attached_at TEXT NOT NULL,
+                signature   TEXT NOT NULL,
+                created_at  TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_research_notes_attached
+                ON research_notes(attached_at);",
         )?;
         conn.execute(
             "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",

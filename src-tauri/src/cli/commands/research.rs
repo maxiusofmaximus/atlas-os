@@ -11,7 +11,20 @@
 //     (Phase 3 sub-fase 3.3, always compiled — the four dimension
 //     scorers plus the weak-model pre-filter and the fail-safe are
 //     dependency-free; live collectors degrade to "no data").
-//     Prints the canonical RFC 10 §7 YAML report to stdout.
+//     Prints the canonical RFC 10 §7 YAML report to stdout. Since
+//     sub-fase 3.4 every run also mints a `journal_ref` (`jr-…`,
+//     auditable via `journal tail`) and renders the `proposal:` lines
+//     from the Opción A/B/C `build_branches` (persisted hands-on notes
+//     included, expert backing cited).
+//   * `opencode research note --title T --decision D [--project P]`
+//     `[--outcome O] [--confidence C] [--tags "a, b"] [--signature S]`
+//     (Phase 3 sub-fase 3.4, always compiled — RFC 10 §3 expert
+//     evidence persisted to M26 `research_notes`, first write wins).
+//     Prints the saved note as one JSON line.
+//   * `opencode research branches --run-id ID [--project-hint H]`
+//     (Phase 3 sub-fase 3.4, always compiled — RFC 10 §4 Opción A/B/C
+//     rebuilt from the run's persisted sources + consensus + notes).
+//     Prints one JSON object with the branches and proposal lines.
 //   * `opencode research ingest <file> [--run-id ID] [--raw]`
 //     (Phase 3 sub-fase 3.2, gated behind the `doc-ingest` Cargo
 //     feature, default off — dependency-free minimal parser plus
@@ -67,6 +80,14 @@ pub enum ResearchSub {
     /// arXiv API, docs gateway) plus explicit `--source` / `--hands-on`
     /// URLs. The run is persisted to the Journal when it opens.
     Query(QueryArgs),
+    /// Attach a hands-on expert case (RFC 10 §3, sub-fase 3.4): a closed
+    /// real-world decision that weighs ×1.5 against literature in every
+    /// future branch build. Persisted to M26 `research_notes`.
+    Note(NoteArgs),
+    /// Rebuild the Opción A/B/C application branches (RFC 10 §4,
+    /// sub-fase 3.4) for a persisted run from its sources + consensus +
+    /// hands-on notes. Prints one JSON object to stdout.
+    Branches(BranchesArgs),
     /// Ingest a local document (md/txt/csv/pdf natively; office/epub/
     /// rtf via opt-in external `pandoc`) into Markdown and print one
     /// JSON line. With `--run-id`, also appends a `document` row to
@@ -128,6 +149,46 @@ pub struct QueryArgs {
     /// `needing_human`.
     #[arg(long)]
     pub min_confidence: Option<f64>,
+}
+
+#[derive(Args, Debug)]
+pub struct NoteArgs {
+    /// Short case title, e.g. "Lo hice así en producción" (RFC 10 §3).
+    #[arg(long)]
+    pub title: String,
+    /// The decision taken in that closed case, e.g. "Event Sourcing + Kafka".
+    #[arg(long)]
+    pub decision: String,
+    /// Project where it happened, e.g. "fintech X".
+    #[arg(long)]
+    pub project: Option<String>,
+    /// What happened, e.g. "exitoso pero costoso en ops".
+    #[arg(long)]
+    pub outcome: Option<String>,
+    /// Self-reported confidence 0.0..=1.0 (default 0.8).
+    #[arg(long, default_value_t = 0.8)]
+    pub confidence: f64,
+    /// Comma-separated tags, e.g. "architecture, event-sourcing".
+    #[arg(long, default_value = "")]
+    pub tags: String,
+    /// Who signs the note (default `operator`).
+    #[arg(long, default_value = "operator")]
+    pub signature: String,
+    /// Note id. Defaults to `rn-YYYYMMDD-<8hex>`.
+    #[arg(long)]
+    pub id: Option<String>,
+}
+
+#[derive(Args, Debug)]
+pub struct BranchesArgs {
+    /// Research run id whose persisted sources + consensus feed the
+    /// Opción A/B/C rebuild (RFC 10 §4).
+    #[arg(long)]
+    pub run_id: String,
+    /// Current-architecture hint folded into each branch `fits_stack`
+    /// (Context Engine Project Map summary when available).
+    #[arg(long)]
+    pub project_hint: Option<String>,
 }
 
 #[derive(Args, Debug)]
@@ -236,6 +297,8 @@ pub async fn run(cmd: ResearchCmd, profile: &str) -> Result<()> {
     match cmd.action {
         ResearchSub::Docs(a) => run_docs(a).await,
         ResearchSub::Query(a) => run_query(a, profile).await,
+        ResearchSub::Note(a) => run_note(a, profile).await,
+        ResearchSub::Branches(a) => run_branches(a, profile).await,
         #[cfg(feature = "doc-ingest")]
         ResearchSub::Ingest(a) => run_ingest(a, profile).await,
         #[cfg(feature = "firecrawl")]
@@ -302,8 +365,9 @@ async fn run_docs(a: DocsArgs) -> Result<()> {
 
 async fn run_query(a: QueryArgs, profile: &str) -> Result<()> {
     use crate::research::{
-        build_report, prefilter_sources, score_all, top_reference, ConsensusDimension,
-        DimensionOutcome, GatherOptions, ReportSections, ResearchRunStatus, FAIL_SAFE_CONFIDENCE,
+        branch_proposal_lines, build_branches, build_report, journal_ref_for_run,
+        prefilter_sources, score_all, top_reference, ConsensusDimension, DimensionOutcome,
+        GatherOptions, ReportSections, ResearchRunStatus, FAIL_SAFE_CONFIDENCE,
     };
 
     let question = a.question.trim();
@@ -371,23 +435,32 @@ async fn run_query(a: QueryArgs, profile: &str) -> Result<()> {
             .partial_cmp(&x.score_100)
             .unwrap_or(std::cmp::Ordering::Equal)
     });
-    let proposal: Vec<String> = ranked
-        .iter()
-        .enumerate()
-        .map(|(i, o)| {
-            let tag = if i < 26 {
-                ((b'A' + i as u8) as char).to_string()
-            } else {
-                format!("P{}", i + 1)
-            };
-            format!(
-                "{tag}: {} via {} ({:.2})",
-                o.recommendation,
-                o.dimension.as_str(),
-                o.score_100 / 100.0
-            )
-        })
-        .collect();
+    let persisted_notes: Vec<crate::research::ResearchNote> = open_research_journal(profile)
+        .ok()
+        .and_then(|j| j.list_research_notes(50).ok())
+        .unwrap_or_default();
+    let branches = build_branches(&outcomes, &persisted_notes, None);
+    let proposal: Vec<String> = if branches.is_empty() {
+        ranked
+            .iter()
+            .enumerate()
+            .map(|(i, o)| {
+                let tag = if i < 26 {
+                    ((b'A' + i as u8) as char).to_string()
+                } else {
+                    format!("P{}", i + 1)
+                };
+                format!(
+                    "{tag}: {} via {} ({:.2})",
+                    o.recommendation,
+                    o.dimension.as_str(),
+                    o.score_100 / 100.0
+                )
+            })
+            .collect()
+    } else {
+        branch_proposal_lines(&branches)
+    };
     let bugs: Vec<String> = filtered
         .iter()
         .map(|s| s.url.as_str())
@@ -395,13 +468,16 @@ async fn run_query(a: QueryArgs, profile: &str) -> Result<()> {
         .take(10)
         .map(String::from)
         .collect();
-    let authors: Vec<String> = a
+    let mut authors: Vec<String> = a
         .hands_on
         .iter()
         .map(|s| s.trim())
         .filter(|u| !u.is_empty())
         .map(|u| format!("expert note: {u}"))
         .collect();
+    for n in persisted_notes.iter().take(10) {
+        authors.push(format!("note {}: {} -> {}", n.id, n.title, n.decision));
+    }
     let enterprise_refs: Vec<String> = filtered
         .iter()
         .filter(|s| s.kind.contains("github"))
@@ -409,6 +485,7 @@ async fn run_query(a: QueryArgs, profile: &str) -> Result<()> {
         .map(|s| s.url.clone())
         .collect();
 
+    let journal_ref = journal_ref_for_run(&run_id);
     let report = build_report(
         &run_id,
         question,
@@ -419,7 +496,7 @@ async fn run_query(a: QueryArgs, profile: &str) -> Result<()> {
             enterprise: enterprise_refs,
             bugs,
             proposal,
-            journal_ref: None,
+            journal_ref: Some(journal_ref.clone()),
         },
     )
     .map_err(|e| anyhow::anyhow!("research query: report build failed: {e}"))?;
@@ -451,15 +528,145 @@ async fn run_query(a: QueryArgs, profile: &str) -> Result<()> {
         }
         let _ =
             journal.complete_research_run(&run_id, &status, report.confidence, &report.recommended);
+        let _ = journal.record_research_journal_ref(&journal_ref, &run_id, question);
     }
 
     let yaml = serde_yaml::to_string(&report).context("research query: YAML serialisation")?;
     println!("{yaml}");
     eprintln!(
-        "research query: run {run_id} status={} confidence={:.2} sources={} (floor {floor})",
+        "research query: run {run_id} status={} confidence={:.2} sources={} journal_ref={journal_ref} (floor {floor})",
         status.as_str(),
         report.confidence,
         filtered.len(),
+    );
+    Ok(())
+}
+
+async fn run_note(a: NoteArgs, profile: &str) -> Result<()> {
+    use crate::research::{parse_tags, ResearchNote};
+
+    let title = a.title.trim();
+    if title.is_empty() {
+        anyhow::bail!("research note: --title must not be empty");
+    }
+    let decision = a.decision.trim();
+    if decision.is_empty() {
+        anyhow::bail!("research note: --decision must not be empty");
+    }
+    if !a.confidence.is_finite() || !(0.0..=1.0).contains(&a.confidence) {
+        anyhow::bail!("research note: --confidence must be within 0.0..=1.0");
+    }
+    let signature = a.signature.trim();
+    if signature.is_empty() {
+        anyhow::bail!("research note: --signature must not be empty");
+    }
+    let id = match a.id.as_deref().map(str::trim) {
+        Some(id) if !id.is_empty() => id.to_string(),
+        _ => {
+            let date = chrono::Utc::now().format("%Y%m%d");
+            let short = uuid::Uuid::new_v4().simple().to_string();
+            format!("rn-{date}-{}", &short[..8])
+        }
+    };
+    let note = ResearchNote {
+        id: id.clone(),
+        title: title.to_string(),
+        project: a
+            .project
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string),
+        decision: decision.to_string(),
+        outcome: a
+            .outcome
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string),
+        confidence: a.confidence,
+        tags: parse_tags(&a.tags),
+        attached_at: chrono::Utc::now().to_rfc3339(),
+        signature: signature.to_string(),
+    };
+    note.validate()
+        .map_err(|e| anyhow::anyhow!("research note: {e}"))?;
+    let journal = open_research_journal(profile)?;
+    journal.save_research_note(&note)?;
+    let json = serde_json::to_string(&note).context("research note: serialisation")?;
+    println!("{json}");
+    eprintln!("research note: saved {id}");
+    Ok(())
+}
+
+async fn run_branches(a: BranchesArgs, profile: &str) -> Result<()> {
+    use crate::research::{
+        branch_proposal_lines, build_branches, journal_ref_for_run, prefilter_sources, score_all,
+        top_reference, ConsensusDimension, DimensionOutcome, SourceInput,
+    };
+
+    let run_id = a.run_id.trim();
+    if run_id.is_empty() {
+        anyhow::bail!("research branches: --run-id must not be empty");
+    }
+    let journal = open_research_journal(profile)?;
+    let run = journal
+        .get_research_run(run_id)?
+        .ok_or_else(|| anyhow::anyhow!("research branches: unknown run {run_id}"))?;
+    let stored = journal.list_research_sources(run_id)?;
+    let pool: Vec<SourceInput> = stored
+        .iter()
+        .map(|s| SourceInput::new(&s.url, &s.kind, s.score.unwrap_or(1.0)))
+        .collect();
+    let filtered = prefilter_sources(&pool);
+    let scores = score_all(&filtered);
+    let mut outcomes = Vec::new();
+    for dimension in ConsensusDimension::ALL {
+        match scores.iter().find(|s| s.dimension == dimension) {
+            Some(s) => {
+                let url = top_reference(dimension, &filtered).unwrap_or_default();
+                let host = url
+                    .split("://")
+                    .nth(1)
+                    .unwrap_or(url.as_str())
+                    .split('/')
+                    .next()
+                    .unwrap_or("")
+                    .trim_start_matches("www.")
+                    .trim();
+                let recommendation = if host.is_empty() {
+                    dimension.as_str().to_string()
+                } else {
+                    format!("{}: {host}", dimension.as_str())
+                };
+                outcomes.push(DimensionOutcome {
+                    dimension,
+                    recommendation,
+                    score_100: s.score,
+                    weight: 1.0,
+                });
+            }
+            None => outcomes.push(DimensionOutcome::no_data(dimension)),
+        }
+    }
+    let notes = journal.list_research_notes(50).unwrap_or_default();
+    let branches = build_branches(&outcomes, &notes, a.project_hint.as_deref());
+    let proposal = branch_proposal_lines(&branches);
+    let out = serde_json::json!({
+        "run_id": run.id,
+        "query": run.query,
+        "journal_ref": journal_ref_for_run(&run.id),
+        "branches": branches,
+        "proposal": proposal,
+    });
+    println!(
+        "{}",
+        serde_json::to_string(&out).context("research branches: serialisation")?
+    );
+    eprintln!(
+        "research branches: run {run_id} branches={} notes={}",
+        branches.len(),
+        notes.len(),
     );
     Ok(())
 }
@@ -657,6 +864,7 @@ mod tests {
                 assert_eq!(a.limit, 5);
             }
             ResearchSub::Query(_) => panic!("expected Docs"),
+            ResearchSub::Note(_) | ResearchSub::Branches(_) => panic!("expected Docs"),
             #[cfg(feature = "doc-ingest")]
             ResearchSub::Ingest(_) => panic!("expected Docs"),
             #[cfg(feature = "firecrawl")]
@@ -678,6 +886,7 @@ mod tests {
         match cli.action {
             ResearchSub::Docs(a) => assert_eq!(a.limit, 3),
             ResearchSub::Query(_) => panic!("expected Docs"),
+            ResearchSub::Note(_) | ResearchSub::Branches(_) => panic!("expected Docs"),
             #[cfg(feature = "doc-ingest")]
             ResearchSub::Ingest(_) => panic!("expected Docs"),
             #[cfg(feature = "firecrawl")]
@@ -886,6 +1095,7 @@ mod tests {
                 assert_eq!(a.min_confidence, None);
             }
             ResearchSub::Docs(_) => panic!("expected Query"),
+            ResearchSub::Note(_) | ResearchSub::Branches(_) => panic!("expected Query"),
             #[cfg(feature = "doc-ingest")]
             ResearchSub::Ingest(_) => panic!("expected Query"),
             #[cfg(feature = "firecrawl")]
@@ -928,6 +1138,7 @@ mod tests {
                 assert_eq!(a.min_confidence, Some(0.7));
             }
             ResearchSub::Docs(_) => panic!("expected Query"),
+            ResearchSub::Note(_) | ResearchSub::Branches(_) => panic!("expected Query"),
             #[cfg(feature = "doc-ingest")]
             ResearchSub::Ingest(_) => panic!("expected Query"),
             #[cfg(feature = "firecrawl")]
@@ -939,5 +1150,99 @@ mod tests {
     fn parse_query_requires_question() {
         let r = TestCli::try_parse_from(["test", "query"]);
         assert!(r.is_err(), "query without question must error");
+    }
+
+    #[test]
+    fn parse_note_subcmd_defaults() {
+        let cli = TestCli::try_parse_from([
+            "test",
+            "note",
+            "--title",
+            "Lo hice así en producción",
+            "--decision",
+            "Event Sourcing + Kafka",
+        ])
+        .unwrap();
+        match cli.action {
+            ResearchSub::Note(a) => {
+                assert_eq!(a.title, "Lo hice así en producción");
+                assert_eq!(a.decision, "Event Sourcing + Kafka");
+                assert_eq!(a.project, None);
+                assert_eq!(a.confidence, 0.8);
+                assert_eq!(a.signature, "operator");
+                assert_eq!(a.id, None);
+            }
+            _ => panic!("expected Note"),
+        }
+    }
+
+    #[test]
+    fn parse_note_with_all_fields() {
+        let cli = TestCli::try_parse_from([
+            "test",
+            "note",
+            "--title",
+            "t",
+            "--decision",
+            "d",
+            "--project",
+            "fintech X",
+            "--outcome",
+            "exitoso pero costoso en ops",
+            "--confidence",
+            "0.81",
+            "--tags",
+            "architecture, event-sourcing",
+            "--signature",
+            "max",
+            "--id",
+            "rn-2026-07-04-001",
+        ])
+        .unwrap();
+        match cli.action {
+            ResearchSub::Note(a) => {
+                assert_eq!(a.project.as_deref(), Some("fintech X"));
+                assert_eq!(a.outcome.as_deref(), Some("exitoso pero costoso en ops"));
+                assert_eq!(a.confidence, 0.81);
+                assert_eq!(a.tags, "architecture, event-sourcing");
+                assert_eq!(a.signature, "max");
+                assert_eq!(a.id.as_deref(), Some("rn-2026-07-04-001"));
+            }
+            _ => panic!("expected Note"),
+        }
+    }
+
+    #[test]
+    fn parse_note_requires_title_and_decision() {
+        let r = TestCli::try_parse_from(["test", "note", "--title", "t"]);
+        assert!(r.is_err(), "note without decision must error");
+        let r = TestCli::try_parse_from(["test", "note", "--decision", "d"]);
+        assert!(r.is_err(), "note without title must error");
+    }
+
+    #[test]
+    fn parse_branches_subcmd() {
+        let cli = TestCli::try_parse_from([
+            "test",
+            "branches",
+            "--run-id",
+            "rr-2026-07-04-001",
+            "--project-hint",
+            "atlas-os",
+        ])
+        .unwrap();
+        match cli.action {
+            ResearchSub::Branches(a) => {
+                assert_eq!(a.run_id, "rr-2026-07-04-001");
+                assert_eq!(a.project_hint.as_deref(), Some("atlas-os"));
+            }
+            _ => panic!("expected Branches"),
+        }
+    }
+
+    #[test]
+    fn parse_branches_requires_run_id() {
+        let r = TestCli::try_parse_from(["test", "branches"]);
+        assert!(r.is_err(), "branches without run-id must error");
     }
 }

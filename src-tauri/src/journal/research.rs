@@ -1,5 +1,6 @@
-// Atlas OS — Research runs persistence (RFC 10, Phase 3 sub-fase 3.0,
-// M25 `research_runs` / `research_sources` / `research_consensus`).
+// Atlas OS — Research runs persistence (RFC 10, Phase 3 sub-fases 3.0 + 3.4,
+// M25 `research_runs` / `research_sources` / `research_consensus` + M26
+// `research_notes`).
 //
 // Same JSON-blob-adjacent pattern as the other Journal writers: the
 // canonical `ResearchRunReport` YAML (RFC 10 §7) is the source of
@@ -7,6 +8,10 @@
 // columns the SQL engine needs for indexing and tail queries.
 // `ON CONFLICT DO NOTHING` / `OR REPLACE` honour RFC 02 §3.1.2
 // at-least-once idempotency (first run-row wins, re-scores replace).
+// Hands-on notes (RFC 10 §3, sub-fase 3.4) persist the full
+// `ResearchNote` with tags as a JSON array string; the per-run
+// `journal_ref` (`jr-…`, RFC 10 §7) is a `journal_events` row
+// (`kind='research_run'`) so `journal tail` audits every run.
 
 use serde::{Deserialize, Serialize};
 
@@ -179,6 +184,117 @@ impl crate::journal::Journal {
         }
         Ok(out)
     }
+
+    pub fn save_research_note(&self, note: &crate::research::ResearchNote) -> anyhow::Result<()> {
+        note.validate()
+            .map_err(|e| anyhow::anyhow!("research note invalid: {e}"))?;
+        let tags_json = serde_json::to_string(&note.tags).unwrap_or_else(|_| "[]".to_string());
+        let conn = self.conn.lock();
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT INTO research_notes
+                (id, title, project, decision, outcome, confidence,
+                 tags_json, attached_at, signature, created_at)
+              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+              ON CONFLICT(id) DO NOTHING",
+            rusqlite::params![
+                note.id,
+                note.title,
+                note.project.as_deref(),
+                note.decision,
+                note.outcome.as_deref(),
+                note.confidence,
+                tags_json,
+                note.attached_at,
+                note.signature,
+                now,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_research_note(
+        &self,
+        id: &str,
+    ) -> anyhow::Result<Option<crate::research::ResearchNote>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT id, title, project, decision, outcome, confidence,
+                    tags_json, attached_at, signature
+             FROM research_notes WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query_map(rusqlite::params![id], |row| {
+            let tags_json: String = row.get(6)?;
+            let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+            Ok(crate::research::ResearchNote {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                project: row.get(2)?,
+                decision: row.get(3)?,
+                outcome: row.get(4)?,
+                confidence: row.get(5)?,
+                tags,
+                attached_at: row.get(7)?,
+                signature: row.get(8)?,
+            })
+        })?;
+        Ok(rows.next().transpose()?)
+    }
+
+    pub fn list_research_notes(
+        &self,
+        limit: i64,
+    ) -> anyhow::Result<Vec<crate::research::ResearchNote>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT id, title, project, decision, outcome, confidence,
+                    tags_json, attached_at, signature
+             FROM research_notes ORDER BY attached_at DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![limit], |row| {
+            let tags_json: String = row.get(6)?;
+            let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+            Ok(crate::research::ResearchNote {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                project: row.get(2)?,
+                decision: row.get(3)?,
+                outcome: row.get(4)?,
+                confidence: row.get(5)?,
+                tags,
+                attached_at: row.get(7)?,
+                signature: row.get(8)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for r in rows {
+            out.push(r?);
+        }
+        Ok(out)
+    }
+
+    pub fn record_research_journal_ref(
+        &self,
+        journal_ref: &str,
+        run_id: &str,
+        query: &str,
+    ) -> anyhow::Result<()> {
+        let payload = serde_json::json!({
+            "type": "research_run",
+            "journal_ref": journal_ref,
+            "run_id": run_id,
+            "query": query,
+        });
+        let conn = self.conn.lock();
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT INTO journal_events (event_id, idempotency_key, ts, kind, payload)
+             VALUES (?1, ?2, ?3, 'research_run', ?4)
+             ON CONFLICT(event_id) DO NOTHING",
+            rusqlite::params![journal_ref, journal_ref, now, payload.to_string()],
+        )?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -284,5 +400,82 @@ mod tests {
         let (_d, j) = fresh();
         assert!(j.get_research_run("rr-missing").unwrap().is_none());
         assert!(j.list_research_sources("rr-missing").unwrap().is_empty());
+    }
+
+    #[test]
+    fn research_note_roundtrips_with_tags() {
+        let (_d, j) = fresh();
+        let note = crate::research::ResearchNote {
+            id: "rn-2026-07-04-001".into(),
+            title: "Lo hice así en producción".into(),
+            project: Some("fintech X".into()),
+            decision: "Event Sourcing + Kafka".into(),
+            outcome: Some("exitoso pero costoso en ops".into()),
+            confidence: 0.81,
+            tags: vec!["architecture".into(), "event-sourcing".into()],
+            attached_at: "2026-07-04".into(),
+            signature: "operator".into(),
+        };
+        j.save_research_note(&note).unwrap();
+        let back = j
+            .get_research_note("rn-2026-07-04-001")
+            .unwrap()
+            .expect("note");
+        assert_eq!(back, note);
+        let all = j.list_research_notes(10).unwrap();
+        assert_eq!(all.len(), 1);
+        assert_eq!(all[0].tags, vec!["architecture", "event-sourcing"]);
+    }
+
+    #[test]
+    fn research_note_save_is_idempotent_on_replay() {
+        let (_d, j) = fresh();
+        let note = crate::research::ResearchNote {
+            id: "rn-dup".into(),
+            title: "t".into(),
+            project: None,
+            decision: "d".into(),
+            outcome: None,
+            confidence: 0.7,
+            tags: vec![],
+            attached_at: "2026-07-04".into(),
+            signature: "operator".into(),
+        };
+        j.save_research_note(&note).unwrap();
+        j.save_research_note(&note).unwrap();
+        assert_eq!(j.list_research_notes(10).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn research_note_rejects_invalid_confidence() {
+        let (_d, j) = fresh();
+        let mut note = crate::research::ResearchNote {
+            id: "rn-bad".into(),
+            title: "t".into(),
+            project: None,
+            decision: "d".into(),
+            outcome: None,
+            confidence: 2.0,
+            tags: vec![],
+            attached_at: "2026-07-04".into(),
+            signature: "operator".into(),
+        };
+        assert!(j.save_research_note(&note).is_err());
+        note.confidence = 0.5;
+        note.title = "   ".into();
+        assert!(j.save_research_note(&note).is_err());
+        assert!(j.get_research_note("rn-bad").unwrap().is_none());
+    }
+
+    #[test]
+    fn journal_ref_is_auditable_via_tail() {
+        let (_d, j) = fresh();
+        j.record_research_journal_ref("jr-2026-07-04-001", "rr-2026-07-04-001", "q")
+            .unwrap();
+        j.record_research_journal_ref("jr-2026-07-04-001", "rr-2026-07-04-001", "q")
+            .unwrap();
+        let entries = j.tail(10).unwrap();
+        let found = entries.iter().filter(|e| e.kind == "research_run").count();
+        assert_eq!(found, 1, "journal_ref must appear once in the audit tail");
     }
 }

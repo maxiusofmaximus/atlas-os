@@ -367,7 +367,7 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Multi-key rotation` | 04 §3.1; 22 §2 |
 | `N8n canvas stile reasoning trail` | 24 §13 |
 | `Noob mode` | 17 §11 |
-| `atlas research` (CLI subcommand: `docs` ungated + `query` ungated (collective, sub-fase 3.3) + `ingest` gated `doc-ingest` feature + scrape/search/crawl/extract gated `firecrawl` feature) | 28 §E; 08 (surface); research `30` sub-fases 3.1–3.3 |
+| `atlas research` (CLI subcommand: `docs` ungated + `query` ungated (collective, sub-fase 3.3; desde 3.4 emite `journal_ref` + proposal desde ramas) + `note`/`branches` ungated (hands-on, sub-fase 3.4) + `ingest` gated `doc-ingest` feature + scrape/search/crawl/extract gated `firecrawl` feature) | 28 §E; 08 (surface); research `30` sub-fases 3.1–3.4 |
 | `Outline view Notion` | 24 §14 |
 | `Pauserule` | 24 §5 |
 | `Plan` (estrutura) | 12 §3 |
@@ -406,6 +406,10 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `IngestedDocument` (Markdown + provenance `format`/`bytes`/`title`) + `DocFormat` (`Markdown`/`PlainText`/`Csv`/`Pdf`/`PandocAssisted`) + `IngestError` (`UnsupportedFormat`/`ExternalToolMissing`/…) | 10 §6; research `30` sub-fase 3.2 |
 | `doc-ingest` feature flag (parser propio sin crate nueva por audit RFC 25 §11, `pandoc` externo opt-in vía `ATLAS_PANDOC_BIN`/`PATH`, default off) | 25 §11; research `30` sub-fase 3.2 |
 | `M25` migration (`research_sources` + `research_consensus`, `status`/`recommended` en `research_runs`) | 10 §7; research `30` sub-fase 3.0 |
+| `ResearchNote` (evidencia experta RFC 10 §3: title/project/decision/outcome/confidence/tags/attached_at/signature, `validate()` + `mentions()`) + `parse_tags` | 10 §3; research `30` sub-fase 3.4 |
+| `ApplicationBranch` (Opción A/B/C RFC 10 §4: summary/pros/cons/confidence/cost_estimate/fits_stack/sources) + `build_branches()` (top-3 determinista, +0.05 por respaldo experto) + `branch_proposal_lines()` + `journal_ref_for_run()` (rr→jr) | 10 §4/§7; research `30` sub-fase 3.4 |
+| `M26` migration (`research_notes` con CHECK 0..1; ramas derivadas, no tabla; `journal_ref` como fila `journal_events` kind=`research_run`) | 10 §3/§4/§7; research `30` sub-fase 3.4 |
+| `atlas research note` (adjunta caso experto a M26) + `atlas research branches` (reconstruye A/B/C desde sources + consensus + notes) | 08 CLI; 10 §3/§4; research `30` sub-fase 3.4 |
 | `Prompt Understanding Pipeline` | 23 §2 |
 | `PublicUnderstandingVerdict` | 23 §3 |
 | `Reasoning trails` (n8n-stile) | 24 §13 |
