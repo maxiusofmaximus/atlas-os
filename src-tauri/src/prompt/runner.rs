@@ -82,13 +82,26 @@ pub fn run(
     raw_prompt: &str,
     options: &PipelineOptions,
 ) -> anyhow::Result<(PublicUnderstandingVerdict, Option<MissionConsolidated>)> {
+    run_with_profile(raw_prompt, options, &[])
+}
+
+/// RFC 29 §3.C — same pipeline but resolves `user_knowledge_gap` (C6)
+/// against the caller's stored `gaps_identified` slice (from
+/// `user_profile.knowledge_state`). The bare `run` above passes an
+/// empty slice, preserving heuristic-only behaviour.
+pub fn run_with_profile(
+    raw_prompt: &str,
+    options: &PipelineOptions,
+    gaps_identified: &[String],
+) -> anyhow::Result<(PublicUnderstandingVerdict, Option<MissionConsolidated>)> {
     let session_id = Uuid::new_v4();
     let started = Instant::now();
 
     // Step 1 — Capture.
     let parsed = parse::run(&capture::normalise(raw_prompt));
-    // Step 3 — Detect Ambiguities.
-    let gaps = detect::run(&parsed, raw_prompt);
+    // Step 3 — Detect Ambiguities (+ RFC 29 §3.C user-profile C6).
+    let mut gaps = detect::run(&parsed, raw_prompt);
+    detect::apply_user_profile(&mut gaps, gaps_identified, raw_prompt);
     // Step 4 — Similar Missions. Phase 1 always returns an empty list here;
     // the sqlite-vec lookup lives in `similar::lookup` (Fase 1.5) and is
     // invoked from `Journal`-backed wiring, not from the pure runner.

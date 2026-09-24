@@ -243,6 +243,44 @@ pub fn run(parsed: &ParsedIntent, raw: &str) -> Vec<Gap> {
     gaps
 }
 
+/// RFC 29 §3.C — resolve `user_knowledge_gap` (C6) against the stored
+/// `user_profile.knowledge_state.gaps_identified`. When the prompt
+/// mentions a registered gap, push a `UserKnowledgeGap` (Med) so the
+/// downstream steps offer mentor mode + shortcuts automatically.
+/// Returns `true` when a gap was added. No-op when C6 is already
+/// present or when no registered gap matches.
+pub fn apply_user_profile(gaps: &mut Vec<Gap>, gaps_identified: &[String], raw: &str) -> bool {
+    if gaps.iter().any(|g| g.kind == GapType::UserKnowledgeGap) {
+        return false;
+    }
+    let lower = raw.to_ascii_lowercase();
+    let hit = gaps_identified.iter().find(|gap| {
+        let g = gap.to_ascii_lowercase();
+        let trimmed = g.trim();
+        if trimmed.is_empty() {
+            return false;
+        }
+        if lower.contains(trimmed) {
+            return true;
+        }
+        trimmed.len() > 3
+            && trimmed
+                .split_whitespace()
+                .any(|w| w.len() > 3 && lower.contains(w))
+    });
+    if let Some(evidence) = hit {
+        gaps.push(Gap {
+            kind: GapType::UserKnowledgeGap,
+            evidence: evidence.clone(),
+            severity: Severity::Med,
+            auto_resolvable: false,
+        });
+        gaps.sort_by_key(|g| g.kind as i32);
+        return true;
+    }
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -305,5 +343,48 @@ mod tests {
     fn role_overload_fires_when_two_role_phrases_present() {
         let (_, g) = parse_prompt("act as a lawyer and act as a chef and write the contract");
         assert!(has_gap(&g, GapType::RoleOverload));
+    }
+
+    #[test]
+    fn profile_gap_match_adds_c6() {
+        let (p, mut g) = parse_prompt("expose the service via kubernetes ingress");
+        assert!(!has_gap(&g, GapType::UserKnowledgeGap));
+        let added = apply_user_profile(
+            &mut g,
+            &["kubernetes ingress".to_string()],
+            "expose the service via kubernetes ingress",
+        );
+        assert!(added);
+        assert!(has_gap(&g, GapType::UserKnowledgeGap));
+        let _ = p;
+    }
+
+    #[test]
+    fn profile_gap_no_match_adds_nothing() {
+        let (p, mut g) = parse_prompt("refactor the billing module");
+        let added = apply_user_profile(
+            &mut g,
+            &["kubernetes ingress".to_string()],
+            "refactor the billing module",
+        );
+        assert!(!added);
+        assert!(!has_gap(&g, GapType::UserKnowledgeGap));
+        let _ = p;
+    }
+
+    #[test]
+    fn profile_hook_is_noop_when_c6_already_present() {
+        let p = parse::run(&crate::prompt::steps::capture::normalise(
+            "i'm new to this, expose via kubernetes ingress",
+        ));
+        let mut g = run(&p, "i'm new to this, expose via kubernetes ingress");
+        assert!(has_gap(&g, GapType::UserKnowledgeGap));
+        let n = g.len();
+        assert!(!apply_user_profile(
+            &mut g,
+            &["kubernetes ingress".to_string()],
+            "i'm new to this, expose via kubernetes ingress"
+        ));
+        assert_eq!(g.len(), n);
     }
 }

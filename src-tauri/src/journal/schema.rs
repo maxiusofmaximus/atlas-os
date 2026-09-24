@@ -14,7 +14,7 @@ use rusqlite::Connection;
 /// log and must never be renumbered. When adding M(N+1): bump this const
 /// AND change the final migration's `params![N, …]` to
 /// `params![CURRENT_SCHEMA_VERSION, …]` (same value).
-pub const CURRENT_SCHEMA_VERSION: i64 = 27;
+pub const CURRENT_SCHEMA_VERSION: i64 = 28;
 
 pub fn migrate(conn: &Connection) -> Result<()> {
     // M0 — Schema versioning.
@@ -1327,6 +1327,35 @@ pub fn migrate(conn: &Connection) -> Result<()> {
 
             CREATE INDEX IF NOT EXISTS idx_feasibility_cache_created
                 ON feasibility_cache(created_at);",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![27, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
+    if current < 28 {
+        // M28 — RFC 29 §3.C User modeling (Honcho-style).
+        //
+        //   * `user_profile` — one row per operator (`user_id`). `preferences`
+        //     carries `{favorite_models, coding_style, …}` as JSON text;
+        //     `knowledge_state` carries `{domains_known, gaps_identified}`
+        //     as JSON text. `interaction_history_summary` is a free-form
+        //     summary of past interactions. `updated_at` is unix-millis.
+        //     Writes are `INSERT … ON CONFLICT DO UPDATE` — the latest
+        //     profile snapshot wins (live state, like `step_states` M11),
+        //     not the first write. The Prompt Understanding Pipeline
+        //     (RFC 23 §2 paso 2) reads this table to resolve
+        //     `user_knowledge_gap` (C6): when the prompt matches a
+        //     `gaps_identified` entry, the detector offers mentor mode +
+        //     shortcuts automatically.
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS user_profile (
+                user_id TEXT PRIMARY KEY,
+                preferences JSON NOT NULL,
+                knowledge_state JSON NOT NULL,
+                interaction_history_summary TEXT,
+                updated_at INTEGER NOT NULL
+            );",
         )?;
         conn.execute(
             "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",

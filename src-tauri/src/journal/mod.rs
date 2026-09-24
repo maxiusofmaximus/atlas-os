@@ -13,6 +13,7 @@ pub mod model_resets;
 pub mod research;
 pub mod schema;
 pub mod store;
+pub mod user_profile;
 pub mod yaml_format;
 
 #[cfg(test)]
@@ -26,6 +27,8 @@ pub use agent_events::AgentSessionEventRow;
 pub use model_resets::ModelResetRow;
 
 pub use research::{ResearchConsensusRow, ResearchRunRow, ResearchSourceRow};
+
+pub use user_profile::{UserProfile, UserProfileError};
 
 pub use store::{
     AuditEntry, CheckpointRow, ConsolidatedRow, DiffAnnotationRow, DiffRow, JournalEntry, Mission,
