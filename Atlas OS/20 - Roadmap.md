@@ -117,25 +117,25 @@ Entregable: la IA decide con evidencia social y académica, no con suposición.
 
 Plan refinado en `Atlas OS/research/31 - Phase 4 swarm.md` (6 sub-fases atómicas, commits no PRs). Evidencia: RFC 30 (agency-agents roles con personalidad + munder-difflin office floor/mailbox), RFC 22 `28 - conductor & alt surfaces.md` (worktrees CN-001/CN-003/CN-004). Worktrees via git CLI — sin crate nueva.
 
-### Sub-fase 4.0 — Foundation
-- M29 migration `swarm_agents`/`agent_mailbox` + `enum Role` (10 roles RFC 05) + `WorktreeManager` via git CLI (fail-safe si git no está).
+### Sub-fase 4.0 — Foundation (COMPLETO, commit `0d583b0`)
+- M29 migration `swarm_agents`/`agent_mailbox` ✅ + `enum Role` (10 roles RFC 05, `as_str`/`parse` round-trip) ✅ + `WorktreeManager` via git CLI (fail-safe si git no está, path-traversal protegido) ✅ + registry `Journal::{register_swarm_agent, set_swarm_agent_state, swarm_agents_for_mission}` ✅. Decisión: git CLI via `std::process::Command`, `git2` NO se añade (RFC 25 §11).
 
-### Sub-fase 4.1 — Role presets (agency-agents port)
-- Presets con personality/processes/deliverables (`atlas-team`, `pair-programming`, `solo-plus`) + asignación de modelo por rol (Aider tri-model).
+### Sub-fase 4.1 — Role presets (agency-agents port) (COMPLETO, commit `bd75864`)
+- Presets con personality/processes/deliverables (`atlas-team` 10 roles, `pair-programming`, `solo-plus`) ✅ + `ModelSlot` + `Role::model_slot()` + `Role::resolve_model(&Profile)` (Aider tri-model via `effective_*`) ✅ + CLI `atlas swarm presets/start` (registra agentes con model resuelto + personality JSON) ✅.
 
-### Sub-fase 4.2 — Pool swarm (paralelismo por rol)
-- Tokio tasks por agente + semáforo por provider (backpressure reusado) + locks de archivos + checkpoints RFC 19 por agente.
+### Sub-fase 4.2 — Pool swarm (paralelismo por rol) (COMPLETO, commit `c0b06e9`)
+- `FileLockRegistry` (acquire atómico todo-o-nada, orden determinístico anti-deadlock RFC 05 §8) ✅ + `SwarmRunner` (`run_one`/`run_parallel` tokio tasks + `BackPressure::acquire` per-provider reusado del orchestrator / `run_topology` planner→research/architect→executors paralelos→reviewer→merger RFC 05 §2) ✅ + checkpoints RFC 19 §5 por agente + estados done/failed. Fallo de un agente no cancela el pool.
 
-### Sub-fase 4.3 — Mailbox + memoria por agente
-- `Journal::send_message`/`inbox_for`/`mark_read` (M29) + CLI `atlas swarm send/inbox`.
+### Sub-fase 4.3 — Mailbox + memoria por agente (COMPLETO, commit `018e7b9`)
+- `MailboxMessage` + `Journal::{send_message, inbox_for, unread_inbox_for, unread_count, mark_read}` (idempotente, first-write-wins RFC 02) ✅ + memoria por agente `swarm_agent(id)` + `agent_resume(id) -> AgentResume {agent, checkpoint}` (une el último checkpoint RFC 19 para reanudación exacta) ✅ + CLI `atlas swarm send/inbox [--unread-only] [--mark-read]` ✅.
 
-### Sub-fase 4.4 — Auto-rebase post-merge (CN-003)
-- Rebase automático en workspaces vivos + fail-safe a manual si hay conflictos.
+### Sub-fase 4.4 — Auto-rebase post-merge (CN-003) (COMPLETO, commit `aa62ba5`)
+- `swarm/rebase.rs` via git CLI: `rebase_worktree`/`rebase_many` (no short-circuit)/`rebase_after_merge` (descubre worktrees vivos via `manager.list()`)/`abort_rebase` ✅ + `RebaseError` tipado fail-safe (conflicto → abort + fail-safe a manual, fetch tolera "no remote") ✅.
 
-### Sub-fase 4.5 — Swarm Console HUD (frontend, Phase 8 parcial)
-- `<SwarmConsole.svelte>` floor 2D + mailbox drawer + checks button por worktree (CN-004) + WS events swarm.
+### Sub-fase 4.5 — Swarm Console HUD (COMPLETO, commit `3f87e2e`)
+- `<SwarmConsole.svelte>` floor 2D (munder-difflin) con desk por agente (rol, state pill, modelo, worktree, badge no-leídos) + drawer mailbox con formulario de envío (`postSwarmSend`) + checks button por worktree (`fetchSwarmChecks` CN-004) ✅ + proyecciones puras del tail WS (`projectSwarmAgents`/`projectSwarmInbox`/`countUnread`/`swarmStateColor`) en `hud.ts` + sección montada en `+page.svelte` ✅. Nota: test de card es compilación+estructura (no `mount` — el vitest resuelve svelte a server build; el alias requeriría config/dépendance nueva, descartado RFC 25 §11/AGENTS.md §4).
 
-Entregable: 10 agentes cooperan en una mission.
+Entregable: 10 agentes cooperan en una mission. **Phase 4 COMPLETA** — M29 registry + presets + pool paralelo + mailbox + rebase + Swarm Console. KPI: latencia end-to-end UI <100ms (RFC 20); re-ingresos sin perder trabajo 100%.
 
 ## Fase 5 — Learning + Compression
 - Reflection Engine formal (de errores → reglas).
