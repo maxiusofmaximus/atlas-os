@@ -5,6 +5,7 @@
 
 pub mod dead_code;
 pub mod e2e;
+pub mod evidence_gate;
 pub mod iac;
 pub mod layer_boundary;
 pub mod lint_format;

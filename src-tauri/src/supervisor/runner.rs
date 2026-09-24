@@ -14,6 +14,8 @@
 //   executing --CodingStarted/DiffEmitted-->   executing
 //   executing --ValidationStarted-->           verifying
 //   verifying --ValidationPassed-->            done
+//   verifying --DoneClaimed[evidence ok]-->     done (MarkDone)
+//   verifying --DoneClaimed[no evidence]-->     verifying (BlockDone)
 //   verifying --ValidationFailed-->            recovering (TriggerRepair)
 //   verifying --CriticalValidation-->          planning   (TriggerReplan, §8)
 //   recovering --RepairAttempted[Applied]-->   verifying  (TriggerRevalidation)
@@ -204,6 +206,38 @@ pub fn tick(ctx: &mut TickContext, state: SupervisorState, event: SupervisorEven
                 )
             } else {
                 TickOutput::pass_through(state)
+            }
+        }
+        SupervisorEvent::DoneClaimed {
+            report_id,
+            claim,
+            evidence,
+        } => {
+            if !matches!(state.phase, MissionPhase::Verifying) {
+                return TickOutput::pass_through(state);
+            }
+            let refs_ok = !evidence.is_empty() && evidence.iter().all(|e| !e.trim().is_empty());
+            if claim.trim().len() >= 8 && refs_ok {
+                next.phase = MissionPhase::Done;
+                next.budget_tally.consecutive_failures = 0;
+                let cp = snapshot_with(&next);
+                next.last_checkpoint_id = Some(cp.checkpoint_id);
+                TickOutput::with_actions(
+                    next,
+                    vec![
+                        SupervisorAction::MarkDone,
+                        SupervisorAction::PersistCheckpoint(cp),
+                    ],
+                )
+            } else {
+                TickOutput::with_actions(
+                    next,
+                    vec![SupervisorAction::BlockDone {
+                        reason: format!(
+                            "done refused for report {report_id}: cite executed checks before finishing"
+                        ),
+                    }],
+                )
             }
         }
         SupervisorEvent::ValidationFailed { report_id } => {
@@ -558,6 +592,48 @@ mod tests {
             .actions
             .iter()
             .any(|a| matches!(a, SupervisorAction::MarkDone)));
+    }
+
+    #[test]
+    fn done_claimed_with_evidence_reaches_done() {
+        let mut ctx = TickContext::new(ExecutionMode::HumanInLoop);
+        let state = advance_planning(fresh_state(), &mut ctx);
+        let state = tick(&mut ctx, state, SupervisorEvent::ValidationStarted).state;
+        let out = tick(
+            &mut ctx,
+            state,
+            SupervisorEvent::DoneClaimed {
+                report_id: Uuid::new_v4(),
+                claim: "unit tests pass — done".into(),
+                evidence: vec!["cargo test: 12 passed".into()],
+            },
+        );
+        assert_eq!(out.state.phase, MissionPhase::Done);
+        assert!(out
+            .actions
+            .iter()
+            .any(|a| matches!(a, SupervisorAction::MarkDone)));
+    }
+
+    #[test]
+    fn done_claimed_without_evidence_stays_verifying() {
+        let mut ctx = TickContext::new(ExecutionMode::HumanInLoop);
+        let state = advance_planning(fresh_state(), &mut ctx);
+        let state = tick(&mut ctx, state, SupervisorEvent::ValidationStarted).state;
+        let out = tick(
+            &mut ctx,
+            state,
+            SupervisorEvent::DoneClaimed {
+                report_id: Uuid::new_v4(),
+                claim: "done".into(),
+                evidence: vec![],
+            },
+        );
+        assert_eq!(out.state.phase, MissionPhase::Verifying);
+        assert!(out
+            .actions
+            .iter()
+            .any(|a| matches!(a, SupervisorAction::BlockDone { .. })));
     }
 
     #[test]

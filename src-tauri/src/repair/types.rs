@@ -59,6 +59,7 @@ impl ErrorClass {
             StageKind::SecurityScan => Some(Self::Vulnerability),
             StageKind::Iac => Some(Self::Config),
             StageKind::LayerBoundary => None,
+            StageKind::EvidenceGate => Some(Self::TestFailure),
         }
     }
 

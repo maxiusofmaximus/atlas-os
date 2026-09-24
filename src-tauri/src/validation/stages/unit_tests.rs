@@ -10,6 +10,7 @@
 // Create action does this and the impl step is expected to flip it.
 
 use super::{pass, Stage, StageContext};
+use crate::validation::evidence::is_test_path;
 use crate::validation::types::{Finding, StageKind, StageStatus, StageSummary};
 
 pub struct UnitTests;
@@ -74,15 +75,6 @@ impl Stage for UnitTests {
             summary: "unit-tests: see findings".into(),
         }
     }
-}
-
-fn is_test_path(path: &str) -> bool {
-    let p = path.to_lowercase();
-    p.ends_with("_heuristic_v0.rs")
-        || p.ends_with("_test.rs")
-        || p.ends_with(".test.ts")
-        || p.ends_with(".spec.ts")
-        || p.ends_with("test.rs")
 }
 
 #[cfg(test)]

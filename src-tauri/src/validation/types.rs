@@ -35,6 +35,7 @@ pub enum StageKind {
     SecurityScan,
     LayerBoundary,
     Iac,
+    EvidenceGate,
 }
 
 impl StageKind {
@@ -49,6 +50,7 @@ impl StageKind {
             StageKind::SecurityScan => "security_scan",
             StageKind::LayerBoundary => "layer_boundary",
             StageKind::Iac => "iac",
+            StageKind::EvidenceGate => "evidence_gate",
         }
     }
 
@@ -64,6 +66,7 @@ impl StageKind {
             StageKind::SecurityScan,
             StageKind::LayerBoundary,
             StageKind::Iac,
+            StageKind::EvidenceGate,
         ]
     }
 }

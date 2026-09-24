@@ -4,10 +4,15 @@
 // signatures are stable and the real toolchain integrations arrive in
 // Phase 2 once the Model Orchestrator (RFC 04) is wired up.
 
+pub mod evidence;
 pub mod runner;
 pub mod stages;
 pub mod types;
 
+pub use evidence::{
+    collect_diff_evidence, evaluate_done_claim, DoneClaim, DoneGateVerdict, EvidenceItem,
+    EvidenceKind,
+};
 pub use runner::{run, ValidationInput};
 pub use types::{
     Finding, StageKind, StageStatus, StageSummary, ValidationMode, ValidationOutcome,

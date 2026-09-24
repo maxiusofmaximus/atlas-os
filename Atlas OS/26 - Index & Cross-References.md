@@ -22,7 +22,7 @@
 | 11 | [Context Engine](./11%20-%20Context%20Engine.md) | 3.8 KB | Project Map, Tree-sitter, reordenación "Lost in the middle" (`23 §8 context mode`). |
 | 12 | [Planning Engine](./12%20-%20Planning%20Engine.md) | 5.1 KB | Input: `MissionConsolidated` (no raw prompt). Output: Plan con milestones, strategies (TDD/strangler/big bang/incremental/pair). Anti-gate: no Coding Engine si `Plan.confidence < 0.7` o si `verdict.confidence < HIGH` sin lock. |
 | 13 | [Coding Engine](./13%20-%20Coding%20Engine.md) | 3 KB | Diff single/multi-hunk, herramientas de edit, file locks. |
-| 14 | [Validation Engine](./14%20-%20Validation%20Engine.md) | 3.1 KB | Stages incremental: tsc, Biome, Vitest, Knip, Semgrep optional. |
+| 14 | [Validation Engine](./14%20-%20Validation%20Engine.md) | 3.1 KB | Stages incremental: tsc, Biome, Vitest, Knip, Semgrep optional. §10 evidence-gated done (Canny): stage terminal `EvidenceGate` + hook `evaluate_done_claim` + `DoneClaimed`/`BlockDone` (RFC 30 §2.1). |
 | 15 | [Repair Engine](./15%20-%20Repair%20Engine.md) | 2.2 KB | Diagnóstico automático a partir de `validation.failed`. |
 | 16 | [Learning Engine](./16%20-%20Learning%20Engine.md) | 2.9 KB | Reflexión formal, extracción de reglas, `was_correct` por decision. Alimenta el affinity del Model Registry (`04`) y el iluminado del Skill Picker (`17`). Memories tiers (Letta pattern). |
 | 17 | [UI](./17%20-%20UI.md) | 7.1 KB | Layout base (ModeBar + Editor + Command Center + Agent Console). Modo Manual vs IA. Mission Control referente Cursor Desktop + OpenCode sessions. Execution Mode selector 🕊/🤝/🛫/🚀. Acceso web remoto. Comments in-editor. Modo noob. Atajos `:c :p :s :r :v :o`. *Es remplazado por el HUD Mission Control (`24`), pero queda como layout base del editor de texto.* |
@@ -302,6 +302,10 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Cube mode` (CodeMirror) | 25 §3.3 |
 | `Demos over diffs` | 24 §9 |
 | `DoomLoopDetector` | 19; 03 §9.1; 21 §5.3 |
+| `Evidence-gated done` (Canny: no "done" sin evidencia, solo hechos bloquean) | 14 §10; 30 §2.1 |
+| `DoneClaim` / `DoneGateVerdict` / `evaluate_done_claim` / `collect_diff_evidence` | 14 §10 |
+| `EvidenceGate` (stage terminal del pipeline) | 14 §1; 14 §10 |
+| `DoneClaimed` / `BlockDone` (supervisor) | 19 §6.1; 14 §10 |
 | `dag_mode` feature flag (Planner DAG + State DAG + skills graph templates) | 12 §3.1; 19 §6.1.1; 23 §7.3; 28 §C |
 | `Edge-case tool` feasibility probe | 10 §11 |
 | `Execution Modes` (4) | 21 |

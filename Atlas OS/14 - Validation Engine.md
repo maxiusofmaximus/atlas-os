@@ -112,3 +112,14 @@ Si una stage falla twice, Validation Engine emite `validation.fail.critical` y R
 ## 9. Badge del archivo
 
 Cada archivo abierto en el editor muestra un badge con el último estado (verde / amarillo / rojo) tan pronto como Validation termina una pasada.
+
+## 10. Evidence-gated done (RFC 30 §2.1, patrón `qkal/Canny`)
+
+Ningún agente puede aterrizar "done" sobre una afirmación: el gate es determinista (sin modelo, sin IO) y solo los hechos bloquean.
+
+- **Stage terminal `EvidenceGate`** (último en `StageKind::pipeline_order()`): si el diff toca código, debe traer evidencia propia — narrativa (qué/cómo/por qué, ≥10 caracteres) más un artefacto (fichero de test tocado, `research_refs` o `risk_decision`). Sin ambas cosas → `Fail` (bloquea commit y dispara Repair con `ErrorClass::TestFailure`); con solo una → `Warn`. Sin código (docs, imágenes, lockfiles) → `Pass` directo; en modo `Loose` el gate es advisory (`Skipped`).
+- **Hook `evaluate_done_claim(report, claim)`** (`validation::evidence`): el host lo llama antes de aceptar un "done". Exige IDs coincidentes, `outcome == Pass`, claim verificable (≥8 caracteres), cita al report verde y al menos un check ejecutado (`test/typecheck/lint/e2e`; en modo PR el `e2e` es obligatorio). `ManualNote` solo nunca cuenta. Devuelve `Allowed` o `Blocked { reason, missing }` — el `reason` se muestra verbatim como hace Canny.
+- **Supervisor**: evento `DoneClaimed { report_id, claim, evidence }` → `Done` + `MarkDone` solo con claim y evidencias no vacías; si no, `BlockDone { reason }` sin salir de `Verifying`. `ValidationPassed` se mantiene por compatibilidad; los hosts nuevos deben preferir `DoneClaimed`.
+- **Ledger**: el Journal existente (`diffs` + `validation_reports` + `journal_events` + `audit_log` hash-chained) es el ledger append-only; `collect_diff_evidence` deriva los items desde los stages en `Pass`, así que cualquier `replay` re-deriva el mismo veredicto.
+
+Estado: implementado Phase 2.5+ (cierra el gap "Evidence-gated done ✗" de RFC 30 §2.1).

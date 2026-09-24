@@ -18,9 +18,9 @@ use uuid::Uuid;
 
 use crate::coding::types::Diff;
 use crate::validation::stages::{
-    dead_code::DeadCode, e2e::E2e, iac::Iac, layer_boundary::LayerBoundary,
-    lint_format::LintFormat, security_scan::SecurityScan, supply_chain::SupplyChain,
-    type_check::TypeCheck, unit_tests::UnitTests, Stage, StageContext,
+    dead_code::DeadCode, e2e::E2e, evidence_gate::EvidenceGate, iac::Iac,
+    layer_boundary::LayerBoundary, lint_format::LintFormat, security_scan::SecurityScan,
+    supply_chain::SupplyChain, type_check::TypeCheck, unit_tests::UnitTests, Stage, StageContext,
 };
 use crate::validation::types::{
     StageKind, StageStatus, StageSummary, ValidationMode, ValidationOutcome, ValidationReport,
@@ -93,6 +93,7 @@ pub fn run(input: &ValidationInput) -> ValidationReport {
         Box::new(SecurityScan),
         Box::new(LayerBoundary),
         Box::new(Iac),
+        Box::new(EvidenceGate),
     ];
 
     debug_assert!(
@@ -231,6 +232,7 @@ mod tests {
             Box::new(SecurityScan),
             Box::new(LayerBoundary),
             Box::new(Iac),
+            Box::new(EvidenceGate),
         ];
         for (s, k) in stages.iter().zip(StageKind::pipeline_order().iter()) {
             assert_eq!(s.kind(), *k, "cascade order must match RFC 14 §1");
@@ -239,10 +241,12 @@ mod tests {
 
     #[test]
     fn clean_diff_passes_all_stages_or_skips_them() {
-        let d = diff_with(
+        let mut d = diff_with(
             vec!["fn add(a: u32, b: u32) -> u32 { a + b }".into()],
             "src/lib.rs",
         );
+        d.narrative = "adds pure add() helper, covered by unit test".into();
+        d.research_refs = vec![Uuid::new_v4()];
         let report = run(&ValidationInput::new(&d));
         assert_eq!(report.outcome, ValidationOutcome::Pass);
         assert!(report.is_pass());
@@ -416,6 +420,23 @@ mod tests {
             .find(|s| s.stage == StageKind::Iac)
             .unwrap();
         assert_eq!(iac.status, StageStatus::Pass, "IaC runs when .tf touched");
+    }
+
+    #[test]
+    fn bare_done_on_code_is_blocked_by_evidence_gate() {
+        let d = diff_with(
+            vec!["fn add(a: u32, b: u32) -> u32 { a + b }".into()],
+            "src/lib.rs",
+        );
+        let report = run(&ValidationInput::new(&d));
+        assert_eq!(report.outcome, ValidationOutcome::Fail);
+        assert_eq!(report.failed_stage(), Some(StageKind::EvidenceGate));
+        let gate = report
+            .stages
+            .iter()
+            .find(|s| s.stage == StageKind::EvidenceGate)
+            .unwrap();
+        assert_eq!(gate.status, StageStatus::Fail);
     }
 
     #[test]

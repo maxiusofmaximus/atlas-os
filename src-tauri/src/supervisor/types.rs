@@ -258,6 +258,11 @@ pub enum SupervisorEvent {
     ValidationPassed {
         report_id: Uuid,
     },
+    DoneClaimed {
+        report_id: Uuid,
+        claim: String,
+        evidence: Vec<String>,
+    },
     ValidationFailed {
         report_id: Uuid,
     },
@@ -315,6 +320,9 @@ pub enum SupervisorAction {
     TriggerRevalidation { diff_id: Uuid },
     /// Inform the HUD / Journal that the mission converged.
     MarkDone,
+    /// RFC 30 §2.1 — refuse an evidence-less done claim without leaving
+    /// `Verifying`. The host surfaces `reason` exactly as Canny does.
+    BlockDone { reason: String },
 }
 
 /// RFC 19 §6.1 — the full supervisor state passed between `tick`

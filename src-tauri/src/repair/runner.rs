@@ -569,7 +569,9 @@ mod tests {
         // DeadCode is `Warn` not `Fail`; the validation outcome is `Pass`
         // (no `failed_stage`). The runner defaults to `LintFormat` and
         // `build_fix` returns `None` (no finding rule) -> `Proposed`.
-        let d = diff_with(vec!["let _ = 42;".into()], "src/lib.rs");
+        let mut d = diff_with(vec!["let _ = 42;".into()], "src/lib.rs");
+        d.narrative = "placeholder binding, dead-code warning accepted".into();
+        d.research_refs = vec![Uuid::new_v4()];
         let report = {
             let inp = ValidationInput::new(&d);
             crate::validation::runner::run(&inp)
