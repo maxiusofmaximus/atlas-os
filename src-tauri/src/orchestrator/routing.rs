@@ -133,6 +133,18 @@ pub struct RouteContext<'a> {
     /// IDs already tried on this request (cascade exclusion set). The
     /// router MUST treat these as if they were `Excluded`-skipped.
     pub excluded: &'a HashSet<String>,
+    /// RFC 04 §7 sub-fase 2.4 — IDs of deployments the auto-router
+    /// has flagged as **strong** (high-cost / frontier / paid tier).
+    /// Empty when the Mf/strong-weak strategy is not in use. The
+    /// orchestrator fills this from `Profile.auto_router.strong_model_id`
+    /// resolved against `Registry` — the routing layer stays
+    /// registry-agnostic.
+    pub strong_ids: &'a HashSet<String>,
+    /// RFC 04 §7 sub-fase 2.4 — classifier confidence for the
+    /// current prompt, in `[0.0, 1.0]`. `0.0` when no classifier
+    /// ran. Used by `RoutingStrategy::Mf` to gate strong vs weak
+    /// deployment selection.
+    pub classifier_confidence: f64,
 }
 
 use std::collections::HashMap;
@@ -186,6 +198,26 @@ pub enum RoutingStrategy {
         #[serde(default)]
         default: Option<Box<RoutingStrategy>>,
     },
+    /// RFC 04 §7 sub-fase 2.4 — RouteLLM `mf` (matrix factorisation)
+    /// experimental flavour. The classifier's `confidence` is
+    /// compared against `threshold` to pick a **strong** vs **weak**
+    /// deployment group:
+    /// * `confidence >= threshold` → among the eligible deployments,
+    ///   prefer the heaviest-weighted one tagged as a "strong" model
+    ///   (typically `Tier::Frontier` or `Tier::Paid`).
+    /// * `confidence <  threshold` → weighted-shuffle among the
+    ///   non-strong deployments (typically `Tier::Free` /
+    ///   `Tier::FreeTier` / `Tier::Local`).
+    ///
+    /// Tier discrimination is via `Deployment::tier` (mirrored from
+    /// `ModelDescriptor::tier`). When no tier-matched deployments
+    /// exist on either side, the strategy gracefully degrades to
+    /// `SimpleShuffle` over the whole eligible set.
+    ///
+    /// Spec: research/29 line 251. A/B log-loss emission lives in the
+    /// orchestrator loop (`record_ab_classifier_decision`); this
+    /// variant only does the route selection.
+    Mf { threshold: f64 },
     /// In-process custom router. Skipped on serialize.
     #[serde(skip)]
     Custom(Arc<dyn Router>),
@@ -211,6 +243,7 @@ impl std::fmt::Debug for RoutingStrategy {
                 .field("branches", branches)
                 .field("default", default)
                 .finish(),
+            Self::Mf { threshold } => f.debug_struct("Mf").field("threshold", threshold).finish(),
             Self::Custom(_) => f.write_str("Custom(<dyn Router>)"),
         }
     }
@@ -243,6 +276,7 @@ impl PartialEq for RoutingStrategy {
                     default: bd,
                 },
             ) => ab == bb && ad == bd,
+            (Self::Mf { threshold: a }, Self::Mf { threshold: b }) => (a - b).abs() < 1e-9,
             // Custom routers are not comparable (Arc<dyn Router>).
             _ => false,
         }
@@ -379,6 +413,7 @@ impl RoutingStrategy {
                 // No branch matched and no default: fall back to shuffle.
                 shuffle_select(&eligible, rng)
             }
+            Self::Mf { threshold } => mf_select(&eligible, ctx, *threshold, rng),
             Self::Custom(router) => router.route(ctx),
         }
     }
@@ -564,6 +599,43 @@ fn cost_select<'a, R: Rng + ?Sized>(
     )
 }
 
+/// Strong-vs-weak binary routing (RFC 04 §7 sub-fase 2.4, RouteLLM `mf`
+/// experimental flavour, research/29 line 252). When `ctx.classifier_confidence
+/// >= threshold`, restrict the eligible set to deployments listed in
+/// `ctx.strong_ids`. When confidence is low, restrict to deployments
+/// **not** in `strong_ids`. Then weighted-shuffle the surviving slice.
+///
+/// Graceful degradation: if the strong (or weak) split yields an empty
+/// slice, falls back to weighted-shuffle over the full `eligible` set
+/// — the operator gets a decision rather than `NoHealthy`, and the
+/// monitoring surfaces "no strong-tier deployment for confident
+/// prompt" as a separate telemetry channel (a Phase 2.5+ concern).
+fn mf_select<'a, R: Rng + ?Sized>(
+    eligible: &[&'a Deployment],
+    ctx: &RouteContext<'a>,
+    threshold: f64,
+    rng: &mut R,
+) -> RouteDecision<'a> {
+    let pick_strong = ctx.classifier_confidence >= threshold;
+    let filtered: Vec<&Deployment> = eligible
+        .iter()
+        .copied()
+        .filter(|d| {
+            let is_strong = ctx.strong_ids.contains(&d.id);
+            pick_strong == is_strong
+        })
+        .collect();
+    if filtered.is_empty() {
+        // No deployments on the chosen side — fall back to
+        // weighted-shuffle over the whole eligible set. The caller
+        // upstream (orchestrator loop) is expected to be the one that
+        // populates `strong_ids`; if they forgot, this fallback avoids
+        // a hard failure.
+        return shuffle_select(eligible, rng);
+    }
+    shuffle_select(&filtered, rng)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -611,6 +683,8 @@ mod tests {
     fn ctx_with(healthy: &[Deployment]) -> RouteContext<'_> {
         let (in_flight, latency_p50_ms, error_rate, tokens_this_minute, tpm_budget, excluded) =
             empty_maps();
+        static STRONG: std::sync::LazyLock<HashSet<String>> =
+            std::sync::LazyLock::new(HashSet::new);
         RouteContext {
             healthy,
             in_flight,
@@ -624,6 +698,8 @@ mod tests {
             has_tool_calls: false,
             high_stakes: false,
             excluded,
+            strong_ids: &STRONG,
+            classifier_confidence: 0.0,
         }
     }
 
@@ -982,5 +1058,96 @@ mod tests {
         assert!(m
             .lookup(FallbackBucket::ContextWindow, "claude-opus")
             .is_empty());
+    }
+
+    fn mf_ctx_with<'a>(
+        healthy: &'a [Deployment],
+        strong_ids: &'a HashSet<String>,
+    ) -> RouteContext<'a> {
+        RouteContext {
+            healthy,
+            strong_ids,
+            classifier_confidence: 0.0,
+            ..ctx_with(healthy)
+        }
+    }
+
+    #[test]
+    fn mf_high_confidence_picks_strong_only() {
+        let deps = [dep("strong-a", 1.0), dep("weak-b", 1.0)];
+        let mut strong = HashSet::new();
+        strong.insert(deps[0].id.clone());
+        let mut ctx = mf_ctx_with(&deps, &strong);
+        ctx.classifier_confidence = 0.95;
+        let strat = RoutingStrategy::Mf { threshold: 0.7 };
+        let mut rng = rand::rngs::StdRng::seed_from_u64(1);
+        for _ in 0..20 {
+            match strat.select(&ctx, &mut rng) {
+                RouteDecision::Deploy(d) => assert_eq!(
+                    d.id, deps[0].id,
+                    "high-confidence MF should pick strong only"
+                ),
+                RouteDecision::NoHealthy => panic!("expected Deploy"),
+            }
+        }
+    }
+
+    #[test]
+    fn mf_low_confidence_picks_weak_only() {
+        let deps = [dep("strong-a", 1.0), dep("weak-b", 1.0)];
+        let mut strong = HashSet::new();
+        strong.insert(deps[0].id.clone());
+        let mut ctx = mf_ctx_with(&deps, &strong);
+        ctx.classifier_confidence = 0.40;
+        let strat = RoutingStrategy::Mf { threshold: 0.7 };
+        let mut rng = rand::rngs::StdRng::seed_from_u64(1);
+        for _ in 0..20 {
+            match strat.select(&ctx, &mut rng) {
+                RouteDecision::Deploy(d) => assert_eq!(
+                    d.id, deps[1].id,
+                    "low-confidence MF should pick weak-only (non-strong)"
+                ),
+                RouteDecision::NoHealthy => panic!("expected Deploy"),
+            }
+        }
+    }
+
+    #[test]
+    fn mf_empty_strong_falls_back_to_shuffle_over_all_eligible() {
+        let deps = [dep("a", 1.0), dep("b", 1.0), dep("c", 1.0)];
+        let empty_set: HashSet<String> = HashSet::new();
+        let mut ctx = mf_ctx_with(&deps, &empty_set);
+        ctx.classifier_confidence = 0.95;
+        let strat = RoutingStrategy::Mf { threshold: 0.7 };
+        let mut rng = rand::rngs::StdRng::seed_from_u64(1);
+        let mut seen: HashSet<String> = HashSet::new();
+        for _ in 0..1_000 {
+            match strat.select(&ctx, &mut rng) {
+                RouteDecision::Deploy(d) => {
+                    seen.insert(d.id.clone());
+                }
+                RouteDecision::NoHealthy => panic!("expected Deploy"),
+            }
+        }
+        assert_eq!(
+            seen.len(),
+            3,
+            "when strong_ids is empty, MF should fall back to shuffle \
+             over the entire eligible set"
+        );
+    }
+
+    #[test]
+    fn mf_no_eligible_returns_no_healthy() {
+        let deps: [Deployment; 0] = [];
+        let empty_set: HashSet<String> = HashSet::new();
+        let mut ctx = mf_ctx_with(&deps, &empty_set);
+        ctx.classifier_confidence = 0.95;
+        let strat = RoutingStrategy::Mf { threshold: 0.7 };
+        let mut rng = rand::rngs::StdRng::seed_from_u64(1);
+        assert!(matches!(
+            strat.select(&ctx, &mut rng),
+            RouteDecision::NoHealthy
+        ));
     }
 }

@@ -9,8 +9,8 @@ use super::commands::ResearchCmd;
 #[cfg(feature = "toast")]
 use super::commands::ToastCmd;
 use super::commands::{
-    AuditCmd, ExecCmd, ForkCmd, HudCmd, JournalCmd, McpCmd, MissionCmd, PlanCmd, ProfileCmd,
-    ResumeCmd, RunCmd, SkillCmd, SteerCmd, SwapModelCmd,
+    AuditCmd, ExecCmd, ForkCmd, HudCmd, JournalCmd, McpCmd, MissionCmd, ModelsCmd, PlanCmd,
+    ProfileCmd, ResumeCmd, RunCmd, SkillCmd, SteerCmd, SwapModelCmd,
 };
 #[derive(Parser, Debug)]
 #[command(name = "atlas", version, propagate_version = true)]
@@ -58,6 +58,8 @@ pub enum Commands {
     Steer(SteerCmd),
     /// Hot-swap the model driving a mission (RFC 27 §B).
     SwapModel(SwapModelCmd),
+    /// Model registry management — affinity refresh (RFC 04 §8).
+    Models(ModelsCmd),
     /// LLM-driver Phase 2 entrypoints (RFC 27 §F).
     Exec(ExecCmd),
     /// HUD server control.

@@ -83,6 +83,7 @@ pub(crate) fn empty_route_ctx() -> RouteContext<'static> {
     static TOKENS_THIS_MIN: LazyLock<HashMap<String, u32>> = LazyLock::new(HashMap::new);
     static TPM_BUDGET: LazyLock<HashMap<String, u32>> = LazyLock::new(HashMap::new);
     static EXCLUDED: LazyLock<HashSet<String>> = LazyLock::new(HashSet::new);
+    static STRONG: LazyLock<HashSet<String>> = LazyLock::new(HashSet::new);
     static HEALTHY: LazyLock<Vec<crate::orchestrator::provider::Deployment>> =
         LazyLock::new(Vec::new);
     RouteContext {
@@ -98,6 +99,8 @@ pub(crate) fn empty_route_ctx() -> RouteContext<'static> {
         has_tool_calls: false,
         high_stakes: false,
         excluded: &EXCLUDED,
+        strong_ids: &STRONG,
+        classifier_confidence: 0.0,
     }
 }
 

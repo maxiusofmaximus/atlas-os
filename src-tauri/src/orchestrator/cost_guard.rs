@@ -50,6 +50,44 @@ pub struct AggregationCostContext {
     pub reflexion_memory_tokens: u64,
 }
 
+impl AggregationCostContext {
+    /// RFC 04 §6 sub-fase 2.4 — fill `tokens_per_sample` and
+    /// `blended_cost_per_1m` from the journal's rolling-window
+    /// `model_invocations` means for `(model_id, sample_window)`.
+    /// This is the "real cost_guard impl" (research/29 line 252).
+    ///
+    /// Used by the orchestrator loop before dispatching an aggregation:
+    /// if the historical mean tokens for this model exceed the budget
+    /// allocation, the guard rejects and the orchestrator degrades to
+    /// single-model invocation. The default `Default::default()`
+    /// still works for unit tests that don't want to seed telemetry.
+    ///
+    /// Returns a fully-formed `AggregationCostContext` ready for
+    /// `AggregationPolicy::pre_cost_estimate`. Caller controls the
+    /// `parallel_samples`, `rounds`, and `reflexion_memory_tokens`
+    /// fields via the parameter list — those don't come from the
+    /// journal.
+    pub fn from_journal(
+        journal: &crate::journal::Journal,
+        model_id: &str,
+        window: u32,
+        parallel_samples: u32,
+        rounds: u32,
+        reflexion_memory_tokens: u64,
+    ) -> anyhow::Result<Self> {
+        let (mean_tokens_in, mean_tokens_out, blended_cost_per_1m) =
+            journal.read_model_invocation_means(model_id, window)?;
+        let tokens_per_sample = mean_tokens_in.saturating_add(mean_tokens_out);
+        Ok(Self {
+            parallel_samples,
+            tokens_per_sample,
+            blended_cost_per_1m,
+            rounds,
+            reflexion_memory_tokens,
+        })
+    }
+}
+
 /// Breakdown of the pre-cost estimate, surfaced to the HUD when the
 /// guard rejects an aggregation.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]

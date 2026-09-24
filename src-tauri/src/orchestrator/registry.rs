@@ -28,6 +28,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
+use crate::orchestrator::affinity::AffinityIndex;
 use crate::orchestrator::provider::{
     Capability, Deployment, ModelDescriptor, Provider, ProviderWire, Tier,
 };
@@ -84,12 +85,18 @@ pub struct Registry {
     pub by_provider: HashMap<ProviderWire, Vec<String>>,
     /// Per-deployment rows. `model_id → Vec<Deployment>`.
     /// Empty in a pure Json-seed Registry; populated by SQLite reader
-    /// (sub-fase 2.1) and explicit `opencode models add-deployment`.
+    /// (sub-fase 2.1) and explicit `atlas models add-deployment`.
     pub deployments: HashMap<String, Vec<Arc<Deployment>>>,
     /// User-supplied custom backends. `id → Arc<dyn Config>` live trait
     /// objects, owned only here so that `Provider::Custom` variants can
     /// call `custom_config()` and reach the runtime object.
     pub custom_backends: HashMap<String, Arc<dyn crate::orchestrator::provider::Config>>,
+    /// RFC 04 §8 sub-fase 2.4 — affinity cache. Cloning a `Registry`
+    /// yields a handle sharing the underlying `ArcSwap`; the refresh
+    /// task (orchestrator loop) stores a fresh map; route readers
+    /// `load()` cheaply and deref to `&Arc<HashMap<...>>`.
+    /// Empty by default; populate via `refresh_affinity_from_journal`.
+    pub affinity: AffinityIndex,
 }
 
 impl Registry {
@@ -178,6 +185,33 @@ impl Registry {
             .values()
             .filter(|d| d.capabilities.contains(&cap))
             .collect()
+    }
+
+    /// RFC 04 §8 sub-fase 2.4 — re-crunch the affinity cache from
+    /// journal telemetry and atomically swap it into `self.affinity`.
+    /// The orchestrator refresh loop (or `atlas models refresh`)
+    /// invokes this after a sampling window elapses.
+    ///
+    /// Reads `window` most-recent `model_invocations` rows, joins
+    /// `task_classifier_decisions` for the predicted task type, groups
+    /// by `(task_type, model_id)`, persists the fresh snapshot back to
+    /// `model_affinity_cache` (M23 mirror), and stores an in-memory
+    /// snapshot for hot-path reads.
+    pub fn refresh_affinity_from_journal(
+        &self,
+        journal: &crate::journal::Journal,
+        window: u32,
+    ) -> anyhow::Result<()> {
+        use crate::orchestrator::classifier::TaskType;
+        let rows = journal.read_affinity(window)?;
+        journal.upsert_affinity_rows(&rows)?;
+        let mut map: HashMap<(TaskType, String), crate::orchestrator::affinity::AffinityRow> =
+            HashMap::with_capacity(rows.len());
+        for row in rows {
+            map.insert((row.task_type, row.model_id.clone()), row);
+        }
+        self.affinity.store_all(map);
+        Ok(())
     }
 }
 

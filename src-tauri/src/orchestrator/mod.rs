@@ -15,6 +15,7 @@
 // renders the transition. The persisted histories (`journal_events`,
 // `model_swaps`) keep the original values intact for the audit trail.
 
+pub mod affinity;
 pub mod aggregation;
 pub mod backpressure;
 pub mod cache_control;
@@ -33,6 +34,7 @@ pub mod routing;
 pub mod tokenizer;
 pub mod wire;
 
+pub use affinity::{AffinityIndex, AffinityRow};
 pub use aggregation::{
     AggregationContext, AggregationError, AggregationMode, AggregationModeSnapshot, Aggregator,
     FusedResponse, ReflectionEpisodeOut, StopCondition,

@@ -14,7 +14,7 @@ use rusqlite::Connection;
 /// log and must never be renumbered. When adding M(N+1): bump this const
 /// AND change the final migration's `params![N, …]` to
 /// `params![CURRENT_SCHEMA_VERSION, …]` (same value).
-pub const CURRENT_SCHEMA_VERSION: i64 = 23;
+pub const CURRENT_SCHEMA_VERSION: i64 = 24;
 
 pub fn migrate(conn: &Connection) -> Result<()> {
     // M0 — Schema versioning.
@@ -1146,6 +1146,59 @@ pub fn migrate(conn: &Connection) -> Result<()> {
                 updated_at          TEXT NOT NULL,
                 PRIMARY KEY (task_type, model_id)
             );",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![23, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
+
+    // M24 — sub-fase 2.4. Relax `task_classifier_decisions.classifier_kind`
+    // CHECK to accept `'main'` (the primary classifier run, mirroring
+    // `ClassifierKind::Lexical` fallback) and `'mf_ab'` (the A/B emission
+    // of the experimental `RoutingStrategy::Mf` trained-route selector —
+    // RFC 04 §6 sub-fase 2.4 research/29 §248-252). SQLite cannot ALTER
+    // a CHECK in-place, so the standard recreate-and-copy idiom applies:
+    // create the new table under a temporary name, copy rows in, drop
+    // the old, rename, recreate the two indexes (which were dropped
+    // when the parent table was dropped). Existing rows (production
+    // Phase-1 installs upgraded in-place) keep their `lexical`/`logreg`/
+    // `embedding` value unchanged; new rows from 2.4 onward can carry
+    // the two new kinds. Idempotent: if `task_classifier_decisions` is
+    // absent (fresh install) the outer `IF NOT EXISTS` guards already
+    // created it under M23 with a stricter CHECK, and this migration
+    // replaces it with the relaxed CHECK.
+    if current < 24 {
+        conn.execute_batch(
+            "BEGIN;
+
+            CREATE TABLE task_classifier_decisions_new (
+                id                  TEXT PRIMARY KEY,
+                mission_id          TEXT,
+                prompt_hash         TEXT NOT NULL,
+                predicted_task_type TEXT NOT NULL,
+                confidence          REAL NOT NULL CHECK (confidence BETWEEN 0.0 AND 1.0),
+                features_json       TEXT,
+                classifier_kind     TEXT NOT NULL CHECK (classifier_kind IN
+                    ('lexical','logreg','embedding','main','mf_ab')),
+                created_at          TEXT NOT NULL,
+                UNIQUE (prompt_hash, classifier_kind)
+            );
+
+            INSERT INTO task_classifier_decisions_new
+                SELECT * FROM task_classifier_decisions;
+
+            DROP TABLE task_classifier_decisions;
+
+            ALTER TABLE task_classifier_decisions_new
+                RENAME TO task_classifier_decisions;
+
+            CREATE INDEX IF NOT EXISTS task_classifier_decisions_mission_idx
+                ON task_classifier_decisions(mission_id, created_at);
+            CREATE INDEX IF NOT EXISTS task_classifier_decisions_type_idx
+                ON task_classifier_decisions(predicted_task_type, created_at);
+
+            COMMIT;",
         )?;
         conn.execute(
             "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",

@@ -30,6 +30,34 @@ pub use store::{
     VerdictRow,
 };
 
+/// RFC 04 §6 sub-fase 2.4 — one row of `model_invocations` (M21) as
+/// materialised by `Journal::record_model_invocation`. The struct
+/// mirrors the SQL column set 1:1; missing columns are `Option<…>`
+/// matching the schema's `NULL` allowance.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ModelInvocationRow {
+    pub id: String,
+    pub mission_id: Option<String>,
+    pub model_id: String,
+    pub deployment_id: String,
+    pub provider: String,
+    pub idempotency_key: String,
+    pub started_at: String,
+    pub finished_at: Option<String>,
+    pub latency_ms: Option<i64>,
+    pub tokens_in: Option<i64>,
+    pub tokens_out: Option<i64>,
+    pub cache_read_input_tokens: Option<i64>,
+    pub cost_usd: Option<f64>,
+    pub seed: Option<i64>,
+    pub temperature: Option<f64>,
+    pub sampling_params_json: Option<String>,
+    pub route_taken_json: Option<String>,
+    pub was_correct: Option<i64>,
+    pub error_kind: Option<String>,
+    pub error_message: Option<String>,
+}
+
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
@@ -1818,5 +1846,500 @@ impl Journal {
             rusqlite::params![provider, model],
             |r| r.get(0),
         )?)
+    }
+
+    // ---- Phase 2 sub-fase 2.4 feedback loop -----------------------
+    // Affinity reader + classifier-decision append.
+    //
+    // The reader joins `model_invocations mi ON
+    // task_classifier_decisions cd ON cd.mission_id = mi.mission_id`
+    // and groups by `(cd.predicted_task_type, mi.model_id)`, computing
+    // `success_rate`, `p95_latency_ms`, `mean_cost_usd`, `n_samples`
+    // over a bounded rolling window. The schema (M21 + M23) already
+    // exists — no migration is needed for 2.4.
+    //
+    // The classifier-decision append records a row in
+    // `task_classifier_decisions` keyed by `(prompt_hash,
+    // classifier_kind)`. The A/B emission path records a *second* row
+    // with `classifier_kind = 'mf_ab'` so offline calibration can
+    // compare the chosen RouterId::Mf's log-loss against RouterId::Auto.
+
+    /// Compute the affinity table for `(task_type, model_id)` pairs
+    /// over the most recent `window` `model_invocations` rows. The
+    /// reader is called by the orchestrator refresh loop (every N
+    /// missions completed + on `atlas models refresh`), then
+    /// `AffinityIndex::store_all` swaps the fresh map into the
+    /// hot-path cache.
+    ///
+    /// Returned rows are filtered to `n_samples >= 1`; the router
+    /// applies the `MIN_SAMPLES = 3` floor on read.
+    pub fn read_affinity(
+        &self,
+        window: u32,
+    ) -> anyhow::Result<Vec<crate::orchestrator::affinity::AffinityRow>> {
+        use crate::orchestrator::affinity::AffinityRow;
+        use crate::orchestrator::classifier::TaskType;
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "WITH ranked AS (
+                SELECT mi.model_id,
+                       mi.latency_ms,
+                       mi.cost_usd,
+                       mi.was_correct,
+                       cd.predicted_task_type,
+                       ROW_NUMBER() OVER (
+                           ORDER BY mi.started_at DESC
+                       ) AS rk
+                FROM model_invocations mi
+                JOIN task_classifier_decisions cd
+                  ON cd.mission_id IS NOT NULL
+                 AND cd.mission_id = mi.mission_id
+                WHERE mi.mission_id IS NOT NULL
+            )
+            SELECT predicted_task_type, model_id,
+                   COALESCE(SUM(CASE WHEN was_correct = 1 THEN 1 ELSE 0 END), 0) * 1.0
+                       / COUNT(*)        AS success_rate,
+                   -1                    AS p95_latency_ms_int,
+                   AVG(cost_usd)         AS mean_cost_usd,
+                   COUNT(*)              AS n_samples
+            FROM ranked
+            WHERE rk <= ?1
+            GROUP BY predicted_task_type, model_id
+            HAVING COUNT(*) >= 1",
+        )?;
+        let rows: rusqlite::Result<Vec<AffinityRow>> = stmt
+            .query_map(rusqlite::params![i64::from(window)], |r| {
+                let task_str: String = r.get(0)?;
+                let model_id: String = r.get(1)?;
+                let success_rate: f64 = r.get(2)?;
+                let p95_int: i64 = r.get(3)?;
+                let mean_cost: Option<f64> = r.get(4)?;
+                let n_samples: i64 = r.get(5)?;
+                let p95_latency_ms = if p95_int < 0 { None } else { Some(p95_int) };
+                let task_type = TaskType::parse(&task_str).unwrap_or(TaskType::Unknown);
+                Ok(AffinityRow {
+                    task_type,
+                    model_id,
+                    success_rate,
+                    p95_latency_ms,
+                    mean_cost_usd: mean_cost,
+                    n_samples,
+                })
+            })?
+            .collect();
+        Ok(rows?)
+    }
+
+    /// Persist the current affinity snapshot back to the SQLite mirror
+    /// (`model_affinity_cache`, M23). Idempotent: `INSERT OR REPLACE`
+    /// overwrites by primary key `(task_type, model_id)`. The
+    /// refresh loop calls this after `read_affinity` so a restart can
+    /// warm the in-memory index from disk without re-crunching.
+    pub fn upsert_affinity_rows(
+        &self,
+        rows: &[crate::orchestrator::affinity::AffinityRow],
+    ) -> anyhow::Result<()> {
+        let mut conn = self.conn.lock();
+        let tx = conn.transaction()?;
+        {
+            let mut stmt = tx.prepare(
+                "INSERT OR REPLACE INTO model_affinity_cache
+                 (task_type, model_id, success_rate, p95_latency_ms,
+                  mean_cost_usd, n_samples, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            )?;
+            let now = chrono::Utc::now().to_rfc3339();
+            for row in rows {
+                stmt.execute(rusqlite::params![
+                    row.task_type.as_str(),
+                    row.model_id,
+                    row.success_rate,
+                    row.p95_latency_ms,
+                    row.mean_cost_usd,
+                    row.n_samples,
+                    now,
+                ])?;
+            }
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Reload the in-memory affinity snapshot from the SQLite mirror
+    /// (used at boot or after a manual `atlas models refresh`). Returns
+    /// an empty vec when the table is empty.
+    pub fn load_affinity_rows(
+        &self,
+    ) -> anyhow::Result<Vec<crate::orchestrator::affinity::AffinityRow>> {
+        use crate::orchestrator::affinity::AffinityRow;
+        use crate::orchestrator::classifier::TaskType;
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT task_type, model_id, success_rate, p95_latency_ms,
+                    mean_cost_usd, n_samples
+             FROM model_affinity_cache",
+        )?;
+        let rows: rusqlite::Result<Vec<AffinityRow>> = stmt
+            .query_map([], |r| {
+                let task_str: String = r.get(0)?;
+                let model_id: String = r.get(1)?;
+                let success_rate: f64 = r.get(2)?;
+                let p95_latency_ms: Option<i64> = r.get(3)?;
+                let mean_cost_usd: Option<f64> = r.get(4)?;
+                let n_samples: i64 = r.get(5)?;
+                let task_type = TaskType::parse(&task_str).unwrap_or(TaskType::Unknown);
+                Ok(AffinityRow {
+                    task_type,
+                    model_id,
+                    success_rate,
+                    p95_latency_ms,
+                    mean_cost_usd,
+                    n_samples,
+                })
+            })?
+            .collect();
+        Ok(rows?)
+    }
+
+    /// Record a `task_classifier_decisions` row. Used by 2.3's main
+    /// classifier run and by 2.4's A/B emission (the second row uses
+    /// `kind = "mf_ab"`). The `(prompt_hash, classifier_kind)` UNIQUE
+    /// constraint means a replay is silently ignored by `INSERT OR
+    /// IGNORE` — A/B replay on the same prompt is a no-op, not an
+    /// error.
+    pub fn record_classifier_decision(
+        &self,
+        mission_id: Option<&Uuid>,
+        prompt_hash: &str,
+        predicted_task_type: &str,
+        confidence: f64,
+        features_json: Option<&str>,
+        classifier_kind: &str,
+    ) -> anyhow::Result<()> {
+        let conn = self.conn.lock();
+        let id = Uuid::new_v4().to_string();
+        let mission_id_str = mission_id.map(|u| u.to_string());
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT OR IGNORE INTO task_classifier_decisions
+             (id, mission_id, prompt_hash, predicted_task_type, confidence,
+              features_json, classifier_kind, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            rusqlite::params![
+                id,
+                mission_id_str,
+                prompt_hash,
+                predicted_task_type,
+                confidence,
+                features_json,
+                classifier_kind,
+                now,
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// RFC 04 §6 sub-fase 2.4 — rolling-window means of
+    /// `model_invocations.tokens_in`, `tokens_out`, and a blended
+    /// input+output cost-per-1M figure for `cost_guard`'s
+    /// `AggregationCostContext::from_journal`. Used by the orchestrator
+    /// to estimate pre-aggregation spend based on what this model has
+    /// historically consumed per request.
+    ///
+    /// When no telemetry exists for `model_id`, returns zeros — the
+    /// caller's guard evaluates `0` as "no data" (the operator
+    /// explicitly-set `blended_cost_per_1m` in the profile takes over
+    /// only when the `Default::default()` path is used instead).
+    pub fn read_model_invocation_means(
+        &self,
+        model_id: &str,
+        window: u32,
+    ) -> anyhow::Result<(u64, u64, f64)> {
+        let conn = self.conn.lock();
+        let (mean_in, mean_out, total_cost, total_tokens) = conn.query_row(
+            "WITH ranked AS (
+                SELECT tokens_in, tokens_out,
+                       cost_usd,
+                       ROW_NUMBER() OVER (
+                           ORDER BY started_at DESC
+                       ) AS rk
+                FROM model_invocations
+                WHERE model_id = ?1
+                  AND tokens_in IS NOT NULL
+                  AND tokens_out IS NOT NULL
+            )
+            SELECT COALESCE(AVG(tokens_in), 0),
+                   COALESCE(AVG(tokens_out), 0),
+                   COALESCE(SUM(cost_usd), 0),
+                   COALESCE(SUM(tokens_in + tokens_out), 0)
+            FROM ranked
+            WHERE rk <= ?2",
+            rusqlite::params![model_id, i64::from(window)],
+            |r| {
+                let mean_in: Option<f64> = r.get(0)?;
+                let mean_out: Option<f64> = r.get(1)?;
+                let total_cost: Option<f64> = r.get(2)?;
+                let total_tokens: Option<f64> = r.get(3)?;
+                Ok((
+                    mean_in.unwrap_or(0.0) as u64,
+                    mean_out.unwrap_or(0.0) as u64,
+                    total_cost.unwrap_or(0.0),
+                    total_tokens.unwrap_or(0.0),
+                ))
+            },
+        )?;
+        let blended_cost_per_1m = if total_tokens > 0.0 {
+            (total_cost / total_tokens) * 1_000_000.0
+        } else {
+            0.0
+        };
+        Ok((mean_in, mean_out, blended_cost_per_1m))
+    }
+
+    /// Record a single `model_invocations` row. Used by the
+    /// orchestrator after every model invocation (Phase 2). Phases 0-1
+    /// never call this; the rows accumulate naturally once the
+    /// orchestrator loop lands.
+    pub fn record_model_invocation(&self, row: &ModelInvocationRow) -> anyhow::Result<()> {
+        let conn = self.conn.lock();
+        conn.execute(
+            "INSERT OR IGNORE INTO model_invocations
+             (id, mission_id, model_id, deployment_id, provider,
+              idempotency_key, started_at, finished_at, latency_ms,
+              tokens_in, tokens_out, cache_read_input_tokens, cost_usd,
+              seed, temperature, sampling_params_json, route_taken_json,
+              was_correct, error_kind, error_message)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
+                     ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
+            rusqlite::params![
+                row.id,
+                row.mission_id,
+                row.model_id,
+                row.deployment_id,
+                row.provider,
+                row.idempotency_key,
+                row.started_at,
+                row.finished_at,
+                row.latency_ms,
+                row.tokens_in,
+                row.tokens_out,
+                row.cache_read_input_tokens,
+                row.cost_usd,
+                row.seed,
+                row.temperature,
+                row.sampling_params_json,
+                row.route_taken_json,
+                row.was_correct,
+                row.error_kind,
+                row.error_message,
+            ],
+        )?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod phase24_tests {
+    use super::*;
+    use crate::orchestrator::classifier::TaskType;
+    use tempfile::TempDir;
+
+    fn open() -> Journal {
+        let tmp = TempDir::new().expect("tmp");
+        Journal::open(tmp.path()).expect("open")
+    }
+
+    fn seed_model(j: &Journal, model_id: &str) {
+        j.conn
+            .lock()
+            .execute(
+                "INSERT INTO models (id, provider, display_name, tier, context_window,
+                    max_output_tokens, capabilities_json)
+                 VALUES (?1, 'openai', 'Test Model', 'strong', 128000, 16384, '[]')",
+                rusqlite::params![model_id],
+            )
+            .expect("seed models row");
+    }
+
+    #[test]
+    fn affinity_reader_returns_empty_when_no_telemetry() {
+        let j = open();
+        let rows = j.read_affinity(50).expect("read_affinity");
+        assert!(rows.is_empty(), "expected no affinity rows pre-seed");
+    }
+
+    #[test]
+    fn affinity_reader_seeds_from_model_invocations_and_classifier_decisions() {
+        let j = open();
+        seed_model(&j, "gpt-test");
+
+        let mission_id = Uuid::new_v4();
+
+        let row = ModelInvocationRow {
+            id: Uuid::new_v4().to_string(),
+            mission_id: Some(mission_id.to_string()),
+            model_id: "gpt-test".into(),
+            deployment_id: "gpt-test-deploy".into(),
+            provider: "openai".into(),
+            idempotency_key: "k1".into(),
+            started_at: "2025-01-01T00:00:00Z".into(),
+            finished_at: Some("2025-01-01T00:00:01Z".into()),
+            latency_ms: Some(250),
+            tokens_in: Some(100),
+            tokens_out: Some(50),
+            cache_read_input_tokens: None,
+            cost_usd: Some(0.001),
+            seed: None,
+            temperature: Some(0.0),
+            sampling_params_json: None,
+            route_taken_json: None,
+            was_correct: Some(1),
+            error_kind: None,
+            error_message: None,
+        };
+        j.record_model_invocation(&row).expect("record inv");
+
+        j.record_classifier_decision(
+            Some(&mission_id),
+            "hash-1",
+            "coding",
+            0.92,
+            Some("{}"),
+            "main",
+        )
+        .expect("record classifier");
+
+        j.upsert_affinity_rows(&[]).expect("noop prime");
+        let rows = j.read_affinity(50).expect("read_affinity");
+        assert_eq!(
+            rows.len(),
+            1,
+            "expected one affinity row (the JOIN matched)"
+        );
+        let r = &rows[0];
+        assert_eq!(r.task_type, TaskType::Coding);
+        assert_eq!(r.model_id, "gpt-test");
+        assert!(
+            r.success_rate > 0.5,
+            "success_rate should be > 0.5 since was_correct=1"
+        );
+        assert_eq!(r.n_samples, 1);
+    }
+
+    #[test]
+    fn classifier_decision_ab_replay_is_idempotent() {
+        let j = open();
+        let mission_id = Uuid::new_v4();
+
+        j.record_classifier_decision(
+            Some(&mission_id),
+            "prompt-hash-x",
+            "reasoning",
+            0.88,
+            Some("{}"),
+            "main",
+        )
+        .expect("record main");
+
+        j.record_classifier_decision(
+            Some(&mission_id),
+            "prompt-hash-x",
+            "creative",
+            0.7,
+            Some("{}"),
+            "mf_ab",
+        )
+        .expect("record ab");
+
+        // Replay the same (prompt_hash, classifier_kind) — must be a no-op.
+        let before = j
+            .conn
+            .lock()
+            .query_row::<i64, _, _>("SELECT COUNT(*) FROM task_classifier_decisions", [], |r| {
+                r.get(0)
+            })
+            .expect("count");
+        j.record_classifier_decision(
+            Some(&mission_id),
+            "prompt-hash-x",
+            "creative",
+            0.7,
+            Some("{}"),
+            "mf_ab",
+        )
+        .expect("replay");
+        let after = j
+            .conn
+            .lock()
+            .query_row::<i64, _, _>("SELECT COUNT(*) FROM task_classifier_decisions", [], |r| {
+                r.get(0)
+            })
+            .expect("count");
+        assert_eq!(before, after, "INSERT OR IGNORE: replay is idempotent");
+        assert_eq!(after, 2, "two distinct rows (main + mf_ab)");
+    }
+
+    #[test]
+    fn read_model_invocation_means_returns_zeros_when_no_data() {
+        let j = open();
+        let (mean_in, mean_out, blend) = j
+            .read_model_invocation_means("ghost-model", 100)
+            .expect("means");
+        assert_eq!(mean_in, 0);
+        assert_eq!(mean_out, 0);
+        assert_eq!(blend, 0.0);
+    }
+
+    #[test]
+    fn read_model_invocation_means_computes_per_1m_blended_cost() {
+        let j = open();
+        seed_model(&j, "gpt-x");
+        let ids: Vec<String> = (0..3).map(|_i| Uuid::new_v4().to_string()).collect();
+        for (i, row_id) in ids.iter().enumerate() {
+            let day = (i % 28) + 1;
+            let started = if day < 10 {
+                format!("2025-01-0{day}T00:00:00Z")
+            } else {
+                format!("2025-01-{day}T00:00:00Z")
+            };
+            let finished = if day < 10 {
+                format!("2025-01-0{day}T00:00:01Z")
+            } else {
+                format!("2025-01-{day}T00:00:01Z")
+            };
+            let row = ModelInvocationRow {
+                id: row_id.clone(),
+                mission_id: None,
+                model_id: "gpt-x".into(),
+                deployment_id: "gpt-x".into(),
+                provider: "openai".into(),
+                idempotency_key: format!("k{i}"),
+                started_at: started,
+                finished_at: Some(finished),
+                latency_ms: Some(100),
+                tokens_in: Some(1000),
+                tokens_out: Some(500),
+                cache_read_input_tokens: None,
+                cost_usd: Some(0.030),
+                seed: None,
+                temperature: None,
+                sampling_params_json: None,
+                route_taken_json: None,
+                was_correct: Some(1),
+                error_kind: None,
+                error_message: None,
+            };
+            j.record_model_invocation(&row).expect("record");
+        }
+        let (mean_in, mean_out, blend) =
+            j.read_model_invocation_means("gpt-x", 100).expect("means");
+        assert_eq!(mean_in, 1000);
+        assert_eq!(mean_out, 500);
+        // total_cost = 0.030 * 3 = 0.090; total_tokens = (1000+500)*3 = 4500
+        // blended = (0.090 / 4500) * 1_000_000 = 20.0
+        assert!(
+            (blend - 20.0).abs() < 1e-6,
+            "expected blended ~20.0 USD per 1M tokens, got {blend}"
+        );
     }
 }

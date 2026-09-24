@@ -8,6 +8,7 @@ pub mod hud;
 pub mod journal;
 pub mod mcp;
 pub mod mission;
+pub mod models;
 pub mod plan;
 pub mod profile;
 #[cfg(feature = "firecrawl")]
@@ -27,6 +28,7 @@ pub use hud::HudCmd;
 pub use journal::JournalCmd;
 pub use mcp::McpCmd;
 pub use mission::MissionCmd;
+pub use models::ModelsCmd;
 pub use plan::PlanCmd;
 pub use profile::ProfileCmd;
 #[cfg(feature = "firecrawl")]
@@ -52,6 +54,7 @@ pub async fn dispatch(cmd: Commands, profile: &str) -> Result<()> {
         Commands::Fork(c) => fork::run(c, profile).await,
         Commands::Steer(c) => steer::run(c, profile).await,
         Commands::SwapModel(c) => swap_model::run(c, profile).await,
+        Commands::Models(c) => models::run(c, profile).await,
         Commands::Exec(c) => exec::run(c, profile).await,
         Commands::Hud(c) => hud::run(c, profile).await,
         Commands::Mcp(c) => mcp::run(c, profile).await,

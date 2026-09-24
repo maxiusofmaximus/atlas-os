@@ -279,6 +279,7 @@ fn pick_via_strategy<'a, R: Rng + ?Sized>(
     let empty_tpm: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
     let empty_budget: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
     let empty_excluded: HashSet<String> = HashSet::new();
+    let empty_strong: HashSet<String> = HashSet::new();
     // We clone to satisfy `RouteContext`'s borrowed `&[Deployment]`
     // (the strategy only reads the slice; the clones are local).
     let healthy_refs: Vec<Deployment> = eligible.iter().map(|d| (*d).clone()).collect();
@@ -295,6 +296,8 @@ fn pick_via_strategy<'a, R: Rng + ?Sized>(
         has_tool_calls: false,
         high_stakes: false,
         excluded: &empty_excluded,
+        strong_ids: &empty_strong,
+        classifier_confidence: 0.0,
     };
     match strategy.select(&ctx, rng) {
         RouteDecision::Deploy(d) => {
