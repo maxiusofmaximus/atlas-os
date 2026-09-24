@@ -29,7 +29,7 @@ pub use model_resets::ModelResetRow;
 
 pub use research::{ResearchConsensusRow, ResearchRunRow, ResearchSourceRow};
 
-pub use swarm::SwarmAgentRow;
+pub use swarm::{AgentResume, MailboxMessage, SwarmAgentRow};
 
 pub use user_profile::{UserProfile, UserProfileError};
 
