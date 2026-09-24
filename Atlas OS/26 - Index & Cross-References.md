@@ -367,7 +367,7 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Multi-key rotation` | 04 §3.1; 22 §2 |
 | `N8n canvas stile reasoning trail` | 24 §13 |
 | `Noob mode` | 17 §11 |
-| `atlas research` (CLI subcommand, gated `firecrawl` feature) | 28 §E; 08 (surface) |
+| `atlas research` (CLI subcommand: `docs` ungated + scrape/search/crawl/extract gated `firecrawl` feature) | 28 §E; 08 (surface); research `30` sub-fase 3.1 |
 | `Outline view Notion` | 24 §14 |
 | `Pauserule` | 24 §5 |
 | `Plan` (estrutura) | 12 §3 |
@@ -395,6 +395,7 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `ResearchRunStatus` (`running`/`completed`/`needing_human` fail-safe) | 10 §10; research `30` sub-fase 3.0 |
 | `ConsensusDimension` (`community`/`enterprise`/`academic`/`official`) | 10 §5; research `30` sub-fase 3.0 |
 | `ConsensusScorer` (trait, `MIN_SOURCES=3` no-data floor) + `ConsensusScore` (0..100 + referencias) | 10 §5; research `30` sub-fase 3.0 |
+| `DocsGateway` (Context7Max adapter, `ATLAS_CTX7MAX_URL`/`ctx7max` → Context7 MCP → official docs, `from_env`/`query_docs`) + `DocSnippet` (verbatim code hit) + `DocsBackend` | 10 §6; research `30` sub-fase 3.1 |
 | `combined_confidence` (media ponderada, hands-on ×1.5) | 10 §3/§5; research `30` sub-fase 3.0 |
 | `M25` migration (`research_sources` + `research_consensus`, `status`/`recommended` en `research_runs`) | 10 §7; research `30` sub-fase 3.0 |
 | `Prompt Understanding Pipeline` | 23 §2 |

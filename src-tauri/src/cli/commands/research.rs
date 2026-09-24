@@ -1,6 +1,13 @@
-// Atlas OS — `atlas research` subcommand (RFC 28 Section E).
+// Atlas OS — `atlas research` subcommand (RFC 28 Section E, RFC 10 §6).
 //
-// Three sub-actions gated behind the `firecrawl` Cargo feature:
+// Two surfaces share one subcommand:
+//
+//   * `opencode research docs <library> "<question>" [--limit N]`
+//     (Phase 3 sub-fase 3.1, always compiled — the docs gateway needs
+//     no new crate: Context7Max CLI/API externa plus Context7 MCP and
+//     official-docs fallbacks, RFC 25 §11).
+//   * `scrape` / `search` / `crawl` / `extract`, gated behind the
+//     `firecrawl` Cargo feature (RFC 28 §E):
 //
 //   * `opencode research scrape <url>`
 //   * `opencode research search <query> [--limit N] [--exclude DOMAIN …]`
@@ -8,17 +15,17 @@
 //   * `opencode research extract <url> --schema '<json>' [--prompt P]`
 //
 // Output is JSON line-delimited to stdout so it can be consumed by
-// downstream pipes / skills / graphify ingest. When the feature is
-// disabled at build time clap reports "no such command" because the
-// subcommand isn't registered in `proto::Commands` (gated through
-// the `firecrawl` feature flag, exactly like `acp` does for
-// `acp-server`).
+// downstream pipes / skills / graphify ingest. When the `firecrawl`
+// feature is disabled at build time clap reports "no such command" for
+// the gated verbs only — `docs` stays available because the gateway it
+// uses is dependency-free.
 //
 // The CLI never imports `firecrawl::Client` directly — it uses the
 // facade (`crate::firecrawl::facade`) and the env-aware
 // `FirecrawlClient::from_env()`. Credentials / self-host URL /
 // keyless tier are resolved from env vars as documented in
-// `firecrawl::client::FirecrawlClient::from_env`.
+// `firecrawl::client::FirecrawlClient::from_env`. Likewise the docs
+// verb only touches `crate::research::docs_gateway::DocsGateway`.
 //
 // Networks errors are bubbled up via `FirecrawlFacadeError` to the
 // CLI's `anyhow::Result` exit path (verbose `--verbose` adds stacks).
@@ -26,24 +33,49 @@
 use anyhow::{Context, Result};
 use clap::{Args, Subcommand};
 
+#[cfg(feature = "firecrawl")]
 use crate::firecrawl::client::FirecrawlClient;
+#[cfg(feature = "firecrawl")]
 use crate::firecrawl::facade;
+#[cfg(feature = "firecrawl")]
 use crate::firecrawl::FirecrawlFacadeError;
+
+use crate::research::docs_gateway::DocsGateway;
 
 #[derive(Subcommand, Debug)]
 pub enum ResearchSub {
+    /// Query live library docs via the docs gateway (Context7Max →
+    /// Context7 MCP shape → official docs) and print one JSON line
+    /// per snippet.
+    Docs(DocsArgs),
     /// Scrape a single URL and print its Markdown content + metadata.
+    #[cfg(feature = "firecrawl")]
     Scrape(ScrapeArgs),
     /// Search the web and print one JSON line per result.
+    #[cfg(feature = "firecrawl")]
     Search(SearchArgs),
     /// Crawl a site (up to `--limit` pages) and print one JSON line
     /// per scraped document.
+    #[cfg(feature = "firecrawl")]
     Crawl(CrawlArgs),
     /// Structured extraction against a single URL using a JSON schema.
+    #[cfg(feature = "firecrawl")]
     Extract(ExtractArgs),
 }
 
 #[derive(Args, Debug)]
+pub struct DocsArgs {
+    /// Library id as indexed by Context7Max (e.g. `tokio`, `/tokio-rs/tokio`).
+    pub library: String,
+    /// Natural-language question answered with verbatim code examples.
+    pub question: String,
+    /// Max number of snippets to print (docs-gateway default 5).
+    #[arg(short = 'n', long, default_value_t = 5)]
+    pub limit: u32,
+}
+
+#[derive(Args, Debug)]
+#[cfg(feature = "firecrawl")]
 pub struct ScrapeArgs {
     /// URL to scrape. `http(s)://` is required by the SDK.
     pub url: String,
@@ -58,6 +90,7 @@ pub struct ScrapeArgs {
 }
 
 #[derive(Args, Debug)]
+#[cfg(feature = "firecrawl")]
 pub struct SearchArgs {
     /// Query string. May be quoted for shell-escaping reasons.
     pub query: String,
@@ -79,6 +112,7 @@ pub struct SearchArgs {
 }
 
 #[derive(Args, Debug)]
+#[cfg(feature = "firecrawl")]
 pub struct CrawlArgs {
     /// Seed URL.
     pub url: String,
@@ -106,6 +140,7 @@ pub struct CrawlArgs {
 }
 
 #[derive(Args, Debug)]
+#[cfg(feature = "firecrawl")]
 pub struct ExtractArgs {
     /// URL to scrape + extract from.
     pub url: String,
@@ -126,18 +161,71 @@ pub struct ResearchCmd {
 }
 
 pub async fn run(cmd: ResearchCmd, _profile: &str) -> Result<()> {
-    let client = FirecrawlClient::from_env().context(
-        "firecrawl client build failed; set FIRECRAWL_API_KEY and optionally ATLAS_FIRECRAWL_URL (legacy: ATLAS_FIRECRAWL_URL)",
-    )?;
     match cmd.action {
-        ResearchSub::Scrape(a) => run_scrape(&client, a).await,
-        ResearchSub::Search(a) => run_search(&client, a).await,
-        ResearchSub::Crawl(a) => run_crawl(&client, a).await,
-        ResearchSub::Extract(a) => run_extract(&client, a).await,
+        ResearchSub::Docs(a) => run_docs(a).await,
+        #[cfg(feature = "firecrawl")]
+        ResearchSub::Scrape(a) => {
+            let client = FirecrawlClient::from_env().context(
+                "firecrawl client build failed; set FIRECRAWL_API_KEY and optionally ATLAS_FIRECRAWL_URL (legacy: ATLAS_FIRECRAWL_URL)",
+            )?;
+            run_scrape(&client, a)
+                .await
+                .map_err(|e| anyhow::anyhow!("research: {e:?}"))
+        }
+        #[cfg(feature = "firecrawl")]
+        ResearchSub::Search(a) => {
+            let client = FirecrawlClient::from_env().context(
+                "firecrawl client build failed; set FIRECRAWL_API_KEY and optionally ATLAS_FIRECRAWL_URL (legacy: ATLAS_FIRECRAWL_URL)",
+            )?;
+            run_search(&client, a)
+                .await
+                .map_err(|e| anyhow::anyhow!("research: {e:?}"))
+        }
+        #[cfg(feature = "firecrawl")]
+        ResearchSub::Crawl(a) => {
+            let client = FirecrawlClient::from_env().context(
+                "firecrawl client build failed; set FIRECRAWL_API_KEY and optionally ATLAS_FIRECRAWL_URL (legacy: ATLAS_FIRECRAWL_URL)",
+            )?;
+            run_crawl(&client, a)
+                .await
+                .map_err(|e| anyhow::anyhow!("research: {e:?}"))
+        }
+        #[cfg(feature = "firecrawl")]
+        ResearchSub::Extract(a) => {
+            let client = FirecrawlClient::from_env().context(
+                "firecrawl client build failed; set FIRECRAWL_API_KEY and optionally ATLAS_FIRECRAWL_URL (legacy: ATLAS_FIRECRAWL_URL)",
+            )?;
+            run_extract(&client, a)
+                .await
+                .map_err(|e| anyhow::anyhow!("research: {e:?}"))
+        }
     }
-    .map_err(|e| anyhow::anyhow!("research: {e:?}"))
 }
 
+async fn run_docs(a: DocsArgs) -> Result<()> {
+    let gateway = DocsGateway::from_env();
+    let backend = format!("{:?}", gateway.backend());
+    let snippets = gateway
+        .query_docs(&a.library, &a.question)
+        .await
+        .map_err(|e| anyhow::anyhow!("research docs: {e}"))?;
+    let limit = a.limit as usize;
+    let mut printed = 0usize;
+    for s in snippets.into_iter().take(limit) {
+        let json = serde_json::to_string(&s).context("research docs: snippet serialisation")?;
+        println!("{json}");
+        printed += 1;
+    }
+    if printed == 0 {
+        eprintln!(
+            "research docs: no snippets for `{}` (backend {backend}); set ATLAS_CTX7MAX_URL or install ctx7max, or answer via Context7 MCP (AGENTS.md §5)",
+            a.library
+        );
+    }
+    Ok(())
+}
+
+#[cfg(feature = "firecrawl")]
 async fn run_scrape(client: &FirecrawlClient, a: ScrapeArgs) -> Result<(), FirecrawlFacadeError> {
     let opts = facade::ScrapeOptions {
         only_main_content: if a.no_main_content { Some(false) } else { None },
@@ -158,6 +246,7 @@ async fn run_scrape(client: &FirecrawlClient, a: ScrapeArgs) -> Result<(), Firec
     Ok(())
 }
 
+#[cfg(feature = "firecrawl")]
 async fn run_search(client: &FirecrawlClient, a: SearchArgs) -> Result<(), FirecrawlFacadeError> {
     let opts = facade::SearchOptions {
         limit: Some(a.limit),
@@ -180,6 +269,7 @@ async fn run_search(client: &FirecrawlClient, a: SearchArgs) -> Result<(), Firec
     Ok(())
 }
 
+#[cfg(feature = "firecrawl")]
 async fn run_crawl(client: &FirecrawlClient, a: CrawlArgs) -> Result<(), FirecrawlFacadeError> {
     let opts = facade::CrawlOptions {
         limit: a.limit,
@@ -207,6 +297,7 @@ async fn run_crawl(client: &FirecrawlClient, a: CrawlArgs) -> Result<(), Firecra
     Ok(())
 }
 
+#[cfg(feature = "firecrawl")]
 async fn run_extract(client: &FirecrawlClient, a: ExtractArgs) -> Result<(), FirecrawlFacadeError> {
     let schema: serde_json::Value =
         serde_json::from_str(&a.schema).map_err(FirecrawlFacadeError::Parse)?;
@@ -227,6 +318,7 @@ async fn run_extract(client: &FirecrawlClient, a: ExtractArgs) -> Result<(), Fir
 // ---------------------------------------------------------------------------
 
 #[derive(serde::Serialize, Debug)]
+#[cfg(feature = "firecrawl")]
 struct ScrapeOutputJson {
     source_url: Option<String>,
     title: Option<String>,
@@ -237,6 +329,7 @@ struct ScrapeOutputJson {
 }
 
 #[derive(serde::Serialize, Debug)]
+#[cfg(feature = "firecrawl")]
 struct SearchHitJson {
     url: String,
     title: Option<String>,
@@ -255,6 +348,51 @@ mod tests {
     }
 
     #[test]
+    fn parse_docs_subcmd() {
+        let cli = TestCli::try_parse_from(["test", "docs", "tokio", "how to spawn tasks"]).unwrap();
+        match cli.action {
+            ResearchSub::Docs(a) => {
+                assert_eq!(a.library, "tokio");
+                assert_eq!(a.question, "how to spawn tasks");
+                assert_eq!(a.limit, 5);
+            }
+            #[cfg(feature = "firecrawl")]
+            _ => panic!("expected Docs"),
+        }
+    }
+
+    #[test]
+    fn parse_docs_with_limit() {
+        let cli = TestCli::try_parse_from([
+            "test",
+            "docs",
+            "tokio",
+            "how to spawn tasks",
+            "--limit",
+            "3",
+        ])
+        .unwrap();
+        match cli.action {
+            ResearchSub::Docs(a) => assert_eq!(a.limit, 3),
+            #[cfg(feature = "firecrawl")]
+            _ => panic!("expected Docs"),
+        }
+    }
+
+    #[test]
+    fn parse_docs_requires_question() {
+        let r = TestCli::try_parse_from(["test", "docs", "tokio"]);
+        assert!(r.is_err(), "docs without question must error");
+    }
+
+    #[test]
+    fn parse_docs_requires_library() {
+        let r = TestCli::try_parse_from(["test", "docs"]);
+        assert!(r.is_err(), "docs without library must error");
+    }
+
+    #[test]
+    #[cfg(feature = "firecrawl")]
     fn parse_scrape_subcmd() {
         let cli = TestCli::try_parse_from(["test", "scrape", "https://example.com"]).unwrap();
         match cli.action {
@@ -264,6 +402,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "firecrawl")]
     fn parse_scrape_with_flags() {
         let cli = TestCli::try_parse_from([
             "test",
@@ -284,6 +423,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "firecrawl")]
     fn parse_search_subcmd_with_filters() {
         let cli = TestCli::try_parse_from([
             "test",
@@ -313,6 +453,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "firecrawl")]
     fn parse_crawl_subcmd_with_subdomain_flags() {
         let cli = TestCli::try_parse_from([
             "test",
@@ -339,6 +480,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "firecrawl")]
     fn parse_extract_subcmd() {
         let schema = r#"{"type":"object","properties":{"price":{"type":"number"}}}"#;
         let cli = TestCli::try_parse_from([
@@ -362,12 +504,14 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "firecrawl")]
     fn parse_search_requires_query() {
         let r = TestCli::try_parse_from(["test", "search"]);
         assert!(r.is_err(), "search without query must error");
     }
 
     #[test]
+    #[cfg(feature = "firecrawl")]
     fn parse_scrape_missing_url_errors() {
         let r = TestCli::try_parse_from(["test", "scrape"]);
         assert!(r.is_err());

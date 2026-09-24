@@ -4,7 +4,6 @@
 
 use clap::{Parser, Subcommand};
 
-#[cfg(feature = "firecrawl")]
 use super::commands::ResearchCmd;
 #[cfg(feature = "toast")]
 use super::commands::ToastCmd;
@@ -74,9 +73,10 @@ pub enum Commands {
     Audit(AuditCmd),
     /// Journal tail (RFC 19).
     Journal(JournalCmd),
-    /// Web ingestion via Firecrawl — scrape, search, crawl, extract
-    /// (RFC 28 §E).
-    #[cfg(feature = "firecrawl")]
+    /// Research: live library docs via the docs gateway (Context7Max →
+    /// Context7 MCP shape → official docs, always available), plus web
+    /// ingestion via Firecrawl — scrape, search, crawl, extract
+    /// (RFC 28 §E, only compiled with the `firecrawl` feature).
     Research(ResearchCmd),
     /// Toast queue management — enqueue, list, cancel (RFC 28 §F).
     #[cfg(feature = "toast")]
