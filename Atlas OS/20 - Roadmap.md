@@ -90,10 +90,26 @@ Plan refinado en `Atlas OS/research/29 - Phase 2 model orchestrator.md` (6 sub-f
 Entregable: el sistema sabe **cuándo cambiar de cerebro**. KPI: coste LLM por mission ≤ baseline Phase 1 × 0.6 (evidence RouteLLM >2× savings).
 
 ## Fase 3 — Research Engine
-- Fuentes: GitHub, arXiv, SO, blogs, docs vía Context7 MCP.
-- Collective Engineering Intelligence.
-- Cache Vector KB.
-- Output reports referenciados en el Journal.
+
+Plan refinado en `Atlas OS/research/30 - Phase 3 research engine.md` (6 sub-fases atómicas, commits no PRs). Evidencia: audit RFC 30 (ecosistema + Jev — "System One judgments" para el weak-model pre-filter), HydraFusion (RFC 22 §13), decisiones A.1–A.4 (Context7Max fuente primaria, anydoc ingestion, grill-me gate).
+
+### Sub-fase 3.0 — Foundation
+- M25 migration `research_runs`/`research_sources`/`research_consensus` + `ResearchRunReport` tipos canónicos + `trait ConsensusScorer` + `enum ConsensusDimension` + `enum ResearchRunKind {Full,Targeted,Mega}`.
+
+### Sub-fase 3.1 — Docs gateway (Context7Max adapter)
+- Adapter facade `research/docs_gateway.rs` (estilo firecrawl RFC 28 §E): ctx7max primaria → Context7 MCP → webfetch fallback. `atlas research docs <library> "<question>"`. Sin crate nueva.
+
+### Sub-fase 3.2 — Document ingestion (anydoc, feature-gated)
+- Crate `anydoc` (audit single-binary-safety primero) o parser mínimo propio. Feature `doc-ingest` default off. `atlas research ingest <file>`.
+
+### Sub-fase 3.3 — Collective Engineering Intelligence
+- ConsensusScorer impls por dimensión (GitHub/arXiv/docs/community) + scoring 0–100 + confidence combinado ponderado (hands-on ×1.5) + weak-model pre-filter (modelo fuerte solo sintetiza).
+
+### Sub-fase 3.4 — Hands-on + ramas de aplicación
+- `research_notes` (evidencia experta firmada) + ramas Opción A/B/C con coste estimado en este código + journal_ref auditable.
+
+### Sub-fase 3.5 — probe_feasibility + fail-safe + grill gate
+- `probe_feasibility` (RFC 10 §11) + fail-safe anti-alucinación duro + grill-me como gate de confidence antes de `Plan.lock`.
 
 Entregable: la IA decide con evidencia social y académica, no con suposición.
 
