@@ -431,6 +431,7 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `SenseActions / policy` | 18 §2; 02 §3.5 |
 | `Single source of truth` (SQLite Journal) | 02 §3.4 |
 | `Skill Graph` | 06 |
+| `Bundled skills catalog` (12 `opencode-*` skills via `include_str!`, feature `bundled-skills` default on) | 29 §3.D; 06 §1 |
 | `Skill Picker` iluminado | 17 §4 |
 | `Skill refresh en caliente` | 24 §8.1 |
 | `Skills as graph templates` (`graph.toml`, 4th skill file) | 23 §7.3; 28 §C |

@@ -1,0 +1,21 @@
+# skill.toml — `opencode-figma-to-code` (RFC 29 §3.D UI)
+
+id = "opencode-figma-to-code"
+version = "1.0.0"
+description = "Converts a Figma node export into an accessible Svelte/Tailwind component with design tokens."
+engine = "coding"
+priority = 80
+domain = "frontend"
+language = "typescript"
+framework = "figma"
+confidence = 0.8
+estimated_tokens = 4200
+estimated_time = 18
+compatible_models = ["claude-sonnet-4.5", "gemini-2.5-pro", "gpt-4o", "local-qwen2.5-14b-instruct"]
+summary = "Figma node to Svelte component"
+conflicts = ["opencode-ui-from-screenshot"]
+auto_generated = false
+verified = true
+author = "atlas-os"
+license = "MIT"
+home = "./skills/opencode-figma-to-code/"

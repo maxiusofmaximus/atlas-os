@@ -1,0 +1,18 @@
+# skill.toml — `opencode-doc-from-code` (RFC 29 §3.D Docs)
+
+id = "opencode-doc-from-code"
+version = "1.0.0"
+description = "Generates API docs from the code (signatures + examples) without inventing endpoints that do not exist."
+engine = "coding"
+priority = 70
+domain = "docs"
+confidence = 0.8
+estimated_tokens = 2800
+estimated_time = 14
+compatible_models = ["claude-sonnet-4.5", "gemini-2.5-pro", "gpt-4o", "local-qwen2.5-14b-instruct"]
+summary = "API docs from real signatures"
+auto_generated = false
+verified = true
+author = "atlas-os"
+license = "MIT"
+home = "./skills/opencode-doc-from-code/"

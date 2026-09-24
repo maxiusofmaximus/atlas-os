@@ -1,0 +1,19 @@
+# skill.toml — `opencode-arxiv-lookup` (RFC 29 §3.D Research, via Firecrawl RFC 28 §E)
+
+id = "opencode-arxiv-lookup"
+version = "1.0.0"
+description = "Fetches an arXiv paper abstract and verdict-relevant claims, citing section-level evidence. Web ingestion via Firecrawl when available."
+engine = "research"
+priority = 70
+domain = "research"
+confidence = 0.8
+estimated_tokens = 2200
+estimated_time = 20
+dependencies = ["opencode-research-query"]
+compatible_models = ["claude-sonnet-4.5", "gemini-2.5-pro", "gpt-4o", "local-qwen2.5-14b-instruct"]
+summary = "arXiv abstract plus cited claims"
+auto_generated = false
+verified = true
+author = "atlas-os"
+license = "MIT"
+home = "./skills/opencode-arxiv-lookup/"

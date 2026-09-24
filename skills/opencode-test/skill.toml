@@ -1,0 +1,18 @@
+# skill.toml — `opencode-test` (RFC 29 §3.D Code)
+
+id = "opencode-test"
+version = "1.0.0"
+description = "Runs the fastest test slice covering the diff (vitest / cargo test) and reports pass/fail with the failing assertion."
+engine = "validation"
+priority = 85
+domain = "testing"
+confidence = 0.87
+estimated_tokens = 1500
+estimated_time = 30
+compatible_models = ["claude-sonnet-4.5", "gemini-2.5-pro", "gpt-4o", "local-qwen2.5-14b-instruct"]
+summary = "Fastest test slice for the diff"
+auto_generated = false
+verified = true
+author = "atlas-os"
+license = "MIT"
+home = "./skills/opencode-test/"

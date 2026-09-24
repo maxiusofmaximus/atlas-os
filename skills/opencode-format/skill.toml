@@ -1,0 +1,18 @@
+# skill.toml — `opencode-format` (RFC 29 §3.D Code)
+
+id = "opencode-format"
+version = "1.0.0"
+description = "Formats touched files with the repo formatter (cargo fmt / prettier) before the validation stage runs."
+engine = "coding"
+priority = 80
+domain = "code"
+confidence = 0.9
+estimated_tokens = 600
+estimated_time = 4
+compatible_models = ["claude-sonnet-4.5", "gemini-2.5-pro", "gpt-4o", "local-qwen2.5-14b-instruct"]
+summary = "Format touched files before validate"
+auto_generated = false
+verified = true
+author = "atlas-os"
+license = "MIT"
+home = "./skills/opencode-format/"

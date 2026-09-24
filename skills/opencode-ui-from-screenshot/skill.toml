@@ -1,0 +1,20 @@
+# skill.toml — `opencode-ui-from-screenshot` (RFC 29 §3.D UI)
+
+id = "opencode-ui-from-screenshot"
+version = "1.0.0"
+description = "Rebuilds a UI section from a screenshot as an accessible Svelte/Tailwind component, matching layout and tokens."
+engine = "coding"
+priority = 80
+domain = "frontend"
+language = "typescript"
+confidence = 0.78
+estimated_tokens = 4200
+estimated_time = 18
+compatible_models = ["claude-sonnet-4.5", "gemini-2.5-pro", "gpt-4o", "local-qwen2.5-14b-instruct"]
+summary = "Screenshot to Svelte component"
+conflicts = ["opencode-figma-to-code"]
+auto_generated = false
+verified = true
+author = "atlas-os"
+license = "MIT"
+home = "./skills/opencode-ui-from-screenshot/"

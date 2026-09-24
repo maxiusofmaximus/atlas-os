@@ -1,0 +1,18 @@
+# skill.toml — `opencode-research-query` (RFC 29 §3.D Research)
+
+id = "opencode-research-query"
+version = "1.0.0"
+description = "Runs a collective web query (docs + community + academic) and returns a scored consensus summary with sources."
+engine = "research"
+priority = 80
+domain = "research"
+confidence = 0.82
+estimated_tokens = 3200
+estimated_time = 25
+compatible_models = ["claude-sonnet-4.5", "gemini-2.5-pro", "gpt-4o", "local-qwen2.5-14b-instruct"]
+summary = "Scored web consensus with sources"
+auto_generated = false
+verified = true
+author = "atlas-os"
+license = "MIT"
+home = "./skills/opencode-research-query/"

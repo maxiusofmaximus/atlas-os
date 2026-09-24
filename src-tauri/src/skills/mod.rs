@@ -4,8 +4,10 @@
 // compresión de skills (RFC 06 §5) y la generación automática
 // (RFC 06 §7) vía el Learning Engine.
 
+pub mod bundled;
 #[cfg(feature = "dag_mode")]
 pub mod graph_loader;
 pub mod manifest;
 
+pub use bundled::{load_bundled, BUNDLED_COUNT};
 pub use manifest::{load_skill, Engine, SkillGraph, SkillManifest};

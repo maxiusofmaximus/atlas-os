@@ -1,0 +1,18 @@
+# skill.toml — `opencode-spec-show` (RFC 29 §3.D Docs)
+
+id = "opencode-spec-show"
+version = "1.0.0"
+description = "Renders the mission spec (MissionConsolidated + Plan milestones) as a readable summary for the operator."
+engine = "planning"
+priority = 75
+domain = "docs"
+confidence = 0.85
+estimated_tokens = 1200
+estimated_time = 6
+compatible_models = ["claude-sonnet-4.5", "gemini-2.5-pro", "gpt-4o", "local-qwen2.5-14b-instruct"]
+summary = "Readable mission spec summary"
+auto_generated = false
+verified = true
+author = "atlas-os"
+license = "MIT"
+home = "./skills/opencode-spec-show/"

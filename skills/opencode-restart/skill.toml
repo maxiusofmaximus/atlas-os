@@ -1,0 +1,18 @@
+# skill.toml — `opencode-restart` (RFC 29 §3.D Code)
+
+id = "opencode-restart"
+version = "1.0.0"
+description = "Restarts a stalled or looped mission run from the last clean checkpoint without losing Journal history."
+engine = "reasoning"
+priority = 70
+domain = "runtime"
+confidence = 0.8
+estimated_tokens = 800
+estimated_time = 5
+compatible_models = ["claude-sonnet-4.5", "gemini-2.5-pro", "gpt-4o", "local-qwen2.5-14b-instruct"]
+summary = "Restart from last clean checkpoint"
+auto_generated = false
+verified = true
+author = "atlas-os"
+license = "MIT"
+home = "./skills/opencode-restart/"

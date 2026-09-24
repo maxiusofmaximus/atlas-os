@@ -1,0 +1,18 @@
+# skill.toml — `opencode-changelog-from-commits` (RFC 29 §3.D Docs)
+
+id = "opencode-changelog-from-commits"
+version = "1.0.0"
+description = "Drafts a user-facing changelog entry from Conventional Commits since the last tag, grouped by feat/fix/docs."
+engine = "learning"
+priority = 65
+domain = "docs"
+confidence = 0.78
+estimated_tokens = 1800
+estimated_time = 10
+compatible_models = ["claude-sonnet-4.5", "gemini-2.5-pro", "gpt-4o", "local-qwen2.5-14b-instruct"]
+summary = "Changelog from commit history"
+auto_generated = false
+verified = true
+author = "atlas-os"
+license = "MIT"
+home = "./skills/opencode-changelog-from-commits/"

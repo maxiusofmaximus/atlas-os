@@ -21,12 +21,17 @@ name = "atlas"
 path = "src/cli/bin/opencode.rs"
 
 [features]
-default = ["tauri", "hud", "lsp", "cli"]
+default = ["tauri", "hud", "lsp", "cli", "bundled-skills"]
 tauri = ["dep:tauri"]
 hud = ["dep:axum", "dep:tower-http", "dep:tower"]
 lsp = ["dep:tower-lsp", "dep:lsp-types"]
 fastembed = ["dep:fastembed"]
 cli = ["dep:clap"]
+# RFC 29 Section D — bundled skills catalog (12 `opencode-*` manifests
+# under `skills/` compiled in via `include_str!`, ~1MB within the
+# 30-45MB budget of RFC 20). Default on; `--no-default-features`
+# drops it for server-only distributions.
+bundled-skills = []
 # RFC 28 Section C — Planner emits a DAG instead of a linear milestone
 # list when enabled. Off by default; flip via `--features dag_mode` once
 # the HUD <GraphView> toggle lands. petgraph is the only dependency

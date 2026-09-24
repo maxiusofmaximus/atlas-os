@@ -1,0 +1,18 @@
+# skill.toml — `opencode-refactor-extract-method` (RFC 29 §3.D Code)
+
+id = "opencode-refactor-extract-method"
+version = "1.0.0"
+description = "Extracts a selected block into a named function with inferred inputs/outputs, preserving behavior and updating callers."
+engine = "coding"
+priority = 75
+domain = "code"
+confidence = 0.82
+estimated_tokens = 2500
+estimated_time = 15
+compatible_models = ["claude-sonnet-4.5", "gemini-2.5-pro", "gpt-4o", "local-qwen2.5-14b-instruct"]
+summary = "Extract block into named function"
+auto_generated = false
+verified = true
+author = "atlas-os"
+license = "MIT"
+home = "./skills/opencode-refactor-extract-method/"
