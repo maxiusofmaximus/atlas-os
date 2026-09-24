@@ -147,14 +147,16 @@ cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- journal -n 10
 
 ## Status
 
-**Phase 1 ~95% complete** — engines (Prompt, Planning, Coding, Validation, Repair,
-Learning, Skills, Supervisor), HUD Mission Control (annotated diffs, step pills,
-model swaps, autoresearch card, graph view), headless CLI with `exec/audit/journal`
-namespaces, multi-profile. **Phase 1.5 — RFC 28 External Tool Integration**:
-§D AuditLog YAML export ✅, §A Karpathy autoresearch loop ✅, §C graphify-pattern
-mission graph (`petgraph` + `tree-sitter` feature-gated) ✅, §B Microsoft Intelligent
-Terminal ACP server planned (Phase 1.5d). The 29 RFCs (00–28) in `Atlas OS/`
-describe the roadmap through Phase 7.
+**Phases 0–5 completas, Phases 2–5 con toda la spec de su RFC materializada:**
+
+- **Phase 1** — engines (Prompt, Planning, Coding, Validation, Repair, Learning, Skills, Supervisor), HUD Mission Control (annotated diffs, step pills, model swaps, autoresearch card, graph view), headless CLI, multi-profile. ✅
+- **Phase 1.5 — RFC 28 External Tool Integration**: §D AuditLog YAML export ✅, §A Karpathy autoresearch loop ✅, §C graphify-pattern mission graph ✅, §B Intelligent Terminal ACP server ✅, §E Firecrawl web ingestion ✅, §F Windows Toast ✅, §G Calendar WRITE ✅ (READ diferido), §H reset-window notifications ✅.
+- **Phase 2 — RFC 04 Multi-model Orchestration** (sub-fases 2.0→2.4): Registry + Provider Normalization + Routing Policy + Aggregation + Auto-routing Classifier + **Feedback Loop** (`AffinityIndex` arc-swap + `RoutingStrategy::Mf` + `atlas models refresh`). ✅
+- **Phase 3 — RFC 10 Research Engine** (sub-fases 3.0→3.5): Foundation M25 + Docs gateway (Context7Max adapter, `atlas research docs`) + Document ingestion (`atlas research ingest`) + Collective Engineering Intelligence (4 scorers + fail-safe, `atlas research query`) + Hands-on notes + ramas (`atlas research note/branches`) + `probe_feasibility` (M27 cache) + grill gate en `atlas plan`. ✅
+- **Phase 4 — RFC 05 Swarm** (sub-fases 4.0→4.5): M29 registry + WorktreeManager (git CLI) + role presets agency-agents port (`atlas swarm presets/start`) + pool paralelo (FileLockRegistry + topología RFC 05) + mailbox + `agent_resume` (`atlas swarm send/inbox`) + auto-rebase CN-003 + **Swarm Console HUD** (floor 2D + mailbox drawer + checks button). ✅
+- **Phase 5 — Learning + Compression** (sub-fases 5.0→5.4): M30 learned_rules + YAML `.opencode/rules/` + Reflection Engine formal (dedup + promote/deprecate, `atlas learn`) + compresión de skills Jaccard (`atlas skill compress`) + System One compaction (`atlas learn compact/summary`) + ajuste dinámico de prompts (hints desde reglas consultables). ✅
+
+Los RFCs (00–30) en `Atlas OS/` describen el roadmap hasta Phase 10. Siguiente: Phase 6 (Execution Supervisor completo) y las brechas restantes RFC 29 §A/§B (cloud serve + multi-canal).
 
 ## License
 

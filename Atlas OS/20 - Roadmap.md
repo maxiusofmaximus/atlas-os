@@ -137,26 +137,26 @@ Plan refinado en `Atlas OS/research/31 - Phase 4 swarm.md` (6 sub-fases atómica
 
 Entregable: 10 agentes cooperan en una mission. **Phase 4 COMPLETA** — M29 registry + presets + pool paralelo + mailbox + rebase + Swarm Console. KPI: latencia end-to-end UI <100ms (RFC 20); re-ingresos sin perder trabajo 100%.
 
-## Fase 5 — Learning + Compression
+## Fase 5 — Learning + Compression (COMPLETA, sub-fases 5.0 → 5.4)
 
 Plan refinado en `Atlas OS/research/32 - Phase 5 learning + compression.md` (5 sub-fases atómicas, commits no PRs). Evidencia: RFC 30 (System One compaction — fast-jev-compaction pattern), RFC 16 §4/§5 (YAML rules + ajuste dinámico). Gestión: trabajo mecánico pesado delegado a muse-spark-1.3; judgment en el gestor.
 
-### Sub-fase 5.0 — Foundation
-- M30 migration `learned_rules`/`compaction_events` + writer/loader YAML `.opencode/rules/` (RFC 16 §4) + `Journal::{save/promote/deprecate}_rule`.
+### Sub-fase 5.0 — Foundation (COMPLETO, commit `9405ce9`)
+- M30 `learned_rules` (lifecycle CHECK `draft`/`candidate`/`active`/`deprecated`)/`compaction_events` ✅ + writer/loader YAML `.opencode/rules/` (RFC 16 §4, envelope `rule:`, serde_yaml ya existente) ✅ + `Journal::{save/get/promote/deprecate/list_consultable}_rule` (idempotente, promote draft→candidate(30)→active(60)) ✅.
 
-### Sub-fase 5.1 — Reflection Engine formal
-- Loop error→root cause→regla (dedup por firma) + promoción draft→verified con `was_correct` + deprecate stale + CLI `atlas learn rules/promote/deprecate`.
+### Sub-fase 5.1 — Reflection Engine formal (COMPLETO, commit `b4a8bcb`)
+- `reflect()` dedup por firma (`stage|error_class|rule_tag`, confianza +0.05/repetición cap 0.95) ✅ + `promote_draft_with_threshold` (PROMOTE_THRESHOLD=2, was_correct) ✅ + `should_deprecate`/`deprecate_stale` (was_blocked > was_correct) ✅ + `Journal::record_rule_feedback` ✅ + CLI `atlas learn rules/promote/deprecate` ✅.
 
-### Sub-fase 5.2 — Compresión de Skills (RFC 06 §5)
-- Similitud Jaccard determinista (sin embeddings obligatorios) + fusión dry-run/--apply + CLI `atlas skills compress`.
+### Sub-fase 5.2 — Compresión de Skills (COMPLETO, commit `9803298`)
+- `learning/compress.rs`: Jaccard determinista (sin embeddings obligatorios) ✅ + `find_compress_proposals` (umbral 0.7, greedy keep=mayor prioridad) ✅ + `merge_manifests` (unión ordenada, verified=false) ✅ + `apply_proposals` (escribe skill.toml fusionada + marcador DEPRECATED; bundled absorbida = skip) ✅ + CLI `atlas skill compress [--threshold] [--apply]` ✅.
 
-### Sub-fase 5.3 — System One compaction
-- Compaction de history por rolling window (stub determinista, wiring weak_model como follow-up) → `compaction_events` + CLI `atlas learn compact/summary`.
+### Sub-fase 5.3 — System One compaction (COMPLETO, commit `fbc3896`)
+- `learning/compaction.rs`: COMPACTION_THRESHOLD=100 + `summarize()` determinista (conteo por kind + headlines newest-first) ✅ + `Journal::{save_compaction_event, compacted_summary, compaction_history, mission_entry_count}` (reúsa tabla M30) ✅ + CLI `atlas learn compact/summary` ✅. Wiring `weak_model` real documentado como follow-up (RFC 32 §C).
 
-### Sub-fase 5.4 — Ajuste dinámico de prompts (RFC 16 §5)
-- Hook en prompt/runner que inyecta hints desde `learned_rules` consultables (match por trigger).
+### Sub-fase 5.4 — Ajuste dinámico de prompts (COMPLETO, commit `fbc3896`)
+- `LearnedHint` + `apply_learned_hints` (match case-insensitive de `RuleWhen.pattern`, inyecta `[rule <id>] <hint>` en observations) ✅ + `run_with_profile_and_rules` (firmas existentes intactas) ✅ + `core/pipeline.rs::run_mission` carga consultable rules best-effort (degrada si Journal falla) ✅.
 
-Entregable: el editor **mejora solo** según el uso.
+Entregable: el editor **mejora solo** según el uso. **Phase 5 COMPLETA** — KPI (RFC 20): skills redundantes reducidas -30% en 3 meses; errores repetitivos → reglas automáticas.
 
 ## Fase 6 — Execution Supervisor completo
 - Heartbeats y checkpoints en SQLite.
