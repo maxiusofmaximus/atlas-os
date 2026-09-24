@@ -297,8 +297,8 @@
     <h2>Audit export — posting format</h2>
     <p class="hint">
       Export the most recent audit-log entries to <code>.posting.yaml</code> snapshots under
-      <code>{'<profile>'}/snapshots/YYYY-MM-DD/</code>. Closes <em>RFC 27 §3.H Brecha H</em>. Format
-      compatible with <code>darrenburns/posting</code> (Apache-2.0), no runtime dep. See
+      <code>&lt;profile&gt;/snapshots/YYYY-MM-DD/</code>. Closes <em>RFC 27 §3.H Brecha H</em>.
+      Format compatible with <code>darrenburns/posting</code> (Apache-2.0), no runtime dep. See
       <em>RFC 28 §D</em>.
     </p>
     <form
@@ -318,7 +318,7 @@
         />
       </label>
       <label>
-        Output dir (optional, defaults to <code>{'<profile>'}/snapshots/</code>)
+        Output dir (optional, defaults to <code>&lt;profile&gt;/snapshots/</code>)
         <input
           type="text"
           placeholder="e.g. C:/snapshots or ./snap"
@@ -344,7 +344,7 @@
       <p class="snap-root">Root: <code>{exportState.result.snapshot_root}</code></p>
       {#if exportState.result.files_written.length > 0}
         <ul class="snap-files">
-          {#each exportState.result.files_written as f}
+          {#each exportState.result.files_written as f (f)}
             <li><code>{f}</code></li>
           {/each}
         </ul>

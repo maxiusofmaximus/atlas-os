@@ -20,7 +20,7 @@
     hudUrl: string | null;
   }
 
-  let { snapshot, candidates, hudUrl }: Props = $props();
+  const { snapshot, candidates, hudUrl }: Props = $props();
 
   let busy = $state(false);
   let error = $state<string | null>(null);

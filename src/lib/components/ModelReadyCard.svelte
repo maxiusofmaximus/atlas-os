@@ -16,7 +16,7 @@
     hudUrl: string | null;
   }
 
-  let { payload, hudUrl }: Props = $props();
+  const { payload, hudUrl }: Props = $props();
 
   let busy = $state(false);
   let error = $state<string | null>(null);
@@ -41,7 +41,10 @@
   function fmtReady(resetsAt: string): string {
     try {
       const d = new Date(resetsAt);
-      return d.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
+      return d
+        .toISOString()
+        .replace('T', ' ')
+        .replace(/\.\d+Z$/, ' UTC');
     } catch {
       return resetsAt;
     }

@@ -19,7 +19,7 @@
     missionId: string;
   }
 
-  let { hudUrl, missionId }: Props = $props();
+  const { hudUrl, missionId }: Props = $props();
 
   let graph = $state<MissionGraph | null>(null);
   let loading = $state(false);

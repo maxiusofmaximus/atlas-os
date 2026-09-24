@@ -22,7 +22,7 @@
     hudUrl: string | null;
   }
 
-  let { payload, backupProfileId, hudUrl }: Props = $props();
+  const { payload, backupProfileId, hudUrl }: Props = $props();
 
   let busy = $state(false);
   let error = $state<string | null>(null);
@@ -92,7 +92,10 @@
   function fmtResetsAt(resetsAt: string): string {
     try {
       const d = new Date(resetsAt);
-      const iso = d.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
+      const iso = d
+        .toISOString()
+        .replace('T', ' ')
+        .replace(/\.\d+Z$/, ' UTC');
       const mins = Math.max(0, Math.round((d.getTime() - Date.now()) / 60000));
       const suffix = mins <= 0 ? ' (now)' : ` (in ${mins} min)`;
       return iso + suffix;
@@ -128,18 +131,10 @@
   </dl>
 
   <div class="actions">
-    <button
-      type="button"
-      onclick={onRequestIncrease}
-      disabled={requestCooldown}
-    >
+    <button type="button" onclick={onRequestIncrease} disabled={requestCooldown}>
       {requestCooldown ? 'Cooldown…' : 'Request Increase'}
     </button>
-    <button
-      type="button"
-      onclick={onSwitchProvider}
-      disabled={busy || !backupProfileId}
-    >
+    <button type="button" onclick={onSwitchProvider} disabled={busy || !backupProfileId}>
       {busy ? 'Switching…' : 'Switch Provider'}
     </button>
   </div>

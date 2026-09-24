@@ -149,7 +149,7 @@ describe('postAnnotation', () => {
     });
     expect(posted.id).toBe('a1');
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const call = fetchMock.mock.calls[0]!;
+    const call = fetchMock.mock.calls[0] ?? [];
     expect(call[0]).toBe('http://localhost:57457/diff/d1/annotation');
     const init = call[1] as RequestInit;
     expect(init.method).toBe('POST');
@@ -172,7 +172,7 @@ describe('postAnnotation', () => {
       file_path: 'src/lib.rs',
       line_no: 42,
     });
-    const init = fetchMock.mock.calls[0]![1] as RequestInit;
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const payload = JSON.parse(String(init.body)) as Record<string, unknown>;
     expect(payload.file_path).toBe('src/lib.rs');
     expect(payload.line_no).toBe(42);
@@ -189,7 +189,7 @@ describe('postAnnotation', () => {
       author: 'max',
       file_path: '   ',
     });
-    const init = fetchMock.mock.calls[0]![1] as RequestInit;
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const payload = JSON.parse(String(init.body)) as Record<string, unknown>;
     expect('file_path' in payload).toBe(false);
   });
@@ -222,7 +222,7 @@ describe('postAutoresearchCancel', () => {
       }),
     ).resolves.toBeUndefined();
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const args = fetchMock.mock.calls[0]!;
+    const args = fetchMock.mock.calls[0] ?? [];
     const [url, init] = args;
     expect(String(url)).toBe('http://h/autoresearch/cancel');
     expect(init?.method).toBe('POST');
@@ -452,7 +452,7 @@ describe('postProfileSwitch', () => {
     const got = await postProfileSwitch('http://h', 'personal');
     expect(got.new_profile_id).toBe('personal');
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0]!;
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
     expect(String(url)).toBe('http://h/profile/switch');
     expect(init?.method).toBe('POST');
     const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
@@ -489,7 +489,7 @@ describe('postMissionResume', () => {
     const got = await postMissionResume('http://h', 'm1');
     expect(got.ok).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0]!;
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
     expect(String(url)).toBe('http://h/mission/resume');
     expect(init?.method).toBe('POST');
     const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
