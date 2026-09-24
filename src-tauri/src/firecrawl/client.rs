@@ -80,6 +80,7 @@ impl FirecrawlClient {
     ///
     /// Empty/whitespace-only values are treated as `None` to avoid a
     /// blank `Bearer` header that the SDK would then send.
+    #[allow(clippy::result_large_err)]
     pub fn from_env() -> Result<Self, FirecrawlFacadeError> {
         let raw_url_env =
             env::var_os("ATLAS_FIRECRAWL_URL").or_else(|| env::var_os("ATLAS_FIRECRAWL_URL"));
@@ -105,6 +106,7 @@ impl FirecrawlClient {
     /// acceptance for empty/whitespace caller inputs by falling back
     /// to the keyless `Client::new_selfhosted(..., None::<&str>)`
     /// shape — either way the SDK omits the `Authorization` header.
+    #[allow(clippy::result_large_err)]
     pub fn from_explicit(
         api_url: Option<&str>,
         api_key: Option<&str>,

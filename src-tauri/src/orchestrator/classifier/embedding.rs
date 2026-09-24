@@ -230,8 +230,8 @@ impl TaskTypeClassifier for EmbeddingClassifier {
             prompt_vec[i] = *v as f64;
         }
         let mut logits = [0.0f64; N_CLASSES];
-        for i in 0..N_CLASSES {
-            logits[i] = Self::cosine(&self.prototypes[i], &prompt_vec);
+        for (logit, prototype) in logits.iter_mut().zip(self.prototypes.iter()) {
+            *logit = Self::cosine(prototype, &prompt_vec);
         }
         let probs = Self::logits_to_softmax(&logits);
         let (best_idx, best_prob) = probs
@@ -239,7 +239,6 @@ impl TaskTypeClassifier for EmbeddingClassifier {
             .copied()
             .enumerate()
             .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-            .map(|(i, p)| (i, p))
             .unwrap_or((0, 0.0));
         Ok(TaskVerdict {
             task_type: self.classes[best_idx],

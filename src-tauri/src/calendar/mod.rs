@@ -49,5 +49,6 @@ pub use queue::{BusyWindowInput, BusyWindowQueue, BusyWindowRow};
 #[cfg(feature = "calendar-ics")]
 pub use ics_writer::CalendarWriter;
 
-#[cfg(feature = "calendar-graph")]
-pub use graph_reader::CalendarReader;
+// The `calendar-graph` READ path is deferred to §G items 5-8 (post-MVP,
+// Phase 2): the placeholder `graph_reader` module compiles empty until
+// its real `CalendarReader` is written, so no re-export exists yet.
