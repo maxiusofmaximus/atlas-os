@@ -536,3 +536,63 @@ Model reset-window notifications:
 - Anthropic rate limits: https://docs.anthropic.com/en/api/rate-limits
 - OpenAI rate limits: https://platform.openai.com/docs/guides/rate-limits
 - LiteLLM retries: https://docs.litellm.ai/docs/proxy/reliability
+
+## 13. Investigación Round 6 (2026-09-23) - HydraFusion validación Phase 2 + ecosistema de referencia
+
+### 13.1 Motivación
+
+Con la Phase 2 (sub-fases 2.0→2.4) completada, la investigación buscó validación externa de la tesis de orquestación adaptativa y un catálogo del ecosistema de referencia (orquestadores, skills, estándares) para dirigir Phase 3+. El input incluye el anuncio de **Project HydraFusion** de GitHub Copilot y ~23 repos/sites aportados por el operador (lista "Jev" de Charlie Hills + skills de diseño + estándares). Detalle completo en RFC 30 (Ecosystem & Jev audit) y RFC 29 (Genspark).
+
+### 13.2 HydraFusion (GitHub Copilot) — validación de la tesis
+
+**Fuente:** [Project HydraFusion: Frontier quality via multi-model orchestration](https://github.blog/ai-and-ml/github-copilot/project-hydrafusion-frontier-quality-via-multi-model-orchestration/) (The GitHub Blog, Sep 2026). ⚠️ No confundir con `aicps/hydrafusion` (paper sensor-fusion para percepción de vehículos autónomos — proyecto distinto, sin relación).
+
+- **Orquestación adaptativa**: "evalúa cada request y elige el **workflow menos complejo esperado** para cubrir sus necesidades, usando llamadas de modelo adicionales sólo cuando es probable que mejoren el resultado". Balancea quality/cost/latency.
+- **Model pool evolutivo**: "cuando nuevos modelos estén disponibles, los evaluamos e incorporamos al pool, llevando sus fortalezas a las tareas mejor adecuadas" — coincide con el `Registry` + `atlas models refresh` de sub-fase 2.0.
+- **Auto model selection** (precursor, early 2026): "revisa tu tarea y la empareja con el modelo mejor suited" — coincide con el `TaskTypeClassifier` de sub-fase 2.3.
+- **Validación**: confirma que el modelo de routing adaptativo de Atlas OS (sub-fases 2.1–2.4: routing policy + aggregation + classifier + feedback loop) va alineado con el estado del arte. La diferencia: HydraFusion es cloud-first sobre el runtime de GitHub; Atlas OS es single-binary local-first con fallback cross-provider explícito y cost guard G11 como invariant.
+- **Narrativa alineada** (RFC 04 §3, RFC 00 §7.2): `Single` = "our cost-aware default", `MoA` = "the Genspark default", orquestación adaptativa = "the HydraFusion way".
+
+### 13.3 Ecosistema de referencia catalogado
+
+23 referencias auditadas (Detalle + priorización en RFC 30):
+
+- **Orquestadores**: OmniRoute (gateway 359 providers, ya en stack §H), orca (ADE fleet paralela, ya auditado RFC 27), herdr (runtime, ya auditado RFC 27), munder-difflin (office of clones — floor 2D + mailbox + memoria por agente, patrón divertido para Phase 4 Swarm), deepseek-harness (everything-is-a-plugin sobre Cordis, patrón de extensibilidad RFC 06/07), HydraFusion (ver §13.2).
+- **Skills de diseño**: taste-skill (anti-slop design, 9 skills v2), awesome-design-md (DESIGN.md de marcas — UI matching), img2threejs (image→3D procedural), archify (diagramas de arquitectura self-contained HTML).
+- **Skills de ingeniería**: mattpocock/skills (skills for real engineers), grill-me (stress-test de planes vía questioning — cabe en Phase 3 Planning).
+- **Documentación**: anydoc (Word/PPT/Excel/PDF→Markdown en Rust — candidato Phase 3 ingestion), Context7Max (proyecto propio del operador — self-hosted docs gateway, capa de conocimiento del Research Engine Phase 3).
+- **Estándares/periféricos**: zod (validación TS — ya en filosofía Validation), agents.md (ya adoptado), storybook (workshop UI — referencia HUD docs), omarchy (install Linux — Phase 8), OpenMontage (12 pipelines + 700 skills — patrón catálogo por dominio), MobiAI-Core (familia del operador), NavMeshPlus (referencia para el 2D office floor del Swarm).
+
+### 13.4 Cambios aplicados a los RFCs como consecuencia
+
+- RFC 04 §3: narrativa "MoA as default" (RFC 29 §3.E) — `Single` cost-aware default, `MoA` Genspark default, `AggregationMode::Auto` experimental anotado 2.5+.
+- RFC 17 §11: "Modo builder" (RFC 29 §3.F) — narrativa non-technical builder.
+- RFC 00 §7.1/§7.2: segmento non-technical builder + validación HydraFusion.
+- RFC 20: sub-fase 2.4 COMPLETA (`302b170`) — Fase 2 cerrada.
+- RFC 29: audit completo commiteado.
+
+### 13.5 URLs citadas (Round 6)
+
+- HydraFusion blog: https://github.blog/ai-and-ml/github-copilot/project-hydrafusion-frontier-quality-via-multi-model-orchestration/
+- munder-difflin: https://github.com/chaitanyagiri/munder-difflin
+- deepseek-harness: https://github.com/deepseek-ai/deepseek-harness
+- archify: https://github.com/tt-a1i/archify
+- agency-agents: https://github.com/msitarzewski/agency-agents
+- orca: https://github.com/stablyai/orca
+- herdr: https://github.com/herdrdev/herdr
+- OmniRoute: https://github.com/diegosouzapw/OmniRoute
+- taste-skill: https://github.com/leonxlnx/taste-skill
+- tasteskill.dev: https://www.tasteskill.dev/
+- awesome-design-md: https://github.com/VoltAgent/awesome-design-md
+- img2threejs: https://img2threejs.io/
+- mattpocock/skills: https://github.com/mattpocock/skills
+- grill-me: https://www.skills.sh/mattpocock/skills/grill-me
+- OpenMontage: https://github.com/calesthio/OpenMontage
+- anydoc: https://github.com/firecrawl/anydoc
+- omarchy: https://github.com/omacom/omarchy
+- OpenMontage site: https://www.openmontage.video/
+- storybook: https://github.com/storybookjs/storybook
+- zod: https://zod.dev/
+- agents.md: https://agents.md/
+- MobiAI-Core: https://github.com/ArisGuimera/MobiAI-Core
+- NavMeshPlus: https://github.com/h8man/NavMeshPlus

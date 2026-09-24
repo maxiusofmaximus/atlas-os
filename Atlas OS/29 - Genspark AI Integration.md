@@ -310,10 +310,10 @@ E (MoA narrativa) ──► doc-only, anytime
 
 ## 8. Status de este RFC
 
-- **Versión:** 1.0 (audit completo, Ago 2026).
+- **Versión:** 1.1 (audit completo Ago 2026; narrativa F/E aplicada Sep 2026).
 - **Tipo:** Informativo + priorización. No introduce APIs nuevas inmediatamente.
 - **Cambio relacionado:** Phase 1.5 (commits `db25379`–`8d26528`) sienta la base técnica sobre la que las brechas A–F se implementarán.
-- **Cierre de brechas:** Cada brecha se cierra con un PR etiquetado `feat(genspark-RFC29-§X): ...`. Quando las 6 estén cerradas, este RFC pasa a status: **implemented** y se mueve al apéndice histórico.
+- **Cierre de brechas:** Cada brecha se cierra con un PR etiquetado `feat(genspark-RFC29-§X): ...`. **§F (Modo builder) y §E (MoA narrativa) CERRADAS narrativamente** (Sep 2026): RFC 17 §11 "Modo builder", RFC 00 §7.1 segmento non-technical builder, RFC 04 §3 narrativa "MoA as default". Quando las 6 estén cerradas, este RFC pasa a status: **implemented** y se mueve al apéndice histórico.
 - **Fuente primaria:** `genspark.ai` (fetched Ago 2026), Genspark blog (60+ posts Jun 2024–Aug 2026), Genspark Claw landing page.
 
 ---

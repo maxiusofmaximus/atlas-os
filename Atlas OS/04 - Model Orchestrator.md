@@ -181,6 +181,17 @@ Para decisiones críticas el orquestador puede:
      configurable. Feature-gated `fastembed` para prompt embeddings.
 4. Devolver **una** `FusedResponse` al caller.
 
+### Narrativa "MoA as default" (RFC 29 §3.E)
+
+> Genspark (Super Agent; blog del CTO Kay, "Less Control, More Tools") vende
+> multi-model como default para todo. Atlas OS mantiene la posición
+> competitiva opuesta: **`MoA` es "the Genspark default"; `Single` es "our
+> cost-aware default"** — habilitar MoA global rompe el budget (G11 es
+> crítico, ver RFC 22 §10). Un `AggregationMode::Auto` experimental que
+> decide por task difficulty (usando el classifier de sub-fase 2.3 + la
+> affinity de sub-fase 2.4) queda anotado como Future Work 2.5+; el cost
+> guard (G11) permanece como invariant en cualquier modo.
+
 ### Cost guard pre-aggregation (G11)
 
 Antes de despachar aggregation, el orquestador consulta

@@ -60,3 +60,11 @@ Esa es la visión. El resto de esta especificación define cómo se implementa.
 - **No competimos** copiando a Hermes ni a OpenClaw.
 - **Competimos** haciendo el sistema distribuido, verificable, seguro y auto-evolutivo.
 - **No es mejor porque tenga un mejor prompt.** Es mejor porque sabe *cuándo cambiar de cerebro*, sabe *cuándo está pensando mal* y sabe * desde dónde reanudar sin perder conocimiento*.
+
+### 7.1 Segmento "non-technical builder" (RFC 29 §3.F)
+
+La narrativa cubre **operadores técnicos Y no técnicos**: educator, marketer, CIO sin devs. El `modo_uso = architect` se presenta como "L4 autonomous" en lenguaje de resultado. Genspark validó que el segmento es real (3 user stories del blog); Atlas OS lo captura sin copiar su cloud-first — el runtime sigue siendo local-first y el usuario puede escribir código como siempre.
+
+### 7.2 Validación externa de la orquestación adaptativa (HydraFusion)
+
+GitHub Copilot lanzó **Project HydraFusion** (research preview, Sep 2026 — ver RFC 22 §13): orquestación multi-modelo adaptativa que "evalúa cada request y elige el workflow menos complejo esperado para cubrir sus necesidades". Esto valida la tesis de Atlas OS §1 — el sistema sabe cuándo cambiar de cerebro — y confirma que el modelo de routing adaptativo de Phase 2 (sub-fases 2.1–2.4) va alineado con el estado del arte. La diferencia: HydraFusion es cloud-first sobre el runtime de GitHub; Atlas OS es single-binary local-first con fallback cross-provider y cost guard explícito.
