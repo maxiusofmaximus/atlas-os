@@ -9,7 +9,7 @@ use super::commands::ResearchCmd;
 use super::commands::ToastCmd;
 use super::commands::{
     AuditCmd, ExecCmd, ForkCmd, HudCmd, JournalCmd, McpCmd, MissionCmd, ModelsCmd, PlanCmd,
-    ProfileCmd, ResumeCmd, RunCmd, SkillCmd, SteerCmd, SwapModelCmd,
+    ProfileCmd, ResumeCmd, RunCmd, SkillCmd, SteerCmd, SwapModelCmd, SwarmCmd,
 };
 #[derive(Parser, Debug)]
 #[command(name = "atlas", version, propagate_version = true)]
@@ -67,6 +67,8 @@ pub enum Commands {
     Mcp(McpCmd),
     /// Skill management (RFC 06).
     Skill(SkillCmd),
+    /// Swarm role presets — list and spawn (RFC 05 Phase 4.1).
+    Swarm(SwarmCmd),
     /// Profile switcher (RFC 25 §4).
     Profile(ProfileCmd),
     /// Audit log (RFC 24 §10).

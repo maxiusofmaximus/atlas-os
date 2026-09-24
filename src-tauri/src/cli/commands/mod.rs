@@ -17,6 +17,7 @@ pub mod run;
 pub mod skill;
 pub mod steer;
 pub mod swap_model;
+pub mod swarm;
 #[cfg(feature = "toast")]
 pub mod toast;
 
@@ -36,6 +37,7 @@ pub use run::RunCmd;
 pub use skill::SkillCmd;
 pub use steer::SteerCmd;
 pub use swap_model::SwapModelCmd;
+pub use swarm::SwarmCmd;
 #[cfg(feature = "toast")]
 pub use toast::ToastCmd;
 
@@ -57,6 +59,7 @@ pub async fn dispatch(cmd: Commands, profile: &str) -> Result<()> {
         Commands::Hud(c) => hud::run(c, profile).await,
         Commands::Mcp(c) => mcp::run(c, profile).await,
         Commands::Skill(c) => skill::run(c, profile).await,
+        Commands::Swarm(c) => swarm::run(c, profile).await,
         Commands::Profile(c) => profile::run(c, profile).await,
         Commands::Audit(c) => audit::run(c, profile).await,
         Commands::Journal(c) => journal::run(c, profile).await,

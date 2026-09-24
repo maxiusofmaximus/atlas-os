@@ -8,6 +8,33 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+pub enum ModelSlot {
+    Architect,
+    Editor,
+    Weak,
+}
+
+impl ModelSlot {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ModelSlot::Architect => "architect",
+            ModelSlot::Editor => "editor",
+            ModelSlot::Weak => "weak",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        match s {
+            "architect" => Some(ModelSlot::Architect),
+            "editor" => Some(ModelSlot::Editor),
+            "weak" => Some(ModelSlot::Weak),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Role {
     Planner,
     Researcher,
@@ -65,6 +92,23 @@ impl Role {
         Role::Reviewer,
         Role::Merger,
     ];
+
+    pub fn model_slot(&self) -> ModelSlot {
+        match self {
+            Role::Planner | Role::Architect | Role::Reviewer => ModelSlot::Architect,
+            Role::Backend | Role::Frontend | Role::Database | Role::Security => ModelSlot::Editor,
+            Role::Researcher | Role::Testing | Role::Merger => ModelSlot::Weak,
+        }
+    }
+
+    pub fn resolve_model(&self, profile: &crate::profiles::Profile) -> Option<String> {
+        let slot = match self.model_slot() {
+            ModelSlot::Architect => profile.effective_architect_model(),
+            ModelSlot::Editor => profile.effective_editor_model(),
+            ModelSlot::Weak => profile.effective_weak_model(),
+        };
+        slot.map(str::to_owned)
+    }
 }
 
 #[cfg(test)]
@@ -100,5 +144,14 @@ mod tests {
         assert_eq!(Role::parse("lead"), None);
         assert_eq!(Role::parse(""), None);
         assert_eq!(Role::parse("Backend"), None);
+    }
+
+    #[test]
+    fn model_slot_as_str_round_trips_via_parse() {
+        for s in [ModelSlot::Architect, ModelSlot::Editor, ModelSlot::Weak] {
+            assert_eq!(ModelSlot::parse(s.as_str()), Some(s));
+        }
+        assert_eq!(ModelSlot::parse("strong"), None);
+        assert_eq!(ModelSlot::parse(""), None);
     }
 }
