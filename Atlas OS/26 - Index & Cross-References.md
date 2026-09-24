@@ -367,7 +367,7 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Multi-key rotation` | 04 §3.1; 22 §2 |
 | `N8n canvas stile reasoning trail` | 24 §13 |
 | `Noob mode` | 17 §11 |
-| `atlas research` (CLI subcommand: `docs` ungated + `query` ungated (collective, sub-fase 3.3; desde 3.4 emite `journal_ref` + proposal desde ramas) + `note`/`branches` ungated (hands-on, sub-fase 3.4) + `ingest` gated `doc-ingest` feature + scrape/search/crawl/extract gated `firecrawl` feature) | 28 §E; 08 (surface); research `30` sub-fases 3.1–3.4 |
+| `atlas research` (CLI subcommand: `docs` ungated + `query` ungated (collective, sub-fase 3.3; desde 3.4 emite `journal_ref` + proposal desde ramas) + `note`/`branches` ungated (hands-on, sub-fase 3.4) + `feasibility` ungated (probe §11 + gate + cache M27 12d, sub-fase 3.5) + `ingest` gated `doc-ingest` feature + scrape/search/crawl/extract gated `firecrawl` feature) | 28 §E; 08 (surface); research `30` sub-fases 3.1–3.5 |
 | `Outline view Notion` | 24 §14 |
 | `Pauserule` | 24 §5 |
 | `Plan` (estrutura) | 12 §3 |
@@ -389,7 +389,7 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Backup profile` (`Profile::backup_profile_id`, auto-switch on spend-limit) | 28 §H.3; 06 (profile schema) |
 | `WinRT AppointmentManager rejected` (capability `appointmentsSystem`) | 28 §G.1; 22 §12 (Round 5) |
 | `ProjectSymbolTable` | 03 §9.4 |
-| `probe_feasibility` | 10 §11; 23 §2.2 |
+| `probe_feasibility` (`research::feasibility::probe_feasibility` + `evaluate` gate §11.3 + M27 cache 12d + `atlas research feasibility`) | 10 §11; 23 §2.2 |
 | `ResearchRunReport` (YAML canónico RFC 10 §7, `validate()` 0..1) | 10 §7; research `30` sub-fase 3.0 |
 | `ResearchRunKind` (`Full`/`Targeted`/`Mega`, `as_str`/`parse` round-trip) | 10 §1; research `30` sub-fase 3.0 |
 | `ResearchRunStatus` (`running`/`completed`/`needing_human` fail-safe) | 10 §10; research `30` sub-fase 3.0 |
@@ -410,6 +410,14 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `ApplicationBranch` (Opción A/B/C RFC 10 §4: summary/pros/cons/confidence/cost_estimate/fits_stack/sources) + `build_branches()` (top-3 determinista, +0.05 por respaldo experto) + `branch_proposal_lines()` + `journal_ref_for_run()` (rr→jr) | 10 §4/§7; research `30` sub-fase 3.4 |
 | `M26` migration (`research_notes` con CHECK 0..1; ramas derivadas, no tabla; `journal_ref` como fila `journal_events` kind=`research_run`) | 10 §3/§4/§7; research `30` sub-fase 3.4 |
 | `atlas research note` (adjunta caso experto a M26) + `atlas research branches` (reconstruye A/B/C desde sources + consensus + notes) | 08 CLI; 10 §3/§4; research `30` sub-fase 3.4 |
+| `FeasibilityProbe` (topic/domain/min_sources/require_artifact_evidence, `validate()`) + `FeasibilityDomain` (`software`/`hardware`/`academic`/`vendor`, `as_str`/`parse`) | 10 §11.1; research `30` sub-fase 3.5 |
+| `ArtifactEvidence` (kind/url/fetched_at/raw_metadata/stars/last_release) + `ArtifactKind` (8 variantes, `is_primary()` — `VendorDocs` no cuenta) | 10 §11.1; research `30` sub-fase 3.5 |
+| `FeasibilityReport` (probe_id/topic/found/evidence/confidence/red_flags/recommended_next_step, `validate()` rechaza found-con-flags) | 10 §11.1/§11.3; research `30` sub-fase 3.5 |
+| `evaluate()` (§11.3 gate: ≥min_sources distintas + ≥1 primaria + 0 red_flags, determinista) + `detect_red_flags()` (abandoned/no-artifact/no-primary/no-academic) + `fail_safe_status()` (§10 → `needing_human`) | 10 §10/§11.3; research `30` sub-fase 3.5 |
+| `probe_feasibility()` (colectores best-effort por dominio §11.2 sin crate nueva: npm/crates.io/PyPI/GitHub REST, vendor fetch + link-rot, arXiv, Wayback; objetivo <5s §11.7) + `ProbeMetrics` + `parse_domains` | 10 §11.2/§11.7; research `30` sub-fase 3.5 |
+| `cache_key` + `is_cache_fresh()` (TTL 12 días §11.6) + `M27` migration (`feasibility_cache`, `INSERT OR REPLACE`) | 10 §11.6; research `30` sub-fase 3.5 |
+| `atlas research feasibility` (fan-out multi-dominio, bloque legible §11.8 a stdout, métricas a stderr, `--no-cache`) | 08 CLI; 10 §11.8; research `30` sub-fase 3.5 |
+| `grill_plan()` + `GrillQuestion` (blocking/advisory) + `GrillReport` (`can_lock`) — pass mecánico antes de `Plan.lock` (skill `grill-me` bundled, impreso por `atlas plan`) | 12 §7; research `30` sub-fase 3.5 (A.3) |
 | `Prompt Understanding Pipeline` | 23 §2 |
 | `PublicUnderstandingVerdict` | 23 §3 |
 | `Reasoning trails` (n8n-stile) | 24 §13 |
