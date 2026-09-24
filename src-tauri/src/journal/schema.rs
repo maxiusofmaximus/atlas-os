@@ -14,7 +14,7 @@ use rusqlite::Connection;
 /// log and must never be renumbered. When adding M(N+1): bump this const
 /// AND change the final migration's `params![N, …]` to
 /// `params![CURRENT_SCHEMA_VERSION, …]` (same value).
-pub const CURRENT_SCHEMA_VERSION: i64 = 28;
+pub const CURRENT_SCHEMA_VERSION: i64 = 29;
 
 pub fn migrate(conn: &Connection) -> Result<()> {
     // M0 — Schema versioning.
@@ -1356,6 +1356,66 @@ pub fn migrate(conn: &Connection) -> Result<()> {
                 interaction_history_summary TEXT,
                 updated_at INTEGER NOT NULL
             );",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![28, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
+    if current < 29 {
+        // M29 — RFC 05 Phase 4 sub-fase 4.0 Foundation:
+        //
+        //   * `swarm_agents` — one row per agent spawned on a mission
+        //     (RFC 05 §1 roles). `id` is a uuid v4 string; `mission_id`
+        //     is the mission the agent works on. `role` carries the
+        //     `Role::as_str` wire name (`swarm::roles::Role`); `model_id`
+        //     is the orchestrator-assigned model (NULL until assigned,
+        //     RFC 05 §3). `state` is free-form TEXT (`spawned` at
+        //     insert; the 4.2 pool lifecycle owns later transitions).
+        //     `personality_json` carries the agency-agents-style
+        //     personality/processes/deliverables preset (4.1 fills it;
+        //     NULL until then). `created_at` is RFC3339. Replays use
+        //     `ON CONFLICT DO NOTHING` at the writer layer (first write
+        //     wins, RFC 02 §3.1.2).
+        //   * `agent_mailbox` — one row per agent-to-agent message
+        //     (munder-difflin mailbox, research/31 §A.2). `from_agent`
+        //     / `to_agent` are `swarm_agents.id` values (weak FK — the
+        //     audit trail must survive agent-row removal). `body_json`
+        //     is the message payload. `read_at` is NULL until the
+        //     recipient marks the message read (4.3 `mark_read`;
+        //     idempotent). Writers/readers land in 4.3; 4.0 only
+        //     materialises the table layouts + indexes.
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS swarm_agents (
+                id               TEXT PRIMARY KEY,
+                mission_id       TEXT NOT NULL,
+                role             TEXT NOT NULL,
+                model_id         TEXT,
+                state            TEXT NOT NULL DEFAULT 'spawned',
+                personality_json TEXT,
+                created_at       TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_swarm_agents_mission
+                ON swarm_agents(mission_id);
+
+            CREATE INDEX IF NOT EXISTS idx_swarm_agents_role
+                ON swarm_agents(role);
+
+            CREATE TABLE IF NOT EXISTS agent_mailbox (
+                id         TEXT PRIMARY KEY,
+                from_agent TEXT NOT NULL,
+                to_agent   TEXT NOT NULL,
+                body_json  TEXT NOT NULL,
+                read_at    TEXT,
+                created_at TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_agent_mailbox_to
+                ON agent_mailbox(to_agent, created_at);
+
+            CREATE INDEX IF NOT EXISTS idx_agent_mailbox_from
+                ON agent_mailbox(from_agent);",
         )?;
         conn.execute(
             "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",

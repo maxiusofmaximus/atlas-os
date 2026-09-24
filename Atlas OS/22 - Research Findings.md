@@ -117,6 +117,7 @@ Patrones evolutivos continuos (AI Scientist v2): el agente *muta su prompt* y *r
 - `17 - UI.md`: añadido el banner con cita de Nate Gentile; añádido Mission Control con cola de Review como ciudadano de primera clase; añadido Execution Mode selector con cuatro iconos.
 - `19 - Execution Supervisor.md`: política anti-infinite-loop mecánica con `doom_loop` trip → `ask`/`hard_deny` según mode; `caps`, `goal_drift_decay`, `recovery`, `escape_hatch`, `audit`. State machine formal.
 - `21 - Execution Modes.md` (nuevo, draft): los cuatro modos `MANUAL_CLASSIC` / `HUMAN_IN_LOOP` / `AUTOPILOT` / `AUTONOMOUS` cubren exactamente los tres pedidos por el usuario (Manual / Pedir-Permiso / IA-Hace-Todo) más Autopilot como punto medio. Defaults por tipo de archivo via `CapabilityResolver`. Cuadro comparativo con otros editores.
+- `research/31 - Phase 4 swarm.md` (nuevo plan, 2026-09-24): Phase 4 refinada en 6 sub-fases atómicas (4.0 Foundation → 4.5 Swarm Console) con evidencia RFC 30 (agency-agents roles con personalidad, munder-difflin mailbox + floor 2D) y Conductor CN-001/CN-003/CN-004 (worktree por agente + auto-rebase + checks button). Sub-fase 4.0 implementada: `swarm::{roles (Role, 10 variantes RFC 05 §1), worktrees (WorktreeManager)}`, M29 (`swarm_agents` + `agent_mailbox`), registry `Journal::{register_swarm_agent, swarm_agents_for_mission, set_swarm_agent_state}`. Decisión: git CLI via `std::process::Command` (patrón `research::ingest`), `git2` NO se añade (audit single-binary RFC 25 §11).
 
 ## 7. URLs citadas (resumen)
 

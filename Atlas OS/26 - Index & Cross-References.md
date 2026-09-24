@@ -446,6 +446,7 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Stack technical` | 25 |
 | `Steer` (en caliente) | 05 §7; 24 §3.2 |
 | `Swarm roles` | 05 §1 |
+| `Swarm registry` (M29 `swarm_agents` + `agent_mailbox`, `SwarmAgentRow`, `Role`) | 05 §1; research `31` sub-fase 4.0 |
 | `Tauri 2` | 25 §3.1 |
 | `Team Mode` (AionUI) | 22 §2 (cited); 05 |
 | `Tiered memory` | 09; 16 |
@@ -453,6 +454,7 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `ToolCall` enum cross-provider (OpShape) | 04 §3; 04 §Apéndice 2.0.5 |
 | `Tower-LSP` | 25 §3.6 |
 | `Worktree own per subagent` | 05 §3; 24 §12; 25 §3.2 |
+| `WorktreeManager` (git CLI via `std::process`, sin `git2`) | 05 §4; research `31` sub-fase 4.0 |
 | `Worktrees view` | 24 §12 |
 | `Zag Nano Stores` | 25 §3.3 |
 

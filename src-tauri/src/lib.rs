@@ -23,6 +23,7 @@ pub mod repair;
 pub mod research;
 pub mod skills;
 pub mod supervisor;
+pub mod swarm;
 #[cfg(feature = "toast")]
 pub mod toast;
 pub mod validation;
