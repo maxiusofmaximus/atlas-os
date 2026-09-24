@@ -491,6 +491,210 @@ export async function postProfileSwitch(
   return (await res.json()) as ProfileSwitchResponse;
 }
 
+// ────────────── Phase 4.5 — Swarm Console (RFC 31 SECTOR B 4.5 + A.2) ──────────────
+//
+// Mirrors the Rust M29 rows (`swarm_agents` / `agent_mailbox`) and the Kernel
+// Bus broadcast kinds `swarm_agent_spawned` / `swarm_message` /
+// `swarm_state_changed`. The `<SwarmConsole>` office floor derives desks and
+// the mailbox drawer purely from the WS tail via `projectSwarmAgents` /
+// `projectSwarmInbox`, so no extra subscription is needed; the `fetch*`
+// helpers below cover the REST fallback (`atlas swarm inbox` equivalent) and
+// the per-worktree checks button (CN-004).
+
+export type SwarmRole =
+  | 'planner'
+  | 'researcher'
+  | 'architect'
+  | 'backend'
+  | 'frontend'
+  | 'database'
+  | 'security'
+  | 'testing'
+  | 'reviewer'
+  | 'merger';
+
+export type SwarmAgentState =
+  'spawned' | 'idle' | 'working' | 'waiting_review' | 'blocked' | 'done' | 'failed';
+
+export interface SwarmAgent {
+  agent_id: string;
+  mission_id: string;
+  role: SwarmRole;
+  model_id: string;
+  state: SwarmAgentState;
+  worktree_path: string | null;
+  updated_at: string;
+}
+
+export interface SwarmMessage {
+  id: string;
+  from_agent: string;
+  to_agent: string;
+  body: string;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface SwarmAgentSpawnedPayload {
+  agent: SwarmAgent;
+}
+
+export interface SwarmMessagePayload {
+  message: SwarmMessage;
+}
+
+export interface SwarmStateChangedPayload {
+  agent_id: string;
+  mission_id: string;
+  state: SwarmAgentState;
+  updated_at: string;
+}
+
+export const SWARM_EVENT_KINDS = [
+  'swarm_agent_spawned',
+  'swarm_message',
+  'swarm_state_changed',
+] as const;
+
+export type SwarmEventKind = (typeof SWARM_EVENT_KINDS)[number];
+
+/** Colour token for an agent desk / state pill. Mirrors `phaseColor` above. */
+export function swarmStateColor(state: SwarmAgentState): string {
+  switch (state) {
+    case 'spawned':
+      return 'grey';
+    case 'idle':
+      return 'grey';
+    case 'working':
+      return 'blue';
+    case 'waiting_review':
+      return 'amber';
+    case 'blocked':
+      return 'red';
+    case 'done':
+      return 'green';
+    case 'failed':
+      return 'red';
+  }
+}
+
+/**
+ * Fold the WS tail into the current desk roster: last `swarm_agent_spawned`
+ * wins per `agent_id`, later `swarm_state_changed` events patch the state.
+ * Unknown payloads are skipped so a malformed broadcast never breaks the floor.
+ */
+export function projectSwarmAgents(events: HudEvent[]): SwarmAgent[] {
+  const byId = new Map<string, SwarmAgent>();
+  for (const evt of events) {
+    if (evt.kind === 'swarm_agent_spawned') {
+      const agent = (evt.payload as SwarmAgentSpawnedPayload | null)?.agent;
+      if (agent?.agent_id) {
+        byId.set(agent.agent_id, agent);
+      }
+    } else if (evt.kind === 'swarm_state_changed') {
+      const change = evt.payload as SwarmStateChangedPayload | null;
+      if (!change?.agent_id) continue;
+      const current = byId.get(change.agent_id);
+      if (current) {
+        byId.set(change.agent_id, {
+          ...current,
+          state: change.state,
+          updated_at: change.updated_at,
+        });
+      }
+    }
+  }
+  return [...byId.values()];
+}
+
+/**
+ * Fold the WS tail into one agent's inbox: every `swarm_message`
+ * addressed to `agentId`, in broadcast order.
+ */
+export function projectSwarmInbox(events: HudEvent[], agentId: string): SwarmMessage[] {
+  const out: SwarmMessage[] = [];
+  for (const evt of events) {
+    if (evt.kind !== 'swarm_message') continue;
+    const message = (evt.payload as SwarmMessagePayload | null)?.message;
+    if (message?.to_agent === agentId) {
+      out.push(message);
+    }
+  }
+  return out;
+}
+
+/** Unread count for the mailbox drawer badge (`read_at == null`). */
+export function countUnread(messages: SwarmMessage[]): number {
+  return messages.filter((m) => m.read_at == null).length;
+}
+
+export async function fetchSwarmAgents(hudUrl: string, missionId: string): Promise<SwarmAgent[]> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const res = await fetch(`${trimmed}/swarm/${encodeURIComponent(missionId)}/agents`);
+  if (!res.ok) {
+    throw new Error(`HUD swarm agents fetch failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as SwarmAgent[];
+}
+
+export async function fetchSwarmInbox(hudUrl: string, agentId: string): Promise<SwarmMessage[]> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const res = await fetch(`${trimmed}/swarm/inbox/${encodeURIComponent(agentId)}`);
+  if (!res.ok) {
+    throw new Error(`HUD swarm inbox fetch failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as SwarmMessage[];
+}
+
+export interface SwarmSendRequest {
+  from_agent: string;
+  to_agent: string;
+  body: string;
+}
+
+export interface SwarmSendResponse {
+  id: string;
+}
+
+export async function postSwarmSend(
+  hudUrl: string,
+  req: SwarmSendRequest,
+): Promise<SwarmSendResponse> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const res = await fetch(`${trimmed}/swarm/send`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) {
+    throw new Error(`HUD swarm send failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as SwarmSendResponse;
+}
+
+export type SwarmCheckStatus = 'pass' | 'fail' | 'pending';
+
+export interface SwarmCheck {
+  name: string;
+  status: SwarmCheckStatus;
+  detail: string | null;
+}
+
+export async function fetchSwarmChecks(
+  hudUrl: string,
+  missionId: string,
+  agentId: string,
+): Promise<SwarmCheck[]> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const res = await fetch(
+    `${trimmed}/swarm/${encodeURIComponent(missionId)}/${encodeURIComponent(agentId)}/checks`,
+  );
+  if (!res.ok) {
+    throw new Error(`HUD swarm checks fetch failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as SwarmCheck[];
+}
+
 export interface MissionResumeRequest {
   mission_id: string;
 }

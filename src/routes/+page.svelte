@@ -14,12 +14,15 @@
     postAnnotation,
     postExportPosting,
     phaseColor,
+    projectSwarmAgents,
     type TailKind,
     type StepPhaseTag,
     type DiffAnnotation,
     type ExportPostingResponse,
+    type SwarmMessagePayload,
   } from '$stores/hud';
   import AutoresearchCard from '$lib/components/AutoresearchCard.svelte';
+  import SwarmConsole from '$lib/components/SwarmConsole.svelte';
   import type { PageData } from './$types';
 
   const { data } = $props<{ data: PageData }>();
@@ -60,6 +63,19 @@
   );
 
   let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+  // ────────────── RFC 31 §B 4.5 — Swarm Console derived state ──────────────
+  // Desks + mailbox feed project straight off the WS tail; the mission id
+  // follows the first spawned agent (single-mission floor, Phase 4 scope).
+  const swarmAgents = $derived(projectSwarmAgents($hud.events));
+  const swarmMissionId = $derived(swarmAgents[0]?.mission_id ?? null);
+  const swarmMessages = $derived(
+    $hud.events.flatMap((evt) => {
+      if (evt.kind !== 'swarm_message') return [];
+      const msg = (evt.payload as SwarmMessagePayload | null)?.message;
+      return msg ? [msg] : [];
+    }),
+  );
 
   // ────────────── RFC 27 §E — annotation drawer state ──────────────
   type DrawerState = {
@@ -359,6 +375,21 @@
       telemetry from <code>opencode mission new --autoresearch</code>.
     </p>
     <AutoresearchCard snapshot={null} candidates={[]} hudUrl={data.hudUrl} />
+  </section>
+
+  <section class="swarm">
+    <h2>Swarm Console</h2>
+    <p class="hint">
+      RFC 31 §B 4.5. Office floor (munder-difflin): desks follow the Kernel Bus
+      <code>swarm_agent_spawned</code> / <code>swarm_state_changed</code> stream, the mailbox drawer
+      follows <code>swarm_message</code>, and Checks polls the worktree (CN-004).
+    </p>
+    <SwarmConsole
+      hudUrl={data.hudUrl ?? null}
+      missionId={swarmMissionId}
+      agents={swarmAgents}
+      messages={swarmMessages}
+    />
   </section>
 
   <section class="journal">
@@ -670,6 +701,18 @@
     margin: 0 0 0.25rem 0;
   }
   .autoresearch .hint {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.85rem;
+    color: #8b949e;
+  }
+  .swarm {
+    margin-top: 1rem;
+  }
+  .swarm h2 {
+    font-size: 1rem;
+    margin: 0 0 0.25rem 0;
+  }
+  .swarm .hint {
     margin: 0 0 0.5rem 0;
     font-size: 0.85rem;
     color: #8b949e;

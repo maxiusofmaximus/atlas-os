@@ -547,3 +547,235 @@ describe('ModelReadyCardPayload type', () => {
     expect(p.mission_id).toBeNull();
   });
 });
+
+// ────────────── RFC 31 §B 4.5 — Swarm Console store ──────────────
+import {
+  projectSwarmAgents,
+  projectSwarmInbox,
+  countUnread,
+  swarmStateColor,
+  fetchSwarmAgents,
+  fetchSwarmInbox,
+  postSwarmSend,
+  fetchSwarmChecks,
+  SWARM_EVENT_KINDS,
+  type HudEvent,
+  type SwarmAgent,
+  type SwarmMessage,
+  type SwarmAgentState,
+} from './hud';
+
+const swarmAgent = (over: Partial<SwarmAgent> = {}): SwarmAgent => ({
+  agent_id: '11111111-2222-3333-4444-555555555555',
+  mission_id: 'mission-1',
+  role: 'backend',
+  model_id: 'atlas-weak',
+  state: 'working',
+  worktree_path: '~/.opencode/worktrees/mission-1/backend',
+  updated_at: '2026-09-24T00:00:00Z',
+  ...over,
+});
+
+const swarmMessage = (over: Partial<SwarmMessage> = {}): SwarmMessage => ({
+  id: 'msg-1',
+  from_agent: 'planner-id',
+  to_agent: 'backend-id',
+  body: 'implement the API',
+  read_at: null,
+  created_at: '2026-09-24T00:01:00Z',
+  ...over,
+});
+
+const busEvt = (id: string, kind: string, payload: unknown): HudEvent => ({
+  id,
+  ts: '2026-09-24T00:00:00Z',
+  kind,
+  payload,
+});
+
+describe('SWARM_EVENT_KINDS', () => {
+  it('declares the three Kernel Bus broadcast kinds', () => {
+    expect([...SWARM_EVENT_KINDS]).toEqual([
+      'swarm_agent_spawned',
+      'swarm_message',
+      'swarm_state_changed',
+    ]);
+  });
+});
+
+describe('swarmStateColor', () => {
+  it('maps every agent state to a colour token', () => {
+    const cases: Array<[SwarmAgentState, string]> = [
+      ['spawned', 'grey'],
+      ['idle', 'grey'],
+      ['working', 'blue'],
+      ['waiting_review', 'amber'],
+      ['blocked', 'red'],
+      ['done', 'green'],
+      ['failed', 'red'],
+    ];
+    for (const [state, color] of cases) {
+      expect(swarmStateColor(state)).toBe(color);
+    }
+  });
+});
+
+describe('projectSwarmAgents', () => {
+  it('folds spawns into one desk per agent_id', () => {
+    const events = [
+      busEvt('e1', 'swarm_agent_spawned', { agent: swarmAgent() }),
+      busEvt('e2', 'swarm_agent_spawned', {
+        agent: swarmAgent({ agent_id: 'other-id', role: 'reviewer' }),
+      }),
+    ];
+    const desks = projectSwarmAgents(events);
+    expect(desks).toHaveLength(2);
+    expect(desks.map((d) => d.role).sort()).toEqual(['backend', 'reviewer']);
+  });
+
+  it('patches state on swarm_state_changed', () => {
+    const events = [
+      busEvt('e1', 'swarm_agent_spawned', { agent: swarmAgent({ state: 'working' }) }),
+      busEvt('e2', 'swarm_state_changed', {
+        agent_id: '11111111-2222-3333-4444-555555555555',
+        mission_id: 'mission-1',
+        state: 'done',
+        updated_at: '2026-09-24T00:05:00Z',
+      }),
+    ];
+    const desks = projectSwarmAgents(events);
+    expect(desks).toHaveLength(1);
+    expect(desks[0]?.state).toBe('done');
+    expect(desks[0]?.updated_at).toBe('2026-09-24T00:05:00Z');
+  });
+
+  it('last spawn wins for a respawned agent_id', () => {
+    const events = [
+      busEvt('e1', 'swarm_agent_spawned', { agent: swarmAgent({ model_id: 'old' }) }),
+      busEvt('e2', 'swarm_agent_spawned', { agent: swarmAgent({ model_id: 'new' }) }),
+    ];
+    const desks = projectSwarmAgents(events);
+    expect(desks).toHaveLength(1);
+    expect(desks[0]?.model_id).toBe('new');
+  });
+
+  it('ignores state changes for unknown agents and malformed payloads', () => {
+    const events = [
+      busEvt('e1', 'swarm_state_changed', {
+        agent_id: 'ghost',
+        mission_id: 'mission-1',
+        state: 'done',
+        updated_at: 'now',
+      }),
+      busEvt('e2', 'swarm_agent_spawned', { agent: null }),
+      busEvt('e3', 'journal', { whatever: true }),
+    ];
+    expect(projectSwarmAgents(events)).toEqual([]);
+  });
+});
+
+describe('projectSwarmInbox', () => {
+  it('returns only messages addressed to the agent, in order', () => {
+    const events = [
+      busEvt('e1', 'swarm_message', { message: swarmMessage({ id: 'm1' }) }),
+      busEvt('e2', 'swarm_message', {
+        message: swarmMessage({ id: 'm2', to_agent: 'someone-else' }),
+      }),
+      busEvt('e3', 'swarm_message', { message: swarmMessage({ id: 'm3' }) }),
+    ];
+    const inbox = projectSwarmInbox(events, 'backend-id');
+    expect(inbox.map((m) => m.id)).toEqual(['m1', 'm3']);
+  });
+
+  it('returns empty for a desk with no mail', () => {
+    expect(projectSwarmInbox([], 'backend-id')).toEqual([]);
+  });
+});
+
+describe('countUnread', () => {
+  it('counts messages with null read_at', () => {
+    const box = [
+      swarmMessage({ id: 'm1' }),
+      swarmMessage({ id: 'm2', read_at: '2026-09-24T00:02:00Z' }),
+    ];
+    expect(countUnread(box)).toBe(1);
+  });
+});
+
+describe('swarm REST helpers', () => {
+  beforeEach(() => {
+    globalThis.fetch = vi.fn() as unknown as typeof fetch;
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('fetchSwarmAgents GETs /swarm/<mission>/agents', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => [swarmAgent()],
+    } as Response);
+    const got = await fetchSwarmAgents('http://h/', 'mission-1');
+    expect(got).toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledWith('http://h/swarm/mission-1/agents');
+  });
+
+  it('fetchSwarmInbox GETs /swarm/inbox/<agent>', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => [swarmMessage()],
+    } as Response);
+    const got = await fetchSwarmInbox('http://h', 'backend-id');
+    expect(got).toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledWith('http://h/swarm/inbox/backend-id');
+  });
+
+  it('postSwarmSend POSTs the envelope and returns the id', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ id: 'msg-9' }),
+    } as Response);
+    const got = await postSwarmSend('http://h', {
+      from_agent: 'a',
+      to_agent: 'b',
+      body: 'go',
+    });
+    expect(got.id).toBe('msg-9');
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toBe('http://h/swarm/send');
+    expect(init?.method).toBe('POST');
+    expect(JSON.parse(String(init?.body))).toEqual({ from_agent: 'a', to_agent: 'b', body: 'go' });
+  });
+
+  it('fetchSwarmChecks GETs /swarm/<mission>/<agent>/checks', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => [{ name: 'clippy', status: 'pass', detail: null }],
+    } as Response);
+    const got = await fetchSwarmChecks('http://h/', 'mission-1', 'backend-id');
+    expect(got[0]?.status).toBe('pass');
+    expect(fetchMock).toHaveBeenCalledWith('http://h/swarm/mission-1/backend-id/checks');
+  });
+
+  it('rejects on non-OK status (failure path)', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 500, statusText: 'ISE' } as Response);
+    await expect(fetchSwarmAgents('http://h', 'mission-1')).rejects.toThrow(/500/);
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 404, statusText: 'NF' } as Response);
+    await expect(fetchSwarmInbox('http://h', 'ghost')).rejects.toThrow(/404/);
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 422, statusText: 'UP' } as Response);
+    await expect(
+      postSwarmSend('http://h', { from_agent: 'a', to_agent: 'b', body: 'x' }),
+    ).rejects.toThrow(/422/);
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 500, statusText: 'ISE' } as Response);
+    await expect(fetchSwarmChecks('http://h', 'm', 'a')).rejects.toThrow(/500/);
+  });
+});
