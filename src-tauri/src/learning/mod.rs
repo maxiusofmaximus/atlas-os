@@ -6,10 +6,15 @@
 // `Active` and the Skill Compressor (RFC 16 §5) land with Phase 2
 // alongside the vector store and the Model Orchestrator (RFC 04).
 
+pub mod compress;
 pub mod rules;
 pub mod runner;
 pub mod types;
 
+pub use compress::{
+    apply_proposal, apply_proposals, collect_skills, find_compress_proposals, jaccard,
+    merge_manifests, skill_tokens, AppliedCompress, CompressProposal, DEFAULT_COMPRESS_THRESHOLD,
+};
 pub use rules::{load_rule_file, pattern_from_yaml, pattern_to_yaml, write_rule_file};
 pub use runner::{
     deprecate_stale, error_signature, promote_draft, promote_draft_with_threshold, reflect, run,
