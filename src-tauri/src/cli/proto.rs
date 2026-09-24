@@ -8,8 +8,8 @@ use super::commands::ResearchCmd;
 #[cfg(feature = "toast")]
 use super::commands::ToastCmd;
 use super::commands::{
-    AuditCmd, ExecCmd, ForkCmd, HudCmd, JournalCmd, McpCmd, MissionCmd, ModelsCmd, PlanCmd,
-    ProfileCmd, ResumeCmd, RunCmd, SkillCmd, SteerCmd, SwapModelCmd, SwarmCmd,
+    AuditCmd, ExecCmd, ForkCmd, HudCmd, JournalCmd, LearnCmd, McpCmd, MissionCmd, ModelsCmd,
+    PlanCmd, ProfileCmd, ResumeCmd, RunCmd, SkillCmd, SteerCmd, SwapModelCmd, SwarmCmd,
 };
 #[derive(Parser, Debug)]
 #[command(name = "atlas", version, propagate_version = true)]
@@ -75,6 +75,8 @@ pub enum Commands {
     Audit(AuditCmd),
     /// Journal tail (RFC 19).
     Journal(JournalCmd),
+    /// Learning Engine rules — list, promote, deprecate (RFC 16 §2, RFC 32 Phase 5.1).
+    Learn(LearnCmd),
     /// Research: live library docs via the docs gateway (Context7Max →
     /// Context7 MCP shape → official docs, always available), collective
     /// engineering intelligence (`query`, always available — four

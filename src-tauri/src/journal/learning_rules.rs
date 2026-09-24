@@ -199,6 +199,32 @@ impl crate::journal::Journal {
             .get_learned_rule(id)?
             .expect("row existed a moment ago"))
     }
+
+    /// Sub-fase 5.1 Reflection Engine verdict writer (RFC 16 §7, RFC 32
+    /// SECTOR B 5.1). Records one firing of `id`: always bumps
+    /// `n_applied`; bumps `was_correct` iff `correct` (NULL seeds to
+    /// 0/1 on the first verdict). Unknown ids are errors.
+    pub fn record_rule_feedback(&self, id: &str, correct: bool) -> anyhow::Result<LearnedRuleRow> {
+        if self.get_learned_rule(id)?.is_none() {
+            anyhow::bail!("unknown learned rule `{id}`");
+        }
+        {
+            let conn = self.conn.lock();
+            let now = chrono::Utc::now().to_rfc3339();
+            let delta: i64 = if correct { 1 } else { 0 };
+            conn.execute(
+                "UPDATE learned_rules
+                   SET n_applied = n_applied + 1,
+                       was_correct = COALESCE(was_correct, 0) + ?1,
+                       updated_at = ?2
+                 WHERE id = ?3",
+                rusqlite::params![delta, now, id],
+            )?;
+        }
+        Ok(self
+            .get_learned_rule(id)?
+            .expect("row existed a moment ago"))
+    }
 }
 
 #[cfg(test)]
@@ -324,6 +350,22 @@ mod tests {
         assert_eq!(rows.len(), 2);
         assert_eq!(rows[0].id, "r-act");
         assert_eq!(rows[1].id, "r-cand");
+    }
+
+    #[test]
+    fn record_feedback_tracks_was_correct_and_applied() {
+        let (_d, j) = fresh();
+        j.save_learned_rule(&fixture("r-fb")).unwrap();
+        let first = j.record_rule_feedback("r-fb", true).unwrap();
+        assert_eq!(first.was_correct, Some(1));
+        assert_eq!(first.n_applied, 1);
+        let second = j.record_rule_feedback("r-fb", false).unwrap();
+        assert_eq!(second.was_correct, Some(1));
+        assert_eq!(second.n_applied, 2);
+        let third = j.record_rule_feedback("r-fb", true).unwrap();
+        assert_eq!(third.was_correct, Some(2));
+        assert_eq!(third.n_applied, 3);
+        assert!(j.record_rule_feedback("r-missing", true).is_err());
     }
 
     #[test]

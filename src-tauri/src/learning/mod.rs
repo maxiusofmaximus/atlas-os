@@ -11,7 +11,10 @@ pub mod runner;
 pub mod types;
 
 pub use rules::{load_rule_file, pattern_from_yaml, pattern_to_yaml, write_rule_file};
-pub use runner::run;
+pub use runner::{
+    deprecate_stale, error_signature, promote_draft, promote_draft_with_threshold, reflect, run,
+    should_deprecate, DEDUP_CONFIDENCE_BUMP, DEDUP_CONFIDENCE_CAP, PROMOTE_THRESHOLD,
+};
 pub use types::{
     LearnInput, LearnOutcome, Pattern, PatternMetrics, RuleLifecycle, RuleThen, RuleWhen,
 };

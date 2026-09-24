@@ -36,6 +36,8 @@ use super::types::{
     LearnInput, LearnOutcome, Pattern, PatternMetrics, RuleLifecycle, RuleThen, RuleWhen,
 };
 
+use crate::repair::types::RepairReport;
+
 /// RFC 16 §2 entry point. Produces one `LearnOutcome` per
 /// `RepairReport`. Never panics; malformed inputs surface as a
 /// `NoPattern` outcome with a diagnostic note.
@@ -254,6 +256,186 @@ fn metrics_for(
     }
 }
 
+// ——— Sub-fase 5.1 Reflection Engine formal (RFC 16 §2 loop, RFC 32 SECTOR B 5.1) ———
+//
+// Formalises the error → root cause → missing rule → draft → promote loop
+// on top of the Phase-1 `run` heuristic:
+//
+//   * `error_signature` — deterministic dedup key per `RepairReport`
+//     (`stage|error_class|rule_tag`, rule tag lowercased + trimmed).
+//   * `reflect` — groups a batch of repairs by signature so N repetitions
+//     of the same error collapse to ONE draft `Pattern` (evidence merged,
+//     confidence bumped +0.05 per extra repetition, capped at 0.95).
+//     Reports that `run` would reject (empty attempts, EscalatedHuman,
+//     HumanEscalate, budget-exhaustion PlanningReplan) are skipped.
+//   * `promote_draft` — advances `Draft → Candidate` iff the observed
+//     `was_correct` (M7 `pattern_runs`, mirrored on `learned_rules`) meets
+//     `PROMOTE_THRESHOLD`. Other lifecycles pass through untouched.
+//   * `should_deprecate` / `deprecate_stale` — stale predicate (blocked
+//     strictly more often than correct) + the lifecycle transition to
+//     `Deprecated` (priority 0, never consulted).
+
+/// Minimum `was_correct` observations before a draft is trusted enough
+/// to become a `Candidate` (RFC 16 §2: draft priority 0 → candidate 30).
+pub const PROMOTE_THRESHOLD: u32 = 2;
+
+/// Confidence bump per extra repetition of the same signature inside one
+/// `reflect` batch. A repeated error is stronger evidence than a single
+/// sighting, but the cap keeps a heuristic draft below `Active` priors.
+pub const DEDUP_CONFIDENCE_BUMP: f32 = 0.05;
+
+/// Hard ceiling for the dedup bump so `reflect` never mints an
+/// over-confident draft from repetition alone.
+pub const DEDUP_CONFIDENCE_CAP: f32 = 0.95;
+
+/// Deterministic dedup key for one repair run. Normalises the rule tag
+/// (trim + lowercase) so `No_Println`, `no_println ` and `no_println`
+/// collapse to the same bucket.
+pub fn error_signature(report: &RepairReport) -> String {
+    let chosen = report
+        .attempts
+        .iter()
+        .find(|a| a.success)
+        .or_else(|| report.attempts.last());
+    let (class_tag, rule_tag) = match chosen {
+        Some(a) => (
+            a.error_class.tag().to_string(),
+            rule_tag_from_attempt(a, report.triggering_stage)
+                .trim()
+                .to_lowercase(),
+        ),
+        None => (
+            "none".to_string(),
+            report.triggering_stage.tag().to_string(),
+        ),
+    };
+    format!(
+        "{}|{}|{}",
+        report.triggering_stage.tag(),
+        class_tag,
+        rule_tag
+    )
+}
+
+/// Group a batch of repairs by `error_signature` and emit ONE draft
+/// `Pattern` per group. Deterministic: groups are visited in sorted
+/// signature order and the output is sorted by `rule_id`.
+pub fn reflect(repairs: &[RepairReport]) -> Vec<Pattern> {
+    use std::collections::BTreeMap;
+    let mut groups: BTreeMap<String, Vec<&RepairReport>> = BTreeMap::new();
+    for report in repairs {
+        if report.attempts.is_empty() {
+            continue;
+        }
+        if matches!(
+            report.outcome,
+            crate::repair::types::RepairOutcome::EscalatedHuman
+        ) {
+            continue;
+        }
+        let chosen = report
+            .attempts
+            .iter()
+            .find(|a| a.success)
+            .or_else(|| report.attempts.last());
+        let Some(chosen) = chosen else { continue };
+        if chosen.strategy == RepairStrategy::HumanEscalate {
+            continue;
+        }
+        if chosen.strategy == RepairStrategy::PlanningReplan
+            && matches!(
+                report.outcome,
+                crate::repair::types::RepairOutcome::EscalatedPlanning
+                    | crate::repair::types::RepairOutcome::EscalatedHuman
+            )
+        {
+            continue;
+        }
+        groups
+            .entry(error_signature(report))
+            .or_default()
+            .push(report);
+    }
+    let mut out = Vec::with_capacity(groups.len());
+    for (group_idx, (_sig, group)) in groups.into_iter().enumerate() {
+        let rep = pick_representative(&group);
+        let outcome = run(LearnInput::new(rep).with_pattern_index(group_idx as u32));
+        let Some(mut pattern) = outcome.pattern else {
+            continue;
+        };
+        let mut seen: std::collections::HashSet<uuid::Uuid> =
+            pattern.evidence.iter().cloned().collect();
+        for r in &group {
+            for id in [r.repair_id, r.triggered_by_report_id, r.source_diff_id] {
+                if seen.insert(id) {
+                    pattern.evidence.push(id);
+                }
+            }
+        }
+        let extra = (group.len() as f32 - 1.0).max(0.0);
+        pattern.confidence =
+            (pattern.confidence + extra * DEDUP_CONFIDENCE_BUMP).min(DEDUP_CONFIDENCE_CAP);
+        out.push(pattern);
+    }
+    out.sort_by(|a, b| a.rule_id.cmp(&b.rule_id));
+    out
+}
+
+fn pick_representative<'a>(group: &[&'a RepairReport]) -> &'a RepairReport {
+    group
+        .iter()
+        .find(|r| matches!(r.outcome, crate::repair::types::RepairOutcome::Applied))
+        .or_else(|| {
+            group
+                .iter()
+                .find(|r| matches!(r.outcome, crate::repair::types::RepairOutcome::Proposed))
+        })
+        .or_else(|| group.first())
+        .expect("non-empty group")
+        .to_owned()
+}
+
+/// Advance a `Draft` to `Candidate` (priority 30) iff `was_correct >=
+///
+/// `PROMOTE_THRESHOLD`. Any other lifecycle passes through untouched so
+/// the Journal's `promote_rule` stays the only path for
+/// `Candidate → Active`.
+pub fn promote_draft(pattern: Pattern, was_correct: u32) -> Pattern {
+    promote_draft_with_threshold(pattern, was_correct, PROMOTE_THRESHOLD)
+}
+
+/// Same as `promote_draft` with an explicit threshold (the CLI
+/// `--min-correct` flag threads through here).
+pub fn promote_draft_with_threshold(
+    mut pattern: Pattern,
+    was_correct: u32,
+    threshold: u32,
+) -> Pattern {
+    if pattern.lifecycle != RuleLifecycle::Draft {
+        return pattern;
+    }
+    if was_correct >= threshold {
+        pattern.lifecycle = RuleLifecycle::Candidate;
+        pattern.priority = RuleLifecycle::Candidate.default_priority();
+    }
+    pattern
+}
+
+/// Stale predicate: the rule fired and was vetoed strictly more often
+/// than it ran correctly. Callers feed `PatternMetrics` aggregated from
+/// M7 `pattern_runs` (or `learned_rules.was_correct`).
+pub fn should_deprecate(metrics: &PatternMetrics) -> bool {
+    metrics.was_blocked > metrics.was_correct
+}
+
+/// Retire a pattern: any lifecycle → `Deprecated`, priority 0.
+/// Idempotent; mirrors `Journal::deprecate_rule` for in-memory use.
+pub fn deprecate_stale(mut pattern: Pattern) -> Pattern {
+    pattern.lifecycle = RuleLifecycle::Deprecated;
+    pattern.priority = RuleLifecycle::Deprecated.default_priority();
+    pattern
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -456,5 +638,123 @@ mod tests {
         let pattern = outcome.pattern.unwrap();
         assert!(pattern.then.diff_hint.len() < 200);
         assert!(pattern.then.diff_hint.contains('…'));
+    }
+
+    fn applied_report(rule: &str, stage: StageKind) -> RepairReport {
+        let attempt = successful_attempt(
+            RepairStrategy::AutoFix,
+            &format!("lint rule `{rule}` fired"),
+            vec!["let _ = 42;".into()],
+        );
+        report_with(RepairOutcome::Applied, stage, vec![attempt])
+    }
+
+    #[test]
+    fn error_signature_normalises_rule_tag() {
+        let a = applied_report("no_println", StageKind::LintFormat);
+        let b = applied_report("  NO_PRINTLN ", StageKind::LintFormat);
+        assert_eq!(error_signature(&a), error_signature(&b));
+        assert_eq!(error_signature(&a), "lint_format|syntax_format|no_println");
+    }
+
+    #[test]
+    fn reflect_dedups_repeated_error_into_one_pattern() {
+        let a = applied_report("no_println", StageKind::LintFormat);
+        let b = applied_report("no_println", StageKind::LintFormat);
+        let c = applied_report("no_dbg", StageKind::LintFormat);
+        let patterns = reflect(&[a, b, c]);
+        assert_eq!(patterns.len(), 2);
+        let dup = patterns
+            .iter()
+            .find(|p| p.when.pattern == "no_println")
+            .expect("dedup group");
+        assert_eq!(dup.evidence.len(), 6);
+        assert!((dup.confidence - 0.75).abs() < 1e-6);
+        let single = patterns
+            .iter()
+            .find(|p| p.when.pattern == "no_dbg")
+            .expect("single group");
+        assert!((single.confidence - 0.7).abs() < 1e-6);
+    }
+
+    #[test]
+    fn reflect_is_deterministic_across_input_order() {
+        let a = applied_report("no_println", StageKind::LintFormat);
+        let b = applied_report("no_dbg", StageKind::LintFormat);
+        let fwd = reflect(&[a.clone(), b.clone()]);
+        let rev = reflect(&[b, a]);
+        assert_eq!(fwd.len(), rev.len());
+        for (l, r) in fwd.iter().zip(rev.iter()) {
+            assert_eq!(l.when, r.when);
+            assert_eq!(l.then, r.then);
+            assert_eq!(l.rule_id, r.rule_id);
+        }
+    }
+
+    #[test]
+    fn reflect_skips_non_learnable_reports() {
+        let empty = report_with(RepairOutcome::Proposed, StageKind::LintFormat, vec![]);
+        let human_attempt = RepairAttempt {
+            error_class: ErrorClass::SyntaxFormat,
+            strategy: RepairStrategy::HumanEscalate,
+            success: false,
+            root_cause: "budget exhausted".into(),
+            proposed_diff: None,
+        };
+        let human = report_with(
+            RepairOutcome::EscalatedHuman,
+            StageKind::LintFormat,
+            vec![human_attempt],
+        );
+        assert!(reflect(&[empty, human]).is_empty());
+    }
+
+    #[test]
+    fn promote_draft_requires_threshold() {
+        let report = applied_report("no_println", StageKind::LintFormat);
+        let outcome = run(LearnInput::new(&report));
+        let draft = outcome.pattern.unwrap();
+        assert_eq!(draft.lifecycle, RuleLifecycle::Draft);
+        let kept = promote_draft_with_threshold(draft.clone(), 1, 2);
+        assert_eq!(kept.lifecycle, RuleLifecycle::Draft);
+        assert_eq!(kept.priority, 0);
+        let promoted = promote_draft_with_threshold(draft, 2, 2);
+        assert_eq!(promoted.lifecycle, RuleLifecycle::Candidate);
+        assert_eq!(promoted.priority, 30);
+    }
+
+    #[test]
+    fn promote_draft_ignores_non_draft() {
+        let report = applied_report("no_println", StageKind::LintFormat);
+        let outcome = run(LearnInput::new(&report));
+        let mut active = outcome.pattern.unwrap();
+        active.lifecycle = RuleLifecycle::Active;
+        active.priority = RuleLifecycle::Active.default_priority();
+        let out = promote_draft(active.clone(), 99);
+        assert_eq!(out.lifecycle, RuleLifecycle::Active);
+        assert_eq!(out.priority, active.priority);
+    }
+
+    #[test]
+    fn stale_predicate_and_deprecate_transition() {
+        let blocked = PatternMetrics {
+            was_correct: 1,
+            was_blocked: 3,
+            tests_passed: 0,
+            approved_by_user: 0,
+        };
+        assert!(should_deprecate(&blocked));
+        let healthy = PatternMetrics {
+            was_correct: 3,
+            was_blocked: 1,
+            ..PatternMetrics::default()
+        };
+        assert!(!should_deprecate(&healthy));
+        let report = applied_report("no_println", StageKind::LintFormat);
+        let outcome = run(LearnInput::new(&report));
+        let retired = deprecate_stale(outcome.pattern.unwrap());
+        assert!(retired.is_deprecated());
+        assert!(!retired.is_consultable());
+        assert_eq!(retired.priority, 0);
     }
 }

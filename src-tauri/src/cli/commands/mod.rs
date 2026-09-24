@@ -6,6 +6,7 @@ pub mod exec;
 pub mod fork;
 pub mod hud;
 pub mod journal;
+pub mod learn;
 pub mod mcp;
 pub mod mission;
 pub mod models;
@@ -26,6 +27,7 @@ pub use exec::ExecCmd;
 pub use fork::ForkCmd;
 pub use hud::HudCmd;
 pub use journal::JournalCmd;
+pub use learn::LearnCmd;
 pub use mcp::McpCmd;
 pub use mission::MissionCmd;
 pub use models::ModelsCmd;
@@ -63,6 +65,7 @@ pub async fn dispatch(cmd: Commands, profile: &str) -> Result<()> {
         Commands::Profile(c) => profile::run(c, profile).await,
         Commands::Audit(c) => audit::run(c, profile).await,
         Commands::Journal(c) => journal::run(c, profile).await,
+        Commands::Learn(c) => learn::run(c, profile).await,
         Commands::Research(c) => research::run(c, profile).await,
         #[cfg(feature = "toast")]
         Commands::Toast(c) => toast::run(c, profile).await,
