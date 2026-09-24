@@ -64,13 +64,13 @@ A **stale-reset guard** rejects envelopes whose `resets_at` is more than 60 seco
 
 ### 3.1 Retry policy defaults (compiled in `orchestrator/retry.rs`)
 
-| Field                  | Default | Description                                                                 |
-| ---------------------- | ------- | -------------------------------------------------------------------------- |
-| `base_delay`           | 1 s     | Initial exponential backoff delay.                                        |
-| `max_delay`            | 30 s    | Backoff cap.                                                               |
-| `bail_out_threshold`   | 60 s    | Total wait time after which `RetryPolicy::decide` returns `BailDecision::GiveUp`. |
-| `max_attempts`         | 5       | Hard retry limit before giving up.                                        |
-| `jitter`               | 0.25    | ±25 % jitter around each backoff delay (uniform via `rand::Rng`).         |
+| Field                | Default | Description                                                                       |
+| -------------------- | ------- | --------------------------------------------------------------------------------- |
+| `base_delay`         | 1 s     | Initial exponential backoff delay.                                                |
+| `max_delay`          | 30 s    | Backoff cap.                                                                      |
+| `bail_out_threshold` | 60 s    | Total wait time after which `RetryPolicy::decide` returns `BailDecision::GiveUp`. |
+| `max_attempts`       | 5       | Hard retry limit before giving up.                                                |
+| `jitter`             | 0.25    | ±25 % jitter around each backoff delay (uniform via `rand::Rng`).                 |
 
 ### 3.2 Per-profile overrides (`<profile_root>/profile.toml`)
 
@@ -128,6 +128,7 @@ If `parse_omniroute` logs nothing and the orchestrator proceeds without persisti
 ### 4.5 Duplicate Toasts on rapid re-replays
 
 If you see two Toasts back-to-back, the Toast cooldown logic (10 min) likely didn't kick in. Confirm the `model_resets` table's `toast_id` column was linked after the first enqueue:
+
 ```sql
 SELECT id, provider, model, resets_at, toast_id, toast_dismissed_at
 FROM model_resets
@@ -135,6 +136,7 @@ WHERE toast_dismissed_at IS NULL
 ORDER BY resets_at DESC
 LIMIT 10;
 ```
+
 Rows with `toast_id IS NOT NULL` are linked; rows without one will re-enter the enqueue queue on the next scheduler tick. If both rows exist with the same `(provider, model, resets_at)` triple, the UNIQUE index failed (consider running `PRAGMA integrity_check` on the journal file).
 
 ---

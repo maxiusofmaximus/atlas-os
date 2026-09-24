@@ -35,7 +35,7 @@
 
 These guards are **not** pluggable prompt engineering for the agent's LLM — that would be brittle. They map to hard Rust invariants in `src-tauri/src/supervisor/loop.rs::Autoresearch`:
 
-| Guard in `program.md` | Rust invariant in Atlas OS supervisor                                                                                                                                                                                                                            |
+| Guard in `program.md` | Rust invariant in Atlas OS supervisor                                                                                                                                                                                                                               |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | NEVER STOP            | No user-input `await` between candidates; the loop runs unconditionally until `Mission.options.max_steps` or `timebox_seconds` hit, regardless of LLM idle.                                                                                                         |
 | Rewind sparingly      | `git reset --hard` is only permitted after `metric_after >= metric_baseline_at_step`. Reverted candidates are persisted to `autoresearch_candidates.kept=0` for audit; streak detection: 3 consecutive reverts → `outcome=plateau` abort (doom-loop guard, RFC 19). |

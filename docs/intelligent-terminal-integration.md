@@ -50,10 +50,10 @@ IT's `delegate-agent` (Alt+Shift+B / Alt+Shift+/) is wired through the **Agent C
       // Atlas OS auto-detects IT via WT_COM_CLSID and swaps into ACP
       // JSON-RPC stdio loop. No extra argv needed.
       "icon": "⚡",
-      "displayName": "Atlas OS"
-    }
+      "displayName": "Atlas OS",
+    },
   },
-  "delegateAgent": "opencode"
+  "delegateAgent": "opencode",
 }
 ```
 
@@ -71,14 +71,14 @@ After saving, restart IT. Alt+Shift+B in any pane now spawns `atlas`, which in t
 
 Available everywhere IT can show an ACP slash-command menu:
 
-| Command                                  | Behaviour                                                                                                              |
-| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `/atlas mission new <prompt>`            | Delegates to `atlas mission new <prompt>` (RFC 25 §3.9); new mission is journaled in M1–M12; pane renders plan id. |
-| `/atlas fork`                             | Delegates to `atlas fork`; opens a new branch sharing the consolidated mission prompt under a fresh mission id.    |
-| `/atlas resume`                           | Delegates to `atlas resume`; runs the latest checkpoint of the current mission.                                    |
-| `/atlas exec step <id> <step>`            | Delegates to `atlas exec step`; single-step Coding→Validation→Repair cycle for the given plan id and step id.      |
-| `/atlas fix [hint]`                      | Captures the active pane scrollback via `wtcli active-pane` + `wtcli capture-pane --last-prompt`, routes it to the Repair engine (RFC 15). |
-| `/atlas restart`                          | Calls `session/close` + `session/new` with the same cwd — clean-slate restart of the ACP session.                     |
+| Command                        | Behaviour                                                                                                                                  |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/atlas mission new <prompt>`  | Delegates to `atlas mission new <prompt>` (RFC 25 §3.9); new mission is journaled in M1–M12; pane renders plan id.                         |
+| `/atlas fork`                  | Delegates to `atlas fork`; opens a new branch sharing the consolidated mission prompt under a fresh mission id.                            |
+| `/atlas resume`                | Delegates to `atlas resume`; runs the latest checkpoint of the current mission.                                                            |
+| `/atlas exec step <id> <step>` | Delegates to `atlas exec step`; single-step Coding→Validation→Repair cycle for the given plan id and step id.                              |
+| `/atlas fix [hint]`            | Captures the active pane scrollback via `wtcli active-pane` + `wtcli capture-pane --last-prompt`, routes it to the Repair engine (RFC 15). |
+| `/atlas restart`               | Calls `session/close` + `session/new` with the same cwd — clean-slate restart of the ACP session.                                          |
 
 Phase 1.5d ships the catalogue + handler wiring. The actual hill-climbing host loop (i.e., the LLM-driven Phase 2 work that turns scrollback into a Repair-input diff) arrives in a later phase; until then `/atlas fix` records the operator intent in the Journal and surfaces a `\u201cPhase 1.5d: agent host loop not wired.\u201d` message — never a silent no-op.
 
