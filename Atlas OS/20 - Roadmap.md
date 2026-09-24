@@ -114,13 +114,26 @@ Plan refinado en `Atlas OS/research/30 - Phase 3 research engine.md` (6 sub-fase
 Entregable: la IA decide con evidencia social y académica, no con suposición.
 
 ## Fase 4 — Swarm
-- Roles: Planner, Researcher, Architect, Backend, Frontend, DB, Security, Testing, Reviewer, Merger.
-- Pool swarm estilo Kimi (paralelismo por rol).
-- Worktrees Git por agente (patrones CN-001/CN-003/CN-004 ver research `28 - conductor & alt surfaces.md` Sector A.4).
-- Rebase automático post-merge en workspaces vivos (CN-003 port de Conductor).
-- Checks button por worktree en HUD (CN-004).
-- Locks de archivos.
-- Swarm Console en la UI.
+
+Plan refinado en `Atlas OS/research/31 - Phase 4 swarm.md` (6 sub-fases atómicas, commits no PRs). Evidencia: RFC 30 (agency-agents roles con personalidad + munder-difflin office floor/mailbox), RFC 22 `28 - conductor & alt surfaces.md` (worktrees CN-001/CN-003/CN-004). Worktrees via git CLI — sin crate nueva.
+
+### Sub-fase 4.0 — Foundation
+- M29 migration `swarm_agents`/`agent_mailbox` + `enum Role` (10 roles RFC 05) + `WorktreeManager` via git CLI (fail-safe si git no está).
+
+### Sub-fase 4.1 — Role presets (agency-agents port)
+- Presets con personality/processes/deliverables (`atlas-team`, `pair-programming`, `solo-plus`) + asignación de modelo por rol (Aider tri-model).
+
+### Sub-fase 4.2 — Pool swarm (paralelismo por rol)
+- Tokio tasks por agente + semáforo por provider (backpressure reusado) + locks de archivos + checkpoints RFC 19 por agente.
+
+### Sub-fase 4.3 — Mailbox + memoria por agente
+- `Journal::send_message`/`inbox_for`/`mark_read` (M29) + CLI `atlas swarm send/inbox`.
+
+### Sub-fase 4.4 — Auto-rebase post-merge (CN-003)
+- Rebase automático en workspaces vivos + fail-safe a manual si hay conflictos.
+
+### Sub-fase 4.5 — Swarm Console HUD (frontend, Phase 8 parcial)
+- `<SwarmConsole.svelte>` floor 2D + mailbox drawer + checks button por worktree (CN-004) + WS events swarm.
 
 Entregable: 10 agentes cooperan en una mission.
 
