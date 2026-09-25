@@ -15,6 +15,7 @@ pub mod hud;
 pub mod journal;
 pub mod learning;
 pub mod lsp;
+pub mod monitor;
 pub mod orchestrator;
 pub mod planning;
 pub mod profiles;

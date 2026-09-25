@@ -841,3 +841,68 @@ describe('swarm REST helpers', () => {
     await expect(fetchSwarmChecks('http://h', 'm', 'a')).rejects.toThrow(/500/);
   });
 });
+
+describe('hardware monitor (RFC 20 Phase 8.2)', () => {
+  it('projects the last hardware_snapshot, ignoring other kinds', async () => {
+    const { projectHardwareSnapshot, monitorPressureOf } = await import('./hud');
+    const events = [
+      { id: 'a', ts: 't', kind: 'agent_diff', payload: {} },
+      {
+        id: 'b',
+        ts: 't',
+        kind: 'hardware_snapshot',
+        payload: {
+          ram_total_mb: 16000,
+          ram_used_mb: 4000,
+          vram_total_mb: null,
+          vram_used_mb: null,
+          cost_usd: 1.0,
+        },
+      },
+      {
+        id: 'c',
+        ts: 't',
+        kind: 'hardware_snapshot',
+        payload: {
+          ram_total_mb: 16000,
+          ram_used_mb: 8000,
+          vram_total_mb: 8192,
+          vram_used_mb: 1024,
+          cost_usd: 2.5,
+        },
+      },
+    ];
+    const snap = projectHardwareSnapshot(events);
+    expect(snap?.ram_used_mb).toBe(8000);
+    expect(snap?.cost_usd).toBe(2.5);
+    expect(snap).not.toBeNull();
+    const levels = monitorPressureOf(
+      snap ?? {
+        ram_total_mb: 1,
+        ram_used_mb: 0,
+        vram_total_mb: null,
+        vram_used_mb: null,
+        cost_usd: 0,
+      },
+    );
+    expect(levels.ram).toBe('ok');
+    expect(levels.vram).toBe('ok');
+    expect(levels.cost).toBe('ok');
+  });
+
+  it('warns above thresholds and tolerates missing vram (failure path)', async () => {
+    const { projectHardwareSnapshot, monitorPressureOf, pressureRatio } = await import('./hud');
+    expect(projectHardwareSnapshot([])).toBeNull();
+    expect(pressureRatio(1, 0)).toBe(0);
+    const levels = monitorPressureOf({
+      ram_total_mb: 100,
+      ram_used_mb: 96,
+      vram_total_mb: null,
+      vram_used_mb: null,
+      cost_usd: 25.0,
+    });
+    expect(levels.ram).toBe('critical');
+    expect(levels.vram).toBe('ok');
+    expect(levels.cost).toBe('critical');
+  });
+});

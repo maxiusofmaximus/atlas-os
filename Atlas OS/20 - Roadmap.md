@@ -201,8 +201,8 @@ Plan refinado en `Atlas OS/research/36 - Phase 8 UI v2 + ecosistema.md` (5 sub-f
 ### Sub-fase 8.1 — Skill Picker iluminado/grisado (RFC 17 §4)
 - `skills/picker.rs` scoring determinista (priority + engine/domain match + lifecycle) + CLI `atlas skill pick` iluminada vs grisada.
 
-### Sub-fase 8.2 — VRAM/RAM/cost monitor (crates auditadas)
-- Audit `sysinfo`+`nvml-wrapper` → feature `hardware-monitor` default off + snapshot → Kernel Bus + HUD card.
+### Sub-fase 8.2 — VRAM/RAM/cost monitor (IMPLEMENTADO, std-only MVP)
+- Audit `sysinfo`+`nvml-wrapper` DIFERIDO (RFC 25 §11: transitive deps + peso binario pendientes) → monitor propio sin crates: `src-tauri/src/monitor/` (`HardwareSnapshot`, consts `MONITOR_RAM_WARN/CRIT_PRESSURE`, `MONITOR_COST_WARN/CRIT_USD`, `MONITOR_POLL_SECS=5`) + `BusEventKind::HardwareSnapshot` (`hardware_snapshot`) + `Journal::total_model_cost_usd()` + CLI `atlas monitor [--ram-warn/--ram-crit/--cost-warn/--cost-crit/--no-publish]` + proyección HUD (`projectHardwareSnapshot`/`monitorPressureOf` en `hud.ts`). VRAM vía `nvidia-smi` best-effort (`None` = fail-safe). Feature `hardware-monitor` (sysinfo/nvml) queda como follow-up opt-in default-off.
 
 ### Sub-fase 8.3 — Command Center web remoto (SSO/OIDC)
 - Audit `axum-oidc-layer`/`openidconnect` → feature `remote-ui` default off + auth layer OIDC.

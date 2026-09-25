@@ -154,6 +154,17 @@ pub enum BusEventKind {
         /// already linked to this reset row idempotently.
         toast_enqueued_id: Option<i64>,
     },
+    /// RFC 20 Phase 8 sub-fase 8.2 — VRAM/RAM/cost monitor snapshot.
+    /// Published by `atlas monitor` (and later the 5s HUD poller) so
+    /// the HUD card renders pressure without a new tail route.
+    /// VRAM is `None` when `nvidia-smi` is missing (fail-safe).
+    HardwareSnapshot {
+        ram_total_mb: u64,
+        ram_used_mb: u64,
+        vram_total_mb: Option<u64>,
+        vram_used_mb: Option<u64>,
+        cost_usd: f64,
+    },
 }
 
 /// RFC 27 §B — who triggered the model swap.
@@ -284,6 +295,7 @@ impl BusEventKind {
             BusEventKind::StepPhaseChanged { .. } => "step_phase_changed",
             BusEventKind::AutoresearchCancelled { .. } => "autoresearch_cancelled",
             BusEventKind::SpendLimitObserved { .. } => "spend_limit_observed",
+            BusEventKind::HardwareSnapshot { .. } => "hardware_snapshot",
         }
     }
 }

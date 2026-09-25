@@ -775,3 +775,75 @@ export async function fetchJournalPage(
   }
   return (await res.json()) as JournalPage;
 }
+
+// ────────────── RFC 20 Phase 8.2 — VRAM/RAM/cost monitor card ──────────────
+//
+// Mirrors the Rust `BusEventKind::HardwareSnapshot` payload published by
+// `atlas monitor` (module `src-tauri/src/monitor/`). The card derives from
+// the WS tail via `projectHardwareSnapshot` (last snapshot wins) so no new
+// tail route is needed; thresholds mirror the Rust consts
+// (`MONITOR_RAM_WARN_PRESSURE` 0.85 / crit 0.95, cost warn $5 / crit $20).
+
+export type MonitorPressure = 'ok' | 'warn' | 'critical';
+
+export interface HardwareSnapshotPayload {
+  ram_total_mb: number;
+  ram_used_mb: number;
+  vram_total_mb: number | null;
+  vram_used_mb: number | null;
+  cost_usd: number;
+}
+
+export const MONITOR_RAM_WARN = 0.85;
+export const MONITOR_RAM_CRIT = 0.95;
+export const MONITOR_COST_WARN_USD = 5.0;
+export const MONITOR_COST_CRIT_USD = 20.0;
+
+export function pressureRatio(usedMb: number, totalMb: number): number {
+  if (!Number.isFinite(usedMb) || !Number.isFinite(totalMb) || totalMb <= 0) return 0;
+  return Math.min(1, Math.max(0, usedMb / totalMb));
+}
+
+export function classifyMonitorPressure(
+  ratio: number,
+  warn: number,
+  crit: number,
+): MonitorPressure {
+  if (ratio >= crit) return 'critical';
+  if (ratio >= warn) return 'warn';
+  return 'ok';
+}
+
+/** Last `hardware_snapshot` in the WS tail, or `null` when none arrived yet. */
+export function projectHardwareSnapshot(events: HudEvent[]): HardwareSnapshotPayload | null {
+  let last: HardwareSnapshotPayload | null = null;
+  for (const evt of events) {
+    if (evt.kind !== 'hardware_snapshot') continue;
+    const p = evt.payload as HardwareSnapshotPayload | null;
+    if (p == null || typeof p.ram_total_mb !== 'number') continue;
+    last = p;
+  }
+  return last;
+}
+
+export function monitorPressureOf(snap: HardwareSnapshotPayload): {
+  ram: MonitorPressure;
+  vram: MonitorPressure;
+  cost: MonitorPressure;
+} {
+  const ram = classifyMonitorPressure(
+    pressureRatio(snap.ram_used_mb, snap.ram_total_mb),
+    MONITOR_RAM_WARN,
+    MONITOR_RAM_CRIT,
+  );
+  const vram =
+    snap.vram_total_mb != null && snap.vram_used_mb != null
+      ? classifyMonitorPressure(
+          pressureRatio(snap.vram_used_mb, snap.vram_total_mb),
+          MONITOR_RAM_WARN,
+          MONITOR_RAM_CRIT,
+        )
+      : 'ok';
+  const cost = classifyMonitorPressure(snap.cost_usd, MONITOR_COST_WARN_USD, MONITOR_COST_CRIT_USD);
+  return { ram, vram, cost };
+}

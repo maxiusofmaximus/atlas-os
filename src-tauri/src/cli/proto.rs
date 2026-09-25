@@ -9,8 +9,8 @@ use super::commands::ResearchCmd;
 use super::commands::ToastCmd;
 use super::commands::{
     AuditCmd, ExecCmd, ForkCmd, HudCmd, JournalCmd, LearnCmd, McpCmd, MissionCmd, ModelsCmd,
-    PlanCmd, ProfileCmd, ResumeCmd, RunCmd, SecurityCmd, SkillCmd, SteerCmd, SwapModelCmd,
-    SwarmCmd,
+    MonitorCmd, PlanCmd, ProfileCmd, ResumeCmd, RunCmd, SecurityCmd, SkillCmd, SteerCmd,
+    SwapModelCmd, SwarmCmd,
 };
 #[derive(Parser, Debug)]
 #[command(name = "atlas", version, propagate_version = true)]
@@ -60,6 +60,8 @@ pub enum Commands {
     SwapModel(SwapModelCmd),
     /// Model registry management — affinity refresh (RFC 04 §8).
     Models(ModelsCmd),
+    /// VRAM/RAM/cost snapshot — prints + publishes `hardware_snapshot` (RFC 20 Phase 8.2).
+    Monitor(MonitorCmd),
     /// LLM-driver Phase 2 entrypoints (RFC 27 §F).
     Exec(ExecCmd),
     /// HUD server control.

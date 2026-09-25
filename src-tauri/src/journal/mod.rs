@@ -13,6 +13,7 @@ pub mod learning_rules;
 #[cfg(feature = "dag_mode")]
 pub mod mission_graph;
 pub mod model_resets;
+pub mod monitor_cost;
 pub mod research;
 pub mod schema;
 pub mod search;

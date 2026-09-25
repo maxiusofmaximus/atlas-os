@@ -10,6 +10,7 @@ pub mod learn;
 pub mod mcp;
 pub mod mission;
 pub mod models;
+pub mod monitor;
 pub mod plan;
 pub mod profile;
 pub mod research;
@@ -32,6 +33,7 @@ pub use learn::LearnCmd;
 pub use mcp::McpCmd;
 pub use mission::MissionCmd;
 pub use models::ModelsCmd;
+pub use monitor::MonitorCmd;
 pub use plan::PlanCmd;
 pub use profile::ProfileCmd;
 pub use research::ResearchCmd;
@@ -59,6 +61,7 @@ pub async fn dispatch(cmd: Commands, profile: &str) -> Result<()> {
         Commands::Steer(c) => steer::run(c, profile).await,
         Commands::SwapModel(c) => swap_model::run(c, profile).await,
         Commands::Models(c) => models::run(c, profile).await,
+        Commands::Monitor(c) => monitor::run(c, profile).await,
         Commands::Exec(c) => exec::run(c, profile).await,
         Commands::Hud(c) => hud::run(c, profile).await,
         Commands::Mcp(c) => mcp::run(c, profile).await,
