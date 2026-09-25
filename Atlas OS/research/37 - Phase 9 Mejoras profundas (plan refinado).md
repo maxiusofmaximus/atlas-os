@@ -48,9 +48,9 @@ Semgrep + CodeQL (RFC 20): proceso EXTERNO lanzado por Atlas OS si están en PAT
 - Rust: check propio sin crate (module layering en `core/pipeline.rs` o defer).
 - Tests: reglas violadas detectadas (fixture) + suite limpia.
 
-### Sub-fase 9.4 — LSP Confidence por símbolo — M36
-- `lsp/` host (tower-lsp ya presente): hover/diagnostics exponen `Confidence` por símbolo — fuente: Skill Picker relevance (8.1) + AstSymbol presence (9.2 si existe).
-- Tests: hover devuelve confidence determinista, failure-path sin datos.
+### Sub-fase 9.4 — LSP Confidence por símbolo — M36 (COMPLETO, std-only MVP sin DB nueva)
+- `lsp/confidence.rs` (`SymbolConfidence` + `hover_for_symbol`/`diagnostic_for_symbol` + `who_owns`/`affects_where` sobre filas `ast_symbols` de 9.2): hover/diagnostics exponen `Confidence` por símbolo — fuente: Skill Picker relevance (8.1) como base + `confidence_for_symbol` presence (9.2).
+- Tests: hover devuelve confidence determinista, wiring relevance→confidence, failure-path sin datos (símbolo inválido, base no finita, tabla vacía).
 
 **Entregable:** razonamiento sobre AST y reglas de seguridad profundas (RFC 20). KPI: Confidence medio ≥ 0.75, alucinaciones ≤ 1/100 diffs.
 
@@ -65,4 +65,4 @@ Semgrep + CodeQL (RFC 20): proceso EXTERNO lanzado por Atlas OS si están en PAT
 1. Commit de este plan + RFC 20 update + Index 26.
 2. Gestor audita candle + tree-sitter en paralelo con la delegación 9.0 (9.0 no necesita audit — zero-dep).
 3. Sub-fase 9.0 (delegada a muse-spark-1.3) → revisar → commit → push.
-4. Sub-fases 9.1 ✅ (M33) y 9.2 ✅ (M34) completas; 9.3-9.4 según audits (9.4 consume `confidence_for_symbol` + `ast_symbols_for_file` de 9.2).
+4. Sub-fases 9.0 ✅ (M32), 9.1 ✅ (M33), 9.2 ✅ (M34) y 9.4 ✅ (M36) completas; 9.3 según audit.

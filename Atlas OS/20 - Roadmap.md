@@ -236,8 +236,8 @@ Entregable: razonamiento sobre AST y reglas de seguridad profundas.
 ### Sub-fase 9.3 — Dependency-cruiser límites de capas (M35)
 - TS: dependency-cruiser dev-dep + `.dependency-cruiser.cjs` (reglas lib/routes/stores/components). Rust: check propio sin crate.
 
-### Sub-fase 9.4 — LSP Confidence por símbolo (M36)
-- `lsp/` host (tower-lsp): hover/diagnostics exponen `Confidence` (fuente: Skill Picker relevance 8.1 + AstSymbol 9.2).
+### Sub-fase 9.4 — LSP Confidence por símbolo (M36) (COMPLETO)
+- `lsp/confidence.rs` (`SymbolConfidence {name, file, line, confidence, present}` + `hover_for_symbol`/`diagnostic_for_symbol` + `who_owns`/`affects_where` sobre `ast_symbols`): hover/diagnostics exponen `Confidence` (fuente: Skill Picker relevance 8.1 como base + `confidence_for_symbol` 9.2 por presencia; sin DB nueva — consume M34). Tests: hover determinista, wiring relevance→confidence, failure-path sin datos (símbolo inválido, base no finita).
 
 ## Fase 10 — Plataforma abierta
 - SDK público para escribir Skills.

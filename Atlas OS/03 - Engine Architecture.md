@@ -184,7 +184,7 @@ VS Code enruta cada `textDocument/*` al servidor cuyo `documentSelector` coincid
 
 ### 9.4 `ProjectSymbolTable`
 
-Cache de símbolos por proyecto, estilo IntelliSense / Roslyn Workspace. Inicialización incremental vía LSP `workspace/symbol`; invalidación on `textDocument/didChange` (no espera al save). Esto da autocompletado tradicional en el Modo Manual Classic (ver `21 - Execution Modes.md`).
+Cache de símbolos por proyecto, estilo IntelliSense / Roslyn Workspace. Inicialización incremental vía LSP `workspace/symbol`; invalidación on `textDocument/didChange` (no espera al save). Esto da autocompletado tradicional en el Modo Manual Classic (ver `21 - Execution Modes.md`). La sub-fase 9.4 (M36) consume esta tabla vía `lsp::confidence::SymbolConfidence`: hover/diagnostics exponen Confidence por símbolo (base = Skill Picker relevance 8.1 + presencia AstSymbol 9.2).
 
 ### 9.5 `SemanticEmbeddingIndex`
 
