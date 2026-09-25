@@ -9,6 +9,7 @@ pub mod cards;
 pub mod export;
 #[cfg(feature = "dag_mode")]
 pub mod graph;
+pub mod observer;
 pub mod server;
 pub mod tail;
 pub mod ws;

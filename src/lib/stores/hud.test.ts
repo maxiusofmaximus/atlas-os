@@ -548,6 +548,68 @@ describe('ModelReadyCardPayload type', () => {
   });
 });
 
+// ────────────── RFC 19 §10 — Journal Observer store ──────────────
+import { fetchJournalPage, type JournalPage } from './hud';
+
+describe('fetchJournalPage', () => {
+  beforeEach(() => {
+    globalThis.fetch = vi.fn() as unknown as typeof fetch;
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const samplePage: JournalPage = {
+    entries: [{ id: 3, ts: '2026-09-24T00:00:00Z', kind: 'task_received', payload: { a: 1 } }],
+    total: 42,
+    limit: 20,
+    offset: 0,
+  };
+
+  it('GETs /hud/journal with no query when params are omitted', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => samplePage,
+    } as Response);
+    const got = await fetchJournalPage('http://localhost:57457/');
+    expect(got.total).toBe(42);
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:57457/hud/journal');
+  });
+
+  it('encodes limit, offset and kind as query params', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => samplePage,
+    } as Response);
+    await fetchJournalPage('http://h', { limit: 10, offset: 20, kind: 'task_received' });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://h/hud/journal?limit=10&offset=20&kind=task_received',
+    );
+  });
+
+  it('trims the kind filter and skips it when blank', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => samplePage,
+    } as Response);
+    await fetchJournalPage('http://h/', { kind: '   ' });
+    expect(fetchMock).toHaveBeenCalledWith('http://h/hud/journal');
+  });
+
+  it('rejects on non-OK status (failure path)', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 400, statusText: 'BR' } as Response);
+    await expect(fetchJournalPage('http://h', { limit: 0 })).rejects.toThrow(/400/);
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 500, statusText: 'ISE' } as Response);
+    await expect(fetchJournalPage('http://h')).rejects.toThrow(/500/);
+  });
+});
 // ────────────── RFC 31 §B 4.5 — Swarm Console store ──────────────
 import {
   projectSwarmAgents,

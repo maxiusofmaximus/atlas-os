@@ -294,6 +294,69 @@ impl Journal {
         Ok(out)
     }
 
+    /// RFC 19 §10 — paginated journal inspection for the HUD Observer
+    /// (research 33 SECTOR B 6.1). Unlike `tail` (newest-N window,
+    /// oldest-first, no filter), this returns newest-first pages with
+    /// an optional `kind` filter plus the total matching count so the
+    /// UI can render prev/next controls. Payloads are complete —
+    /// nothing is truncated. `limit`/`offset` are clamped by the HUD
+    /// route; `kind` is bound as a parameter (never interpolated).
+    pub fn journal_page(
+        &self,
+        limit: i64,
+        offset: i64,
+        kind: Option<&str>,
+    ) -> anyhow::Result<(Vec<JournalEntry>, i64)> {
+        let conn = self.conn.lock();
+        let total: i64 = match kind {
+            Some(k) => conn.query_row(
+                "SELECT COUNT(*) FROM journal_events WHERE kind = ?1",
+                rusqlite::params![k],
+                |row| row.get(0),
+            )?,
+            None => conn.query_row("SELECT COUNT(*) FROM journal_events", [], |row| row.get(0))?,
+        };
+        let sql = match kind {
+            Some(_) => {
+                "SELECT id, ts, kind, payload FROM journal_events
+                 WHERE kind = ?1 ORDER BY id DESC LIMIT ?2 OFFSET ?3"
+            }
+            None => {
+                "SELECT id, ts, kind, payload FROM journal_events
+                 ORDER BY id DESC LIMIT ?1 OFFSET ?2"
+            }
+        };
+        let mut stmt = conn.prepare(sql)?;
+        let map = |row: &rusqlite::Row| {
+            Ok(JournalEntry {
+                id: row.get(0)?,
+                ts: row.get(1)?,
+                kind: row.get(2)?,
+                payload: serde_json::from_str(&row.get::<_, String>(3)?).unwrap_or_default(),
+            })
+        };
+        let mut out = Vec::new();
+        match kind {
+            Some(k) => {
+                for entry in stmt
+                    .query_map(rusqlite::params![k, limit, offset], map)?
+                    .flatten()
+                {
+                    out.push(entry);
+                }
+            }
+            None => {
+                for entry in stmt
+                    .query_map(rusqlite::params![limit, offset], map)?
+                    .flatten()
+                {
+                    out.push(entry);
+                }
+            }
+        }
+        Ok((out, total))
+    }
+
     /// Tail the append-only audit log (RFC 24 §10). Phase 0 returns the raw
     /// rows; Phase 6 will verify the hash chain when `--verify` is passed.
     pub fn audit_tail(&self, last: i64) -> anyhow::Result<Vec<AuditEntry>> {

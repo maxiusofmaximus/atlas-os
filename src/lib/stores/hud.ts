@@ -723,3 +723,55 @@ export async function postMissionResume(
   }
   return (await res.json()) as MissionResumeResponse;
 }
+
+// ────────────── RFC 19 §10 — Journal Observer (research 33 SECTOR B 6.1) ──────────────
+//
+// Mirrors the Rust `JournalEntry` row plus the `JournalPageResponse`
+// envelope emitted by `GET /hud/journal`. Unlike `fetchTail` (newest-N
+// projections, several without payloads), the observer returns complete
+// payloads with `limit`/`offset` pagination and an optional `kind`
+// filter so the operator can isolate one event stream.
+
+export interface JournalObserverEntry {
+  id: number;
+  ts: string;
+  kind: string;
+  payload: unknown;
+}
+
+export interface JournalPageParams {
+  limit?: number;
+  offset?: number;
+  kind?: string | null;
+}
+
+export interface JournalPage {
+  entries: JournalObserverEntry[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export async function fetchJournalPage(
+  hudUrl: string,
+  params?: JournalPageParams,
+): Promise<JournalPage> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const query = new URLSearchParams();
+  if (params?.limit != null) {
+    query.set('limit', String(params.limit));
+  }
+  if (params?.offset != null) {
+    query.set('offset', String(params.offset));
+  }
+  const kind = params?.kind?.trim();
+  if (kind) {
+    query.set('kind', kind);
+  }
+  const suffix = query.size > 0 ? `?${query.toString()}` : '';
+  const res = await fetch(`${trimmed}/hud/journal${suffix}`);
+  if (!res.ok) {
+    throw new Error(`HUD journal page fetch failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as JournalPage;
+}

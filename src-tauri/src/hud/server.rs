@@ -69,6 +69,11 @@ pub async fn serve(state: Arc<AppState>, shutdown: CancellationToken) {
         .route("/tail/skills", get(super::tail::tail_skills))
         .route("/tail/model_swaps", get(super::tail::tail_model_swaps))
         .route("/tail/step_states", get(super::tail::tail_step_states))
+        // Phase 6 (research 33 SECTOR B 6.1) — full journal inspection
+        // view (RFC 19 §10): complete payloads plus limit/offset
+        // pagination and an optional kind filter. The `/tail/*` routes
+        // stay as the newest-N projection feed.
+        .route("/hud/journal", get(super::observer::get_journal_page))
         .route(
             "/diff/:id/annotation",
             post(super::annotate::post_annotation).get(super::annotate::get_annotations),
