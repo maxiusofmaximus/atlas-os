@@ -9,8 +9,8 @@ use super::commands::ResearchCmd;
 use super::commands::ToastCmd;
 use super::commands::{
     AuditCmd, ExecCmd, ForkCmd, HudCmd, JournalCmd, LearnCmd, McpCmd, MissionCmd, ModelsCmd,
-    MonitorCmd, PlanCmd, ProfileCmd, RemoteCmd, ResumeCmd, RunCmd, SecurityCmd, SkillCmd, SteerCmd,
-    SwapModelCmd, SwarmCmd,
+    MonitorCmd, PlanCmd, ProfileCmd, RemoteCmd, ResumeCmd, RunCmd, SecurityCmd, SisterCmd,
+    SkillCmd, SteerCmd, SwapModelCmd, SwarmCmd,
 };
 #[derive(Parser, Debug)]
 #[command(name = "atlas", version, propagate_version = true)]
@@ -70,6 +70,9 @@ pub enum Commands {
     Mcp(McpCmd),
     /// Skill management (RFC 06).
     Skill(SkillCmd),
+    /// Sister IDE-in-a-terminal frame — text Document Model over the same
+    /// Kernel Bus data the HUD serves (RFC 20 Phase 8.4).
+    Sister(SisterCmd),
     /// Security supply-chain install gate (RFC 18 §4).
     Security(SecurityCmd),
     /// Swarm role presets — list and spawn (RFC 05 Phase 4.1).

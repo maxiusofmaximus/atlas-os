@@ -20,6 +20,14 @@ path = "src/main.rs"
 name = "atlas"
 path = "src/cli/bin/opencode.rs"
 
+# RFC 20 Phase 8 sub-fase 8.4 — Sister IDE-in-a-terminal entry point for
+# thin PCs over SSH. Only compiled with `--features tui` (default off);
+# default builds skip it. No new deps: owned text-frame Document Model.
+[[bin]]
+name = "atlas-tui"
+path = "src/cli/bin/atlas-tui.rs"
+required-features = ["tui", "cli"]
+
 [features]
 default = ["tauri", "hud", "lsp", "cli", "bundled-skills"]
 tauri = ["dep:tauri"]
@@ -68,6 +76,21 @@ acp-server = ["dep:agent-client-protocol"]
 # `FIRECRAWL_API_KEY`; the facade handles both paths. No native deps —
 # pure Rust, single-binary safe (RFC 25 §11).
 firecrawl = ["dep:firecrawl"]
+# Research 36 SECTOR B 8.3 — Command Center web remoto (SSO/OIDC).
+# Empty gate: the owned bearer + OIDC-discovery shape lives in
+# `src/remote_auth/` on every build; enabling `remote-ui` only tightens
+# `GET /remote/status` to bearer-enforced (401 otherwise). The real
+# `axum-oidc-layer`/`openidconnect` layer stays deferred (RFC 25 §11
+# audit pending) and swaps in behind this same gate without changing
+# callers. Default off — local-only HUD is the default posture.
+remote-ui = []
+# Research 36 SECTOR B 8.4 — Sister IDE-in-a-terminal. Empty gate: the
+# owned text-frame Document Model (`src/sister/`, `atlas sister`) ships
+# on every build; enabling `tui` additionally compiles the standalone
+# `atlas-tui` binary (see `[[bin]]` above). The future alternate-screen
+# renderer (ratatui, post-audit) reuses the same snapshot shape.
+# Default off — desktop + headless CLI cover the default surface.
+tui = []
 # Research Engine Phase 3 sub-fase 3.2 — local document ingestion
 # (anydoc scope: Word/PowerPoint/Excel/OpenDocument/RTF/EPUB/CSV/PDF →
 # Markdown, plan 30 §B 3.2). Empty feature: the `research::ingest`

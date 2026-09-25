@@ -204,16 +204,16 @@ Plan refinado en `Atlas OS/research/36 - Phase 8 UI v2 + ecosistema.md` (5 sub-f
 ### Sub-fase 8.2 — VRAM/RAM/cost monitor (IMPLEMENTADO, std-only MVP)
 - Audit `sysinfo`+`nvml-wrapper` DIFERIDO (RFC 25 §11: transitive deps + peso binario pendientes) → monitor propio sin crates: `src-tauri/src/monitor/` (`HardwareSnapshot`, consts `MONITOR_RAM_WARN/CRIT_PRESSURE`, `MONITOR_COST_WARN/CRIT_USD`, `MONITOR_POLL_SECS=5`) + `BusEventKind::HardwareSnapshot` (`hardware_snapshot`) + `Journal::total_model_cost_usd()` + CLI `atlas monitor [--ram-warn/--ram-crit/--cost-warn/--cost-crit/--no-publish]` + proyección HUD (`projectHardwareSnapshot`/`monitorPressureOf` en `hud.ts`). VRAM vía `nvidia-smi` best-effort (`None` = fail-safe). Feature `hardware-monitor` (sysinfo/nvml) queda como follow-up opt-in default-off.
 
-### Sub-fase 8.3 — Command Center web remoto (SSO/OIDC)
-- Audit `axum-oidc-layer`/`openidconnect` → feature `remote-ui` default off + auth layer OIDC.
+### Sub-fase 8.3 — Command Center web remoto (SSO/OIDC) (IMPLEMENTADO, std-only MVP)
+- Audit `axum-oidc-layer`+`openidconnect` DIFERIDO (RFC 25 §11: oauth2/reqwest-blocking transitive + peso binario pendientes) → auth propia sin crates: `src-tauri/src/remote_auth/` (bearer `ATLAS_REMOTE_TOKEN`/`remote_token.txt` con `ensure/read/rotate`, `verify_bearer` xor-fold, `extract_request_token` header `Authorization` + cookie `atlas_session`, `discovery_url` OIDC shape fijo, `RemoteAccessStatus` sin filtrar el secreto) + `GET /remote/status` siempre montado (informativo; con feature `remote-ui` default-off exige bearer y responde 401) + CLI `atlas hud [--auth-status/--rotate-token]`. Postura default local-only; remoto solo sobre tunnel autenticado (Tailscale/SSH/Cloudflare, RFC 24 §16). Feature `remote-ui` (capa OIDC real) queda como follow-up opt-in default-off.
 
-### Sub-fase 8.4 — Sister IDE-in-a-terminal (ratatui)
-- Audit `ratatui` → binario `atlas-tui` (feature `tui` default off) conecta al Kernel Bus WS.
+### Sub-fase 8.4 — Sister IDE-in-a-terminal (ratatui) (IMPLEMENTADO, std-only MVP)
+- Audit `ratatui` DIFERIDO (RFC 25 §11: crossterm/unicode-width/widgets + peso binario pendientes; research 28 Tier-1 es terminal-kit Node, no crate Rust) → Document Model propio sin crates: `src-tauri/src/sister/` (`SisterSnapshot` desde journal tails + `HardwareSnapshot`, `SisterFeed` cap 20 sobre `BusEvent::tag`, `render_frame` puro determinista 72 cols, `ws_url` al mismo Kernel Bus WS del HUD) + CLI `atlas sister [--watch/--ticks]` + binario `atlas-tui` (feature `tui` default-off, `required-features`). Renderer alternate-screen futuro reusa el mismo shape.
 
 ### Sub-fase 8.5 — Remote-live dual-PC (RustDesk lateral, AGPL) (IMPLEMENTADO)
 - RustDesk como proceso externo lateral (jamas link/bundle AGPL): `src-tauri/src/remote/` (`RemoteRole` server/client, `find_rustdesk_in_path` patron docs_gateway, `ATLAS_RUSTDESK_BIN` override, `launch_args`/`spawn_session` via `std::process::Command`) + `atlas remote status/guide/serve [--launch]/connect [--peer-id] [--launch]` + modelo Nate Gentile (PC servidor potente + PC thin cliente). Sin RustDesk → mensaje util con download link. Sin crates nuevas.
 
-Entregable: ve el swarm desde el móvil/tablet, programa en vivo desde un PC thin accediendo a los recursos del servidor.
+Entregable: ve el swarm desde el móvil/tablet, programa en vivo desde un PC thin accediendo a los recursos del servidor. **Phase 8 COMPLETA** — KPI: latencia end-to-end UI <100ms (RFC 20).
 
 ## Fase 9 — Mejoras profundas
 - Tree-sitter como lectura principal del Context Engine.

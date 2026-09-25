@@ -90,6 +90,14 @@ pub async fn serve(state: Arc<AppState>, shutdown: CancellationToken) {
         .route(
             "/payload/skill/:skill_id/:version",
             get(super::tail::payload_skill),
+        )
+        // Phase 8.3 (research 36 SECTOR B 8.3, RFC 24 §16) — remote
+        // access status (bearer-configured? OIDC discovery set?). Always
+        // mounted and informational; with the `remote-ui` feature the
+        // handler additionally enforces the bearer and 401s otherwise.
+        .route(
+            "/remote/status",
+            get(super::remote_status::get_remote_status),
         );
 
     // Phase 1.5c §C item 7 — graph read endpoint (RFC 28). Only

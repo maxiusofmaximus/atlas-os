@@ -100,6 +100,13 @@ impl AppState {
         self.inner.hud_port.store(port, Ordering::Relaxed);
     }
 
+    /// Raw HUD port (0 = not serving yet). Read by `/remote/status`
+    /// (RFC 20 Phase 8.3) so the route reports the port without
+    /// string-parsing `hud_url()`.
+    pub fn hud_port(&self) -> u16 {
+        self.inner.hud_port.load(Ordering::Relaxed)
+    }
+
     pub fn journal(&self) -> parking_lot::MutexGuard<'_, Journal> {
         self.inner.journal.lock()
     }
@@ -155,11 +162,19 @@ impl AppState {
     /// journal. Non-production callers should prefer `bootstrap()`.
     #[allow(dead_code)]
     pub(crate) fn from_journal(journal: Journal) -> Self {
+        Self::from_journal_in(journal, PathBuf::new())
+    }
+
+    /// Test-only variant of `from_journal` that pins the profile root, so
+    /// route tests can stage per-profile files (tokens, `hud_port.txt`)
+    /// in a tempdir instead of racing on process env vars.
+    #[allow(dead_code)]
+    pub(crate) fn from_journal_in(journal: Journal, profile_root: PathBuf) -> Self {
         let (bus_tx, _) = broadcast::channel(1024);
         Self {
             inner: Arc::new(Inner {
                 profile_id: RwLock::new(ProfileId::default()),
-                profile_root: RwLock::new(PathBuf::new()),
+                profile_root: RwLock::new(profile_root),
                 journal: Arc::new(Mutex::new(journal)),
                 bus_tx,
                 hud_port: AtomicU16::new(0),
