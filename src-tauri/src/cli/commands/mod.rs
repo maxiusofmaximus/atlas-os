@@ -15,6 +15,7 @@ pub mod profile;
 pub mod research;
 pub mod resume;
 pub mod run;
+pub mod security;
 pub mod skill;
 pub mod steer;
 pub mod swap_model;
@@ -36,6 +37,7 @@ pub use profile::ProfileCmd;
 pub use research::ResearchCmd;
 pub use resume::ResumeCmd;
 pub use run::RunCmd;
+pub use security::SecurityCmd;
 pub use skill::SkillCmd;
 pub use steer::SteerCmd;
 pub use swap_model::SwapModelCmd;
@@ -61,6 +63,7 @@ pub async fn dispatch(cmd: Commands, profile: &str) -> Result<()> {
         Commands::Hud(c) => hud::run(c, profile).await,
         Commands::Mcp(c) => mcp::run(c, profile).await,
         Commands::Skill(c) => skill::run(c, profile).await,
+        Commands::Security(c) => security::run(c, profile).await,
         Commands::Swarm(c) => swarm::run(c, profile).await,
         Commands::Profile(c) => profile::run(c, profile).await,
         Commands::Audit(c) => audit::run(c, profile).await,

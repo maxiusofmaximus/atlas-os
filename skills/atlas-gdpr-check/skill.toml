@@ -1,0 +1,18 @@
+# skill.toml — `atlas-gdpr-check` (RFC 18 §12, Phase 7 sub-fase 7.2)
+
+id = "atlas-gdpr-check"
+version = "1.0.0"
+description = "Applies the GDPR checklist to a diff: Art 5/25/32/33 duties with When/Then actions for personal-data handling."
+engine = "security"
+priority = 80
+domain = "security"
+confidence = 0.86
+estimated_tokens = 2600
+estimated_time = 20
+compatible_models = ["claude-sonnet-4.5", "gemini-2.5-pro", "gpt-4o", "local-qwen2.5-14b-instruct"]
+summary = "GDPR Art 5/25/32/33 checklist"
+auto_generated = false
+verified = true
+author = "atlas-os"
+license = "MIT"
+home = "./skills/atlas-gdpr-check/"
