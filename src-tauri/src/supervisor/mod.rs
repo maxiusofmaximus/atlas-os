@@ -15,10 +15,12 @@
 // threads, Journal) onto this pure core.
 
 pub mod doom_loop;
+pub mod resume;
 pub mod runner;
 pub mod types;
 
 pub use doom_loop::{DoomLoopConfig, DoomLoopDetector};
+pub use resume::{parse_phase_tag, resume_state};
 pub use runner::{tick, TickContext, TickOutput};
 pub use types::{
     BudgetCapKind, BudgetCaps, BudgetTally, ExecutionMode, HeartbeatSnapshot, MissionCheckpoint,

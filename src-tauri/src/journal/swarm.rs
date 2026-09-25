@@ -464,6 +464,8 @@ mod tests {
                 last_validation_report_id: None,
                 last_repair_id: None,
                 budget_tally: BudgetTally::default(),
+                caps: None,
+                mode: None,
                 generated_at: chrono::Utc::now().to_rfc3339(),
             })
             .expect("checkpoint");

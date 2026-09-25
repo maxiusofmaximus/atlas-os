@@ -101,6 +101,8 @@ fn build_checkpoint(
         last_validation_report_id,
         last_repair_id,
         budget_tally: BudgetTally::default(),
+        caps: None,
+        mode: None,
         generated_at: chrono::Utc::now().to_rfc3339(),
     }
 }

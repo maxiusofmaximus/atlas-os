@@ -65,6 +65,19 @@ impl MissionPhase {
         }
     }
 
+    pub fn parse(tag: &str) -> Option<Self> {
+        match tag {
+            "idle" => Some(Self::Idle),
+            "planning" => Some(Self::Planning),
+            "executing" => Some(Self::Executing),
+            "verifying" => Some(Self::Verifying),
+            "recovering" => Some(Self::Recovering),
+            "halted" => Some(Self::Halted),
+            "done" => Some(Self::Done),
+            _ => None,
+        }
+    }
+
     /// True when the supervisor is allowed to accept a new mission
     /// (only `Idle` and `Done`). Other phases need an explicit `Halt`
     /// or done-trigger first.
@@ -161,6 +174,16 @@ impl ExecutionMode {
             Self::Autonomous => "autonomous",
         }
     }
+
+    pub fn parse(tag: &str) -> Option<Self> {
+        match tag {
+            "manual_classic" => Some(Self::ManualClassic),
+            "human_in_loop" => Some(Self::HumanInLoop),
+            "autopilot" => Some(Self::Autopilot),
+            "autonomous" => Some(Self::Autonomous),
+            _ => None,
+        }
+    }
 }
 
 /// RFC 19 §6 `recovery.on_budget_hit` — the action the supervisor
@@ -207,6 +230,10 @@ pub struct MissionCheckpoint {
     pub last_repair_id: Option<Uuid>,
     /// Running budget tally at snapshot time.
     pub budget_tally: BudgetTally,
+    #[serde(default)]
+    pub caps: Option<BudgetCaps>,
+    #[serde(default)]
+    pub mode: Option<ExecutionMode>,
     pub generated_at: String,
 }
 
@@ -388,6 +415,8 @@ impl SupervisorState {
             last_validation_report_id: None,
             last_repair_id: None,
             budget_tally: self.budget_tally,
+            caps: Some(self.caps),
+            mode: Some(self.mode),
             generated_at: chrono::Utc::now().to_rfc3339(),
         }
     }

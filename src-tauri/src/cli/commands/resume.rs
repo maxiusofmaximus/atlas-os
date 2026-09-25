@@ -51,6 +51,14 @@ pub async fn run(cmd: ResumeCmd, profile: &str) -> Result<()> {
         plan = ckpt.current_plan_id,
     );
 
+    let (supervisor_state, _) = crate::supervisor::resume_state(&journal, mid)?;
+    println!(
+        "supervisor resume: phase={phase} mode={mode} caps=max_iterations={iters}",
+        phase = supervisor_state.phase.tag(),
+        mode = supervisor_state.mode.tag(),
+        iters = supervisor_state.caps.max_iterations,
+    );
+
     let plan = crate::planning::runner::run(&PlanningInput {
         consolidated: &consolidated,
         verdict: &verdict,
