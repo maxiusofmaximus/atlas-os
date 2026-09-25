@@ -7,6 +7,7 @@ pub mod acp;
 pub mod calendar;
 pub mod cli;
 pub mod coding;
+pub mod context;
 pub mod core;
 #[cfg(feature = "firecrawl")]
 pub mod firecrawl;

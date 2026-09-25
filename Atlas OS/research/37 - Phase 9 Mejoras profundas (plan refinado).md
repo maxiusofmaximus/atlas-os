@@ -38,9 +38,10 @@ Semgrep + CodeQL (RFC 20): proceso EXTERNO lanzado por Atlas OS si están en PAT
 - Embarcado: feature `laya` vacío default-off + `ClassifierKind::Laya` + `LayaClassifier` std-only MVP (lexical-delegado determinista, `load` con failure-path → fallback lexical) + M33 (schema 32, CHECK + `'laya'`).
 - Tests: inferencia determinista happy-path + failure-path (modelo ausente → fallback al backend activo) ✅. Compaction wiring (5.3) queda como está; winnow como follow-up.
 
-### Sub-fase 9.2 — Tree-sitter AST Context Engine — M34
-- Audit tree-sitter + grammars. Si pasa: feature `ast` default off, `context_engine/ast.rs`: parse símbolos (fn/class/struct/enum) → `AstSymbol {kind, name, file, line}` — alimenta Skill Picker (8.1) y LSP (9.4).
-- Sin crate viable → defer con audit documentado.
+### Sub-fase 9.2 — Tree-sitter AST Context Engine — M34 (COMPLETO, audit APROBADO)
+- Audit tree-sitter + grammars (RFC 25 §11, RFC 22 §7 AN-9.2): **PASA** — reutiliza `tree-sitter 0.26` + `tree-sitter-rust 0.24` ya vendoreados por `codebase-graph` (RFC 28 §C, commit `cddcbc2`); cero crates nuevas, cero impacto binario en default.
+- Embarcado: feature `ast` default-off (alias de `codebase-graph`) + `context/ast.rs` (`AstSymbol {kind, name, file, line}` + `validate()` + `presence_boost`/`confidence_for_symbol` → Skill Picker 8.1 + LSP 9.4; AST real con el feature, heurístico std-only sin él) + M34 (schema 33, tabla `ast_symbols` + `Journal::record_ast_symbol`/`ast_symbols_for_file`).
+- Tests: extracción happy-path (Rust + Svelte) + failure-path (extensión desconocida, nombre vacío, línea 0) en ambos modos; upsert idempotente + CHECK rejects + orden por línea en M34.
 
 ### Sub-fase 9.3 — Dependency-cruiser límites de capas — M35
 - TS frontend: dependency-cruiser como dev-dep pnpm + `.dependency-cruiser.cjs` (reglas: `lib/` no importa `routes/`, `stores/` no importa `components/`, `components/` no importa `stores/` salvo via stores API) — RFC 20 "límites de capas".
@@ -64,4 +65,4 @@ Semgrep + CodeQL (RFC 20): proceso EXTERNO lanzado por Atlas OS si están en PAT
 1. Commit de este plan + RFC 20 update + Index 26.
 2. Gestor audita candle + tree-sitter en paralelo con la delegación 9.0 (9.0 no necesita audit — zero-dep).
 3. Sub-fase 9.0 (delegada a muse-spark-1.3) → revisar → commit → push.
-4. Sub-fases 9.1-9.4 según audits.
+4. Sub-fases 9.1 ✅ (M33) y 9.2 ✅ (M34) completas; 9.3-9.4 según audits (9.4 consume `confidence_for_symbol` + `ast_symbols_for_file` de 9.2).

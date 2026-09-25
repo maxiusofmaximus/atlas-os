@@ -14,7 +14,7 @@ use rusqlite::Connection;
 /// log and must never be renumbered. When adding M(N+1): bump this const
 /// AND change the final migration's `params![N, …]` to
 /// `params![CURRENT_SCHEMA_VERSION, …]` (same value).
-pub const CURRENT_SCHEMA_VERSION: i64 = 32;
+pub const CURRENT_SCHEMA_VERSION: i64 = 33;
 
 pub fn migrate(conn: &Connection) -> Result<()> {
     // M0 — Schema versioning.
@@ -1577,6 +1577,39 @@ pub fn migrate(conn: &Connection) -> Result<()> {
                 ON task_classifier_decisions(predicted_task_type, created_at);
 
             COMMIT;",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![32, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
+    // M34 — RFC 11 Phase 9 sub-fase 9.2 (Tree-sitter AST Context Engine).
+    //   `ast_symbols`: one row per extracted definition
+    //   (fn/class/struct/enum/trait/module/method) observed by
+    //   `crate::context::ast::extract`. UNIQUE on
+    //   `(file, name, kind, line)` so replays resolve to the existing
+    //   row via `INSERT OR IGNORE` (same idempotent-consumer contract
+    //   as `record_classifier_decision`, RFC 02 §3.1.2). The `kind`
+    //   CHECK mirrors `AstSymbolKind::tag`; `line > 0` mirrors
+    //   `AstSymbol::validate`.
+    if current < 33 {
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS ast_symbols (
+                id           TEXT PRIMARY KEY,
+                file         TEXT NOT NULL,
+                name         TEXT NOT NULL,
+                kind         TEXT NOT NULL CHECK (kind IN
+                    ('function','class','struct','enum','trait','module','method')),
+                line         INTEGER NOT NULL CHECK (line > 0),
+                lang         TEXT NOT NULL,
+                extracted_at TEXT NOT NULL,
+                UNIQUE (file, name, kind, line)
+            );
+
+            CREATE INDEX IF NOT EXISTS ast_symbols_file_idx
+                ON ast_symbols(file, line);
+            CREATE INDEX IF NOT EXISTS ast_symbols_name_idx
+                ON ast_symbols(name);",
         )?;
         conn.execute(
             "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",

@@ -147,3 +147,11 @@ Esto garantiza que inclusive un modelo local de 7B puntualice la coherencia arqu
 ## 9. Versionado del Project Map
 
 Si el usuario hace revert de Git, el Context Engine regenera el map desde el tree en lugar de diff. Soporta branches y worktrees del swarm.
+
+## 10. Sub-fase 9.2 — definiciones de símbolos (M34, COMPLETO)
+
+`src-tauri/src/context/ast.rs`: parse de definiciones (fn/class/struct/enum/trait/module/method) → `AstSymbol {kind, name, file, line}` con `validate()` (nombre no vacío, `line > 0`, extensión conocida) — alimenta el Skill Picker (8.1) vía `presence_boost` (+0.1) y el LSP (9.4) vía `confidence_for_symbol(base, present)`.
+
+Audit RFC 25 §11 **APROBADO** (RFC 22 §7 AN-9.2): reutiliza el `tree-sitter 0.26` + `tree-sitter-rust 0.24` ya vendoreados por `codebase-graph` (RFC 28 §C) — cero crates nuevas. Feature `ast` (default off, alias de `codebase-graph`): con el feature, `extract` usa walk AST real sobre Rust (los `fn` bajo `impl_item` se tipan `method`); sin el feature, heurístico std-only determinista (Rust + Svelte/TS/JS, prefijos `pub`/`export`/`async`/`declare`). Svelte usa heurístico en ambos modos (el grammar taguea `<script>` como `raw_text`, RFC 22 §10.2).
+
+Persistencia M34 (schema 33): tabla `ast_symbols` (`UNIQUE (file, name, kind, line)`, CHECK de `kind` espejo de `AstSymbolKind::tag`, `line > 0`) + `Journal::record_ast_symbol` (upsert idempotente RFC 02 §3.1.2) / `ast_symbols_for_file` (ordenado por línea) — fuente de `who_owns` y `affects_where` por símbolo en 9.4.

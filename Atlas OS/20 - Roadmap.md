@@ -230,8 +230,8 @@ Entregable: razonamiento sobre AST y reglas de seguridad profundas.
 ### Sub-fase 9.1 — Laya classifier backend (4º backend — el "System One" real) (M33) (COMPLETO)
 - Audit candle stack DIFERIDO (RFC 25 §11, RFC 22 §7 AN-9.1: `rand 0.8` vs `0.9`, `tokenizers` no en deps, `axum 0.7` vs `0.8`, weights runtime, crate de 5 días/61 descargas) → feature `laya` vacío default-off + `ClassifierKind::Laya` + `LayaClassifier` std-only MVP (lexical-delegado determinista, `load` con failure-path → fallback lexical) + M33 (schema 32, CHECK + `'laya'`). Follow-ups: compaction wiring (5.3) + winnow.
 
-### Sub-fase 9.2 — Tree-sitter AST Context Engine (M34)
-- Audit tree-sitter + grammars → feature `ast` default off, `context_engine/ast.rs` (`AstSymbol` → Skill Picker + LSP).
+### Sub-fase 9.2 — Tree-sitter AST Context Engine (M34) (COMPLETO)
+- Audit tree-sitter + grammars APROBADO (RFC 22 §7 AN-9.2: reutiliza el stack vendored de `codebase-graph`, cero crates nuevas) → feature `ast` default off (alias de `codebase-graph`) + `context/ast.rs` (`AstSymbol {kind, name, file, line}` + `validate` + `presence_boost`/`confidence_for_symbol` → Skill Picker 8.1 + LSP 9.4) + M34 (schema 33, tabla `ast_symbols` + `Journal::record_ast_symbol`/`ast_symbols_for_file`). AST real con `codebase-graph`; heurístico std-only sin el feature.
 
 ### Sub-fase 9.3 — Dependency-cruiser límites de capas (M35)
 - TS: dependency-cruiser dev-dep + `.dependency-cruiser.cjs` (reglas lib/routes/stores/components). Rust: check propio sin crate.

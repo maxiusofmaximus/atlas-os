@@ -59,6 +59,13 @@ dag_mode = ["dep:petgraph"]
 # binary size impact; enable when you want the meta-skill that maps
 # Atlas OS's own Rust + Svelte sources into `mission_graph_*`.
 codebase-graph = ["dep:tree-sitter", "dep:tree-sitter-rust", "dep:tree-sitter-svelte-next"]
+# RFC 11 Phase 9 sub-fase 9.2 (M34) — Tree-sitter AST Context Engine.
+# Alias over `codebase-graph`: the audit (RFC 22 §7 AN-9.2) APROBADO
+# reusing the vendored tree-sitter + grammars, so no new crates.
+# `--features ast` enables the tree-sitter-accelerated
+# `context::ast::extract` path; default builds keep the std-only
+# heuristic with zero binary-size impact.
+ast = ["codebase-graph"]
 # RFC 28 Section B — Microsoft Intelligent Terminal ACP server. The
 # OpenCode CLI becomes a first-class ACP agent (stdio JSON-RPC, v1
 # stable wire) detectable by IT 0.1+ and any ACP-capable client. Off

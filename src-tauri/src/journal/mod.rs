@@ -3,6 +3,7 @@
 // Schema is minimal in Phase 0 — Roadmap §Fase 0; expanded in later phases.
 
 pub mod agent_events;
+pub mod ast_symbols;
 pub mod autoresearch;
 pub mod compaction;
 pub mod export;
@@ -29,6 +30,8 @@ mod tests;
 pub use learning_graphs::{LearningGraphRow, ScoredGraph};
 
 pub use agent_events::AgentSessionEventRow;
+
+pub use ast_symbols::AstSymbolRow;
 
 pub use model_resets::ModelResetRow;
 
@@ -2142,6 +2145,28 @@ impl Journal {
             ],
         )?;
         Ok(())
+    }
+
+    /// Record one `ast_symbols` row (Phase 9 sub-fase 9.2, M34).
+    /// Returns the row id — the existing id on replay thanks to the
+    /// `(file, name, kind, line)` UNIQUE constraint plus
+    /// `INSERT OR IGNORE` (RFC 02 §3.1.2 idempotent consumer).
+    pub fn record_ast_symbol(
+        &self,
+        file: &str,
+        name: &str,
+        kind: &str,
+        line: i64,
+        lang: &str,
+    ) -> anyhow::Result<String> {
+        let conn = self.conn.lock();
+        ast_symbols::upsert_ast_symbol(&conn, file, name, kind, line, lang)
+    }
+
+    /// Symbols extracted from one file, ordered by line (M34).
+    pub fn ast_symbols_for_file(&self, file: &str) -> anyhow::Result<Vec<AstSymbolRow>> {
+        let conn = self.conn.lock();
+        ast_symbols::ast_symbols_for_file(&conn, file)
     }
 
     /// RFC 04 §6 sub-fase 2.4 — rolling-window means of

@@ -446,6 +446,7 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Skill Picker` iluminado | 17 §4 |
 | `pick_skills` (scoring determinista: priority 0.4 + keyword-match 0.4 + verified 0.2, threshold 0.5, suggested/dimmed) + `atlas skill pick` | 17 §4; research `36` sub-fase 8.1 |
 | `Laya` (`laya = "0.1.1"`, open source de Jev — typed-decision model ModernBERT + RL, stack candle; `ClassifierKind::Laya` 4º backend Phase 9 sub-fase 9.1 M33 ✅ std-only MVP, audit candle DIFERIDO, feature `laya` vacío default-off) | 04 §7; 35 §7.1; 22 §8.2 AN-9.1; research `37` §B 9.1 |
+| `AstSymbol` (`kind`/`name`/`file`/`line` + `validate`, `presence_boost`/`confidence_for_symbol`, `extract` AST-tras-`ast` / heurístico std-only en default; tabla `ast_symbols` M34 schema 33 + `Journal::record_ast_symbol`/`ast_symbols_for_file`; Phase 9 sub-fase 9.2 M34 ✅, audit tree-sitter APROBADO) | 11 §10; 22 §8.2 AN-9.2; research `37` §B 9.2 |
 | `Skill refresh en caliente` | 24 §8.1 |
 | `Skills as graph templates` (`graph.toml`, 4th skill file) | 23 §7.3; 28 §C |
 | `State DAG` (RFC 19 supervisor as DAG) | 19 §6.1.1; 28 §C |
