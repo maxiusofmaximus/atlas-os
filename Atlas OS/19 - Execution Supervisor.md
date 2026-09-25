@@ -85,7 +85,7 @@ Snapshot del resume_point contiene:
 - skills activadas,
 - modelo activo.
 
-`Supervisor.resume(mission_id)` carga el snapshot y dispatcha al Planner.
+`Supervisor.resume(mission_id)` carga el snapshot y dispatcha al Planner. **IMPLEMENTADO Phase 6 sub-fase 6.0** — `supervisor/resume.rs`: `resume_state(journal, mission_id)` reconstruye el `SupervisorState` desde el último checkpoint (phase via `MissionPhase::parse`, caps+mode persistidos en `MissionCheckpoint`, legacy payload → defaults) + `continue_from()` wrapper de `tick()`. 7 tests.
 
 ## 6. Anti-infinite-loop policy (mecánica)
 
@@ -199,7 +199,7 @@ Snapshots extra en:
 
 Si algo sale mal, hay rollback limpio.
 
-## 10. Observabilidad
+## 10. Observabilidad `[✅ IMPLEMENTADO Phase 6 sub-fase 6.1 — observer web del Journal]`
 
 El Journal expone logs en un panel web:
 - missions activas,
@@ -207,6 +207,8 @@ El Journal expone logs en un panel web:
 - stall events,
 - restarts,
 - aprobaciones pendientes.
+
+**Sub-fase 6.1 ✅:** `GET /hud/journal?limit=N&offset=M&kind=K` (axum, `hud/observer.rs` — paginación newest-first con payload íntegro + `total`, validación 4xx estilo autoresearch) + `<JournalObserver.svelte>` (tabla id/ts/kind con payload expandible, filtro por kind, paginación Prev/Next + selector, estados loading/error/empty) + `fetchJournalPage` en `hud.ts`. 9 tests Rust + 4 vitest + compile test. Montado en `+page.svelte`.
 
 Es la columna vertebral de la transparencia total mencionada en `01 - Core Principles.md`.
 

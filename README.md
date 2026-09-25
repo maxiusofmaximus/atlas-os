@@ -155,8 +155,9 @@ cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- journal -n 10
 - **Phase 3 — RFC 10 Research Engine** (sub-fases 3.0→3.5): Foundation M25 + Docs gateway (Context7Max adapter, `atlas research docs`) + Document ingestion (`atlas research ingest`) + Collective Engineering Intelligence (4 scorers + fail-safe, `atlas research query`) + Hands-on notes + ramas (`atlas research note/branches`) + `probe_feasibility` (M27 cache) + grill gate en `atlas plan`. ✅
 - **Phase 4 — RFC 05 Swarm** (sub-fases 4.0→4.5): M29 registry + WorktreeManager (git CLI) + role presets agency-agents port (`atlas swarm presets/start`) + pool paralelo (FileLockRegistry + topología RFC 05) + mailbox + `agent_resume` (`atlas swarm send/inbox`) + auto-rebase CN-003 + **Swarm Console HUD** (floor 2D + mailbox drawer + checks button). ✅
 - **Phase 5 — Learning + Compression** (sub-fases 5.0→5.4): M30 learned_rules + YAML `.opencode/rules/` + Reflection Engine formal (dedup + promote/deprecate, `atlas learn`) + compresión de skills Jaccard (`atlas skill compress`) + System One compaction (`atlas learn compact/summary`) + ajuste dinámico de prompts (hints desde reglas consultables). ✅
+- **Phase 6 — Execution Supervisor completo** (sub-fases 6.0→6.2): `resume_state` reanudación desde cualquier estado (desde el último checkpoint) + **Observer web del Journal** (`GET /hud/journal` paginado + `<JournalObserver.svelte>`). El state machine + doom_loop + heartbeats + checkpoints ya existían de RFC 19. ✅
 
-Los RFCs (00–30) en `Atlas OS/` describen el roadmap hasta Phase 10. Siguiente: Phase 6 (Execution Supervisor completo) y las brechas restantes RFC 29 §A/§B (cloud serve + multi-canal).
+Los RFCs (00–30) en `Atlas OS/` describen el roadmap hasta Phase 10. Siguiente: Phase 7 (Seguridad & Compliance: sandbox levels + firmas de skills + Socket/Snyk stages) y las brechas restantes RFC 29 §A/§B (cloud serve + multi-canal).
 
 ## License
 

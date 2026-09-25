@@ -162,16 +162,16 @@ Entregable: el editor **mejora solo** según el uso. **Phase 5 COMPLETA** — KP
 
 Plan refinado en `Atlas OS/research/33 - Phase 6 execution supervisor.md` (3 sub-fases atómicas). Estado RFC 19 ya materializado (state machine + doom_loop + heartbeats + checkpoints); lo faltante: reanudación desde cualquier estado + observer web del Journal.
 
-### Sub-fase 6.0 — Reanudación desde cualquier estado
-- `supervisor/resume.rs`: `resume_state(journal, mission_id)` — reconstruye `SupervisorState` desde el último checkpoint + integración CLI resume.
+### Sub-fase 6.0 — Reanudación desde cualquier estado (COMPLETO, commit `9c3ab6a`)
+- `supervisor/resume.rs`: `resume_state(journal, mission_id)` — reconstruye `SupervisorState` desde el último checkpoint (phase via `MissionPhase::parse` + caps/mode persistidos en `MissionCheckpoint`, legacy → defaults) + `continue_from()` wrapper de `tick()` ✅ + integrado en CLI `atlas resume` ✅. 7 tests.
 
-### Sub-fase 6.1 — Observer web del Journal
-- axum `GET /hud/journal` (paginado + payload íntegro) + `<JournalObserver.svelte>` + `fetchJournalPage`.
+### Sub-fase 6.1 — Observer web del Journal (COMPLETO, commits `9181d66` + cierre `6.2`)
+- axum `GET /hud/journal?limit=N&offset=M&kind=K` (`hud/observer.rs`, paginación newest-first + payload íntegro + `total`, validación 4xx) ✅ + `<JournalObserver.svelte>` (payload expandible + filtro + paginación) ✅ + `fetchJournalPage` ✅ + montado en `+page.svelte` ✅. 9 tests Rust + 5 vitest.
 
-### Sub-fase 6.2 — Cierre
-- RFC 20/RFC 19/README markers.
+### Sub-fase 6.2 — Cierre (COMPLETO)
+- RFC 20/RFC 19 §5/§10 markers + RFC 26 índice + README status.
 
-Entregable: sistema durable, recuperable de fallos sin scripts externos.
+Entregable: sistema durable, recuperable de fallos sin scripts externos. **Phase 6 COMPLETA** — state machine + doom_loop + heartbeats + checkpoints + reanudación desde cualquier estado + observer web. KPI: re-ingresos de model crash sin perder trabajo 100% (RFC 20).
 
 ## Fase 7 — Seguridad & Compliance
 - Sandbox levels: vuOnly, container, wasm (futuro).

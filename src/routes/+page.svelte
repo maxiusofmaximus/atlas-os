@@ -23,6 +23,7 @@
   } from '$stores/hud';
   import AutoresearchCard from '$lib/components/AutoresearchCard.svelte';
   import SwarmConsole from '$lib/components/SwarmConsole.svelte';
+  import JournalObserver from '$lib/components/JournalObserver.svelte';
   import type { PageData } from './$types';
 
   const { data } = $props<{ data: PageData }>();
@@ -409,6 +410,16 @@
     {/if}
   </section>
 
+  <section class="observer">
+    <h2>Journal Observer</h2>
+    <p class="hint">
+      RFC 19 §10 / research 33 §B 6.1. Full inspection over
+      <code>GET /hud/journal</code>: newest-first pages with expandable payload, kind filter and
+      pagination.
+    </p>
+    <JournalObserver hudUrl={data.hudUrl ?? null} />
+  </section>
+
   <section class="tails">
     <h2>Pipeline tails</h2>
     <div class="tails-grid">
@@ -713,6 +724,18 @@
     margin: 0 0 0.25rem 0;
   }
   .swarm .hint {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.85rem;
+    color: #8b949e;
+  }
+  .observer {
+    margin-top: 1rem;
+  }
+  .observer h2 {
+    font-size: 1rem;
+    margin: 0 0 0.25rem 0;
+  }
+  .observer .hint {
     margin: 0 0 0.5rem 0;
     font-size: 0.85rem;
     color: #8b949e;
