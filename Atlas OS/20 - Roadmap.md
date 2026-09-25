@@ -174,10 +174,20 @@ Plan refinado en `Atlas OS/research/33 - Phase 6 execution supervisor.md` (3 sub
 Entregable: sistema durable, recuperable de fallos sin scripts externos. **Phase 6 COMPLETA** — state machine + doom_loop + heartbeats + checkpoints + reanudación desde cualquier estado + observer web. KPI: re-ingresos de model crash sin perder trabajo 100% (RFC 20).
 
 ## Fase 7 — Seguridad & Compliance
-- Sandbox levels: vuOnly, container, wasm (futuro).
-- Firmas de skills cerradas.
-- Socket + Snyk integrados en cada install.
-- OWASP / GDPR/ HIPAA skills.
+
+Plan refinado en `Atlas OS/research/34 - Phase 7 security + compliance.md` (4 sub-fases atómicas). Evidencia RFC 18 (spec completa). Firmas: SHA-256 MVP (`sha2`/`hex` ya en deps, ed25519 diferido); sandbox levels: tipos + policy (ejecución real diferida); supply gate determinista (Socket/Snyk APIs follow-up).
+
+### Sub-fase 7.0 — Firmas de skills (SHA-256 MVP)
+- `security/signature.rs`: checksum + verify + sidecar + gate en `atlas skill install` (fail-safe Forbidden en mismatch).
+
+### Sub-fase 7.1 — Sandbox levels (tipos + policy)
+- `enum SandboxLevel` + `approval_for(level, action)` mapping RFC 18 §2/§6 + fail-safe Forbidden.
+
+### Sub-fase 7.2 — Compliance skills (OWASP/GDPR/HIPAA)
+- 3 skills bundled (engine security) con checklists accionables y leyes citadas.
+
+### Sub-fase 7.3 — Supply-chain install gate
+- `evaluate_package` determinista (typosquatting + postinstall + env-var) + CLI `atlas security gate`.
 
 Entregable: extensible como OpenClaw pero seguro.
 
