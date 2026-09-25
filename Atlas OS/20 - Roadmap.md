@@ -192,12 +192,26 @@ Plan refinado en `Atlas OS/research/34 - Phase 7 security + compliance.md` (4 su
 Entregable: extensible como OpenClaw pero seguro. **Phase 7 COMPLETA** — KPI: acciones bloqueadas ≥99% antes de impacto (RFC 20).
 
 ## Fase 8 — UI v2 accesible desde cualquier dispositivo
-- Command Center web remoto (SSO/OIDC).
-- Agent Console en vivo.
-- Skill Picker iluminado/grisado.
-- VRAM/RAM/cost monitor.
-- **Sister IDE-in-a-terminal** (`src/cli-tui/` Node + `cronvel/terminal-kit` Document Model, conecta al mismo Kernel Bus WebSocket que el HUD WebView) — ver research `28 - conductor & alt surfaces.md` Sector B.
-- **Remote-live dual-PC** (modelo Nate Gentile): PC servidor corre Atlas OS + Ollama/API; PC/móvil cliente accede en vivo via RustDesk (Apache-2.0) host embed en Rust core, NO captura estática — video stream <60ms + input forwarding a Kernel Bus. Ver research Sector C.
+
+Plan refinado en `Atlas OS/research/36 - Phase 8 UI v2 + ecosistema.md` (5 sub-fases atómicas). Evidencia RFC 35 (frecency zoxide, FTS5 context-mode, sysinfo/nvml, ratatui, axum-oidc). Crates nuevas: audit RFC 25 §11 previo; RustDesk AGPL lateral — jamás bundling.
+
+### Sub-fase 8.0 — Frecency + FTS5 (quick wins RFC 35, sin crates)
+- M31 FTS5 virtual table + `Journal::search_events` + frecency interno propio (port zoxide aging+ranking) + CLI `atlas journal --query` / `atlas swarm jump`.
+
+### Sub-fase 8.1 — Skill Picker iluminado/grisado (RFC 17 §4)
+- `skills/picker.rs` scoring determinista (priority + engine/domain match + lifecycle) + CLI `atlas skill pick` iluminada vs grisada.
+
+### Sub-fase 8.2 — VRAM/RAM/cost monitor (crates auditadas)
+- Audit `sysinfo`+`nvml-wrapper` → feature `hardware-monitor` default off + snapshot → Kernel Bus + HUD card.
+
+### Sub-fase 8.3 — Command Center web remoto (SSO/OIDC)
+- Audit `axum-oidc-layer`/`openidconnect` → feature `remote-ui` default off + auth layer OIDC.
+
+### Sub-fase 8.4 — Sister IDE-in-a-terminal (ratatui)
+- Audit `ratatui` → binario `atlas-tui` (feature `tui` default off) conecta al Kernel Bus WS.
+
+### Sub-fase 8.5 — Remote-live dual-PC (RustDesk lateral, AGPL)
+- RustDesk como proceso externo (jamás link/bundle AGPL) + `atlas remote` + modelo Nate Gentile.
 
 Entregable: ve el swarm desde el móvil/tablet, programa en vivo desde un PC thin accediendo a los recursos del servidor.
 
