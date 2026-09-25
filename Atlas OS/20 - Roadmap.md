@@ -159,10 +159,17 @@ Plan refinado en `Atlas OS/research/32 - Phase 5 learning + compression.md` (5 s
 Entregable: el editor **mejora solo** según el uso. **Phase 5 COMPLETA** — KPI (RFC 20): skills redundantes reducidas -30% en 3 meses; errores repetitivos → reglas automáticas.
 
 ## Fase 6 — Execution Supervisor completo
-- Heartbeats y checkpoints en SQLite.
-- Reanudación desde cualquier estado.
-- Anti-bucles.
-- Observer web del Journal.
+
+Plan refinado en `Atlas OS/research/33 - Phase 6 execution supervisor.md` (3 sub-fases atómicas). Estado RFC 19 ya materializado (state machine + doom_loop + heartbeats + checkpoints); lo faltante: reanudación desde cualquier estado + observer web del Journal.
+
+### Sub-fase 6.0 — Reanudación desde cualquier estado
+- `supervisor/resume.rs`: `resume_state(journal, mission_id)` — reconstruye `SupervisorState` desde el último checkpoint + integración CLI resume.
+
+### Sub-fase 6.1 — Observer web del Journal
+- axum `GET /hud/journal` (paginado + payload íntegro) + `<JournalObserver.svelte>` + `fetchJournalPage`.
+
+### Sub-fase 6.2 — Cierre
+- RFC 20/RFC 19/README markers.
 
 Entregable: sistema durable, recuperable de fallos sin scripts externos.
 
