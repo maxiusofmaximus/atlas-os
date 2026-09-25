@@ -177,19 +177,19 @@ Entregable: sistema durable, recuperable de fallos sin scripts externos. **Phase
 
 Plan refinado en `Atlas OS/research/34 - Phase 7 security + compliance.md` (4 sub-fases atómicas). Evidencia RFC 18 (spec completa). Firmas: SHA-256 MVP (`sha2`/`hex` ya en deps, ed25519 diferido); sandbox levels: tipos + policy (ejecución real diferida); supply gate determinista (Socket/Snyk APIs follow-up).
 
-### Sub-fase 7.0 — Firmas de skills (SHA-256 MVP)
-- `security/signature.rs`: checksum + verify + sidecar + gate en `atlas skill install` (fail-safe Forbidden en mismatch).
+### Sub-fase 7.0 — Firmas de skills (SHA-256 MVP) (COMPLETO, commit `c374322`)
+- `security/signature.rs`: `skill_checksum` (SHA-256 canónico skill.toml + README, orden estable, `sha2`+`hex` ya en deps — cero crates nuevas) ✅ + `verify_skill` → `ChecksumVerdict {Ok, Mismatch, Missing}` ✅ + `.checksum` sidecar writer/reader ✅ + `install_gate` fail-safe Forbidden en `atlas skill install` (RFC 18 §5) ✅ + `catalog_checksum` (catálogo bundled estable). 7 tests. ed25519/minisign diferido (RFC 34 §C — audit RFC 25 §11 previo).
 
-### Sub-fase 7.1 — Sandbox levels (tipos + policy)
-- `enum SandboxLevel` + `approval_for(level, action)` mapping RFC 18 §2/§6 + fail-safe Forbidden.
+### Sub-fase 7.1 — Sandbox levels (tipos + policy) (COMPLETO, commit `c374322`)
+- `security/sandbox.rs`: `SandboxLevel {None, VuOnly, Container, Wasm}` (wire `vuOnly` verbatim RFC 18 §6) ✅ + `Approval {Auto, Confirm, Forbidden}` + `SensitiveAction` (13 acciones tabla §2) + `approval_for`/`approval_for_str` (tabla §2 exacta + overrides por nivel + fail-safe Forbidden) ✅. 6 tests. Ejecución real en Docker/Podman diferida (RFC 34 §C).
 
-### Sub-fase 7.2 — Compliance skills (OWASP/GDPR/HIPAA)
-- 3 skills bundled (engine security) con checklists accionables y leyes citadas.
+### Sub-fase 7.2 — Compliance skills (OWASP/GDPR/HIPAA) (COMPLETO, commit `edb0066`)
+- 3 skills bundled (engine `security`, manifests RFC 06 §1 completos): `atlas-owasp-check` (Top 10 2021), `atlas-gdpr-check` (Art 5/25/32/33), `atlas-hipaa-check` (45 CFR §160/164) — checklists accionables con leyes citadas verbatim ✅ + catálogo bundled 12→15 ✅. Test `compliance_skills_route_to_security_engine`.
 
-### Sub-fase 7.3 — Supply-chain install gate
-- `evaluate_package` determinista (typosquatting + postinstall + env-var) + CLI `atlas security gate`.
+### Sub-fase 7.3 — Supply-chain install gate (COMPLETO, commit `edb0066`)
+- `security/supply_gate.rs`: `evaluate_package(name, manifest_json)` → `SupplyReport {Pass, Warn, Block, reasons}` — typosquat por Levenshtein ≤2 contra `KNOWN_PACKAGES` (d1=Block, d2=Warn, respeta scope `@x/`) + `preinstall/install/postinstall` = Block + env-var access = Warn + fail-safe nombre vacío = Block (sin red en MVP; Socket/Snyk APIs follow-up RFC 34 §C) ✅ + CLI `atlas security gate <name> [--manifest]` (exit ≠ 0 en Block) ✅ + stage `supply_chain` referencia el gate ✅. 11 tests.
 
-Entregable: extensible como OpenClaw pero seguro.
+Entregable: extensible como OpenClaw pero seguro. **Phase 7 COMPLETA** — KPI: acciones bloqueadas ≥99% antes de impacto (RFC 20).
 
 ## Fase 8 — UI v2 accesible desde cualquier dispositivo
 - Command Center web remoto (SSO/OIDC).

@@ -14,18 +14,18 @@ until fixed or explicitly waived by a human reviewer (RFC 18 §12).
 
 ## Rules
 
-| # | Rule (When → Then) | Priority |
-|---|---|---|
-| 1 | [exact] Art. 5(1)(a) `lawfulness, fairness and transparency` — When the diff collects new personal data → Then record the lawful basis and surface it to the user before collection. | 90 |
-| 2 | [exact] Art. 5(1)(b) `purpose limitation` — When the diff reuses personal data for a new purpose → Then block reuse unless the new purpose is compatible and documented. | 90 |
-| 3 | [exact] Art. 5(1)(c) `data minimisation` — When the diff adds a personal-data field → Then justify necessity; drop anything merely convenient. | 85 |
-| 4 | [exact] Art. 5(1)(e) `storage limitation` — When the diff persists personal data → Then set a retention deadline and a deletion job; no indefinite retention. | 85 |
-| 5 | [exact] Art. 5(1)(f) `integrity and confidentiality` — When the diff stores or transmits personal data → Then encrypt in transit and at rest, least-privilege access only. | 95 |
-| 6 | [exact] Art. 25 `data protection by design and by default` — When the diff adds a feature handling personal data → Then ship the most private default; opt-in, never opt-out, for extras. | 85 |
-| 7 | [exact] Art. 32 `security of processing` — When the diff touches auth, backups or restores → Then cover confidentiality, integrity, availability and regular testing. | 90 |
-| 8 | [exact] Art. 33(1) breach notification `without undue delay and, where feasible, not later than 72 hours` — When the diff could leak personal data → Then require an incident path: detect, log, notify the DPO within the window. | 95 |
-| 9 | [heuristic] Arts. 12–22 data-subject rights — When the diff stores personal data → Then expose access, rectification, erasure and export; erasure must cascade. | 80 |
-| 10 | [heuristic] Art. 28 processors — When the diff sends personal data to a third party (model API, SaaS) → Then require a processing agreement and log the transfer. | 80 |
+| #   | Rule (When → Then)                                                                                                                                                                                                                 | Priority |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| 1   | [exact] Art. 5(1)(a) `lawfulness, fairness and transparency` — When the diff collects new personal data → Then record the lawful basis and surface it to the user before collection.                                               | 90       |
+| 2   | [exact] Art. 5(1)(b) `purpose limitation` — When the diff reuses personal data for a new purpose → Then block reuse unless the new purpose is compatible and documented.                                                           | 90       |
+| 3   | [exact] Art. 5(1)(c) `data minimisation` — When the diff adds a personal-data field → Then justify necessity; drop anything merely convenient.                                                                                     | 85       |
+| 4   | [exact] Art. 5(1)(e) `storage limitation` — When the diff persists personal data → Then set a retention deadline and a deletion job; no indefinite retention.                                                                      | 85       |
+| 5   | [exact] Art. 5(1)(f) `integrity and confidentiality` — When the diff stores or transmits personal data → Then encrypt in transit and at rest, least-privilege access only.                                                         | 95       |
+| 6   | [exact] Art. 25 `data protection by design and by default` — When the diff adds a feature handling personal data → Then ship the most private default; opt-in, never opt-out, for extras.                                          | 85       |
+| 7   | [exact] Art. 32 `security of processing` — When the diff touches auth, backups or restores → Then cover confidentiality, integrity, availability and regular testing.                                                              | 90       |
+| 8   | [exact] Art. 33(1) breach notification `without undue delay and, where feasible, not later than 72 hours` — When the diff could leak personal data → Then require an incident path: detect, log, notify the DPO within the window. | 95       |
+| 9   | [heuristic] Arts. 12–22 data-subject rights — When the diff stores personal data → Then expose access, rectification, erasure and export; erasure must cascade.                                                                    | 80       |
+| 10  | [heuristic] Art. 28 processors — When the diff sends personal data to a third party (model API, SaaS) → Then require a processing agreement and log the transfer.                                                                  | 80       |
 
 ## Outputs
 
