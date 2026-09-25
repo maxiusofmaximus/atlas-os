@@ -36,13 +36,28 @@ pub enum SkillAction {
 pub async fn run(cmd: SkillCmd, profile: &str) -> Result<()> {
     match cmd.action {
         SkillAction::List => list_skills(profile)?,
-        SkillAction::Install { name } => {
-            println!("(install skill '{name}' not implemented — Phase 5 RFC 06)")
-        }
+        SkillAction::Install { name } => install_skill(profile, &name)?,
         SkillAction::Activate { agent_id, skill_id } => println!(
             "(activate skill '{skill_id}' on agent '{agent_id}' not implemented — Phase 5 RFC 06)"
         ),
         SkillAction::Compress { threshold, apply } => compress_skills(profile, threshold, apply)?,
+    }
+    Ok(())
+}
+
+fn install_skill(profile: &str, name: &str) -> Result<()> {
+    let pid = crate::profiles::ProfileId::new(profile);
+    let root = crate::profiles::resolve_root(&pid)?;
+    let dir = root.join("skills").join(name);
+    if dir.is_dir() {
+        crate::security::install_gate(&dir)?;
+        let m = crate::skills::load_skill(&dir)?;
+        println!(
+            "skill '{name}' verified (checksum OK) v{ver}",
+            ver = m.version
+        );
+    } else {
+        println!("(install skill '{name}' not implemented — Phase 5 RFC 06)")
     }
     Ok(())
 }

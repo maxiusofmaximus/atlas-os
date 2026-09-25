@@ -21,6 +21,7 @@ pub mod profiles;
 pub mod prompt;
 pub mod repair;
 pub mod research;
+pub mod security;
 pub mod skills;
 pub mod supervisor;
 pub mod swarm;

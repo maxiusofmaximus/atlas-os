@@ -111,6 +111,7 @@ Patrones evolutivos continuos (AI Scientist v2): el agente *muta su prompt* y *r
 
 ## 6. Cambios aplicados a los RFCs como consecuencia
 
+- `research/34 - Phase 7 security + compliance.md` (nuevo plan): Phase 7 refinada en 4 sub-fases atómicas (7.0 Firmas → 7.1 Sandbox → 7.2 Compliance → 7.3 Supply-chain). Sub-fases 7.0 + 7.1 implementadas: `security::{signature (skill_checksum SHA-256 + ChecksumVerdict + .checksum sidecar + install_gate fail-safe Forbidden), sandbox (SandboxLevel none/vuOnly/container/wasm + approval_for tabla RFC 18 §2 + fail-safe)}`, gate integrado en `atlas skill install`. Sin crates nuevas (`sha2` + `hex` ya en deps, audit RFC 25 §11).
 - `02 - Agent Operating System.md`: §5 Modos reescrito con cuatro `Execution Modes` ortogonales a `Resource Mode`.
 - `03 - Engine Architecture.md`: §9 añadido con `DoomLoopDetector`, `GoalTracker`, `LanguageIdResolver`, `ProjectSymbolTable`, `SemanticEmbeddingIndex`, state machine del Execution Supervisor.
 - `04 - Model Orchestrator.md`: registry de modelo ampliado con `protocol`, `capabilities`, `api_keys` (multi-key), `runtime_options`, `capability_tags`. Lección de AionUi escrita como nota.

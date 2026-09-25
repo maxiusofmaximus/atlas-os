@@ -429,6 +429,8 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Resource Mode` (local/free/mixto) | 02 §5.2; 21 §10 |
 | `Roadmap` (fases) | 20 |
 | `Sandbox` levels | 18; 25 §3.7 |
+| `SandboxLevel` (`none`/`vuOnly`/`container`/`wasm`, `as_str`/`parse`) + `approval_for(level, action)` + `Approval`/`SensitiveAction` (fail-safe Forbidden, tabla RFC 18 §2) | 18 §2/§6; research `34` sub-fase 7.1 |
+| `skill_checksum` (SHA-256 canónico skill.toml + README) + `ChecksumVerdict` (`Ok`/`Mismatch`/`Missing`) + `.checksum` sidecar + `install_gate` (fail-safe Forbidden en `atlas skill install`) | 18 §5; research `34` sub-fase 7.0 |
 | `Scope approval` | 24 §5 |
 | `Self-Refine` | 23 §2.1 |
 | `Semantic Embedding Index` | 03 §9.5 |
