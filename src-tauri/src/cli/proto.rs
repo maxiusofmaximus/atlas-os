@@ -9,7 +9,7 @@ use super::commands::ResearchCmd;
 use super::commands::ToastCmd;
 use super::commands::{
     AuditCmd, ExecCmd, ForkCmd, HudCmd, JournalCmd, LearnCmd, McpCmd, MissionCmd, ModelsCmd,
-    MonitorCmd, PlanCmd, ProfileCmd, ResumeCmd, RunCmd, SecurityCmd, SkillCmd, SteerCmd,
+    MonitorCmd, PlanCmd, ProfileCmd, RemoteCmd, ResumeCmd, RunCmd, SecurityCmd, SkillCmd, SteerCmd,
     SwapModelCmd, SwarmCmd,
 };
 #[derive(Parser, Debug)]
@@ -74,6 +74,8 @@ pub enum Commands {
     Security(SecurityCmd),
     /// Swarm role presets — list and spawn (RFC 05 Phase 4.1).
     Swarm(SwarmCmd),
+    /// Remote-live dual-PC via external RustDesk (lateral AGPL) + Nate Gentile model (RFC 20 Phase 8.5).
+    Remote(RemoteCmd),
     /// Profile switcher (RFC 25 §4).
     Profile(ProfileCmd),
     /// Audit log (RFC 24 §10).

@@ -210,8 +210,8 @@ Plan refinado en `Atlas OS/research/36 - Phase 8 UI v2 + ecosistema.md` (5 sub-f
 ### Sub-fase 8.4 — Sister IDE-in-a-terminal (ratatui)
 - Audit `ratatui` → binario `atlas-tui` (feature `tui` default off) conecta al Kernel Bus WS.
 
-### Sub-fase 8.5 — Remote-live dual-PC (RustDesk lateral, AGPL)
-- RustDesk como proceso externo (jamás link/bundle AGPL) + `atlas remote` + modelo Nate Gentile.
+### Sub-fase 8.5 — Remote-live dual-PC (RustDesk lateral, AGPL) (IMPLEMENTADO)
+- RustDesk como proceso externo lateral (jamas link/bundle AGPL): `src-tauri/src/remote/` (`RemoteRole` server/client, `find_rustdesk_in_path` patron docs_gateway, `ATLAS_RUSTDESK_BIN` override, `launch_args`/`spawn_session` via `std::process::Command`) + `atlas remote status/guide/serve [--launch]/connect [--peer-id] [--launch]` + modelo Nate Gentile (PC servidor potente + PC thin cliente). Sin RustDesk → mensaje util con download link. Sin crates nuevas.
 
 Entregable: ve el swarm desde el móvil/tablet, programa en vivo desde un PC thin accediendo a los recursos del servidor.
 

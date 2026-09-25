@@ -13,6 +13,7 @@ pub mod models;
 pub mod monitor;
 pub mod plan;
 pub mod profile;
+pub mod remote;
 pub mod research;
 pub mod resume;
 pub mod run;
@@ -36,6 +37,7 @@ pub use models::ModelsCmd;
 pub use monitor::MonitorCmd;
 pub use plan::PlanCmd;
 pub use profile::ProfileCmd;
+pub use remote::RemoteCmd;
 pub use research::ResearchCmd;
 pub use resume::ResumeCmd;
 pub use run::RunCmd;
@@ -69,6 +71,7 @@ pub async fn dispatch(cmd: Commands, profile: &str) -> Result<()> {
         Commands::Security(c) => security::run(c, profile).await,
         Commands::Swarm(c) => swarm::run(c, profile).await,
         Commands::Profile(c) => profile::run(c, profile).await,
+        Commands::Remote(c) => remote::run(c, profile).await,
         Commands::Audit(c) => audit::run(c, profile).await,
         Commands::Journal(c) => journal::run(c, profile).await,
         Commands::Learn(c) => learn::run(c, profile).await,

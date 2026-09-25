@@ -466,6 +466,7 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `resume_state` (reanudación desde cualquier estado, RFC 19 §6.4/§5) | 19 §5; research `33` sub-fase 6.0 |
 | `Journal Observer` (`GET /hud/journal` paginado + payload íntegro, RFC 19 §10) | 19 §10; research `33` sub-fase 6.1; 24 §3 |
 | `Hardware monitor` (`HardwareSnapshot` std-only: RAM wmic//proc + VRAM nvidia-smi fail-safe + `total_model_cost_usd`, consts `MONITOR_*`, `BusEventKind::HardwareSnapshot` + `atlas monitor` + `projectHardwareSnapshot`/`monitorPressureOf` HUD; sysinfo/nvml-wrapper diferidos RFC 25 §11) | 20 Fase 8; research `36` sub-fase 8.2 |
+| `Remote-live dual-PC` (RustDesk lateral AGPL jamas bundling: `RemoteRole` server/client + `ATLAS_RUSTDESK_BIN`/`PATH` detection + `spawn_session` + `atlas remote status/guide/serve/connect` + modelo Nate Gentile servidor-potente/thin-cliente, KPI <100ms) | 20 Fase 8; research `36` sub-fase 8.5 |
 | `Worktrees view` | 24 §12 |
 | `Zag Nano Stores` | 25 §3.3 |
 

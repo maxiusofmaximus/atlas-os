@@ -20,6 +20,7 @@ pub mod orchestrator;
 pub mod planning;
 pub mod profiles;
 pub mod prompt;
+pub mod remote;
 pub mod repair;
 pub mod research;
 pub mod security;
