@@ -215,13 +215,29 @@ Plan refinado en `Atlas OS/research/36 - Phase 8 UI v2 + ecosistema.md` (5 sub-f
 
 Entregable: ve el swarm desde el móvil/tablet, programa en vivo desde un PC thin accediendo a los recursos del servidor. **Phase 8 COMPLETA** — KPI: latencia end-to-end UI <100ms (RFC 20).
 
-## Fase 9 — Mejoras profundas
+## Fase 9 — Mejoras profundas (plan refinado: research `37`)
 - Tree-sitter como lectura principal del Context Engine.
 - Semgrep + CodeQL como Validation stages.
 - Dependency-cruiser para límites de capas.
 - LSPs propios que expongan Confidence por símbolo.
+- findings schema + validator (Cloudflare, RFC 35 §3) + Laya 4º backend (RFC 35 §7.1).
 
 Entregable: razonamiento sobre AST y reglas de seguridad profundas.
+
+### Sub-fase 9.0 — findings.json schema + validator (Cloudflare, sin crates) (M32)
+- `validation/report.rs`: `AuditReport` + `SecurityFinding` + `validate_report` (patrón findings.json Cloudflare) + puente `from_evidence` (EvidenceGate 2.5). CLI: `atlas audit validate` / `atlas audit --json`.
+
+### Sub-fase 9.1 — Laya classifier backend (4º backend — el "System One" real) (M33)
+- Audit candle stack (RFC 25 §11) → feature `laya` default off + `ClassifierKind::Laya` + `LayaClassifier` (safetensors + tokenizers → TaskType). Follow-ups: compaction wiring (5.3) + winnow.
+
+### Sub-fase 9.2 — Tree-sitter AST Context Engine (M34)
+- Audit tree-sitter + grammars → feature `ast` default off, `context_engine/ast.rs` (`AstSymbol` → Skill Picker + LSP).
+
+### Sub-fase 9.3 — Dependency-cruiser límites de capas (M35)
+- TS: dependency-cruiser dev-dep + `.dependency-cruiser.cjs` (reglas lib/routes/stores/components). Rust: check propio sin crate.
+
+### Sub-fase 9.4 — LSP Confidence por símbolo (M36)
+- `lsp/` host (tower-lsp): hover/diagnostics exponen `Confidence` (fuente: Skill Picker relevance 8.1 + AstSymbol 9.2).
 
 ## Fase 10 — Plataforma abierta
 - SDK público para escribir Skills.
