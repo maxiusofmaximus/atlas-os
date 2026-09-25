@@ -441,6 +441,7 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Skill Graph` | 06 |
 | `Bundled skills catalog` (12 `opencode-*` skills via `include_str!`, feature `bundled-skills` default on) | 29 §3.D; 06 §1 |
 | `Skill Picker` iluminado | 17 §4 |
+| `pick_skills` (scoring determinista: priority 0.4 + keyword-match 0.4 + verified 0.2, threshold 0.5, suggested/dimmed) + `atlas skill pick` | 17 §4; research `36` sub-fase 8.1 |
 | `Skill refresh en caliente` | 24 §8.1 |
 | `Skills as graph templates` (`graph.toml`, 4th skill file) | 23 §7.3; 28 §C |
 | `State DAG` (RFC 19 supervisor as DAG) | 19 §6.1.1; 28 §C |

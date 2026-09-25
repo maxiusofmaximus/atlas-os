@@ -3,6 +3,7 @@ use anyhow::Result;
 use clap::{Args, Subcommand};
 
 use crate::learning::DEFAULT_COMPRESS_THRESHOLD;
+use crate::skills::DEFAULT_PICK_THRESHOLD;
 
 #[derive(Args, Debug)]
 pub struct SkillCmd {
@@ -31,6 +32,14 @@ pub enum SkillAction {
         #[arg(long, default_value_t = false)]
         apply: bool,
     },
+    /// Rank skills for a prompt: lit (suggested) vs dimmed (RFC 17 §4).
+    Pick {
+        /// Prompt describing the task (keyword match, deterministic).
+        prompt: String,
+        /// Minimum relevance in [0.0, 1.0] to light a skill up.
+        #[arg(long, default_value_t = DEFAULT_PICK_THRESHOLD)]
+        threshold: f64,
+    },
 }
 
 pub async fn run(cmd: SkillCmd, profile: &str) -> Result<()> {
@@ -41,6 +50,7 @@ pub async fn run(cmd: SkillCmd, profile: &str) -> Result<()> {
             "(activate skill '{skill_id}' on agent '{agent_id}' not implemented — Phase 5 RFC 06)"
         ),
         SkillAction::Compress { threshold, apply } => compress_skills(profile, threshold, apply)?,
+        SkillAction::Pick { prompt, threshold } => pick_skills_cmd(profile, &prompt, threshold)?,
     }
     Ok(())
 }
@@ -158,6 +168,41 @@ fn list_skills(profile: &str) -> Result<()> {
             name = m.id,
             ver = m.version,
             desc = m.description
+        );
+    }
+    Ok(())
+}
+
+fn pick_skills_cmd(profile: &str, prompt: &str, threshold: f64) -> Result<()> {
+    if !(0.0..=1.0).contains(&threshold) {
+        anyhow::bail!("--threshold must be within [0.0, 1.0], got {threshold}");
+    }
+    let pid = crate::profiles::ProfileId::new(profile);
+    let root = crate::profiles::resolve_root(&pid)?;
+    let skills_dir = root.join("skills");
+    let manifests = crate::learning::collect_skills(&skills_dir)?;
+    if manifests.is_empty() {
+        println!("(no skills available for profile {pid})");
+        return Ok(());
+    }
+    let scored = crate::skills::picker::pick_skills_with_threshold(prompt, &manifests, threshold);
+    let lit = scored.iter().filter(|s| s.suggested).count();
+    println!(
+        "skill pick [{pid}] \"{prompt}\" ({lit} suggested / {} dimmed, threshold {threshold}):",
+        scored.len() - lit
+    );
+    for s in &scored {
+        let mark = if s.suggested { "★" } else { "·" };
+        let tag = if s.suggested { "Suggested" } else { "Dimmed" };
+        println!(
+            "  {mark} {name:<28} [{tag:<9}] relevance {rel:.3}  {desc}",
+            name = s.manifest.id,
+            rel = s.relevance,
+            desc = s
+                .manifest
+                .summary
+                .as_deref()
+                .unwrap_or(s.manifest.description.as_str()),
         );
     }
     Ok(())

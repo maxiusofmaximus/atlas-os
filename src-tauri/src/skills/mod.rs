@@ -8,6 +8,8 @@ pub mod bundled;
 #[cfg(feature = "dag_mode")]
 pub mod graph_loader;
 pub mod manifest;
+pub mod picker;
 
 pub use bundled::{load_bundled, BUNDLED_COUNT};
 pub use manifest::{load_skill, Engine, SkillGraph, SkillManifest};
+pub use picker::{pick_skills, ScoredSkill, DEFAULT_PICK_THRESHOLD};
