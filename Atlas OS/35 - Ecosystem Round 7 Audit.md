@@ -91,6 +91,7 @@ Hallazgos de muse-spark-1.3-contributor-free (búsqueda exhaustiva, priorizados 
 | 10 | **`RustDesk`** (AGPL) — remote dual-PC | L | Phase 8 (integración lateral, jamás link directo — AGPL prohibe bundling) |
 | 11 | **`tauri-plugin-axum`** — evaluar vs WS actual | S | Phase 8 (evaluación) |
 | 12 | **Marketplaces skills** (VoltAgent/matt pocock/taste — ya en RFC 30) | S | Phase 10 (curar seed MIT) |
+| 13 | **`laya = "0.1.1"`** (`aovestdipaperino/laya-rust`, crates.io, Sep 2026 — **la versión open source de Jev**) — "Rust inference for the Laya non-autoregressive typed-decision model (ModernBERT-large + RL decision head)". Stack candle (comparable al ort-sys de fastembed ya presente). Ver §7.1 | M | Phase 9 (ClassifierKind::Laya backend — el "System One" judgments real) |
 
 ## 7. Priorización por dependencia
 
@@ -102,9 +103,10 @@ sysinfo + nvml-wrapper ─────┤
 ratatui (Sister TUI) ───────┘
 
 Findings schema (Cloudflare) ─┐
-Hunting classes ──────────────┼─► Phase 9 (Mejoras profundas + compliance enrichment)
+Hunting classes ──────────────┼─► Phase 9 (Mejoras profunas + compliance enrichment)
 ast-grep / semgrep / CodeQL ──┤
 dependency-cruiser ───────────┘
+laya (System One real) ───────┘
 
 agentskills.io SDK ──► Phase 10 (plataforma abierta)
 RustDesk (AGPL) ─────► Phase 8 lateral — jamás bundling (AGPL viola MIT distribution)
@@ -119,6 +121,25 @@ RustDesk (AGPL) ─────► Phase 8 lateral — jamás bundling (AGPL vio
 6. **Findings schema + validator** (M): Phase 9 (patrón Cloudflare).
 7. **Hunting classes enrichment** (M): compliance skills adicionales.
 8. **ast-grep/semgrep/CodeQL** (M): Phase 9 stages profundos.
+9. **Laya classifier backend** (M): Phase 9 — el "System One" judgments real (§7.1).
+
+### 7.1 Laya — la versión open source de Jev (el panorama "System One" completo)
+
+`laya = "0.1.1"` (`github.com/aovestdipaperino/laya-rust`, crates.io, Sep 2026, creado hace días): *"Rust inference for the Laya non-autoregressive typed-decision model (ModernBERT-large + RL decision head)"*. Deps: anyhow, candle-core, candle-nn, candle-transformers, clap, serde, serde_json, tokenizers (+ axum/tokio opt). **Stack candle** — comparable en peso al `ort-sys` de fastembed (ya presente vía feature); `tokenizers` ya está en deps.
+
+**El panorama "System One" queda completo — cómo se unen todas las piezas (Round 6 + Round 7 + fases):**
+
+| Pieza | Qué hace | Dónde vive en Atlas OS |
+|---|---|---|
+| **Laya/Jev (System One)** | Modelo pequeño no-autoregressive: decisiones tipadas rápidas (routing, eval, judging, compaction) | **Phase 2.3** `TaskTypeClassifier` (Lexical/LogReg/Embedding → **Laya como 4º backend** `ClassifierKind::Laya` feature-gated, Phase 9) + **5.3** compaction (wiring weak_model → Laya) + **winnow pattern** (tool-result judging, Phase 9) |
+| **HydraFusion (adaptativa)** | Elige el workflow menos complejo esperado | **Phase 2.1-2.4** routing policy + aggregation + Mf + affinity ✅ |
+| **context-mode (sandbox + memory)** | Tool output sandboxed (FTS5/BM25) + session memory | **8.0** FTS5 sobre journal_events ✅ + **5.3** compaction ✅ + Kernel Bus event categories |
+| **zoxide (frecency)** | Navegación frecency | **8.0** frecency interno propio ✅ |
+| **Cloudflare audit (findings)** | Findings machine-readable + validator | **Phase 9** report-schema + validator (EvidenceGate ya emite evidence) |
+| **Evidence-gated done (Canny)** | Hooks deterministas antes de "done" | **Phase 2.5** EvidenceGate + DoneClaimed ✅ |
+| **MCP/CLIs/Skills (extensibilidad)** | Everything-is-a-plugin | RFC 06/07 + bundled catalog (D) ✅ + deepseek-harness pattern (Phase 5+) |
+
+**Decisión:** `ClassifierKind::Laya` (feature `laya` default off, stack candle — audit RFC 25 §11 previo obligatorio: candle-core/candle-nn/candle-transformers ~comparable al ort-sys ya presente) como Phase 9 — el 4º backend del classifier que materializa el "System One" con un modelo REAL entrenado. El wiring compaction (5.3) y tool-result judging (winnow) quedan anotados como follow-ups del mismo frente.
 
 ---
 

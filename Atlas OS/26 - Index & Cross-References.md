@@ -40,7 +40,7 @@
 
 | 29 | [Genspark AI Integration](./29%20-%20Genspark%20AI%20Integration.md) | 26.2 KB | Audit comparativo de Genspark AI (MainFunc, $100M Series A) como orquestador de agentes comerciales: Genspark Claw (AI employee persistente multi-canal), AI Workspace 6.0 (super-app 80+ herramientas), Super Agent / MoA (multi-model default). 6 brechas A–F con priorización por dependencia (F/E narrativa → D bundled skills → C user modeling → A cloud serve → B multi-canal) + interpretación de su UI (§4) + fuentes de auditoría (§9). Informativo + priorización — input de Phase 2+. |
 | 30 | [Ecosystem & Jev Audit](./30%20-%20Ecosystem%20%26%20Jev%20Audit.md) | ~12 KB | Audit del ecosistema de referencia: 20 repos "Jev" puntuados (script Context7Max) — "System One judgments" (modelo pequeño/barato para decisiones rápidas), per-turn routing, evidence-gated done, context sieve, compaction decisions, generative UI. + 23 referencias externas con destino por frente (Context7Max/anydoc → Phase 3, taste/design-md/archify → bundled skills, agency-agents/munder-difflin → Phase 4 Swarm). Priorización por dependencia — input de Phase 3+. |
-| 35 | [Ecosystem Round 7 Audit](./35%20-%20Ecosystem%20Round%207%20Audit.md) | ~13 KB | Round 7: Symlink toolset (mklink /j built-in + Junction Sysinternals — skills dir linking, portable inventory, sandbox npm), cloudflare/security-audit-skill (6 fases + 12 hunting classes + findings.json schema + validator zero-dep), mksglu/context-mode (FTS5/BM25 sandbox + session memory 26 categories — FTS5 search sobre journal_events + ContextBudget), ajeetdsouza/zoxide (frecency aging+ranking — navegación interna propia, crate rechazada 22 deps) + 12 hallazgos deep search multi-agente (22 URLs). Priorización Phase 8/9/10. |
+| 35 | [Ecosystem Round 7 Audit](./35%20-%20Ecosystem%20Round%207%20Audit.md) | ~14 KB | Round 7: Symlink toolset (mklink /j built-in + Junction Sysinternals — skills dir linking, portable inventory, sandbox npm), cloudflare/security-audit-skill (6 fases + 12 hunting classes + findings.json schema + validator zero-dep), mksglu/context-mode (FTS5/BM25 sandbox + session memory 26 categories — FTS5 search sobre journal_events + ContextBudget), ajeetdsouza/zoxide (frecency aging+ranking — navegación interna propia, crate rechazada 22 deps) + 12 hallazgos deep search multi-agente (22 URLs) + §7.1 Laya (open source de Jev — `laya = "0.1.1"` ModernBERT + RL decision head, stack candle; el panorama "System One" completo con las 7 piezas). Priorización Phase 8/9/10. |
 
 **Total: 32 RFCs, ~323 KB** de especificación.
 
@@ -442,6 +442,7 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Bundled skills catalog` (12 `opencode-*` skills via `include_str!`, feature `bundled-skills` default on) | 29 §3.D; 06 §1 |
 | `Skill Picker` iluminado | 17 §4 |
 | `pick_skills` (scoring determinista: priority 0.4 + keyword-match 0.4 + verified 0.2, threshold 0.5, suggested/dimmed) + `atlas skill pick` | 17 §4; research `36` sub-fase 8.1 |
+| `Laya` (`laya = "0.1.1"`, open source de Jev — typed-decision model ModernBERT + RL, stack candle; `ClassifierKind::Laya` 4º backend Phase 9) | 04 §7; 35 §7.1 |
 | `Skill refresh en caliente` | 24 §8.1 |
 | `Skills as graph templates` (`graph.toml`, 4th skill file) | 23 §7.3; 28 §C |
 | `State DAG` (RFC 19 supervisor as DAG) | 19 §6.1.1; 28 §C |
@@ -467,6 +468,8 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Journal Observer` (`GET /hud/journal` paginado + payload íntegro, RFC 19 §10) | 19 §10; research `33` sub-fase 6.1; 24 §3 |
 | `Hardware monitor` (`HardwareSnapshot` std-only: RAM wmic//proc + VRAM nvidia-smi fail-safe + `total_model_cost_usd`, consts `MONITOR_*`, `BusEventKind::HardwareSnapshot` + `atlas monitor` + `projectHardwareSnapshot`/`monitorPressureOf` HUD; sysinfo/nvml-wrapper diferidos RFC 25 §11) | 20 Fase 8; research `36` sub-fase 8.2 |
 | `Remote-live dual-PC` (RustDesk lateral AGPL jamas bundling: `RemoteRole` server/client + `ATLAS_RUSTDESK_BIN`/`PATH` detection + `spawn_session` + `atlas remote status/guide/serve/connect` + modelo Nate Gentile servidor-potente/thin-cliente, KPI <100ms) | 20 Fase 8; research `36` sub-fase 8.5 |
+| `Remote auth` (bearer propio `ATLAS_REMOTE_TOKEN`/`remote_token.txt` + `verify_bearer` + cookie `atlas_session` + `discovery_url` OIDC shape + `GET /remote/status` informativo, bearer-enforced con feature `remote-ui`; axum-oidc-layer/openidconnect diferidos RFC 25 §11 + `atlas hud --auth-status/--rotate-token`) | 20 Fase 8; research `36` sub-fase 8.3 |
+| `Sister TUI` (Document Model propio sin crates: `SisterSnapshot` + `SisterFeed` cap 20 + `render_frame` determinista + `ws_url` mismo Kernel Bus WS + `atlas sister --watch` + binario `atlas-tui` tras feature `tui`; ratatui diferido RFC 25 §11) | 20 Fase 8; research `36` sub-fase 8.4; research `28` Sector B |
 | `Worktrees view` | 24 §12 |
 | `Zag Nano Stores` | 25 §3.3 |
 
