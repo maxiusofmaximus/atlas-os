@@ -14,7 +14,7 @@ use rusqlite::Connection;
 /// log and must never be renumbered. When adding M(N+1): bump this const
 /// AND change the final migration's `params![N, …]` to
 /// `params![CURRENT_SCHEMA_VERSION, …]` (same value).
-pub const CURRENT_SCHEMA_VERSION: i64 = 31;
+pub const CURRENT_SCHEMA_VERSION: i64 = 32;
 
 pub fn migrate(conn: &Connection) -> Result<()> {
     // M0 — Schema versioning.
@@ -1533,6 +1533,51 @@ pub fn migrate(conn: &Connection) -> Result<()> {
                 END;",
             )?;
         }
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![31, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
+    // M33 — RFC 04 §7 Phase 9 sub-fase 9.1 (Laya classifier backend).
+    //   Relax `task_classifier_decisions.classifier_kind` CHECK to
+    //   accept `'laya'` (the 4th `ClassifierKind`, RFC 35 §7.1 "System
+    //   One" backend). Same recreate-and-copy idiom as M24 (SQLite
+    //   cannot ALTER a CHECK in-place). Existing rows keep their
+    //   value; new Laya runs record `classifier_kind = 'laya'`.
+    //   (Roadmap M32 — findings.json schema + validator — left no DB
+    //   change, so schema version 32 carries the M33 change.)
+    if current < 32 {
+        conn.execute_batch(
+            "BEGIN;
+
+            CREATE TABLE task_classifier_decisions_new (
+                id                  TEXT PRIMARY KEY,
+                mission_id          TEXT,
+                prompt_hash         TEXT NOT NULL,
+                predicted_task_type TEXT NOT NULL,
+                confidence          REAL NOT NULL CHECK (confidence BETWEEN 0.0 AND 1.0),
+                features_json       TEXT,
+                classifier_kind     TEXT NOT NULL CHECK (classifier_kind IN
+                    ('lexical','logreg','embedding','main','mf_ab','laya')),
+                created_at          TEXT NOT NULL,
+                UNIQUE (prompt_hash, classifier_kind)
+            );
+
+            INSERT INTO task_classifier_decisions_new
+                SELECT * FROM task_classifier_decisions;
+
+            DROP TABLE task_classifier_decisions;
+
+            ALTER TABLE task_classifier_decisions_new
+                RENAME TO task_classifier_decisions;
+
+            CREATE INDEX IF NOT EXISTS task_classifier_decisions_mission_idx
+                ON task_classifier_decisions(mission_id, created_at);
+            CREATE INDEX IF NOT EXISTS task_classifier_decisions_type_idx
+                ON task_classifier_decisions(predicted_task_type, created_at);
+
+            COMMIT;",
+        )?;
         conn.execute(
             "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
             rusqlite::params![CURRENT_SCHEMA_VERSION, chrono::Utc::now().to_rfc3339()],

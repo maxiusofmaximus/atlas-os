@@ -5,7 +5,8 @@
 // model with the right tier for that class (e.g. routing `Plan` to a
 // frontier reasoning model and `Chat` to a free-tier model).
 //
-// Three backends sit behind the `TaskTypeClassifier` trait:
+// Three backends sit behind the `TaskTypeClassifier` trait (four since
+// Phase 9 sub-fase 9.1, M33):
 //
 //  * `LexicalClassifier` — pure-Rust regex-counts over the prompt text
 //    (tokens like `test`/`refactor`/`fix`/`build`/…). Zero-dependency,
@@ -22,6 +23,13 @@
 //    2-layer MLP. This is the heavy path: ONNX runtime, ~50 MB model
 //    download. Opt-in via feature flag and `AutoRouterConfig.classifier_kind
 //    = Embedding`.
+//  * `LayaClassifier` (Phase 9 sub-fase 9.1, M33) — the "System One"
+//    judgments backend (RFC 35 §7.1, `laya = "0.1.1"` ModernBERT-large +
+//    RL decision head). RFC 25 §11 audit DIFERIDO (RFC 22 §7 AN-9.1),
+//    so this ships as a std-only MVP: deterministic lexical-delegated
+//    inference tagged `ClassifierKind::Laya`, zero new deps, behind the
+//    empty `laya` cargo feature (default off). The real candle
+//    inference swaps in behind that gate without changing callers.
 //
 // The "2-layer MLP via `linfa`" mentioned in RFC 04 §7 / RFC 20 line 78
 // / research/29 line 241 is intentionally NOT implemented here. `linfa`
@@ -67,6 +75,7 @@
 //   multinomial one-vs-rest, see note above).
 
 pub mod embedding;
+pub mod laya;
 pub mod lexical;
 pub mod log_reg;
 pub mod mcp_filter;
@@ -79,6 +88,7 @@ use serde::{Deserialize, Serialize};
 use crate::orchestrator::registry::Registry;
 
 pub use embedding::EmbeddingClassifier;
+pub use laya::LayaClassifier;
 pub use lexical::LexicalClassifier;
 pub use log_reg::LogisticRegressionClassifier;
 pub use mcp_filter::{McpServerCatalog, McpToolFilter, NoMcpCatalog, StaticMcpCatalog};
@@ -209,6 +219,13 @@ pub enum ClassifierKind {
     /// "fastembed")]`). Heavy path — pulls ONNX runtime + ~50 MB
     /// model download. Off-by-default.
     Embedding,
+    /// Laya "System One" typed-decision backend (Phase 9 sub-fase 9.1,
+    /// M33). Std-only MVP: deterministic lexical-delegated inference
+    /// tagged with this kind (RFC 25 §11 audit DIFERIDO, RFC 22 §7
+    /// AN-9.1 — the real candle inference lands behind the empty
+    /// `laya` feature). Falls back to `Lexical` when a configured
+    /// model dir is absent.
+    Laya,
 }
 
 impl Default for ClassifierKind {
@@ -228,6 +245,7 @@ impl ClassifierKind {
             Self::Lexical => "lexical",
             Self::LogReg => "logreg",
             Self::Embedding => "embedding",
+            Self::Laya => "laya",
         }
     }
 }
@@ -316,9 +334,10 @@ pub struct AutoRouterConfig {
     /// strategy-only pipeline (`RoutingStrategy::select`).
     #[serde(default)]
     pub enabled: bool,
-    /// Backend to invoke. `LogReg` and `Embedding` fall back to
-    /// `Lexical` when their preconditions are not met (weights
-    /// file missing / `fastembed` feature off).
+    /// Backend to invoke. `LogReg`, `Embedding` and the `Laya` model
+    /// path fall back to `Lexical` when their preconditions are not
+    /// met (weights file missing / `fastembed` feature off / laya
+    /// model dir absent).
     #[serde(default)]
     pub classifier_kind: ClassifierKind,
     /// Per-task-type calibration thresholds (RouteLLM `mf`
@@ -436,6 +455,19 @@ pub fn classifier_for(cfg: &AutoRouterConfig) -> Arc<dyn TaskTypeClassifier> {
             tracing::debug!("fastembed feature off — embedding classifier falls back to lexical");
             Arc::new(LexicalClassifier::new(cfg.max_prompt_chars))
         }
+        ClassifierKind::Laya => {
+            if let Some(path) = cfg.weights_path.as_deref() {
+                match LayaClassifier::load(path, cfg.max_prompt_chars) {
+                    Ok(c) => Arc::new(c),
+                    Err(e) => {
+                        tracing::warn!(error = %e, path = %path, "laya model load failed — falling back to lexical");
+                        Arc::new(LexicalClassifier::new(cfg.max_prompt_chars))
+                    }
+                }
+            } else {
+                Arc::new(LayaClassifier::new(cfg.max_prompt_chars))
+            }
+        }
     }
 }
 
@@ -542,6 +574,34 @@ mod tests {
         };
         let c = classifier_for(&cfg);
         assert_eq!(c.kind(), ClassifierKind::Lexical);
+    }
+
+    #[test]
+    fn classifier_for_laya_without_model_returns_laya_stub() {
+        let cfg = AutoRouterConfig {
+            enabled: true,
+            classifier_kind: ClassifierKind::Laya,
+            ..Default::default()
+        };
+        let c = classifier_for(&cfg);
+        assert_eq!(c.kind(), ClassifierKind::Laya);
+    }
+
+    #[test]
+    fn classifier_for_laya_with_missing_model_dir_falls_back_to_lexical() {
+        let cfg = AutoRouterConfig {
+            enabled: true,
+            classifier_kind: ClassifierKind::Laya,
+            weights_path: Some("/nonexistent/laya-model".into()),
+            ..Default::default()
+        };
+        let c = classifier_for(&cfg);
+        assert_eq!(c.kind(), ClassifierKind::Lexical);
+    }
+
+    #[test]
+    fn classifier_kind_laya_round_trips_via_as_str() {
+        assert_eq!(ClassifierKind::Laya.as_str(), "laya");
     }
 
     #[tokio::test]

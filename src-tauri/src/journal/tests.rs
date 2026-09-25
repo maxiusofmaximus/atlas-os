@@ -1999,6 +1999,70 @@ mod model_resets_schema_tests {
         );
         assert_eq!(n, 18, "upsert should overwrite n_samples");
     }
+
+    #[test]
+    fn m33_task_classifier_decisions_accepts_laya_kind() {
+        let (_tmp, conn) = fresh_conn();
+        conn.execute(
+            "INSERT INTO task_classifier_decisions (id, prompt_hash, predicted_task_type,
+                confidence, classifier_kind, created_at)
+             VALUES ('l1', 'hlaya', 'coding', 0.9, 'laya', '2026-01-01T00:00:00Z')",
+            [],
+        )
+        .expect("classifier_kind='laya' must be accepted after M33");
+        let kind: String = conn
+            .query_row(
+                "SELECT classifier_kind FROM task_classifier_decisions WHERE id='l1'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("query");
+        assert_eq!(kind, "laya");
+    }
+
+    #[test]
+    fn m33_task_classifier_decisions_still_rejects_unknown_kind() {
+        let (_tmp, conn) = fresh_conn();
+        let res = conn.execute(
+            "INSERT INTO task_classifier_decisions (id, prompt_hash, predicted_task_type,
+                confidence, classifier_kind, created_at)
+             VALUES ('x1', 'hx', 'coding', 0.9, 'jev', '2026-01-01T00:00:00Z')",
+            [],
+        );
+        assert!(
+            res.is_err(),
+            "classifier_kind='jev' must still be rejected by the CHECK constraint"
+        );
+    }
+
+    #[test]
+    fn m33_task_classifier_decisions_preserves_preexisting_rows() {
+        let (_tmp, conn) = fresh_conn();
+        for (id, kind) in [
+            ('a', "lexical"),
+            ('b', "logreg"),
+            ('c', "embedding"),
+            ('d', "main"),
+            ('e', "mf_ab"),
+        ] {
+            conn.execute(
+                "INSERT INTO task_classifier_decisions (id, prompt_hash, predicted_task_type,
+                    confidence, classifier_kind, created_at)
+                 VALUES (?1, ?2, 'coding', 0.8, ?3, '2026-01-01T00:00:00Z')",
+                rusqlite::params![format!("p{id}"), format!("h{id}"), kind],
+            )
+            .expect("pre-existing kind insert ok");
+        }
+        let n: i64 = conn
+            .query_row("SELECT COUNT(*) FROM task_classifier_decisions", [], |r| {
+                r.get(0)
+            })
+            .expect("query");
+        assert_eq!(
+            n, 5,
+            "all pre-M33 kinds must survive the M33 recreate-and-copy"
+        );
+    }
 }
 
 #[cfg(test)]

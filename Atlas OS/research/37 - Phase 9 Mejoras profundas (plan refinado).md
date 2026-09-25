@@ -33,11 +33,10 @@ Semgrep + CodeQL (RFC 20): proceso EXTERNO lanzado por Atlas OS si están en PAT
 - CLI: `atlas audit validate <file.json>` + `atlas audit --json` (export del reporte).
 - Tests: schema round-trip, fallo en evidence vacía/dup ids/severity inválida, from_evidence.
 
-### Sub-fase 9.1 — Laya classifier backend (4º backend — el "System One" real) — M33
-- Audit candle-core/candle-nn/candle-transformers (deps transitive, MSRV, peso binario vs ort-sys) — RFC 25 §11 previo obligatorio.
-- Si pasa: feature `laya` default off + `ClassifierKind::Laya` + `LayaClassifier` (pesos safetensors + tokenizers ya en deps → TaskType tipado).
-- Si el audit falla: defer con audit documentado (el wiring compaction 5.3 queda como está).
-- Tests: inferencia determinista happy-path + failure-path (modelo ausente → fallback al backend activo).
+### Sub-fase 9.1 — Laya classifier backend (4º backend — el "System One" real) — M33 (COMPLETO, audit DIFERIDO)
+- Audit candle-core/candle-nn/candle-transformers (deps transitive, MSRV, peso binario vs ort-sys) — RFC 25 §11 previo obligatorio → **FALLA** (RFC 22 §7 AN-9.1: `rand 0.8` vs `0.9`, `tokenizers` no en deps, `axum 0.7` vs `0.8`, weights runtime, 5 días/61 descargas): defer con audit documentado.
+- Embarcado: feature `laya` vacío default-off + `ClassifierKind::Laya` + `LayaClassifier` std-only MVP (lexical-delegado determinista, `load` con failure-path → fallback lexical) + M33 (schema 32, CHECK + `'laya'`).
+- Tests: inferencia determinista happy-path + failure-path (modelo ausente → fallback al backend activo) ✅. Compaction wiring (5.3) queda como está; winnow como follow-up.
 
 ### Sub-fase 9.2 — Tree-sitter AST Context Engine — M34
 - Audit tree-sitter + grammars. Si pasa: feature `ast` default off, `context_engine/ast.rs`: parse símbolos (fn/class/struct/enum) → `AstSymbol {kind, name, file, line}` — alimenta Skill Picker (8.1) y LSP (9.4).

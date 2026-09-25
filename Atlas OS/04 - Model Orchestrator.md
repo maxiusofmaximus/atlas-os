@@ -258,11 +258,12 @@ El orquestador aplica back-pressure y cola si se superan.
 
 El orquestador clasifica cada prompt en uno de 12 `TaskType` concretos (`coding`/`test`/`refactor`/`fix`/`build`/`plan`/`review`/`explain`/`translate`/`tidy`/`exec`/`chat`) más `Unknown` como fallback (RFC 22 §7 AN-2.3, Phase 2.3).
 
-Tres backends detrás del trait `TaskTypeClassifier` (`#[async_trait]`):
+Tres backends detrás del trait `TaskTypeClassifier` (`#[async_trait]`) — cuatro desde Phase 9 sub-fase 9.1 (M33):
 
 - **`LexicalClassifier`** (default): pure-Rust regex-counts sobre el prompt. Casí cero deps, ningún feature flag, ningún weights-file. Corre en todo profile con `Profile.auto_router.enabled = true`. Feature vectors de 12 elementos (uno por bucket) alimentan también `LogisticRegressionClassifier`.
 - **`LogisticRegressionClassifier`** (opt-in): multi-class one-vs-rest logistic regression scratch-built — **no se usa `linfa`**, ver §7.1 abajo. Carga pesos desde `AutoRouterConfig.weights_path` (JSON shape `[[f64;12];12]` para `weights`, `[f64;12]` para `intercept`, `[String;12]` para `classes`). Cuando el archivo falta o está malformado, `classifier_for()` cae silenciosamente al `LexicalClassifier`.
 - **`EmbeddingClassifier`** (`#[cfg(feature = "fastembed")]`, opt-in): fastembed-rs `TextEmbedding::try_new(Default::default())` carga `BGE-small-en-v1.5` (384 dim, ONNX, ~50 MB en `.fastembed_cache/`). Cosine-similarity contra 12 vectores prototipo pre-calibrados (formato JSON `[[f64;384];12]`). Cuando `fastembed` feature-off, cae al `LexicalClassifier`.
+- **`LayaClassifier`** (Phase 9 sub-fase 9.1, M33 — el "System One" real, RFC 35 §7.1): `laya = "0.1.1"` (ModernBERT-large + RL decision head). Audit RFC 25 §11 **DIFERIDO** (RFC 22 §7 AN-9.1: `rand 0.8` vs `0.9`, `tokenizers` no en deps, `axum 0.7` vs `0.8`, weights runtime, crate de 5 días) → std-only MVP sin crates nuevas: inferencia determinista lexical-delegada tagueada `ClassifierKind::Laya`, feature `laya` vacío default-off. `LayaClassifier::load(path)` valida el model dir; si falta, `classifier_for()` cae al `LexicalClassifier` (mismo contrato que logreg). La inferencia candle real entra detrás del mismo gate sin cambiar callers. Follow-ups: wiring compaction (5.3) + tool-result judging (winnow).
 
 Hot-path contract (research/29 line 242 "tag pre-filter hot-path", G19):
 
@@ -273,7 +274,7 @@ Hot-path contract (research/29 line 242 "tag pre-filter hot-path", G19):
 Router selector via `model` field ("non-obvious pattern #1", research/29 line 243): el caller pasa `model="gpt-5"` literal o `model="router-auto-0.5"` / `model="router-mf-0.116"` pseudo-id. `RouterId::parse(s)` discrimina entre `Literal` / `Auto{strong_pct}` / `Mf{threshold}`. El branch runtime en el Orchestrator decide si routing-rún strategy-only o routing-auto con classifier — **la request envelope caller-side queda OpenAI-shape, sin tagadura del router**.
 
 M23 migration aporta dos tablas:
-- `task_classifier_decisions`: append-only audit (`prompt_hash`, `classifier_kind`, `predicted_task_type`, `confidence`, `features_json`). UNIQUE sobre `(prompt_hash, classifier_kind)` — un prompt reploteado con un mismo backend no mienta nueva fila. CHECK `classifier_kind IN ('lexical','logreg','embedding')` y `confidence BETWEEN 0.0 AND 1.0`.
+- `task_classifier_decisions`: append-only audit (`prompt_hash`, `classifier_kind`, `predicted_task_type`, `confidence`, `features_json`). UNIQUE sobre `(prompt_hash, classifier_kind)` — un prompt reploteado con un mismo backend no mienta nueva fila. CHECK `classifier_kind IN ('lexical','logreg','embedding','main','mf_ab','laya')` (M24 añade `main`/`mf_ab`, M33 añade `laya`) y `confidence BETWEEN 0.0 AND 1.0`.
 - `model_affinity_cache`: PK compuesta `(task_type, model_id)` con `success_rate`, `p95_latency_ms`, `mean_cost_usd`, `n_samples`, `updated_at`. `INSERT OR REPLACE` idempotente — sub-fase 2.4 reader lo activa via `ArcSwap::store` para el in-memory cache.
 
 ### §7.1 AN-2.3-a — `linfa` MLP deferral (Future Work)

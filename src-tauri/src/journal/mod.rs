@@ -2106,7 +2106,9 @@ impl Journal {
 
     /// Record a `task_classifier_decisions` row. Used by 2.3's main
     /// classifier run and by 2.4's A/B emission (the second row uses
-    /// `kind = "mf_ab"`). The `(prompt_hash, classifier_kind)` UNIQUE
+    /// `kind = "mf_ab"`). Phase 9 sub-fase 9.1 (M33) admits
+    /// `kind = "laya"` for the System One backend. The
+    /// `(prompt_hash, classifier_kind)` UNIQUE
     /// constraint means a replay is silently ignored by `INSERT OR
     /// IGNORE` — A/B replay on the same prompt is a no-op, not an
     /// error.

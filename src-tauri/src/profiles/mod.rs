@@ -164,7 +164,7 @@ pub struct Profile {
     /// `AutoRouterConfig::default()` (disabled, lexical backend
     /// fallback). Profiles that opt into auto-routing set `enabled =
     /// true` and optionally `classifier_kind = LogReg` / `Embedding`
-    /// with a calibrated weights path.
+    /// / `Laya` (Phase 9 sub-fase 9.1, M33) with a calibrated weights path.
     #[serde(default)]
     pub auto_router: crate::orchestrator::classifier::AutoRouterConfig,
 }

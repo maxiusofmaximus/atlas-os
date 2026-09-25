@@ -34,6 +34,14 @@ tauri = ["dep:tauri"]
 hud = ["dep:axum", "dep:tower-http", "dep:tower"]
 lsp = ["dep:tower-lsp", "dep:lsp-types"]
 fastembed = ["dep:fastembed"]
+# Phase 9 sub-fase 9.1 (M33) — Laya "System One" classifier backend.
+# Empty gate, default off: the RFC 25 §11 audit DIFERIDO the candle
+# stack (candle-core/candle-nn/candle-transformers 0.9 + tokenizers
+# 0.21 — rand 0.8 vs 0.9 conflict, axum 0.7 vs 0.8, runtime weights;
+# see RFC 22 §7 AN-9.1), so `LayaClassifier` ships as a std-only MVP
+# with zero new deps. The real ModernBERT + candle inference swaps in
+# behind this same gate without changing callers. Default builds skip it.
+laya = []
 cli = ["dep:clap"]
 # RFC 29 Section D — bundled skills catalog (12 `opencode-*` manifests
 # under `skills/` compiled in via `include_str!`, ~1MB within the

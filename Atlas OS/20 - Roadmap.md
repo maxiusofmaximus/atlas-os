@@ -227,8 +227,8 @@ Entregable: razonamiento sobre AST y reglas de seguridad profundas.
 ### Sub-fase 9.0 — findings.json schema + validator (Cloudflare, sin crates) (M32) (COMPLETO)
 - `validation/report.rs`: `AuditReport` + `SecurityFinding` + `validate_report` (patrón findings.json Cloudflare) + puente `from_evidence` (EvidenceGate 2.5). CLI: `atlas audit validate` / `atlas audit --json`.
 
-### Sub-fase 9.1 — Laya classifier backend (4º backend — el "System One" real) (M33)
-- Audit candle stack (RFC 25 §11) → feature `laya` default off + `ClassifierKind::Laya` + `LayaClassifier` (safetensors + tokenizers → TaskType). Follow-ups: compaction wiring (5.3) + winnow.
+### Sub-fase 9.1 — Laya classifier backend (4º backend — el "System One" real) (M33) (COMPLETO)
+- Audit candle stack DIFERIDO (RFC 25 §11, RFC 22 §7 AN-9.1: `rand 0.8` vs `0.9`, `tokenizers` no en deps, `axum 0.7` vs `0.8`, weights runtime, crate de 5 días/61 descargas) → feature `laya` vacío default-off + `ClassifierKind::Laya` + `LayaClassifier` std-only MVP (lexical-delegado determinista, `load` con failure-path → fallback lexical) + M33 (schema 32, CHECK + `'laya'`). Follow-ups: compaction wiring (5.3) + winnow.
 
 ### Sub-fase 9.2 — Tree-sitter AST Context Engine (M34)
 - Audit tree-sitter + grammars → feature `ast` default off, `context_engine/ast.rs` (`AstSymbol` → Skill Picker + LSP).
