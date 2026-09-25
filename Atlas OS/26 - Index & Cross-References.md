@@ -306,6 +306,9 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Evidence-gated done` (Canny: no "done" sin evidencia, solo hechos bloquean) | 14 §10; 30 §2.1 |
 | `DoneClaim` / `DoneGateVerdict` / `evaluate_done_claim` / `collect_diff_evidence` | 14 §10 |
 | `EvidenceGate` (stage terminal del pipeline) | 14 §1; 14 §10 |
+| `AuditReport` (`findings: Vec<SecurityFinding>`, `from_json_str`/`to_json_string_pretty`/`from_evidence`, M32) | 14 §10; 35 §3; research `37` sub-fase 9.0 |
+| `SecurityFinding` (`id`/`severity`/`title`/`file`/`line`/`evidence`/`remediation`) + `Severity` (`info`/`low`/`medium`/`high`/`critical`) | 14 §10; 35 §3; research `37` sub-fase 9.0 |
+| `validate_report` (ids únicos, title/file/evidence/remediation no vacíos, line > 0) + `atlas audit validate <file.json>` + `atlas audit --json` | 14 §10; 08 CLI; research `37` sub-fase 9.0 |
 | `DoneClaimed` / `BlockDone` (supervisor) | 19 §6.1; 14 §10 |
 | `dag_mode` feature flag (Planner DAG + State DAG + skills graph templates) | 12 §3.1; 19 §6.1.1; 23 §7.3; 28 §C |
 | `Edge-case tool` feasibility probe | 10 §11 |

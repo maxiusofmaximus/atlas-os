@@ -12,6 +12,12 @@
 //                                    used by cron planificado en supervisor.
 //                                    Uses default snapshot_root
 //                                    (<profile_root>/snapshots/).
+//   * `opencode audit validate <file.json>`
+//                                  — validate a findings.json `AuditReport`
+//                                    (RFC 35 §3, Phase 9 sub-fase 9.0, M32)
+//   * `opencode audit --json`      — print an empty `AuditReport`
+//                                    `{"findings":[]}` template to stdout
+//                                    (machine-readable export seed).
 //
 // The export path uses the Posting `.posting.yaml` schema (RFC 28 §D — Phase
 // 1.5a §D-2). The atomic-write + day-bucketing packing is handled by
@@ -21,7 +27,7 @@
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Result};
-use clap::Args;
+use clap::{Args, Subcommand};
 
 #[derive(Args, Debug)]
 pub struct AuditCmd {
@@ -32,6 +38,11 @@ pub struct AuditCmd {
     /// Verify hash chain integrity (Phase 6, RFC 24 §10).
     #[arg(long)]
     pub verify: bool,
+
+    /// Print an empty `AuditReport` findings.json template to stdout
+    /// (RFC 35 §3, Phase 9 sub-fase 9.0, M32).
+    #[arg(long)]
+    pub json: bool,
 
     /// Export last N audit entries to `.posting.yaml` snapshot files under DIR
     /// (RFC 28 Phase 1.5a §D). DIR defaults to <profile_root>/snapshots/.
@@ -44,9 +55,36 @@ pub struct AuditCmd {
     /// the supervisor's cron planificado path.
     #[arg(long)]
     pub snapshot_maybe: bool,
+
+    #[command(subcommand)]
+    pub action: Option<AuditAction>,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum AuditAction {
+    /// Validate a findings.json `AuditReport` against the M32 schema
+    /// (RFC 35 §3, Phase 9 sub-fase 9.0): unique ids, severity enum,
+    /// non-empty evidence, line > 0.
+    Validate {
+        /// Path to the findings.json file to validate.
+        file: PathBuf,
+    },
 }
 
 pub async fn run(cmd: AuditCmd, profile: &str) -> Result<()> {
+    if let Some(AuditAction::Validate { file }) = cmd.action.as_ref() {
+        return validate_findings_file(file, cmd.json);
+    }
+
+    if cmd.json {
+        let report = crate::validation::AuditReport::default();
+        let json = report
+            .to_json_string_pretty()
+            .map_err(|e| anyhow!("audit --json serialize: {e}"))?;
+        println!("{json}");
+        return Ok(());
+    }
+
     let pid = crate::profiles::ProfileId::new(profile);
     let root = crate::profiles::resolve_root(&pid)?;
     let journal = crate::journal::Journal::open(&root)?;
@@ -120,6 +158,39 @@ pub async fn run(cmd: AuditCmd, profile: &str) -> Result<()> {
     Ok(())
 }
 
+fn validate_findings_file(file: &std::path::Path, emit_json: bool) -> Result<()> {
+    let raw = std::fs::read_to_string(file)
+        .map_err(|e| anyhow!("audit validate: cannot read {}: {e}", file.display()))?;
+    let report = crate::validation::AuditReport::from_json_str(&raw)
+        .map_err(|e| anyhow!("audit validate: invalid findings.json: {e}"))?;
+    match crate::validation::validate_report(&report) {
+        Ok(()) => {
+            println!(
+                "audit validate: OK ({} finding(s) in {})",
+                report.findings.len(),
+                file.display()
+            );
+            if emit_json {
+                let json = report
+                    .to_json_string_pretty()
+                    .map_err(|e| anyhow!("audit validate serialize: {e}"))?;
+                println!("{json}");
+            }
+            Ok(())
+        }
+        Err(errors) => {
+            for e in &errors {
+                println!("  [-] {e}");
+            }
+            anyhow::bail!(
+                "audit validate: {} error(s) in {}",
+                errors.len(),
+                file.display()
+            )
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -179,5 +250,30 @@ mod tests {
         let p = Probe::try_parse_from(["probe", "--verify", "--export-posting"]).unwrap();
         assert!(p.audit.verify);
         assert!(p.audit.export_posting.is_some());
+    }
+
+    #[test]
+    fn default_has_no_validate_action_and_no_json() {
+        let p = Probe::try_parse_from(["probe"]).unwrap();
+        assert!(p.audit.action.is_none());
+        assert!(!p.audit.json);
+    }
+
+    #[test]
+    fn validate_subcommand_captures_file() {
+        let p = Probe::try_parse_from(["probe", "validate", "findings.json"]).unwrap();
+        match p.audit.action {
+            Some(AuditAction::Validate { file }) => {
+                assert_eq!(file, PathBuf::from("findings.json"));
+            }
+            None => panic!("expected validate action"),
+        }
+    }
+
+    #[test]
+    fn json_flag_parses_alone() {
+        let p = Probe::try_parse_from(["probe", "--json"]).unwrap();
+        assert!(p.audit.json);
+        assert!(p.audit.action.is_none());
     }
 }

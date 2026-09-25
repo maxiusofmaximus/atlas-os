@@ -224,7 +224,7 @@ Entregable: ve el swarm desde el móvil/tablet, programa en vivo desde un PC thi
 
 Entregable: razonamiento sobre AST y reglas de seguridad profundas.
 
-### Sub-fase 9.0 — findings.json schema + validator (Cloudflare, sin crates) (M32)
+### Sub-fase 9.0 — findings.json schema + validator (Cloudflare, sin crates) (M32) (COMPLETO)
 - `validation/report.rs`: `AuditReport` + `SecurityFinding` + `validate_report` (patrón findings.json Cloudflare) + puente `from_evidence` (EvidenceGate 2.5). CLI: `atlas audit validate` / `atlas audit --json`.
 
 ### Sub-fase 9.1 — Laya classifier backend (4º backend — el "System One" real) (M33)
