@@ -233,8 +233,8 @@ Entregable: razonamiento sobre AST y reglas de seguridad profundas.
 ### Sub-fase 9.2 — Tree-sitter AST Context Engine (M34) (COMPLETO)
 - Audit tree-sitter + grammars APROBADO (RFC 22 §7 AN-9.2: reutiliza el stack vendored de `codebase-graph`, cero crates nuevas) → feature `ast` default off (alias de `codebase-graph`) + `context/ast.rs` (`AstSymbol {kind, name, file, line}` + `validate` + `presence_boost`/`confidence_for_symbol` → Skill Picker 8.1 + LSP 9.4) + M34 (schema 33, tabla `ast_symbols` + `Journal::record_ast_symbol`/`ast_symbols_for_file`). AST real con `codebase-graph`; heurístico std-only sin el feature.
 
-### Sub-fase 9.3 — Dependency-cruiser límites de capas (M35)
-- TS: dependency-cruiser dev-dep + `.dependency-cruiser.cjs` (reglas lib/routes/stores/components). Rust: check propio sin crate.
+### Sub-fase 9.3 — Dependency-cruiser límites de capas (M35) (COMPLETO)
+- `dependency-cruiser 18.4.0` dev-dep pnpm + `.dependency-cruiser.cjs` (4 reglas FORBIDDEN: `lib/` no importa `routes/`, `stores/` no importa `components/`, `components/` no importa `routes/`, `lib/` no importa core Node-only — tests `*.test.ts` exentos) + script `pnpm arch`. Verificado: 0 violaciones (28 módulos, 40 deps), suite frontend verde. Rust: check propio defer (documentado).
 
 ### Sub-fase 9.4 — LSP Confidence por símbolo (M36) (COMPLETO)
 - `lsp/confidence.rs` (`SymbolConfidence {name, file, line, confidence, present}` + `hover_for_symbol`/`diagnostic_for_symbol` + `who_owns`/`affects_where` sobre `ast_symbols`): hover/diagnostics exponen `Confidence` (fuente: Skill Picker relevance 8.1 como base + `confidence_for_symbol` 9.2 por presencia; sin DB nueva — consume M34). Tests: hover determinista, wiring relevance→confidence, failure-path sin datos (símbolo inválido, base no finita).

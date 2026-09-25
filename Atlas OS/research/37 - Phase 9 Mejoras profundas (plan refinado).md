@@ -65,4 +65,20 @@ Semgrep + CodeQL (RFC 20): proceso EXTERNO lanzado por Atlas OS si están en PAT
 1. Commit de este plan + RFC 20 update + Index 26.
 2. Gestor audita candle + tree-sitter en paralelo con la delegación 9.0 (9.0 no necesita audit — zero-dep).
 3. Sub-fase 9.0 (delegada a muse-spark-1.3) → revisar → commit → push.
-4. Sub-fases 9.0 ✅ (M32), 9.1 ✅ (M33), 9.2 ✅ (M34) y 9.4 ✅ (M36) completas; 9.3 según audit.
+4. Sub-fases 9.0 ✅ (M32), 9.1 ✅ (M33), 9.2 ✅ (M34), 9.3 ✅ (M35) y 9.4 ✅ (M36) completas — **Phase 9 COMPLETA**.
+
+---
+
+## SECTOR E — Estado final (cierre Phase 9)
+
+| Sub-fase | Qué quedó | Verificación |
+|---|---|---|
+| 9.0 (M32) | `validation/report.rs`: `AuditReport`/`SecurityFinding`/`Severity` + `validate_report` + `from_evidence` + `atlas audit validate`/`--json` | 12 tests (993) |
+| 9.1 (M33) | `ClassifierKind::Laya` 4º backend std-only MVP (`classifier/laya.rs`, fallback lexical) + gate `laya = []` + M33 schema 32 (audit crate laya DIFERIDO: rand 0.8 vs 0.9, tokenizers 0.21 no en deps, dual runtime vs budget — RFC 22 AN-9.1) | 8 tests (1001) |
+| 9.2 (M34) | `context/ast.rs`: `AstSymbol`/`AstSymbolKind` + `extract()` (walk AST real gated `ast`, heurístico std-only default) + `presence_boost` (→ Picker 8.1) + `confidence_for_symbol` (→ LSP 9.4) + Journal M34 schema 33 (tabla `ast_symbols`) | 16 tests feat ast (1015) |
+| 9.3 (M35) | `dependency-cruiser 18.4.0` dev-dep + `.dependency-cruiser.cjs` (4 reglas capas, tests exentos) + `pnpm arch` | 0 violaciones (28 módulos, 40 deps) |
+| 9.4 (M36) | `lsp/confidence.rs`: `SymbolConfidence`/`ConfidenceSource` + `confidence_for` + hover/diagnostics (fuente: Picker relevance 8.1 base + `confidence_for_symbol` 9.2 presencia) — MVP std-only (multiplexor externo sigue diferido Roadmap Phase 2) | 6 tests (1021) |
+
+**Estado:** Phases 0–9 COMPLETAS. 1021 tests Rust + 67 frontend. Phase 10 (Plataforma abierta: SDK público + marketplace con firma + remixing + learning social) es la última fase del roadmap v1.
+
+**Deviaciones documentadas:** laya crate diferido (9.1), tree-sitter-typescript no añadido — tree-sitter vendored reutilizado (9.2), dependency-cruiser reporterOptions v18 (focusOn eliminado), check `--no-default-features` sin `hud` falla por gating preexistente del módulo hud (no es de 9.x).
