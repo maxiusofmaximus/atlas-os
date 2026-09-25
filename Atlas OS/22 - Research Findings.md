@@ -598,3 +598,23 @@ Con la Phase 2 (sub-fases 2.0→2.4) completada, la investigación buscó valida
 - agents.md: https://agents.md/
 - MobiAI-Core: https://github.com/ArisGuimera/MobiAI-Core
 - NavMeshPlus: https://github.com/h8man/NavMeshPlus
+
+## 14. Investigación Round 7 (2026-09-25) - Symlink/Cloudflare-audit/Context-Mode/Zoxide + deep search multi-agente
+
+### 14.1 Método
+
+Las 4 referencias aportadas por el operador (Symlink toolset, cloudflare/security-audit-skill 21.4k★, mksglu/context-mode 24k★ — proyecto propio, zoxide) se auditaron con fetch directo + deep search multi-agente: 2 agentes opencode en paralelo (muse-spark-1.3-contributor-free para 12 hallazgos nuevos con 22 URLs verificadas; mimo-v2.6-flash-free degradado a reseña del gestor — 2 fallos de comprensión del prompt). **Lección de delegación**: los prompts a modelos free pequeños deben llevar las referencias inline cortas, no en archivos largos — Mimo no captó las referencias ni por archivo ni re-intento; el gestor sintetizó su parte. Detalle completo en RFC 35 (Ecosystem Round 7 Audit).
+
+### 14.2 Hallazgos clave
+
+- **Symlink toolset**: mklink /j (built-in Windows) + Junction (Sysinternals) + ln -s — sin herramientas externas para el MVP. Rutas: skills dir linking (junction del perfil → skills/ del repo), portable inventory, worktrees (git worktree ya usa junctions en Windows).
+- **cloudflare/security-audit-skill**: 6 fases (reconnaissance → hunting → validation → output → verification → reporting) + 12 hunting classes + `report-schema.json` + `validate-findings.cjs` zero-dependency. Destino: formato machine-readable de findings para el AuditLog (Phase 9) + hunting classes enrichment de las compliance skills.
+- **context-mode (propio)**: overlap alto con el core (Journal + compaction 5.3 + EvidenceGate); piezas nuevas: **FTS5 full-text search sobre journal_events** (rusqlite bundled FTS5, sin crates) + **ContextBudget por event kind** (el overflow indexado, el UI consulta por demanda).
+- **zoxide**: frecency (aging + ranking) — **frecency interno propio** (port del algoritmo, determinista) para navegación missions/worktrees; crate RECHAZADA (22 deps, RFC 25 §11).
+- **Deep search (12 hallazgos)**: ratatui (Sister TUI), tower-lsp-server fork, ast-grep, axum-oidc-layer, sysinfo+nvml-wrapper (VRAM/RAM), agentskills.io SDK, herdr PTY, semgrep/CodeQL, dependency-cruiser, RustDesk (AGPL — jamás bundling), tauri-plugin-axum, marketplaces skills.
+
+### 14.3 Cambios aplicados
+
+- RFC 35: catálogo completo + priorización Phase 8/9/10.
+- RFC 26: filas RFC 35 + total 32 RFCs.
+- README: (siguiente actualización con el cierre de Phase 8).

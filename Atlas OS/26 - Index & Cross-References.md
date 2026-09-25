@@ -40,8 +40,9 @@
 
 | 29 | [Genspark AI Integration](./29%20-%20Genspark%20AI%20Integration.md) | 26.2 KB | Audit comparativo de Genspark AI (MainFunc, $100M Series A) como orquestador de agentes comerciales: Genspark Claw (AI employee persistente multi-canal), AI Workspace 6.0 (super-app 80+ herramientas), Super Agent / MoA (multi-model default). 6 brechas A–F con priorización por dependencia (F/E narrativa → D bundled skills → C user modeling → A cloud serve → B multi-canal) + interpretación de su UI (§4) + fuentes de auditoría (§9). Informativo + priorización — input de Phase 2+. |
 | 30 | [Ecosystem & Jev Audit](./30%20-%20Ecosystem%20%26%20Jev%20Audit.md) | ~12 KB | Audit del ecosistema de referencia: 20 repos "Jev" puntuados (script Context7Max) — "System One judgments" (modelo pequeño/barato para decisiones rápidas), per-turn routing, evidence-gated done, context sieve, compaction decisions, generative UI. + 23 referencias externas con destino por frente (Context7Max/anydoc → Phase 3, taste/design-md/archify → bundled skills, agency-agents/munder-difflin → Phase 4 Swarm). Priorización por dependencia — input de Phase 3+. |
+| 35 | [Ecosystem Round 7 Audit](./35%20-%20Ecosystem%20Round%207%20Audit.md) | ~13 KB | Round 7: Symlink toolset (mklink /j built-in + Junction Sysinternals — skills dir linking, portable inventory, sandbox npm), cloudflare/security-audit-skill (6 fases + 12 hunting classes + findings.json schema + validator zero-dep), mksglu/context-mode (FTS5/BM25 sandbox + session memory 26 categories — FTS5 search sobre journal_events + ContextBudget), ajeetdsouza/zoxide (frecency aging+ranking — navegación interna propia, crate rechazada 22 deps) + 12 hallazgos deep search multi-agente (22 URLs). Priorización Phase 8/9/10. |
 
-**Total: 31 RFCs, ~310 KB** de especificación.
+**Total: 32 RFCs, ~323 KB** de especificación.
 
 ---
 
