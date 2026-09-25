@@ -14,7 +14,7 @@ use rusqlite::Connection;
 /// log and must never be renumbered. When adding M(N+1): bump this const
 /// AND change the final migration's `params![N, …]` to
 /// `params![CURRENT_SCHEMA_VERSION, …]` (same value).
-pub const CURRENT_SCHEMA_VERSION: i64 = 30;
+pub const CURRENT_SCHEMA_VERSION: i64 = 31;
 
 pub fn migrate(conn: &Connection) -> Result<()> {
     // M0 — Schema versioning.
@@ -1477,10 +1477,76 @@ pub fn migrate(conn: &Connection) -> Result<()> {
         )?;
         conn.execute(
             "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![30, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
+    if current < 31 {
+        // M31 — RFC 35 Round 7 / research 36 SECTOR B sub-fase 8.0:
+        //
+        //   * `dir_access` — frecency de worktrees/missions (port del
+        //     algoritmo zoxide: aging + ranking, RFC 35 §5). Una fila por
+        //     dir (`dir` PK); `record_dir_access` hace UPSERT del
+        //     contador + `last_access` (live state como `step_states`
+        //     M11, NO first-write-wins: el contador debe converger al
+        //     uso real). El score (`count × decay`) se deriva en
+        //     `journal::frecency`, no se almacena.
+        //   * `journal_events_fts` — virtual table FTS5 sobre
+        //     `journal_events` (patrón context-mode, RFC 35 §4). Externa
+        //     (`content='journal_events'`) + triggers de sync + backfill
+        //     para DBs pre-8.0. Sin crates: `rusqlite` bundled ya trae
+        //     FTS5. Cuando el SQLite del host no trae FTS5 (compilación
+        //     sin `SQLITE_ENABLE_FTS5`) la parte FTS se omite y
+        //     `Journal::search_events` cae a LIKE — la migración nunca
+        //     falla por esto.
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS dir_access (
+                dir           TEXT PRIMARY KEY,
+                access_count  INTEGER NOT NULL DEFAULT 0,
+                last_access   TEXT NOT NULL,
+                created_at    TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_dir_access_last
+                ON dir_access(last_access);",
+        )?;
+        if fts5_available(conn) {
+            conn.execute_batch(
+                "CREATE VIRTUAL TABLE IF NOT EXISTS journal_events_fts
+                    USING fts5(kind, payload, event_id UNINDEXED,
+                               content='journal_events', content_rowid='id');
+
+                INSERT INTO journal_events_fts(rowid, kind, payload, event_id)
+                    SELECT id, kind, payload, event_id FROM journal_events
+                    WHERE id NOT IN (SELECT rowid FROM journal_events_fts);
+
+                CREATE TRIGGER IF NOT EXISTS journal_events_fts_ai
+                AFTER INSERT ON journal_events BEGIN
+                    INSERT INTO journal_events_fts(rowid, kind, payload, event_id)
+                    VALUES (new.id, new.kind, new.payload, new.event_id);
+                END;
+
+                CREATE TRIGGER IF NOT EXISTS journal_events_fts_ad
+                AFTER DELETE ON journal_events BEGIN
+                    INSERT INTO journal_events_fts(
+                        journal_events_fts, rowid, kind, payload, event_id)
+                    VALUES ('delete', old.id, old.kind, old.payload, old.event_id);
+                END;",
+            )?;
+        }
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
             rusqlite::params![CURRENT_SCHEMA_VERSION, chrono::Utc::now().to_rfc3339()],
         )?;
     }
     Ok(())
+}
+
+fn fts5_available(conn: &Connection) -> bool {
+    conn.query_row("SELECT sqlite_compileoption_used('ENABLE_FTS5')", [], |r| {
+        r.get::<_, i32>(0)
+    })
+    .map(|v| v != 0)
+    .unwrap_or(false)
 }
 
 fn table_has_column(conn: &Connection, table: &str, column: &str) -> bool {

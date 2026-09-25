@@ -234,6 +234,18 @@ pub struct DiffAnnotationRow {
     pub created_at: String,
 }
 
+/// Row projection of `dir_access` (M31) for the frecency navigation
+/// (research 36 sub-fase 8.0, RFC 35 §5 zoxide port). One row per
+/// recorded dir; the frecency score (`access_count × recency decay`)
+/// is derived by `Journal::frecency`, never stored.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DirAccessRow {
+    pub dir: String,
+    pub access_count: i64,
+    pub last_access: String,
+    pub created_at: String,
+}
+
 /// Row projection of `compaction_events` (M30) for the 5.3 System One
 /// compaction tail (`atlas learn summary`) and the HUD history panel.
 /// Append-only; one row per compaction of a mission's `journal_events`

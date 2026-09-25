@@ -50,6 +50,15 @@ pub enum SwarmAction {
         #[arg(long)]
         mark_read: bool,
     },
+    /// Jump to a mission/worktree dir by frecency rank (8.0 zoxide port).
+    Jump {
+        /// Prefix/substring filter over recorded dirs (empty = all).
+        #[arg(default_value = "")]
+        prefix: String,
+        /// Max matches to show.
+        #[arg(long, default_value_t = 10)]
+        limit: u32,
+    },
 }
 
 pub async fn run(cmd: SwarmCmd, profile: &str) -> Result<()> {
@@ -62,6 +71,7 @@ pub async fn run(cmd: SwarmCmd, profile: &str) -> Result<()> {
             unread_only,
             mark_read,
         } => show_inbox(&agent, unread_only, mark_read, profile),
+        SwarmAction::Jump { prefix, limit } => jump(&prefix, limit, profile),
     }
 }
 
@@ -176,6 +186,20 @@ fn show_inbox(agent: &str, unread_only: bool, mark_read: bool, profile: &str) ->
             }
         }
         println!("marked {marked} read");
+    }
+    Ok(())
+}
+
+fn jump(prefix: &str, limit: u32, profile: &str) -> Result<()> {
+    let journal = open_journal(profile)?;
+    let hits = journal.frecency(prefix, i64::from(limit))?;
+    if hits.is_empty() {
+        println!("no recorded dirs match {prefix:?} — dirs are recorded via Journal::record_dir_access on worktree/mission access");
+        return Ok(());
+    }
+    println!("jump {prefix:?} ({} matches):", hits.len());
+    for (dir, score) in &hits {
+        println!("  {score:8.2}  {dir}");
     }
     Ok(())
 }

@@ -1,4 +1,4 @@
-// Atlas OS — `atlas journal` tail command (RFC 19).
+// Atlas OS — `atlas journal` tail + full-text search (RFC 19, 8.0 FTS5).
 use anyhow::Result;
 use clap::Args;
 
@@ -10,14 +10,23 @@ pub struct JournalCmd {
     /// Filter by event kind.
     #[arg(short = 'k', long)]
     pub kind: Option<String>,
+    /// Full-text search over kind/payload (FTS5 + LIKE fallback, 8.0).
+    #[arg(short = 'q', long)]
+    pub query: Option<String>,
 }
 
 pub async fn run(cmd: JournalCmd, profile: &str) -> Result<()> {
     let pid = crate::profiles::ProfileId::new(profile);
     let root = crate::profiles::resolve_root(&pid)?;
     let journal = crate::journal::Journal::open(&root)?;
-    let entries = journal.tail(i64::from(cmd.last))?;
-    println!("journal [{pid}] (last {}):", entries.len());
+    let entries = match &cmd.query {
+        Some(q) => journal.search_events(q, i64::from(cmd.last))?,
+        None => journal.tail(i64::from(cmd.last))?,
+    };
+    match &cmd.query {
+        Some(q) => println!("journal [{pid}] search {q:?} ({} hits):", entries.len()),
+        None => println!("journal [{pid}] (last {}):", entries.len()),
+    }
     for e in entries {
         if let Some(filter) = &cmd.kind {
             if !e.kind.contains(filter) {

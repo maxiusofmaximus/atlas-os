@@ -6,6 +6,7 @@ pub mod agent_events;
 pub mod autoresearch;
 pub mod compaction;
 pub mod export;
+pub mod frecency;
 #[cfg(feature = "dag_mode")]
 pub mod learning_graphs;
 pub mod learning_rules;
@@ -14,6 +15,7 @@ pub mod mission_graph;
 pub mod model_resets;
 pub mod research;
 pub mod schema;
+pub mod search;
 pub mod store;
 pub mod swarm;
 pub mod user_profile;
@@ -37,8 +39,8 @@ pub use user_profile::{UserProfile, UserProfileError};
 
 pub use store::{
     AuditEntry, CheckpointRow, CompactionEventRow, ConsolidatedRow, DiffAnnotationRow, DiffRow,
-    JournalEntry, LearnedRuleRow, Mission, ModelSwapRow, PatternRow, PlanRow, RepairRunRow,
-    SkillRow, StepStateRow, ValidationReportRow, VerdictRow,
+    DirAccessRow, JournalEntry, LearnedRuleRow, Mission, ModelSwapRow, PatternRow, PlanRow,
+    RepairRunRow, SkillRow, StepStateRow, ValidationReportRow, VerdictRow,
 };
 
 /// RFC 04 §6 sub-fase 2.4 — one row of `model_invocations` (M21) as
@@ -355,6 +357,32 @@ impl Journal {
             }
         }
         Ok((out, total))
+    }
+
+    /// Full-text search over `journal_events` (research 36 sub-fase 8.0,
+    /// RFC 35 §4 context-mode pattern). FTS5 BM25-ranked when the M31
+    /// virtual table exists, LIKE fallback otherwise — never fails on
+    /// operator input. Backs `atlas journal --query`.
+    pub fn search_events(&self, query: &str, limit: i64) -> anyhow::Result<Vec<JournalEntry>> {
+        let conn = self.conn.lock();
+        search::search_events(&conn, query, limit)
+    }
+
+    /// Record one frecency access to `dir` (research 36 sub-fase 8.0,
+    /// RFC 35 §5 zoxide port). UPSERTs the `dir_access` counter; empty
+    /// dirs are rejected.
+    pub fn record_dir_access(&self, dir: &str) -> anyhow::Result<()> {
+        let conn = self.conn.lock();
+        let now = chrono::Utc::now().to_rfc3339();
+        frecency::record_dir_access(&conn, dir, &now)
+    }
+
+    /// Ranked `(dir, score)` frecency matches for `prefix` (research 36
+    /// sub-fase 8.0). Backs `atlas swarm jump <prefix>`.
+    pub fn frecency(&self, prefix: &str, limit: i64) -> anyhow::Result<Vec<(String, f64)>> {
+        let conn = self.conn.lock();
+        let now_ms = chrono::Utc::now().timestamp_millis();
+        frecency::frecency(&conn, prefix, now_ms, limit)
     }
 
     /// Tail the append-only audit log (RFC 24 §10). Phase 0 returns the raw
