@@ -10,6 +10,7 @@ pub mod compaction;
 pub mod compress;
 pub mod rules;
 pub mod runner;
+pub mod share;
 pub mod types;
 
 pub use compaction::{
@@ -24,6 +25,11 @@ pub use rules::{load_rule_file, pattern_from_yaml, pattern_to_yaml, write_rule_f
 pub use runner::{
     deprecate_stale, error_signature, promote_draft, promote_draft_with_threshold, reflect, run,
     should_deprecate, DEDUP_CONFIDENCE_BUMP, DEDUP_CONFIDENCE_CAP, PROMOTE_THRESHOLD,
+};
+pub use share::{
+    export_rules, file_checksum, import_rules, read_file_sidecar, verify_file_against_sidecar,
+    write_file_sidecar, ExportReport, ImportReport, SharedRule, SHARED_IMPORT_MODEL,
+    SHARE_FORBIDDEN, SHARE_VERSION,
 };
 pub use types::{
     LearnInput, LearnOutcome, Pattern, PatternMetrics, RuleLifecycle, RuleThen, RuleWhen,

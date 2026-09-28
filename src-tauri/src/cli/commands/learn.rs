@@ -1,5 +1,5 @@
 // Atlas OS — `atlas learn` Reflection Engine CLI (RFC 16 §2, RFC 32 Phase 5
-// sub-fases 5.1 + 5.3).
+// sub-fases 5.1 + 5.3, research/39 Phase 10 sub-fase 10.3 M40).
 //
 // Thin verbs over the Journal `learned_rules` (M30) writers that 5.0
 // materialised and 5.1 formalises, plus the System One compaction tail
@@ -15,6 +15,12 @@
 //     exceeds `COMPACTION_THRESHOLD` (rolling-window stub summary →
 //     `compaction_events`).
 //   * `summary` — print the latest compacted summary for a mission.
+//   * `export` — comparte reglas VERIFICADAS (`candidate`/`active`, 5.1)
+//     a YAML determinista + sidecar `<file>.checksum` (M40, research/39
+//     10.3). Solo lo verificado sale; drafts nunca se comparten.
+//   * `import` — valida la firma ANTES de parsear (Missing/Mismatch →
+//     Forbidden fail-safe, patrón `approval_for` 7.1) e importa con
+//     dedup por `rule_id` (first-write-wins, RFC 02 §3.1.2).
 
 use anyhow::Result;
 use clap::{Args, Subcommand};
@@ -65,6 +71,23 @@ pub enum LearnAction {
         /// Mission id (UUID string).
         mission_id: String,
     },
+    /// Export VERIFIED rules (`candidate`/`active`, 5.1) to a shareable
+    /// YAML file + `<FILE>.checksum` sidecar (M40, research/39 10.3).
+    /// Deterministic: same verified set → same bytes. Share both files
+    /// (e.g. via git); `import` refuses the YAML without its sidecar.
+    Export {
+        /// Destination YAML file to write.
+        #[arg(value_name = "FILE")]
+        file: String,
+    },
+    /// Import a shared rules file (M40). Verifies the `<FILE>.checksum`
+    /// signature BEFORE parsing (Missing/Mismatch → Forbidden) and
+    /// dedups by `rule_id` (first-write-wins: existing ids are skipped).
+    Import {
+        /// Shared YAML file to import (sidecar `<FILE>.checksum` required).
+        #[arg(value_name = "FILE")]
+        file: String,
+    },
 }
 
 pub async fn run(cmd: LearnCmd, profile: &str) -> Result<()> {
@@ -76,6 +99,8 @@ pub async fn run(cmd: LearnCmd, profile: &str) -> Result<()> {
             compact_mission(profile, &mission, threshold)
         }
         LearnAction::Summary { mission_id } => print_summary(profile, &mission_id),
+        LearnAction::Export { file } => export_rules_cmd(profile, &file),
+        LearnAction::Import { file } => import_rules_cmd(profile, &file),
     }
 }
 
@@ -155,5 +180,35 @@ fn print_summary(profile: &str, mission_id: &str) -> Result<()> {
         Some(summary) => println!("compacted summary for `{mission_id}`:\n  {summary}"),
         None => println!("(no compaction recorded yet for `{mission_id}`)"),
     }
+    Ok(())
+}
+
+fn export_rules_cmd(profile: &str, file: &str) -> Result<()> {
+    let journal = open_journal(profile)?;
+    let dest = std::path::PathBuf::from(file);
+    let report = crate::learning::export_rules(&journal, &dest)?;
+    let pid = crate::profiles::ProfileId::new(profile);
+    println!(
+        "exported {} verified rule(s) [{pid}] to {path} (checksum {sum})",
+        report.count,
+        path = report.path.display(),
+        sum = &report.checksum[..12.min(report.checksum.len())],
+    );
+    println!("next step: share both `{file}` and `{file}.checksum` via git/repo — `atlas learn import` verifies BEFORE parsing (M40)");
+    Ok(())
+}
+
+fn import_rules_cmd(profile: &str, file: &str) -> Result<()> {
+    let journal = open_journal(profile)?;
+    let src = std::path::PathBuf::from(file);
+    let report = crate::learning::import_rules(&journal, &src)?;
+    let pid = crate::profiles::ProfileId::new(profile);
+    println!(
+        "imported {imported} rule(s) [{pid}] from {path} ({dup} duplicate(s) skipped, {unv} unverified skipped)",
+        imported = report.imported,
+        path = report.path.display(),
+        dup = report.skipped_duplicate,
+        unv = report.skipped_unverified,
+    );
     Ok(())
 }

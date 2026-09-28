@@ -85,7 +85,7 @@ pub enum Commands {
     Audit(AuditCmd),
     /// Journal tail (RFC 19).
     Journal(JournalCmd),
-    /// Learning Engine rules — list, promote, deprecate (RFC 16 §2, RFC 32 Phase 5.1).
+    /// Learning Engine rules — list, promote, deprecate, export/import (RFC 16 §2, RFC 32 Phase 5.1, M40).
     Learn(LearnCmd),
     /// Research: live library docs via the docs gateway (Context7Max →
     /// Context7 MCP shape → official docs, always available), collective

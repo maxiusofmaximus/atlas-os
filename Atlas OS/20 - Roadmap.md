@@ -247,7 +247,7 @@ Entregable: razonamiento sobre AST y reglas de seguridad profundas.
 - Remixing de Skills entre usuarios.
 - Plugin de Learning social: compartir reglas verificado entre usuarios.
 
-Entregable: Atlas OS como **plataforma** (plan refinado: research `39`).
+Entregable: Atlas OS como **plataforma** (plan refinado: research `39`). **Phase 10 COMPLETA** — SDK (M37) + marketplace local firmado (M38) + remixing con provenance (M39) + learning social verificado (M40).
 
 ### Sub-fase 10.0 — Skill SDK público (scaffold) (M37)
 - `skills/sdk.rs`: `scaffold_skill` (template validado + manifest + skill.md stub). CLI: `atlas skill new <name>`.
@@ -259,8 +259,8 @@ Entregable: Atlas OS como **plataforma** (plan refinado: research `39`).
 ### Sub-fase 10.2 — Remixing de Skills (M39) (COMPLETO)
 - `skills/remix.rs`: `fork_skill(src, new_id, skills_dir)` — copia recursiva excluyendo `.checksum`, nueva id + versión reset `0.1.0` draft (`remixed_from` provenance patrón graph/ conserva el origen; reset = linaje fresco que re-verifica desde cero, desviación aceptada del bump patch), rollback en fallo. `manifest.rs` campo `remixed_from: Option<String>`. CLI: `atlas skill fork <PATH|REF> --name <new>`. Fix colateral: `learning/compress.rs::merge_manifests` propaga `remixed_from`. 6 tests (determinismo, provenance, drop-firma, src-inexistente fail-safe, id inválida, duplicado, cadena v1→v2→v3).
 
-### Sub-fase 10.3 — Learning social (M40)
-- `learning/share.rs`: `export_rules` (verificado 5.1) + `import_rules` (valida firma + dedup). CLI: `atlas learn export/import`.
+### Sub-fase 10.3 — Learning social (M40) (COMPLETO)
+- `learning/share.rs`: `export_rules` (solo verificado 5.1 `candidate`/`active`, YAML determinista ordenado por `id` + sidecar `<file>.checksum` SHA-256) + `import_rules` (verifica firma ANTES de parsear — Missing/Mismatch → `Forbidden` fail-safe patrón `approval_for` 7.1 — + dedup por `rule_id` first-write-wins RFC 02 §3.1.2 + solo `candidate`/`active`, resto → `skipped_unverified`). Sin migración (M30 ya guarda `when`/`then`/`lifecycle`/`priority`; `confidence` se deriva por banda + `model_id='shared-import'` como provenance). CLI: `atlas learn export <FILE>` / `atlas learn import <FILE>`. 9 tests (determinismo byte-a-byte, round-trip when/then/lifecycle/priority, dedup, tampered/missing sidecar, versión no soportada, skip no-verificado).
 
 ---
 
