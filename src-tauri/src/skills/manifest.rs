@@ -150,6 +150,12 @@ pub struct SkillManifest {
     /// RFC 06 §1 `home` — ruta local de la skill.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub home: Option<String>,
+    /// research/39 Phase 10.2 M39 — provenance del remixing (patrón
+    /// graph/ `Provenance`). `None` = skill original; `Some(id)` = fork
+    /// de `id` vía `fork_skill`. Se conserva en el fork para auditar el
+    /// origen antes de re-verificar el remix (lifecycle draft).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remixed_from: Option<String>,
 }
 
 impl SkillManifest {

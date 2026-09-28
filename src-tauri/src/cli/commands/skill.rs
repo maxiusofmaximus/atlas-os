@@ -37,6 +37,17 @@ pub enum SkillAction {
         #[arg(long)]
         engine: Option<String>,
     },
+    /// Fork a skill into a new id with `remixed_from` provenance (RFC 06 §5, Phase 10.2 M39).
+    /// The fork resets to lifecycle draft (`verified = false`) and drops
+    /// the `.checksum` signature — re-verify then `publish` before sharing.
+    Fork {
+        /// Local path to the skill dir, or an already-installed skill name.
+        #[arg(value_name = "PATH|REF")]
+        reference: String,
+        /// New skill id: [a-z0-9-_], 2..=64 chars, must start with [a-z].
+        #[arg(long, value_name = "NAME")]
+        name: String,
+    },
     Activate {
         agent_id: String,
         skill_id: String,
@@ -68,6 +79,7 @@ pub async fn run(cmd: SkillCmd, profile: &str) -> Result<()> {
         SkillAction::Install { name } => install_skill(profile, &name)?,
         SkillAction::Publish { dir } => publish_skill_cmd(profile, &dir)?,
         SkillAction::New { name, engine } => new_skill(profile, &name, engine.as_deref())?,
+        SkillAction::Fork { reference, name } => fork_skill_cmd(profile, &reference, &name)?,
         SkillAction::Activate { agent_id, skill_id } => println!(
             "(activate skill '{skill_id}' on agent '{agent_id}' not implemented — Phase 5 RFC 06)"
         ),
@@ -145,6 +157,38 @@ fn new_skill(profile: &str, name: &str, engine: Option<&str>) -> Result<()> {
         dir.display()
     );
     println!("  3. set verified = true only after X successful runs (RFC 06 §7)");
+    Ok(())
+}
+
+fn fork_skill_cmd(profile: &str, reference: &str, name: &str) -> Result<()> {
+    let pid = crate::profiles::ProfileId::new(profile);
+    let root = crate::profiles::resolve_root(&pid)?;
+    let skills_dir = root.join("skills");
+    let candidate = std::path::PathBuf::from(reference);
+    let src: std::path::PathBuf = if candidate.is_dir() {
+        candidate
+    } else {
+        skills_dir.join(reference)
+    };
+    let manifest = crate::skills::fork_skill(&src, name, &skills_dir)?;
+    let dir = skills_dir.join(&manifest.id);
+    println!(
+        "skill '{id}' forked from '{origin}' at {dir}",
+        id = manifest.id,
+        origin = manifest.remixed_from.as_deref().unwrap_or("?"),
+        dir = dir.display(),
+    );
+    println!("  version  : {}", manifest.version);
+    println!("  lifecycle: draft (verified = false — re-verify before promoting)");
+    println!("next steps:");
+    println!(
+        "  1. edit {}/SKILL.md (inputs/outputs/behavior)",
+        dir.display()
+    );
+    println!(
+        "  2. publish with `atlas skill publish {}` before sharing",
+        dir.display()
+    );
     Ok(())
 }
 

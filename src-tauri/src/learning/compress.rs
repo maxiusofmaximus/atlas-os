@@ -186,6 +186,7 @@ pub fn merge_manifests(keep: &SkillManifest, absorb: &SkillManifest) -> SkillMan
         author: pick_or(&keep.author, &absorb.author),
         license: pick_or(&keep.license, &absorb.license),
         home: keep.home.clone(),
+        remixed_from: keep.remixed_from.clone(),
     }
 }
 
