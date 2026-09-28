@@ -60,6 +60,18 @@ impl Engine {
             Self::Unspecified => "unspecified",
         }
     }
+
+    pub fn parse(raw: &str) -> anyhow::Result<Self> {
+        crate::skills::sdk::parse_engine(raw)
+    }
+}
+
+impl std::str::FromStr for Engine {
+    type Err = anyhow::Error;
+
+    fn from_str(raw: &str) -> Result<Self, Self::Err> {
+        crate::skills::sdk::parse_engine(raw)
+    }
 }
 
 /// RFC 06 §1 — el manifest completo de una skill. La estructura existe

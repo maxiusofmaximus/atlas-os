@@ -9,7 +9,9 @@ pub mod bundled;
 pub mod graph_loader;
 pub mod manifest;
 pub mod picker;
+pub mod sdk;
 
 pub use bundled::{load_bundled, BUNDLED_COUNT};
 pub use manifest::{load_skill, Engine, SkillGraph, SkillManifest};
 pub use picker::{pick_skills, ScoredSkill, DEFAULT_PICK_THRESHOLD};
+pub use sdk::{parse_engine, scaffold_skill, validate_skill_id};

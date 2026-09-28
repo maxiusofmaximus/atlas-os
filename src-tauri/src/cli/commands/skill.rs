@@ -17,6 +17,14 @@ pub enum SkillAction {
     Install {
         name: String,
     },
+    /// Scaffold a new skill (RFC 06 §1 template + SKILL.md stub, Phase 10.0 M37).
+    New {
+        /// Skill id: [a-z0-9-_], 2..=64 chars, must start with [a-z].
+        name: String,
+        /// Engine the skill routes to (RFC 06 §2). Defaults to `coding`.
+        #[arg(long)]
+        engine: Option<String>,
+    },
     Activate {
         agent_id: String,
         skill_id: String,
@@ -46,6 +54,7 @@ pub async fn run(cmd: SkillCmd, profile: &str) -> Result<()> {
     match cmd.action {
         SkillAction::List => list_skills(profile)?,
         SkillAction::Install { name } => install_skill(profile, &name)?,
+        SkillAction::New { name, engine } => new_skill(profile, &name, engine.as_deref())?,
         SkillAction::Activate { agent_id, skill_id } => println!(
             "(activate skill '{skill_id}' on agent '{agent_id}' not implemented — Phase 5 RFC 06)"
         ),
@@ -69,6 +78,34 @@ fn install_skill(profile: &str, name: &str) -> Result<()> {
     } else {
         println!("(install skill '{name}' not implemented — Phase 5 RFC 06)")
     }
+    Ok(())
+}
+
+fn new_skill(profile: &str, name: &str, engine: Option<&str>) -> Result<()> {
+    use std::str::FromStr;
+    let engine = match engine {
+        Some(raw) => crate::skills::Engine::from_str(raw)?,
+        None => crate::skills::Engine::Coding,
+    };
+    let pid = crate::profiles::ProfileId::new(profile);
+    let root = crate::profiles::resolve_root(&pid)?;
+    let skills_dir = root.join("skills");
+    let manifest = crate::skills::scaffold_skill(name, engine, &skills_dir)?;
+    let dir = skills_dir.join(&manifest.id);
+    println!("skill '{}' scaffolded at {}", manifest.id, dir.display());
+    println!("  engine   : {}", manifest.engine.tag());
+    println!("  version  : {}", manifest.version);
+    println!("  lifecycle: draft (verified = false)");
+    println!("next steps:");
+    println!(
+        "  1. edit {}/skill.toml (description/summary/priority)",
+        dir.display()
+    );
+    println!(
+        "  2. fill {}/SKILL.md (inputs/outputs/behavior)",
+        dir.display()
+    );
+    println!("  3. set verified = true only after X successful runs (RFC 06 §7)");
     Ok(())
 }
 
