@@ -14,8 +14,20 @@ pub struct SkillCmd {
 #[derive(Subcommand, Debug)]
 pub enum SkillAction {
     List,
+    /// Install a skill from a local path into the profile (RFC 06 §9, Phase 10.1 M38).
+    /// The source MUST carry a `.checksum` signature (7.0) — unsigned sources
+    /// are rejected fail-safe BEFORE any copy (patrón approval_for 7.1).
     Install {
+        /// Local path to the skill dir, or an already-installed skill name (verify-only).
+        #[arg(value_name = "PATH|REF")]
         name: String,
+    },
+    /// Sign a skill dir in place: writes the `.checksum` sidecar (RFC 18 §5).
+    /// Run this before sharing; `install` rejects unsigned dirs.
+    Publish {
+        /// Local path to the skill dir to sign.
+        #[arg(value_name = "DIR")]
+        dir: String,
     },
     /// Scaffold a new skill (RFC 06 §1 template + SKILL.md stub, Phase 10.0 M37).
     New {
@@ -54,6 +66,7 @@ pub async fn run(cmd: SkillCmd, profile: &str) -> Result<()> {
     match cmd.action {
         SkillAction::List => list_skills(profile)?,
         SkillAction::Install { name } => install_skill(profile, &name)?,
+        SkillAction::Publish { dir } => publish_skill_cmd(profile, &dir)?,
         SkillAction::New { name, engine } => new_skill(profile, &name, engine.as_deref())?,
         SkillAction::Activate { agent_id, skill_id } => println!(
             "(activate skill '{skill_id}' on agent '{agent_id}' not implemented — Phase 5 RFC 06)"
@@ -67,7 +80,19 @@ pub async fn run(cmd: SkillCmd, profile: &str) -> Result<()> {
 fn install_skill(profile: &str, name: &str) -> Result<()> {
     let pid = crate::profiles::ProfileId::new(profile);
     let root = crate::profiles::resolve_root(&pid)?;
-    let dir = root.join("skills").join(name);
+    let skills_dir = root.join("skills");
+    let candidate = std::path::PathBuf::from(name);
+    if candidate.is_dir() {
+        let installed = crate::skills::install_skill(&candidate, &skills_dir)?;
+        println!(
+            "skill '{id}' installed at {dest} (checksum {sum} OK)",
+            id = installed.manifest.id,
+            dest = installed.dest.display(),
+            sum = &installed.checksum[..12.min(installed.checksum.len())],
+        );
+        return Ok(());
+    }
+    let dir = skills_dir.join(name);
     if dir.is_dir() {
         crate::security::install_gate(&dir)?;
         let m = crate::skills::load_skill(&dir)?;
@@ -78,6 +103,20 @@ fn install_skill(profile: &str, name: &str) -> Result<()> {
     } else {
         println!("(install skill '{name}' not implemented — Phase 5 RFC 06)")
     }
+    Ok(())
+}
+
+fn publish_skill_cmd(_profile: &str, dir: &str) -> Result<()> {
+    let path = std::path::PathBuf::from(dir);
+    let checksum = crate::skills::publish_skill(&path)?;
+    let m = crate::skills::load_skill(&path)?;
+    println!(
+        "skill '{id}' signed at {dir} (checksum {sum})",
+        id = m.id,
+        dir = path.display(),
+        sum = &checksum[..12.min(checksum.len())],
+    );
+    println!("next step: share the dir via git/repo — `atlas skill install <path>` verifies BEFORE copy (RFC 18 §5)");
     Ok(())
 }
 

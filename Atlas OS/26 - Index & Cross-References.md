@@ -452,6 +452,7 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `SymbolConfidence` (`name`/`file`/`line`/`confidence`/`present` + `hover_for_symbol`/`diagnostic_for_symbol` + `who_owns`/`affects_where` sobre `ast_symbols`; base = Skill Picker relevance 8.1, presencia = 9.2; Phase 9 sub-fase 9.4 M36 ✅ std-only MVP sin DB nueva) | 03 §9.4; research `37` §B 9.4 |
 | `Dependency-cruiser arch rules` (dev-dep 18.4.0 + `.dependency-cruiser.cjs`: `lib/` no importa `routes/`, `stores/` no importa `components/`, `components/` no importa `routes/`, `lib/` no importa core Node-only — tests `*.test.ts` exentos; `pnpm arch`; Phase 9 sub-fase 9.3 M35 ✅) | 20 Fase 9; research `37` §B 9.3 |
 | `Skill refresh en caliente` | 24 §8.1 |
+| `Marketplace local firmado` (`install_skill` firma OBLIGATORIA pre-copy + `publish_skill` sidecar `.checksum`, `InstalledSkill`, `atlas skill install <path\|ref>`/`publish <dir>`, Phase 10 sub-fase 10.1 M38 ✅) | 06 §9; 18 §5; research `39` §B 10.1 |
 | `Skills as graph templates` (`graph.toml`, 4th skill file) | 23 §7.3; 28 §C |
 | `State DAG` (RFC 19 supervisor as DAG) | 19 §6.1.1; 28 §C |
 | `session/set_mode` override (ACP → SupervisorState) | 19 §6.1.2; 28 §B item 6 |

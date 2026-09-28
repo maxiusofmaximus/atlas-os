@@ -252,8 +252,9 @@ Entregable: Atlas OS como **plataforma** (plan refinado: research `39`).
 ### Sub-fase 10.0 — Skill SDK público (scaffold) (M37)
 - `skills/sdk.rs`: `scaffold_skill` (template validado + manifest + skill.md stub). CLI: `atlas skill new <name>`.
 
-### Sub-fase 10.1 — Marketplace con firma obligatoria (M38)
+### Sub-fase 10.1 — Marketplace con firma obligatoria (M38) (COMPLETO)
 - `skills/marketplace.rs`: `install_skill` (firma OBLIGATORIA 7.0, sin `.checksum` rechaza) + `publish_skill`. CLI: `atlas skill install`/`publish`.
+- `marketplace.rs` (`InstalledSkill` + `copy_dir_recursive` + rollback post-copy): `publish_skill(dir)` firma determinista (sidecar `.checksum` + self-check `verify_against_sidecar`); `install_skill(src, skills_dir)` verifica firma ANTES de copiar (Missing/Mismatch → `Forbidden`, fail-safe patrón supply_gate 7.3 + approval_for 7.1), rechaza duplicados y auto-instalación, rollback si el post-copy falla. CLI: `atlas skill install <path|ref>` (path → install firmado; nombre instalado → verify-only legacy) + `atlas skill publish <dir>`. 6 tests (sin firma rechaza, firmado copia, tampered rechaza, publish determinista, duplicado falla, source inexistente fail-safe). Marketplace LOCAL firmado, sin red (research/39 SECTOR C). clippy + fmt verdes; suite default 1032 tests verde.
 
 ### Sub-fase 10.2 — Remixing de Skills (M39)
 - `skills/remix.rs`: `fork_skill` (nueva id/versión + provenance `remixed_from` patrón graph/). CLI: `atlas skill fork`.
