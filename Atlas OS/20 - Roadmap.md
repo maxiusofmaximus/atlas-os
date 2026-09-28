@@ -241,13 +241,25 @@ Entregable: razonamiento sobre AST y reglas de seguridad profundas.
 ### Sub-fase 9.4 — LSP Confidence por símbolo (M36) (COMPLETO)
 - `lsp/confidence.rs` (`SymbolConfidence {name, file, line, confidence, present}` + `hover_for_symbol`/`diagnostic_for_symbol` + `who_owns`/`affects_where` sobre `ast_symbols`): hover/diagnostics exponen `Confidence` (fuente: Skill Picker relevance 8.1 como base + `confidence_for_symbol` 9.2 por presencia; sin DB nueva — consume M34). Tests: hover determinista, wiring relevance→confidence, failure-path sin datos (símbolo inválido, base no finita).
 
-## Fase 10 — Plataforma abierta
+## Fase 10 — Plataforma abierta (plan refinado: research `39`)
 - SDK público para escribir Skills.
 - Marketplace con firma obligatoria.
 - Remixing de Skills entre usuarios.
 - Plugin de Learning social: compartir reglas verificado entre usuarios.
 
-Entregable: Atlas OS como **plataforma**.
+Entregable: Atlas OS como **plataforma** (plan refinado: research `39`).
+
+### Sub-fase 10.0 — Skill SDK público (scaffold) (M37)
+- `skills/sdk.rs`: `scaffold_skill` (template validado + manifest + skill.md stub). CLI: `atlas skill new <name>`.
+
+### Sub-fase 10.1 — Marketplace con firma obligatoria (M38)
+- `skills/marketplace.rs`: `install_skill` (firma OBLIGATORIA 7.0, sin `.checksum` rechaza) + `publish_skill`. CLI: `atlas skill install`/`publish`.
+
+### Sub-fase 10.2 — Remixing de Skills (M39)
+- `skills/remix.rs`: `fork_skill` (nueva id/versión + provenance `remixed_from` patrón graph/). CLI: `atlas skill fork`.
+
+### Sub-fase 10.3 — Learning social (M40)
+- `learning/share.rs`: `export_rules` (verificado 5.1) + `import_rules` (valida firma + dedup). CLI: `atlas learn export/import`.
 
 ---
 
