@@ -215,6 +215,8 @@ Plan refinado en `Atlas OS/research/36 - Phase 8 UI v2 + ecosistema.md` (5 sub-f
 
 Entregable: ve el swarm desde el móvil/tablet, programa en vivo desde un PC thin accediendo a los recursos del servidor. **Phase 8 COMPLETA** — KPI: latencia end-to-end UI <100ms (RFC 20).
 
+**Lateral 8.6 (opcional, post-Phase 10 — RFC 38 §5):** `atlas mobile` (patrón 8.5) — detecta `google/artemis` (VERIFICADO: Apache-2.0, Python/uv, 99%+ AndroidWorld) en PATH y lanza la sesión de testing Android real (HUD mobile probado en dispositivo/emulador, MCP `mobile_run_task`/`mobile_diagnose` Logcat + screenshots); jamás bundling Python RFC 25 §11.
+
 ## Fase 9 — Mejoras profundas (plan refinado: research `37`)
 - Tree-sitter como lectura principal del Context Engine.
 - Semgrep + CodeQL como Validation stages.
