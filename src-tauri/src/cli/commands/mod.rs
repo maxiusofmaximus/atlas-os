@@ -9,6 +9,7 @@ pub mod journal;
 pub mod learn;
 pub mod mcp;
 pub mod mission;
+pub mod mobile;
 pub mod models;
 pub mod monitor;
 pub mod plan;
@@ -34,6 +35,7 @@ pub use journal::JournalCmd;
 pub use learn::LearnCmd;
 pub use mcp::McpCmd;
 pub use mission::MissionCmd;
+pub use mobile::MobileCmd;
 pub use models::ModelsCmd;
 pub use monitor::MonitorCmd;
 pub use plan::PlanCmd;
@@ -66,6 +68,7 @@ pub async fn dispatch(cmd: Commands, profile: &str) -> Result<()> {
         Commands::SwapModel(c) => swap_model::run(c, profile).await,
         Commands::Models(c) => models::run(c, profile).await,
         Commands::Monitor(c) => monitor::run(c, profile).await,
+        Commands::Mobile(c) => mobile::run(c, profile).await,
         Commands::Exec(c) => exec::run(c, profile).await,
         Commands::Hud(c) => hud::run(c, profile).await,
         Commands::Mcp(c) => mcp::run(c, profile).await,

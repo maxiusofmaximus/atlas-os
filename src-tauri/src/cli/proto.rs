@@ -8,9 +8,9 @@ use super::commands::ResearchCmd;
 #[cfg(feature = "toast")]
 use super::commands::ToastCmd;
 use super::commands::{
-    AuditCmd, ExecCmd, ForkCmd, HudCmd, JournalCmd, LearnCmd, McpCmd, MissionCmd, ModelsCmd,
-    MonitorCmd, PlanCmd, ProfileCmd, RemoteCmd, ResumeCmd, RunCmd, SecurityCmd, SisterCmd,
-    SkillCmd, SteerCmd, SwapModelCmd, SwarmCmd,
+    AuditCmd, ExecCmd, ForkCmd, HudCmd, JournalCmd, LearnCmd, McpCmd, MissionCmd, MobileCmd,
+    ModelsCmd, MonitorCmd, PlanCmd, ProfileCmd, RemoteCmd, ResumeCmd, RunCmd, SecurityCmd,
+    SisterCmd, SkillCmd, SteerCmd, SwapModelCmd, SwarmCmd,
 };
 #[derive(Parser, Debug)]
 #[command(name = "atlas", version, propagate_version = true)]
@@ -62,6 +62,8 @@ pub enum Commands {
     Models(ModelsCmd),
     /// VRAM/RAM/cost snapshot — prints + publishes `hardware_snapshot` (RFC 20 Phase 8.2).
     Monitor(MonitorCmd),
+    /// Mobile testing via external artemis (lateral Python/uv, never bundled) — status/guide/run (RFC 20 Fase 11.0).
+    Mobile(MobileCmd),
     /// LLM-driver Phase 2 entrypoints (RFC 27 §F).
     Exec(ExecCmd),
     /// HUD server control.
