@@ -292,16 +292,16 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 
 ## Fase 11 — Mobile testing (artemis lateral 8.6, RFC 38)
 
-### Sub-fase 11.0 — `atlas mobile` (M41)
-- `mobile/mod.rs` (patrón `remote/` 8.5): `find_artemis_in_path` + `ATLAS_ARTEMIS_REPO`/`ATLAS_ARTEMIS_BIN` + `spawn_session` (`uv run artemis run --profile flash|pro`) + `setup_steps()`. CLI: `atlas mobile status/guide/run [--task]`. Sin artemis/uv → mensaje útil.
+### Sub-fase 11.0 — `atlas mobile` (M41) (COMPLETO)
+- `mobile/mod.rs` (patrón `remote/` 8.5): `find_artemis_in_path` + `ATLAS_ARTEMIS_REPO`/`ATLAS_ARTEMIS_BIN` + `spawn_session` (`uv run artemis run --profile flash|pro`) + `setup_steps()`. CLI: `atlas mobile status/guide/run [--task]`. Sin artemis/uv → mensaje útil. 15 tests (1062).
 
 ### Sub-fase 11.1 — MCP wiring template (M42) ✅ IMPLEMENTADO
 - `mobile/mcp_template.rs`: template `.opencode/mcp.json` (5 tools tipados RFC 38 §2.1) + `atlas mobile mcp-template [--write --path --repo]`. Servidor stdio verificado `uv --directory <repo> run artemis mcp` (mcp_server/README) + alt `<venv-python> -m mcp_server`; merge preserva servidores existentes. **Validación del operador**: dispositivo físico — flujo artemis end-to-end.
 
-## Fase 12 — Distribución y red
+### Sub-fase 12.0 — Semgrep/CodeQL stages externos (M43) (COMPLETO)
+- `atlas validate --semgrep/--codeql` — detección en PATH + proceso externo + parse output → `AuditReport` (M32); no está → mensaje útil + skip fail-safe. 24 tests (1095).
 
-### Sub-fase 12.0 — Semgrep/CodeQL stages externos (M43)
-- `atlas validate --semgrep/--codeql` — detección en PATH + proceso externo + parse output → `AuditReport` (M32); no está → mensaje útil + skip fail-safe.
+## Fase 12 — Distribución y red (COMPLETA, sub-fases 12.0 → 12.2)
 
 ### Sub-fase 12.1 — Marketplace git-based (M44) (COMPLETO)
 - `skills/marketplace.rs`: `install_from_git(url, name, skills_dir)` — git CLI `clone --depth 1 -- <url>` (patrón swarm 4.0 `WorktreeManager`, `std::process::Command`, sin `git2`; `--` anti-option-injection) a `TempDir` + `resolve_skill_dir_in_clone` (raíz con `skill.toml` | `<name>/` | `skills/<name>/` | scan por manifest `id`) + `install_skill` (firma obligatoria 10.1 INTACTA: Missing/Mismatch → `Forbidden` + rollback, temp auto-limpia por `TempDir` drop). CLI: `atlas skill install <name> --from <git-url>`. 8 tests (root firmado, unsigned rechaza, tampered rechaza, subdir selector, unknown lista disponibles, repo inválido fail-safe sin instalar, option-injection + URL vacía). Sin crates nuevas (`tempfile` ya en deps). Suite default 1103 verde; clippy `-D warnings` limpio.

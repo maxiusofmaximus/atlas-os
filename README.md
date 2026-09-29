@@ -167,7 +167,10 @@ cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- journal -n 10
 
 - **Phase 10 — Plataforma abierta** (sub-fases 10.0→10.3, M37-M40): Skill SDK público (`atlas skill new` + `validate_skill_id` RFC 06 §1), marketplace local firmado (`atlas skill install` firma OBLIGATORIA + `atlas skill publish`), remixing de skills (`atlas skill fork` + `remixed_from` provenance), learning social (`atlas learn export/import` reglas firmadas + dedup). ✅
 
-**ROADMAP v1 COMPLETO** (Phases 0-10, 33 RFCs, 1047 tests Rust + 67 frontend). Siguiente: Roadmap v2 (mobile testing surface con google/artemis lateral 8.6, marketplace remoto, Laya real post-audit, iOS).
+- **Phase 11 — Mobile testing** (sub-fases 11.0→11.1, M41-M42): `atlas mobile status/guide/run` (artemis lateral Python/uv, jamás bundling — RFC 38) + MCP template (`atlas mobile mcp-template [--write]` — 5 tools tipados, merge preserva servidores). Validación del operador: dispositivo físico Android. ✅
+- **Phase 12 — Distribución y red** (sub-fases 12.0→12.2, M43-M45): Semgrep/CodeQL stages externos (`atlas validate --semgrep/--codeql` → `AuditReport`, fail-safe), marketplace git-based (`atlas skill install <name> --from <git-url>`, firma obligatoria intacta), cleanup preexistente (hud gating `--no-default-features` 37 errores → 0, flaky selfdiscover serializado, bundled gates, ort-sys ICE documentado). ✅
+
+**ROADMAP v1 COMPLETO** (Phases 0-10, 33 RFCs, 1103 tests Rust + 67 frontend). **Roadmap v2 en curso**: Phase 11 (mobile testing ✅) + Phase 12 (distribución ✅) completas — **Phase 13 (Laya real) BLOQUEADA upstream** hasta que el crate `laya` madure (criterio: >0.2.x o mantenedores ≥2).
 
 ## License
 
