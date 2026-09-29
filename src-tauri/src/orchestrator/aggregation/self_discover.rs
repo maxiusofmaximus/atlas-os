@@ -177,6 +177,9 @@ mod tests {
     use super::*;
     use crate::orchestrator::aggregation::AggregationMode;
 
+    static SERIAL: std::sync::LazyLock<tokio::sync::Mutex<()>> =
+        std::sync::LazyLock::new(|| tokio::sync::Mutex::new(()));
+
     fn ctx_for<'a>(
         mode: &'a AggregationMode,
         frame: &'a crate::orchestrator::idempotency::RequestFrame,
@@ -194,6 +197,7 @@ mod tests {
 
     #[tokio::test]
     async fn selfdiscover_first_call_creates_skeleton() {
+        let _guard = SERIAL.lock().await;
         reset_cache_for_tests();
         let mode = AggregationMode::SelfDiscover { cache_ttl_secs: 60 };
         let frame = crate::orchestrator::idempotency::RequestFrame::new();
@@ -207,6 +211,7 @@ mod tests {
 
     #[tokio::test]
     async fn selfdiscover_second_call_reuses_skeleton() {
+        let _guard = SERIAL.lock().await;
         reset_cache_for_tests();
         let mode = AggregationMode::SelfDiscover { cache_ttl_secs: 60 };
         let frame = crate::orchestrator::idempotency::RequestFrame::new();
@@ -228,6 +233,7 @@ mod tests {
 
     #[tokio::test]
     async fn selfdiscover_cache_key_collision_avoidance() {
+        let _guard = SERIAL.lock().await;
         reset_cache_for_tests();
         let mode = AggregationMode::SelfDiscover { cache_ttl_secs: 60 };
         let frame = crate::orchestrator::idempotency::RequestFrame::new();

@@ -467,6 +467,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "bundled-skills")]
     fn apply_skips_bundled_absorb_without_deprecated_marker() {
         let dir = tempfile::TempDir::new().unwrap();
         let skills_dir = dir.path().join("skills");

@@ -12,6 +12,7 @@ use std::sync::Arc;
 
 use atlas_os::AppState;
 use tauri::Manager;
+#[cfg(feature = "hud")]
 use tokio_util::sync::CancellationToken;
 use tracing_subscriber::EnvFilter;
 
@@ -44,10 +45,14 @@ pub fn run() {
     // Cancellation token shared with the HUD thread so the Tauri
     // window-close path can trigger axum graceful shutdown and the HUD
     // runtime can join cleanly before process exit (RFC 25 §2, RFC 19).
+    #[cfg(feature = "hud")]
     let hud_shutdown = CancellationToken::new();
 
+    #[cfg(feature = "hud")]
     let hud_state = Arc::clone(&state);
+    #[cfg(feature = "hud")]
     let hud_shutdown_clone = hud_shutdown.clone();
+    #[cfg(feature = "hud")]
     let hud_handle = std::thread::Builder::new()
         .name("oc-hud".into())
         .spawn(move || {
@@ -95,6 +100,7 @@ pub fn run() {
             // Trigger HUD graceful shutdown when the main window closes.
             if let tauri::WindowEvent::CloseRequested { .. } = event {
                 tracing::info!("window closed; signalling HUD shutdown");
+                #[cfg(feature = "hud")]
                 hud_shutdown.cancel();
                 let _ = window.app_handle().try_state::<Arc<AppState>>();
             }
@@ -110,6 +116,7 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("Tauri shell failed to start");
 
+    #[cfg(feature = "hud")]
     let _ = hud_handle.join();
 }
 

@@ -89,8 +89,13 @@ pnpm check        # svelte-check + svelte-kit sync
 Rust typecheck / strict build:
 
 ```bash
-cargo check --manifest-path src-tauri/Cargo.toml --all-features
+cargo check --manifest-path src-tauri/Cargo.toml
+cargo check --manifest-path src-tauri/Cargo.toml --no-default-features --features "tauri,cli"
 ```
+
+> **NOTA (M45):** no usar `--all-features` en Windows con rustc 1.96:
+> `ort-sys` (vía `fastembed`) provoca un ICE del compilador, no fixeable
+> desde este repo (ver `docs/adr/0002-sqlite-and-sqlite-vec.md`).
 
 ### Test
 
@@ -104,7 +109,7 @@ pnpm test:watch
 Rust (when sources exist):
 
 ```bash
-cargo test --manifest-path src-tauri/Cargo.toml --all-features
+cargo test --manifest-path src-tauri/Cargo.toml --lib
 ```
 
 ### Run / develop

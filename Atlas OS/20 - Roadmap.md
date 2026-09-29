@@ -306,8 +306,12 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 ### Sub-fase 12.1 — Marketplace git-based (M44) (COMPLETO)
 - `skills/marketplace.rs`: `install_from_git(url, name, skills_dir)` — git CLI `clone --depth 1 -- <url>` (patrón swarm 4.0 `WorktreeManager`, `std::process::Command`, sin `git2`; `--` anti-option-injection) a `TempDir` + `resolve_skill_dir_in_clone` (raíz con `skill.toml` | `<name>/` | `skills/<name>/` | scan por manifest `id`) + `install_skill` (firma obligatoria 10.1 INTACTA: Missing/Mismatch → `Forbidden` + rollback, temp auto-limpia por `TempDir` drop). CLI: `atlas skill install <name> --from <git-url>`. 8 tests (root firmado, unsigned rechaza, tampered rechaza, subdir selector, unknown lista disponibles, repo inválido fail-safe sin instalar, option-injection + URL vacía). Sin crates nuevas (`tempfile` ya en deps). Suite default 1103 verde; clippy `-D warnings` limpio.
 
-### Sub-fase 12.2 — Cleanup preexistente (M45)
-- hud gating (`--no-default-features` sin `hud`), flaky selfdiscover, ort-sys ICE documentado.
+### Sub-fase 12.2 — Cleanup preexistente (M45) (COMPLETO)
+- `lib.rs`: `pub mod hud` tras `#[cfg(feature = "hud")]` + `main.rs` thread/join/cancel gateados — `--no-default-features --features "tauri,cli"` compila (37 errores → 0).
+- Flaky `selfdiscover_first_call_creates_skeleton`: serialización determinista vía `SERIAL: LazyLock<tokio::sync::Mutex<()>>` en los 3 tests async del `SKELETON_CACHE` estático (misma key hardcodeada); semántica productiva intacta, sin `#[ignore]`, sin crates nuevas.
+- 6 tests bundled (`skills/bundled` ×4, `signature` ×1, `compress` ×1) tras `#[cfg(feature = "bundled-skills")]` — build mínimo verde.
+- ort-sys ICE documentado: NOTA M45 en README + AGENTS (no `--all-features` en Windows rustc 1.96, no fixeable desde el repo, ver `docs/adr/0002-sqlite-and-sqlite-vec.md`).
+- Suite default 1103 verde; build mínimo 1060 verde; clippy `-D warnings` limpio en ambas configs. Nota: `swarm::rebase` git-shell flakea ~1/7 runs (preexistente, fuera de M45).
 
 ## Fase 13 — Laya real (BLOQUEADO upstream)
 - **Criterio de re-audit:** `laya` >0.2.x o mantenedores ≥2 o fix de rand/tokenizers. Entonces: candle inference real detrás de la gate + compaction wiring (5.3) + winnow. NO delegar hasta cumplir el criterio.

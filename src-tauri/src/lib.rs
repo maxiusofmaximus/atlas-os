@@ -12,6 +12,7 @@ pub mod core;
 #[cfg(feature = "firecrawl")]
 pub mod firecrawl;
 pub mod graph;
+#[cfg(feature = "hud")]
 pub mod hud;
 pub mod journal;
 pub mod learning;

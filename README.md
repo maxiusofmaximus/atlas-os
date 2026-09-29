@@ -139,11 +139,16 @@ cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- journal -n 10
 
 | Target     | Command                                                                          |
 | ---------- | -------------------------------------------------------------------------------- |
-| Rust check | `cargo check --manifest-path src-tauri/Cargo.toml --all-features`                |
+| Rust check | `cargo check --manifest-path src-tauri/Cargo.toml`                               |
 | Rust lint  | `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings` |
 | Rust fmt   | `cargo fmt --manifest-path src-tauri/Cargo.toml --check`                         |
 | Rust test  | `cargo test --manifest-path src-tauri/Cargo.toml --lib`                          |
 | Frontend   | `pnpm check && pnpm lint && pnpm test`                                           |
+
+> **NOTA (M45):** `cargo check/test --all-features` no se usa en Windows con
+> toolchain rustc 1.96: `ort-sys` (vía `fastembed`) provoca un ICE del
+> compilador, no fixeable desde este repo (ver `docs/adr/0002-sqlite-and-sqlite-vec.md`).
+> Cobertura de features: build default + `cargo check --no-default-features --features "tauri,cli"`.
 
 ## Status
 

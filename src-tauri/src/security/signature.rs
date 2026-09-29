@@ -215,6 +215,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "bundled-skills")]
     fn bundled_catalog_checksum_is_stable() {
         let manifests = crate::skills::bundled::bundled_manifests().unwrap();
         assert_eq!(manifests.len(), crate::skills::BUNDLED_COUNT);

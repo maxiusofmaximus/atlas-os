@@ -58,6 +58,7 @@ mod tests {
     use crate::skills::Engine;
 
     #[test]
+    #[cfg(feature = "bundled-skills")]
     fn bundled_catalog_parses_all_fifteen() {
         let manifests = bundled_manifests().unwrap();
         assert_eq!(manifests.len(), BUNDLED_COUNT);
@@ -86,6 +87,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "bundled-skills")]
     fn bundled_manifests_carry_full_rfc06_fields() {
         let manifests = bundled_manifests().unwrap();
         for m in &manifests {
@@ -107,6 +109,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "bundled-skills")]
     fn bundled_ui_pair_conflicts_both_ways_in_graph() {
         let mut graph = SkillGraph::new();
         let loaded = load_bundled(&mut graph).unwrap();
@@ -119,6 +122,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "bundled-skills")]
     fn compliance_skills_route_to_security_engine() {
         let manifests = bundled_manifests().unwrap();
         for id in ["atlas-owasp-check", "atlas-gdpr-check", "atlas-hipaa-check"] {
