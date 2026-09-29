@@ -19,8 +19,14 @@ pub enum SkillAction {
     /// are rejected fail-safe BEFORE any copy (patrón approval_for 7.1).
     Install {
         /// Local path to the skill dir, or an already-installed skill name (verify-only).
+        /// With `--from`, the skill name (or subdir) to pick inside the cloned repo.
         #[arg(value_name = "PATH|REF")]
         name: String,
+        /// Clone a git repo shallow (`git clone --depth 1`, patron swarm 4.0)
+        /// and install the skill from it. The firma obligatoria 10.1 stays
+        /// INTACTA: unsigned/tampered clones are rejected BEFORE any copy.
+        #[arg(long, value_name = "GIT-URL")]
+        from: Option<String>,
     },
     /// Sign a skill dir in place: writes the `.checksum` sidecar (RFC 18 §5).
     /// Run this before sharing; `install` rejects unsigned dirs.
@@ -76,7 +82,7 @@ pub enum SkillAction {
 pub async fn run(cmd: SkillCmd, profile: &str) -> Result<()> {
     match cmd.action {
         SkillAction::List => list_skills(profile)?,
-        SkillAction::Install { name } => install_skill(profile, &name)?,
+        SkillAction::Install { name, from } => install_skill(profile, &name, from.as_deref())?,
         SkillAction::Publish { dir } => publish_skill_cmd(profile, &dir)?,
         SkillAction::New { name, engine } => new_skill(profile, &name, engine.as_deref())?,
         SkillAction::Fork { reference, name } => fork_skill_cmd(profile, &reference, &name)?,
@@ -89,10 +95,20 @@ pub async fn run(cmd: SkillCmd, profile: &str) -> Result<()> {
     Ok(())
 }
 
-fn install_skill(profile: &str, name: &str) -> Result<()> {
+fn install_skill(profile: &str, name: &str, from: Option<&str>) -> Result<()> {
     let pid = crate::profiles::ProfileId::new(profile);
     let root = crate::profiles::resolve_root(&pid)?;
     let skills_dir = root.join("skills");
+    if let Some(url) = from {
+        let installed = crate::skills::install_from_git(url, name, &skills_dir)?;
+        println!(
+            "skill '{id}' installed at {dest} via git {url} (checksum {sum} OK)",
+            id = installed.manifest.id,
+            dest = installed.dest.display(),
+            sum = &installed.checksum[..12.min(installed.checksum.len())],
+        );
+        return Ok(());
+    }
     let candidate = std::path::PathBuf::from(name);
     if candidate.is_dir() {
         let installed = crate::skills::install_skill(&candidate, &skills_dir)?;

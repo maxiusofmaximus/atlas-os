@@ -303,8 +303,8 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 ### Sub-fase 12.0 — Semgrep/CodeQL stages externos (M43)
 - `atlas validate --semgrep/--codeql` — detección en PATH + proceso externo + parse output → `AuditReport` (M32); no está → mensaje útil + skip fail-safe.
 
-### Sub-fase 12.1 — Marketplace git-based (M44)
-- `install_from_git` (git CLI clone shallow, patrón swarm 4.0) + firma obligatoria 10.1 INTACTA. CLI: `atlas skill install <name> --from <git-url>`.
+### Sub-fase 12.1 — Marketplace git-based (M44) (COMPLETO)
+- `skills/marketplace.rs`: `install_from_git(url, name, skills_dir)` — git CLI `clone --depth 1 -- <url>` (patrón swarm 4.0 `WorktreeManager`, `std::process::Command`, sin `git2`; `--` anti-option-injection) a `TempDir` + `resolve_skill_dir_in_clone` (raíz con `skill.toml` | `<name>/` | `skills/<name>/` | scan por manifest `id`) + `install_skill` (firma obligatoria 10.1 INTACTA: Missing/Mismatch → `Forbidden` + rollback, temp auto-limpia por `TempDir` drop). CLI: `atlas skill install <name> --from <git-url>`. 8 tests (root firmado, unsigned rechaza, tampered rechaza, subdir selector, unknown lista disponibles, repo inválido fail-safe sin instalar, option-injection + URL vacía). Sin crates nuevas (`tempfile` ya en deps). Suite default 1103 verde; clippy `-D warnings` limpio.
 
 ### Sub-fase 12.2 — Cleanup preexistente (M45)
 - hud gating (`--no-default-features` sin `hud`), flaky selfdiscover, ort-sys ICE documentado.

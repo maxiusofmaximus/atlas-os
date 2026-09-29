@@ -15,7 +15,9 @@ pub mod sdk;
 
 pub use bundled::{load_bundled, BUNDLED_COUNT};
 pub use manifest::{load_skill, Engine, SkillGraph, SkillManifest};
-pub use marketplace::{install_skill, publish_skill, InstalledSkill};
+pub use marketplace::{
+    git_available, install_from_git, install_skill, publish_skill, InstalledSkill,
+};
 pub use picker::{pick_skills, ScoredSkill, DEFAULT_PICK_THRESHOLD};
 pub use remix::{fork_skill, REMIX_TEMPLATE_VERSION};
 pub use sdk::{parse_engine, scaffold_skill, validate_skill_id};

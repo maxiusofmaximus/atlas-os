@@ -459,6 +459,7 @@ Para ubicar dónde definir/clavar un concepto sin buscar desde cero.
 | `Learning social` (`learning/share.rs`: `export_rules` solo verificado 5.1 `candidate`/`active` a YAML determinista + sidecar `<file>.checksum` SHA-256 + `import_rules` firma OBLIGATORIA pre-parse (Missing/Mismatch → Forbidden) + dedup `rule_id` first-write-wins + `atlas learn export/import <FILE>`, sin migración M30; Phase 10 sub-fase 10.3 M40 ✅) | 20 Fase 10; research `39` §B 10.3 |
 | `Skill refresh en caliente` | 24 §8.1 |
 | `Marketplace local firmado` (`install_skill` firma OBLIGATORIA pre-copy + `publish_skill` sidecar `.checksum`, `InstalledSkill`, `atlas skill install <path\|ref>`/`publish <dir>`, Phase 10 sub-fase 10.1 M38 ✅) | 06 §9; 18 §5; research `39` §B 10.1 |
+| `Marketplace git-based` (`skills/marketplace.rs`: `install_from_git` git CLI `clone --depth 1 --` patrón swarm 4.0 + `resolve_skill_dir_in_clone` (raíz/`<name>`/`skills/<name>`/scan por id) + firma 10.1 INTACTA + temp auto-limpia + `atlas skill install <name> --from <git-url>`, sin servidor central; Fase 12 sub-fase 12.1 M44 ✅) | 20 Fase 12; research `40` §B 12.1 |
 | `Skills as graph templates` (`graph.toml`, 4th skill file) | 23 §7.3; 28 §C |
 | `State DAG` (RFC 19 supervisor as DAG) | 19 §6.1.1; 28 §C |
 | `session/set_mode` override (ACP → SupervisorState) | 19 §6.1.2; 28 §B item 6 |
