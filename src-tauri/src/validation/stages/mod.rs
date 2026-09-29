@@ -10,6 +10,7 @@ pub mod iac;
 pub mod layer_boundary;
 pub mod lint_format;
 pub mod security_scan;
+pub mod static_analysis;
 pub mod supply_chain;
 pub mod type_check;
 pub mod unit_tests;

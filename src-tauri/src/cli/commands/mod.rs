@@ -26,6 +26,7 @@ pub mod swap_model;
 pub mod swarm;
 #[cfg(feature = "toast")]
 pub mod toast;
+pub mod validate;
 
 pub use audit::AuditCmd;
 pub use exec::ExecCmd;
@@ -52,6 +53,7 @@ pub use swap_model::SwapModelCmd;
 pub use swarm::SwarmCmd;
 #[cfg(feature = "toast")]
 pub use toast::ToastCmd;
+pub use validate::ValidateCmd;
 
 use anyhow::Result;
 
@@ -79,6 +81,7 @@ pub async fn dispatch(cmd: Commands, profile: &str) -> Result<()> {
         Commands::Profile(c) => profile::run(c, profile).await,
         Commands::Remote(c) => remote::run(c, profile).await,
         Commands::Audit(c) => audit::run(c, profile).await,
+        Commands::Validate(c) => validate::run(c, profile).await,
         Commands::Journal(c) => journal::run(c, profile).await,
         Commands::Learn(c) => learn::run(c, profile).await,
         Commands::Research(c) => research::run(c, profile).await,

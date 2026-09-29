@@ -10,7 +10,7 @@ use super::commands::ToastCmd;
 use super::commands::{
     AuditCmd, ExecCmd, ForkCmd, HudCmd, JournalCmd, LearnCmd, McpCmd, MissionCmd, MobileCmd,
     ModelsCmd, MonitorCmd, PlanCmd, ProfileCmd, RemoteCmd, ResumeCmd, RunCmd, SecurityCmd,
-    SisterCmd, SkillCmd, SteerCmd, SwapModelCmd, SwarmCmd,
+    SisterCmd, SkillCmd, SteerCmd, SwapModelCmd, SwarmCmd, ValidateCmd,
 };
 #[derive(Parser, Debug)]
 #[command(name = "atlas", version, propagate_version = true)]
@@ -77,6 +77,8 @@ pub enum Commands {
     Sister(SisterCmd),
     /// Security supply-chain install gate (RFC 18 §4).
     Security(SecurityCmd),
+    /// Static analysis via external Semgrep/CodeQL (lateral, never bundled) — --semgrep/--codeql (RFC 20 Fase 12.0).
+    Validate(ValidateCmd),
     /// Swarm role presets — list and spawn (RFC 05 Phase 4.1).
     Swarm(SwarmCmd),
     /// Remote-live dual-PC via external RustDesk (lateral AGPL) + Nate Gentile model (RFC 20 Phase 8.5).
