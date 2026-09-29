@@ -316,5 +316,16 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 ## Fase 13 — Laya real (BLOQUEADO upstream)
 - **Criterio de re-audit:** `laya` >0.2.x o mantenedores ≥2 o fix de rand/tokenizers. Entonces: candle inference real detrás de la gate + compaction wiring (5.3) + winnow. NO delegar hasta cumplir el criterio.
 
+## Fase 14 — Mobile companion + MaxAppsHub (RFC 41, plan research/40 extensión)
+
+### Sub-fase 14.0 — Tauri Android build (M46)
+- `tauri.conf.json` applicationId `com.maxapps.atlas` + `tauri android init` + build APK (JAVA_HOME Adoptium JDK 17 + ANDROID_HOME SDK). Toolchain verificado (RFC 41 §3).
+
+### Sub-fase 14.1 — GitHub Release del APK (M47)
+- `gh release create v0.1.0-android <apk>` — el APK firmado (debug keystore MVP) en Releases del repo atlas-os.
+
+### Sub-fase 14.2 — MaxAppsHub AppRegistry entry + validación física (M48)
+- `ManagedApp` en `data/AppRegistry.kt` del repo MaxAppsHub (packageId `com.maxapps.atlas` + repo atlas-os) + validación física: launcher instala/actualiza Atlas en el Android + `atlas mobile run` prueba la app con artemis.
+
 ## Out of scope v2
 - iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).
