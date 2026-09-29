@@ -296,7 +296,7 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - `mobile/mod.rs` (patrón `remote/` 8.5): `find_artemis_in_path` + `ATLAS_ARTEMIS_REPO`/`ATLAS_ARTEMIS_BIN` + `spawn_session` (`uv run artemis run --profile flash|pro`) + `setup_steps()`. CLI: `atlas mobile status/guide/run [--task]`. Sin artemis/uv → mensaje útil. 15 tests (1062).
 
 ### Sub-fase 11.1 — MCP wiring template (M42) ✅ IMPLEMENTADO
-- `mobile/mcp_template.rs`: template `.opencode/mcp.json` (5 tools tipados RFC 38 §2.1) + `atlas mobile mcp-template [--write --path --repo]`. Servidor stdio verificado `uv --directory <repo> run artemis mcp` (mcp_server/README) + alt `<venv-python> -m mcp_server`; merge preserva servidores existentes. **Validación del operador**: dispositivo físico — flujo artemis end-to-end.
+- `mobile/mcp_template.rs`: template `.opencode/mcp.json` (5 tools tipados RFC 38 §2.1) + `atlas mobile mcp-template [--write --path --repo]`. Servidor stdio verificado `uv --directory <repo> run artemis mcp` (mcp_server/README) + alt `<venv-python> -m mcp_server`; merge preserva servidores existentes. **Validación del operador: ✅ VALIDADA FÍSICAMENTE (Sep 2026)** — dispositivo TECNO KI7 real por **depuración inalámbrica** (`192.168.50.95:45475`, 1080x2460, UIAutomator2): `atlas mobile run --task "Abre Settings, ve a Battery y dime el nivel actual" --profile flash` → artemis Daemon (localhost:8000) → tarea **completed** (~228s, primera corrida con startup del daemon). Repo `C:\Users\Max\artemis` vía `ATLAS_ARTEMIS_REPO`.
 
 ### Sub-fase 12.0 — Semgrep/CodeQL stages externos (M43) (COMPLETO)
 - `atlas validate --semgrep/--codeql` — detección en PATH + proceso externo + parse output → `AuditReport` (M32); no está → mensaje útil + skip fail-safe. 24 tests (1095).

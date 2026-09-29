@@ -74,5 +74,5 @@ Plan atómico para el Roadmap v2 de Atlas OS — post-ROADMAP v1 COMPLETO (Phase
 1. Commit de este plan + RFC 20 (Fases 11-13) + Index 26.
 2. Sub-fase 11.0 (delegada a muse-spark-1.3, zero-dep) → revisar → commit → push.
 3. Sub-fases 11.1, 12.0, 12.1, 12.2 (todas zero-dep, patrón std-only/lateral).
-4. **Validación del operador**: dispositivo Android físico con USB debugging — flujo artemis end-to-end tras 11.0/11.1.
+4. **Validación del operador**: ✅ VALIDADA FÍSICAMENTE (Sep 2026) — dispositivo TECNO KI7 real por **depuración inalámbrica** (`192.168.50.95:45475`, UIAutomator2): `atlas mobile run --task "Abre Settings, ve a Battery y dime el nivel actual" --profile flash` → artemis Daemon → tarea **completed** (~228s primera corrida). Flujo confirmado end-to-end: `atlas mobile` (11.0) → artemis → dispositivo real → done.
 5. Phase 13 solo cuando el criterio de re-audit de laya se cumpla.

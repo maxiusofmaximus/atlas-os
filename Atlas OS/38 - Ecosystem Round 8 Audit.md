@@ -39,6 +39,8 @@ ADB, scrcpy, FFmpeg, Python (`uv`) — detecta y auto-instala. **Artemis Accessi
 
 ## 3. Cómo ayuda a Atlas OS
 
+**VALIDACIÓN FÍSICA REALIZADA (Sep 2026)**: dispositivo TECNO KI7 real por **depuración inalámbrica** (`192.168.50.95:45475`, 1080x2460, UIAutomator2) — `atlas mobile run --task "Abre Settings, ve a Battery y dime el nivel actual" --profile flash` → artemis Daemon (localhost:8000) → **tarea completed** (~228s primera corrida con startup del daemon). El flujo Atlas OS → artemis → Android real está CONFIRMADO end-to-end (RFC 40 §D).
+
 1. **Testing de funcionalidad en Android real**: KPIs de Atlas OS (latencia UI <100ms, alucinaciones ≤1/100 diffs) verificables en dispositivo/emulador real — el HUD móvil de RFC 24 (remote accesible desde cualquier dispositivo) se prueba con artemis en vez de manualmente.
 2. **Integración LATERAL** (patrón 8.5 RustDesk): Atlas OS detecta `artemis`/`uv` en PATH y lanza la sesión externa (`std::process::Command` — jamás link/bundle, es Python RFC 25 §11); `ATLAS_ARTEMIS_BIN` env override. Sin artemis → mensaje útil.
 3. **Adopción de patrones (ya materializada en Atlas OS)**:
