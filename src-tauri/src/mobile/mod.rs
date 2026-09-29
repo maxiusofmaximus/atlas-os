@@ -14,6 +14,8 @@
 // launch rides `std::process::Command`, output is plain strings for
 // the CLI print path.
 
+pub mod mcp_template;
+
 use std::env;
 use std::path::PathBuf;
 

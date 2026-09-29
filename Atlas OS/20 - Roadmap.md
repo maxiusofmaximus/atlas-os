@@ -295,8 +295,8 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 ### Sub-fase 11.0 — `atlas mobile` (M41)
 - `mobile/mod.rs` (patrón `remote/` 8.5): `find_artemis_in_path` + `ATLAS_ARTEMIS_REPO`/`ATLAS_ARTEMIS_BIN` + `spawn_session` (`uv run artemis run --profile flash|pro`) + `setup_steps()`. CLI: `atlas mobile status/guide/run [--task]`. Sin artemis/uv → mensaje útil.
 
-### Sub-fase 11.1 — MCP wiring template (M42)
-- `mobile/mcp_template.rs`: template `.opencode/mcp.json` (5 tools tipados RFC 38 §2.1) + `atlas mobile mcp-template`. **Validación del operador**: dispositivo físico — flujo artemis end-to-end.
+### Sub-fase 11.1 — MCP wiring template (M42) ✅ IMPLEMENTADO
+- `mobile/mcp_template.rs`: template `.opencode/mcp.json` (5 tools tipados RFC 38 §2.1) + `atlas mobile mcp-template [--write --path --repo]`. Servidor stdio verificado `uv --directory <repo> run artemis mcp` (mcp_server/README) + alt `<venv-python> -m mcp_server`; merge preserva servidores existentes. **Validación del operador**: dispositivo físico — flujo artemis end-to-end.
 
 ## Fase 12 — Distribución y red
 

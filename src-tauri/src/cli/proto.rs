@@ -62,7 +62,7 @@ pub enum Commands {
     Models(ModelsCmd),
     /// VRAM/RAM/cost snapshot — prints + publishes `hardware_snapshot` (RFC 20 Phase 8.2).
     Monitor(MonitorCmd),
-    /// Mobile testing via external artemis (lateral Python/uv, never bundled) — status/guide/run (RFC 20 Fase 11.0).
+    /// Mobile testing via external artemis (lateral Python/uv, never bundled) — status/guide/run/mcp-template (RFC 20 Fase 11.0/11.1).
     Mobile(MobileCmd),
     /// LLM-driver Phase 2 entrypoints (RFC 27 §F).
     Exec(ExecCmd),

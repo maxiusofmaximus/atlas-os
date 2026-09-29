@@ -11,9 +11,12 @@ use anyhow::Result;
 use clap::{Args, Subcommand};
 use std::path::PathBuf;
 
+use crate::mobile::mcp_template::{
+    default_repo_dir, merge_into_opencode_config, render_full_file, render_guide,
+};
 use crate::mobile::{
     find_artemis_in_path, find_uv_in_path, missing_message, mobile_guide, normalize_task, resolve,
-    setup_steps, spawn_session, MobileProfile, MobileStatus,
+    setup_steps, spawn_session, MobileProfile, MobileStatus, ARTEMIS_REPO_ENV,
 };
 
 #[derive(Args, Debug)]
@@ -43,6 +46,18 @@ pub enum MobileSub {
         #[arg(long)]
         repo: Option<String>,
     },
+    /// Print (or --write) the `.opencode/mcp.json` artemis wiring template (RFC 20 Fase 11.1).
+    McpTemplate {
+        /// Merge the artemis entry into the target mcp.json instead of only printing.
+        #[arg(long, default_value_t = false)]
+        write: bool,
+        /// Target mcp.json path (default `.opencode/mcp.json` under cwd).
+        #[arg(long)]
+        path: Option<String>,
+        /// Artemis repo dir baked into the template (overrides ATLAS_ARTEMIS_REPO).
+        #[arg(long)]
+        repo: Option<String>,
+    },
 }
 
 pub async fn run(cmd: MobileCmd, profile: &str) -> Result<()> {
@@ -61,6 +76,9 @@ pub async fn run(cmd: MobileCmd, profile: &str) -> Result<()> {
             repo.as_deref(),
             profile,
         ),
+        MobileSub::McpTemplate { write, path, repo } => {
+            mcp_template(write, path.as_deref(), repo.as_deref(), profile)
+        }
     }
 }
 
@@ -144,6 +162,45 @@ fn run_task(
     }
 }
 
+fn mcp_template(
+    write: bool,
+    path: Option<&str>,
+    repo: Option<&str>,
+    cli_profile: &str,
+) -> Result<()> {
+    let pid = crate::profiles::ProfileId::new(cli_profile);
+    let repo_dir = repo
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(default_repo_dir);
+    let template = render_full_file(&repo_dir);
+    if !write {
+        println!("{template}");
+        println!();
+        println!("{}", render_guide(&repo_dir));
+        return Ok(());
+    }
+    let target = path
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(".opencode").join("mcp.json"));
+    let existing = std::fs::read_to_string(&target).unwrap_or_else(|_| "{}".to_string());
+    let merged = merge_into_opencode_config(&existing, &repo_dir)?;
+    if let Some(parent) = target.parent().filter(|p| !p.as_os_str().is_empty()) {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&target, format!("{merged}\n"))?;
+    println!(
+        "mobile [{pid}] mcp-template merged `artemis` (repo `{repo_dir}`, env {repo_env}) into {}",
+        target.display(),
+        repo_env = ARTEMIS_REPO_ENV
+    );
+    println!("{}", render_guide(&repo_dir));
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -182,5 +239,52 @@ mod tests {
         .await
         .unwrap_err();
         assert!(err.to_string().contains("--profile"));
+    }
+
+    #[tokio::test]
+    async fn mcp_template_prints_without_touching_disk() {
+        run(
+            MobileCmd {
+                sub: MobileSub::McpTemplate {
+                    write: false,
+                    path: None,
+                    repo: Some("/tmp/artemis-clone".to_string()),
+                },
+            },
+            "nonexistent-profile-xyz",
+        )
+        .await
+        .expect("print path never fails");
+    }
+
+    #[tokio::test]
+    async fn mcp_template_write_merges_and_preserves_existing() {
+        let dir = std::env::temp_dir().join(format!(
+            "atlas-mobile-mcp-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let target = dir.join("mcp.json");
+        std::fs::write(&target, r#"{"mcp":{"context7":{"type":"stdio"}}}"#).unwrap();
+        run(
+            MobileCmd {
+                sub: MobileSub::McpTemplate {
+                    write: true,
+                    path: Some(target.display().to_string()),
+                    repo: Some("/tmp/artemis-clone".to_string()),
+                },
+            },
+            "nonexistent-profile-xyz",
+        )
+        .await
+        .expect("write path succeeds");
+        let back = std::fs::read_to_string(&target).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&back).unwrap();
+        assert!(v.pointer("/mcp/context7").is_some());
+        assert!(v.pointer("/mcp/artemis/command").is_some());
+        std::fs::remove_dir_all(&dir).ok();
     }
 }
