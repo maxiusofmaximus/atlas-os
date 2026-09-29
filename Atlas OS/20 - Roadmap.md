@@ -285,3 +285,32 @@ Entregable: Atlas OS como **plataforma** (plan refinado: research `39`). **Phase
 - Hardware de inferencia dedicado.
 
 Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
+
+---
+
+# Roadmap v2 (plan refinado: research `40` — orden: Mobile → Distribución → Laya)
+
+## Fase 11 — Mobile testing (artemis lateral 8.6, RFC 38)
+
+### Sub-fase 11.0 — `atlas mobile` (M41)
+- `mobile/mod.rs` (patrón `remote/` 8.5): `find_artemis_in_path` + `ATLAS_ARTEMIS_REPO`/`ATLAS_ARTEMIS_BIN` + `spawn_session` (`uv run artemis run --profile flash|pro`) + `setup_steps()`. CLI: `atlas mobile status/guide/run [--task]`. Sin artemis/uv → mensaje útil.
+
+### Sub-fase 11.1 — MCP wiring template (M42)
+- `mobile/mcp_template.rs`: template `.opencode/mcp.json` (5 tools tipados RFC 38 §2.1) + `atlas mobile mcp-template`. **Validación del operador**: dispositivo físico — flujo artemis end-to-end.
+
+## Fase 12 — Distribución y red
+
+### Sub-fase 12.0 — Semgrep/CodeQL stages externos (M43)
+- `atlas validate --semgrep/--codeql` — detección en PATH + proceso externo + parse output → `AuditReport` (M32); no está → mensaje útil + skip fail-safe.
+
+### Sub-fase 12.1 — Marketplace git-based (M44)
+- `install_from_git` (git CLI clone shallow, patrón swarm 4.0) + firma obligatoria 10.1 INTACTA. CLI: `atlas skill install <name> --from <git-url>`.
+
+### Sub-fase 12.2 — Cleanup preexistente (M45)
+- hud gating (`--no-default-features` sin `hud`), flaky selfdiscover, ort-sys ICE documentado.
+
+## Fase 13 — Laya real (BLOQUEADO upstream)
+- **Criterio de re-audit:** `laya` >0.2.x o mantenedores ≥2 o fix de rand/tokenizers. Entonces: candle inference real detrás de la gate + compaction wiring (5.3) + winnow. NO delegar hasta cumplir el criterio.
+
+## Out of scope v2
+- iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).
