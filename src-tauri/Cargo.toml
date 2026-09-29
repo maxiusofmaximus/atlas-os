@@ -11,6 +11,7 @@ default-run = "atlas-os"
 [lib]
 name = "atlas_os"
 path = "src/lib.rs"
+crate-type = ["staticlib", "cdylib", "rlib"]
 
 [[bin]]
 name = "atlas-os"
@@ -221,8 +222,8 @@ dirs = "5"
 notify = "7"
 notify-debouncer-full = "0.4"
 
-# Git worktrees
-git2 = { version = "0.19", features = ["vendored-libgit2"] }
+# Test + marketplace git-based temp clone dirs (12.1) — every target.
+tempfile = "3"
 
 # OS keychain
 keyring = "3"
@@ -282,9 +283,6 @@ ring = { version = "0.17", optional = true }
 # tracing and is unit-testable without WinRT.
 [target.'cfg(windows)'.dependencies]
 winrt-toast-reborn = { version = "0.3.8", optional = true }
-
-# Test
-tempfile = "3"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
