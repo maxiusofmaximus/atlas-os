@@ -83,9 +83,9 @@ tauri android init + build (14.0) ─► APK firmado
 
 ## 7. Status de este RFC
 
-- **Versión:** 1.0 (audit completo, Sep 2026).
-- **Tipo:** Informativo + plan de Fase 14 (research/40 v2 extension).
-- **Método:** GitHub API (`MaxAppsHub` + `AppRegistry.kt` raw) + toolchain local verificado (JDK/SDK/NDK/rustup/ADB).
+- **Versión:** 1.1 (audit completo + validación física, Sep 2026).
+- **Tipo:** Informativo + plan de Fase 14 (research/40 v2 extension) — **Fase 14 COMPLETA y VALIDADA físicamente**.
+- **Método:** GitHub API (`MaxAppsHub` + `AppRegistry.kt` raw) + toolchain local verificado (JDK/SDK/NDK/rustup/ADB) + build Android real (Tauri 2 CLI 2.12, HOME fix, git2 muerto eliminado) + instalación inalámbrica + artemis testing end-to-end.
 
 ## 8. Fuentes de auditoría
 

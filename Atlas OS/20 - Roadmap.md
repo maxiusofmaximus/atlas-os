@@ -316,16 +316,22 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 ## Fase 13 — Laya real (BLOQUEADO upstream)
 - **Criterio de re-audit:** `laya` >0.2.x o mantenedores ≥2 o fix de rand/tokenizers. Entonces: candle inference real detrás de la gate + compaction wiring (5.3) + winnow. NO delegar hasta cumplir el criterio.
 
-## Fase 14 — Mobile companion + MaxAppsHub (RFC 41, plan research/40 extensión)
+## Fase 14 — Mobile companion + MaxAppsHub (RFC 41, plan research/40 extensión) (COMPLETA, sub-fases 14.0 → 14.2)
 
-### Sub-fase 14.0 — Tauri Android build (M46)
-- `tauri.conf.json` applicationId `com.maxapps.atlas` + `tauri android init` + build APK (JAVA_HOME Adoptium JDK 17 + ANDROID_HOME SDK). Toolchain verificado (RFC 41 §3).
+### Sub-fase 14.0 — Tauri Android build (M46) (COMPLETO)
+- `tauri.conf.json` applicationId `com.opencode-os.app` (se mantiene — MaxAppsHub gestiona cualquier packageId) + `tauri android init` (CLI 2.12 — el 2.1.0 viejo tenía bug de version mismatch en android-studio-script) + `mobile_entry_point` movido a `lib.rs` (`run_app()` — el cdylib necesita el macro; el desktop bin conserva su propio entry) + `[lib] crate-type = ["staticlib", "cdylib", "rlib"]` + **git2 MUERTO eliminado** (declarado sin uso en src — era lo que rompía el cross-compile Android con openssl-sys) + `tempfile` movido de `[target.'cfg(windows)'.dependencies]` a `[dependencies]` (todas las plataformas) + **HOME fix**: Android no tiene `$HOME` ni passwd → `run_app()` setea HOME a `/data/user/0/com.opencode_os.app/files` antes del bootstrap (arreglaba SIGSEGV en el dispositivo: bootstrap fallaba → exit(1) → threads mueren → mutex destroyed). **Developer mode de Windows habilitado** (UAC — los symlinks de tauri funcionan). APK debug universal (321MB) construido.
 
-### Sub-fase 14.1 — GitHub Release del APK (M47)
-- `gh release create v0.1.0-android <apk>` — el APK firmado (debug keystore MVP) en Releases del repo atlas-os.
+### Sub-fase 14.1 — GitHub Release del APK (M47) (COMPLETO)
+- Release `v0.1.0-android` creado con el APK debug firmado (debug keystore) — `github.com/maxiusofmaximus/atlas-os/releases/tag/v0.1.0-android`.
 
-### Sub-fase 14.2 — MaxAppsHub AppRegistry entry + validación física (M48)
-- `ManagedApp` en `data/AppRegistry.kt` del repo MaxAppsHub (packageId `com.maxapps.atlas` + repo atlas-os) + validación física: launcher instala/actualiza Atlas en el Android + `atlas mobile run` prueba la app con artemis.
+### Sub-fase 14.2 — MaxAppsHub AppRegistry entry + validación física (M48) (COMPLETO, VALIDADO)
+- `ManagedApp` añadida a `data/AppRegistry.kt` del repo MaxAppsHub (commit `b131415`: name "Atlas OS", packageId `com.opencode-os.app`, repo atlas-os, icono 🛰️) — pusheada con las mismas credenciales GH.
+- **VALIDACIÓN FÍSICA END-TO-END (Sep 2026)**:
+  1. APK instalado en el TECNO KI7 vía **depuración inalámbrica** (pairing + mDNS tls-connect — los puertos rotan: 45475→35767→38657) → `Success`
+  2. La app arranca con el bootstrap OK (logcat: "Atlas OS mobile started", HUD listening, sin FATAL/SIGSEGV tras el HOME fix)
+  3. **artemis describió el HUD real**: *"The interface displays the Atlas OS v0.1.0 application with three main sections: HUD Mission Control, Audit export - posting format, and Autoresearch loop... A navigation bar is present at the bottom of the screen."* (12s, 1 paso, profile flash)
+  4. La tarea Settings (batería) también completed (108s) — el flujo artemis + Gemini 2.5-flash key funciona
+- Config artemis del operador: `.env` con GEMINI_API_KEY (priorizada) + OPENAI_API_KEY (NVIDIA NIM — la key actual da 403 en inference, solo lista el catálogo) + `config/artemis.jsonc` default `google/gemini-2.5-flash` (el 3.8 está rate-limited en free tier) + fallback `gemini-2.5-flash-lite`.
 
 ## Out of scope v2
 - iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).
