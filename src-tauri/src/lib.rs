@@ -50,6 +50,17 @@ pub use core::state::AppState;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[allow(clippy::missing_panics_doc)]
 pub fn run_app() {
+    #[cfg(target_os = "android")]
+    {
+        // Android has no $HOME env and no passwd entries, so
+        // `dirs::home_dir()` returns None and every profile/journal path
+        // fails to resolve. Point HOME at the app's internal storage
+        // (RFC 41 §4 — mobile companion posture).
+        let files = "/data/user/0/com.opencode_os.app/files";
+        let _ = std::fs::create_dir_all(files);
+        std::env::set_var("HOME", files);
+    }
+
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::try_from_default_env()
