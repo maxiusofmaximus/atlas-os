@@ -169,8 +169,9 @@ cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- journal -n 10
 
 - **Phase 11 — Mobile testing** (sub-fases 11.0→11.1, M41-M42): `atlas mobile status/guide/run` (artemis lateral Python/uv, jamás bundling — RFC 38) + MCP template (`atlas mobile mcp-template [--write]` — 5 tools tipados, merge preserva servidores). Validación del operador: dispositivo físico Android. ✅
 - **Phase 12 — Distribución y red** (sub-fases 12.0→12.2, M43-M45): Semgrep/CodeQL stages externos (`atlas validate --semgrep/--codeql` → `AuditReport`, fail-safe), marketplace git-based (`atlas skill install <name> --from <git-url>`, firma obligatoria intacta), cleanup preexistente (hud gating `--no-default-features` 37 errores → 0, flaky selfdiscover serializado, bundled gates, ort-sys ICE documentado). ✅
+- **Phase 14 — Mobile companion + MaxAppsHub** (RFC 41, sub-fases 14.0→14.2, M46-M48): Tauri Android build (`com.opencode-os.app`, `mobile_entry_point` en `lib.rs`, HOME fix a storage interno) → GitHub Release `v0.1.0-android` (APK debug firmado) → MaxAppsHub entry (`AppRegistry.kt` packageId `com.opencode_os.app` + `<queries>` visibilidad) → validación física end-to-end en TECNO KI7 (instalación, arranque, HUD Mission Control WS connected, artemis completó "Abre la app Atlas OS" en ~106s/3 steps). ✅
 
-**ROADMAP v1 COMPLETO** (Phases 0-10, 33 RFCs, 1103 tests Rust + 67 frontend). **Roadmap v2 en curso**: Phase 11 (mobile testing ✅) + Phase 12 (distribución ✅) completas — **Phase 13 (Laya real) BLOQUEADA upstream** hasta que el crate `laya` madure (criterio: >0.2.x o mantenedores ≥2).
+**ROADMAP v1 COMPLETO** (Phases 0-10, 33 RFCs, 1103 tests Rust + 67 frontend). **Roadmap v2**: Phase 11 (mobile testing ✅) + Phase 12 (distribución ✅) + Phase 14 (distribución Android ✅ físicamente validada) — **Phase 13 (Laya real) BLOQUEADA upstream** hasta que el crate `laya` madure (criterio: >0.2.x o mantenedores ≥2). Siguiente: Phase 15 Release/Distribution Hardening (no iniciada).
 
 ## License
 

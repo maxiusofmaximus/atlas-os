@@ -26,7 +26,7 @@ data class ManagedApp(
 )
 ```
 
-Apps gestionadas hoy: "Flashcards Química" (`APK-Android-Ley-de-Gases`). **Añadir Atlas OS = una entrada `ManagedApp` nueva**.
+Apps gestionadas hoy (Fase 14): "Flashcards Química" (`com.flashcards.quimica`) + "Atlas OS" (`com.opencode_os.app`, repo `atlas-os`, commit MaxAppsHub `b131415`). **Nota física validada**: el applicationId Android real es `com.opencode_os.app` (guion bajo — Tauri sustituye el guion del identifier al generar el package; Android no admite guiones) y el `<queries>` del manifest debe incluirlo — sin ambos, el launcher muestra "No instalada" (`NameNotFoundException` por filtrado de visibilidad Android 11+). El repo `atlas-os` es **público** (necesario: el launcher consulta `releases/latest` sin token; privado = HTTP 404).
 
 ### 2.2 Estados + mecanismo
 
@@ -56,7 +56,7 @@ Atlas OS (Tauri 2 + SvelteKit CSR)
 ```
 
 - **Sin apps Kotlin nuevas**: Tauri 2 soporta Android nativamente — el mismo HUD SvelteKit CSR se empaqueta como APK.
-- **applicationId**: `com.maxapps.atlas` (para que MaxAppsHub lo detecte) — en `tauri.conf.json` + `gen/android`.
+- **applicationId**: `com.opencode-os.app` (identifier `tauri.conf.json`, se mantiene) → package Android real `com.opencode_os.app` (Tauri sustituye guion por guion bajo). MaxAppsHub lo detecta con ese packageId + entrada `<queries>`.
 - **Firma**: debug keystore para el MVP (el launcher instala apps de fuentes desconocidas con guía); release keystore cuando pase a producción.
 - **artemis testing**: la app Atlas Android es una app Android normal — artemis la prueba (`atlas mobile run --task "abre Atlas OS y verifica el HUD"`).
 
@@ -83,9 +83,10 @@ tauri android init + build (14.0) ─► APK firmado
 
 ## 7. Status de este RFC
 
-- **Versión:** 1.1 (audit completo + validación física, Sep 2026).
+- **Versión:** 1.2 (cierre Fase 14 + fixes de detección, Oct 2026).
 - **Tipo:** Informativo + plan de Fase 14 (research/40 v2 extension) — **Fase 14 COMPLETA y VALIDADA físicamente**.
 - **Método:** GitHub API (`MaxAppsHub` + `AppRegistry.kt` raw) + toolchain local verificado (JDK/SDK/NDK/rustup/ADB) + build Android real (Tauri 2 CLI 2.12, HOME fix, git2 muerto eliminado) + instalación inalámbrica + artemis testing end-to-end.
+- **Cierre (Oct 2026)**: 2 defectos de detección corregidos y validados en el TECNO KI7 — (1) packageId `com.opencode_os.app` + `<queries>` en `AppRegistry.kt`/manifest de MaxAppsHub (commit `12cd65a`: sin ambos, "No instalada" por NameNotFoundException/visibilidad), (2) repo `atlas-os` hecho público (sin token el launcher obtenía HTTP 404 de `releases/latest`). Tras los fixes: "Instalada 0.1.0" + "Última v0.1.0-android" sin error, sin crashes. artemis completó "Abre la app Atlas OS" (3 steps, ~106s) — los fallos previos (~340s sin steps) eran el serial mDNS con espacios/paréntesis rompiendo el device discovery de artemis; con serial convencional `host:port` (`adb connect`) funciona. Pendiente release-side: tag `v0.1.0-android` ≠ versionName `0.1.0` → el launcher muestra "Actualizar" aunque el APK instalado sea el del release (requiere nueva release o tag `v0.1.0` — Phase 15).
 
 ## 8. Fuentes de auditoría
 
