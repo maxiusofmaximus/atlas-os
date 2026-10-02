@@ -60,10 +60,11 @@ jobs:
         env:
           ANDROID_DEBUG_KEYSTORE: ${{ secrets.ANDROID_DEBUG_KEYSTORE }}
         run: |
-          mkdir -p ~/.android
+          mkdir -p ~/.android ~/.config/.android
           echo "$ANDROID_DEBUG_KEYSTORE" | base64 -d > ~/.android/debug.keystore
+          echo "$ANDROID_DEBUG_KEYSTORE" | base64 -d > ~/.config/.android/debug.keystore
           echo "ANDROID_USER_HOME=${ANDROID_USER_HOME:-unset} ANDROID_SDK_HOME=${ANDROID_SDK_HOME:-unset} user.home=$HOME"
-          ls -la ~/.android/debug.keystore
+          ls -la ~/.android/debug.keystore ~/.config/.android/debug.keystore
           echo "keystore cert (expected APK signer):"
           keytool -list -v -keystore ~/.android/debug.keystore -storepass android 2>/dev/null | grep "SHA256:" || echo "KEYSTORE READ FAILED"
 
