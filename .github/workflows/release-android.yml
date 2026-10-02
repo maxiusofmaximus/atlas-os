@@ -62,6 +62,10 @@ jobs:
         run: |
           mkdir -p ~/.android
           echo "$ANDROID_DEBUG_KEYSTORE" | base64 -d > ~/.android/debug.keystore
+          echo "ANDROID_USER_HOME=${ANDROID_USER_HOME:-unset} ANDROID_SDK_HOME=${ANDROID_SDK_HOME:-unset} user.home=$HOME"
+          ls -la ~/.android/debug.keystore
+          echo "keystore cert (expected APK signer):"
+          keytool -list -v -keystore ~/.android/debug.keystore -storepass android 2>/dev/null | grep "SHA256:" || echo "KEYSTORE READ FAILED"
 
       - name: Init Android project (gen/ is gitignored)
         run: npx tauri android init
@@ -80,6 +84,14 @@ jobs:
           echo "tag=$GITHUB_REF_NAME tag_version=$TAG_VERSION versionName=$VERSION_NAME versionCode=$VERSION_CODE"
           if [ "$VERSION_NAME" != "$TAG_VERSION" ]; then
             echo "::error::GATE FAILED: tag $GITHUB_REF_NAME (version $TAG_VERSION) != Android versionName $VERSION_NAME — refusing to publish an inconsistent release"
+            exit 1
+          fi
+          APKSIGNER="$(ls -1 "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)"
+          KS_CERT="$(keytool -list -v -keystore ~/.android/debug.keystore -storepass android 2>/dev/null | grep "SHA256:" | head -1 | tr -d ' :' | tr 'A-F' 'a-f')"
+          APK_CERT="$("$APKSIGNER" verify --print-certs "$APK" 2>/dev/null | grep "certificate SHA-256 digest" | head -1 | grep -o "[a-f0-9]\{64\}")"
+          echo "keystore_cert=$KS_CERT apk_cert=$APK_CERT"
+          if [ "$KS_CERT" != "$APK_CERT" ]; then
+            echo "::error::GATE FAILED: APK signer cert != debug keystore cert — signing inconsistency, refusing to publish"
             exit 1
           fi
 
