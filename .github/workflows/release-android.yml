@@ -71,7 +71,12 @@ jobs:
         run: npx tauri android init
 
       - name: Build APK (debug, universal)
-        run: npx tauri android build --apk --debug
+        run: |
+          echo "keystore cert BEFORE build:"
+          keytool -list -v -keystore ~/.android/debug.keystore -storepass android 2>/dev/null | grep -oE "([A-F0-9]{2}:){31}[A-F0-9]{2}" | head -1 || echo "KEYSTORE MISSING"
+          npx tauri android build --apk --debug
+          echo "keystore cert AFTER build:"
+          keytool -list -v -keystore ~/.android/debug.keystore -storepass android 2>/dev/null | grep -oE "([A-F0-9]{2}:){31}[A-F0-9]{2}" | head -1 || echo "KEYSTORE MISSING"
 
       - name: GATE — version consistency (tag == versionName), refuse to publish on mismatch
         run: |
@@ -87,8 +92,8 @@ jobs:
             exit 1
           fi
           APKSIGNER="$(ls -1 "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)"
-          KS_CERT="$(keytool -list -v -keystore ~/.android/debug.keystore -storepass android 2>/dev/null | grep "SHA256:" | head -1 | tr -d ' :' | tr 'A-F' 'a-f')"
-          APK_CERT="$("$APKSIGNER" verify --print-certs "$APK" 2>/dev/null | grep "certificate SHA-256 digest" | head -1 | grep -o "[a-f0-9]\{64\}")"
+          KS_CERT="$(keytool -list -v -keystore ~/.android/debug.keystore -storepass android 2>/dev/null | grep -oE "([A-F0-9]{2}:){31}[A-F0-9]{2}" | head -1 | tr -d ':' | tr 'A-F' 'a-f')"
+          APK_CERT="$("$APKSIGNER" verify --print-certs "$APK" 2>/dev/null | grep -oE "[a-f0-9]{64}" | head -1)"
           echo "keystore_cert=$KS_CERT apk_cert=$APK_CERT"
           if [ "$KS_CERT" != "$APK_CERT" ]; then
             echo "::error::GATE FAILED: APK signer cert != debug keystore cert — signing inconsistency, refusing to publish"
