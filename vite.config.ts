@@ -2,6 +2,10 @@
 // See RFC 25 §3.3 — SvelteKit + Tauri 2 internal host.
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vitest/config';
+import { readFileSync } from 'node:fs';
+
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
+process.env.VITE_OC_VERSION ??= pkg.version;
 
 // Tauri 2 injects env vars at build time via tauri-build.
 // Hot reload inside Tauri dev webview requires strictPort + fixed host.
