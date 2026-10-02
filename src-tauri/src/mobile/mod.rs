@@ -308,15 +308,17 @@ mod tests {
 
     #[test]
     fn explicit_override_wins_over_path() {
-        let st = resolve(Some("/opt/artemis/artemis"));
-        assert_eq!(
-            st,
-            MobileStatus::Available {
-                bin: PathBuf::from("/opt/artemis/artemis"),
-                via_uv: false,
-                repo: None,
-            }
-        );
+        with_clean_env(|| {
+            let st = resolve(Some("/opt/artemis/artemis"));
+            assert_eq!(
+                st,
+                MobileStatus::Available {
+                    bin: PathBuf::from("/opt/artemis/artemis"),
+                    via_uv: false,
+                    repo: None,
+                }
+            );
+        });
     }
 
     #[test]
