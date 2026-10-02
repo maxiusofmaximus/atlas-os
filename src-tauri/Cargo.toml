@@ -1,6 +1,6 @@
 [package]
 name = "atlas-os"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version = "1.84"
 description = "Atlas OS — Agent Engineering Operating System (AEOS) v1"

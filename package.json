@@ -1,6 +1,6 @@
 {
   "name": "atlas-os",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "Agent Engineering Operating System (AEOS) v1 - Tauri 2 + Rust + SvelteKit",
