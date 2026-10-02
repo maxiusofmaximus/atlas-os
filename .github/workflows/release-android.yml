@@ -1,0 +1,108 @@
+name: release-android
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install Android SDK components (match local toolchain)
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37" "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.14206865" > /dev/null
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install tauri-cli (pinned, same as local 2.12.0)
+        run: cargo install tauri-cli --version 2.12.0 --locked
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Rust tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Frontend tests
+        run: pnpm test
+
+      - name: Restore debug keystore (consistent signing across releases)
+        env:
+          ANDROID_DEBUG_KEYSTORE: ${{ secrets.ANDROID_DEBUG_KEYSTORE }}
+        run: |
+          mkdir -p ~/.android
+          echo "$ANDROID_DEBUG_KEYSTORE" | base64 -d > ~/.android/debug.keystore
+
+      - name: Init Android project (gen/ is gitignored)
+        run: npx tauri android init
+
+      - name: Build APK (debug, universal)
+        run: npx tauri android build --apk --debug
+
+      - name: GATE — version consistency (tag == versionName), refuse to publish on mismatch
+        run: |
+          AAPT2="$(ls -1 "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)"
+          APK="$(ls src-tauri/gen/android/app/build/outputs/apk/universal/debug/*.apk | head -1)"
+          BADGING="$("$AAPT2" dump badging "$APK")"
+          VERSION_NAME="$(echo "$BADGING" | grep -o "versionName='[^']*'" | head -1 | cut -d"'" -f2)"
+          VERSION_CODE="$(echo "$BADGING" | grep -o "versionCode='[^']*'" | head -1 | cut -d"'" -f2)"
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          echo "tag=$GITHUB_REF_NAME tag_version=$TAG_VERSION versionName=$VERSION_NAME versionCode=$VERSION_CODE"
+          if [ "$VERSION_NAME" != "$TAG_VERSION" ]; then
+            echo "::error::GATE FAILED: tag $GITHUB_REF_NAME (version $TAG_VERSION) != Android versionName $VERSION_NAME — refusing to publish an inconsistent release"
+            exit 1
+          fi
+
+      - name: SHA-256 checksum
+        run: |
+          APK="$(ls src-tauri/gen/android/app/build/outputs/apk/universal/debug/*.apk | head -1)"
+          sha256sum "$APK" > "$APK.SHA256"
+          cat "$APK.SHA256"
+
+      - name: Create GitHub Release (APK + checksum)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK="$(ls src-tauri/gen/android/app/build/outputs/apk/universal/debug/*.apk | head -1)"
+          {
+            echo "Atlas OS ${GITHUB_REF_NAME#v} — Android (Tauri 2 companion)"
+            echo ""
+            echo "Primera release con versionado coherente: tag == versionName == ${GITHUB_REF_NAME#v} (versionCode 1001)."
+            echo ""
+            echo "Cambios funcionales desde v0.1.0-android: ninguno (solo versionado + CI — Phase 15 Release/Distribution Hardening)."
+            echo ""
+            echo "- Source of truth de version: src-tauri/Cargo.toml (tauri.conf.json deriva la version, elimina duplicacion)"
+            echo "- CI: .github/workflows/release-android.yml — cargo test (1103+) + vitest (67+), GATE tag == versionName, SHA-256 checksum"
+            echo "- Firma: keystore debug consistente via secret (el update desde v0.1.0-android instala sin fallo de firma)"
+            echo "- MaxAppsHub: el tag ya no lleva sufijo -android — la comparacion removePrefix(\"v\") vs versionName ahora coincide"
+            echo ""
+            echo "SHA-256: ver el .SHA256 adjunto."
+          } > release-notes.md
+          gh release create "$GITHUB_REF_NAME" "$APK" "$APK.SHA256" \
+            --title "Atlas OS ${GITHUB_REF_NAME#v} — Android (Tauri 2 companion)" \
+            --notes-file release-notes.md
