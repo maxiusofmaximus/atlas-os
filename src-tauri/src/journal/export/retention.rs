@@ -171,9 +171,9 @@ mod tests {
         assert_eq!(result.files_written.len(), 1);
         assert_eq!(result.entries_packed, 1);
         let written_path = &result.files_written[0];
-        assert!(written_path
-            .to_string_lossy()
-            .contains("2026-07-25\\audit_1.posting.yaml"));
+        assert!(
+            written_path.ends_with(std::path::Path::new("2026-07-25").join("audit_1.posting.yaml"))
+        );
         let content = std::fs::read_to_string(written_path).unwrap();
         assert!(content.contains("# x-atlas-exported: RFC 28 §D"));
         assert!(content.contains("posting_version: '1'"));
