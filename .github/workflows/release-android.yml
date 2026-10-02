@@ -77,6 +77,11 @@ jobs:
           npx tauri android build --apk --debug
           echo "keystore cert AFTER build:"
           keytool -list -v -keystore ~/.android/debug.keystore -storepass android 2>/dev/null | grep -oE "([A-F0-9]{2}:){31}[A-F0-9]{2}" | head -1 || echo "KEYSTORE MISSING"
+          echo "all debug keystores on runner:"
+          find /home/runner /usr/local/lib/android /tmp -name "debug.keystore" -not -path "*/node_modules/*" 2>/dev/null | head -10 | while read -r ks; do
+            echo "--- $ks"
+            keytool -list -v -keystore "$ks" -storepass android 2>/dev/null | grep -oE "([A-F0-9]{2}:){31}[A-F0-9]{2}" | head -1
+          done
 
       - name: GATE — version consistency (tag == versionName), refuse to publish on mismatch
         run: |
