@@ -5,6 +5,7 @@
 pub mod agent_events;
 pub mod ast_symbols;
 pub mod autoresearch;
+pub mod calendar_ops;
 pub mod compaction;
 pub mod export;
 pub mod frecency;

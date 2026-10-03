@@ -8,9 +8,9 @@ use super::commands::ResearchCmd;
 #[cfg(feature = "toast")]
 use super::commands::ToastCmd;
 use super::commands::{
-    AuditCmd, ExecCmd, ForkCmd, HudCmd, JournalCmd, LearnCmd, McpCmd, MissionCmd, MobileCmd,
-    ModelsCmd, MonitorCmd, PlanCmd, ProfileCmd, RemoteCmd, ResumeCmd, RunCmd, SecurityCmd,
-    SisterCmd, SkillCmd, SteerCmd, SwapModelCmd, SwarmCmd, ValidateCmd,
+    AuditCmd, CalendarCmd, ExecCmd, ForkCmd, HudCmd, JournalCmd, LearnCmd, McpCmd, MissionCmd,
+    MobileCmd, ModelsCmd, MonitorCmd, PlanCmd, ProfileCmd, RemoteCmd, ResumeCmd, RunCmd,
+    SecurityCmd, SisterCmd, SkillCmd, SteerCmd, SwapModelCmd, SwarmCmd, ValidateCmd,
 };
 #[derive(Parser, Debug)]
 #[command(name = "atlas", version, propagate_version = true)]
@@ -89,6 +89,8 @@ pub enum Commands {
     Audit(AuditCmd),
     /// Journal tail (RFC 19).
     Journal(JournalCmd),
+    /// Calendar: ICS feed URL + busy-window queue (RFC 28 §G).
+    Calendar(CalendarCmd),
     /// Learning Engine rules — list, promote, deprecate, export/import (RFC 16 §2, RFC 32 Phase 5.1, M40).
     Learn(LearnCmd),
     /// Research: live library docs via the docs gateway (Context7Max →

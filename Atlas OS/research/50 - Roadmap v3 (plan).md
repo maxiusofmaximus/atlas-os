@@ -89,3 +89,13 @@ Outlook/Apple/Google; ningún turn proactivo se encola dentro de una busy window
 2. v3.1.0 ya está implementado: sólo falta el token opaco del §G.2 (commit pequeño).
 3. v3.1.1 (Graph) → v3.1.2 (Planning) → v3.1.3 (CLI), un commit por sub-fase.
 4. Phase 13 permanece en `research/49` hasta confirmar write-access/versión.
+
+## Estado de ejecución
+
+- **v3.1.0 ICS WRITE:** ✅ implementado (pre-existente, ruta HUD + `ics_writer`).
+- **v3.1.3 CLI surface:** ✅ implementado — `atlas calendar feed` +
+  `atlas calendar busy list/count/add/rm`, sobre los envoltorios
+  `Journal::busy_window_*` (`journal/calendar_ops.rs`). 1110 tests lib (4 nuevos),
+  clippy/fmt limpios.
+- **v3.1.1 Graph READ:** pendiente (stubs `auth.rs`/`graph_reader.rs`).
+- **v3.1.2 Planning wiring:** pendiente (`AppState.context_busy_windows`).
