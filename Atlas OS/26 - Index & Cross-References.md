@@ -47,6 +47,7 @@
 | 42 | [Phase 16 — Laya re-audit + cierre Roadmap v2](./research/42%20-%20Phase%2016%20Laya%20re-audit%20%2B%20roadmap%20v2%20closure.md) | ~4 KB | Phase 16: re-audit fechado de `laya` (0.1.1, 1 contributor, tokenizers 0.21, sin rand directo) → criterio de desbloqueo NO cumplido → Phase 13 permanece BLOQUEADA; Roadmap v2 exhausted (11 ✅/12 ✅/14 ✅/15 ✅); Roadmap v3 requiere decisión del operador. |
 | 43 | [Phase 17 — Baseline + higiene de lint + versión en build](./research/43%20-%20Phase%2017%20baseline%20hardening%20%2B%20version%20build%20evidence.md) | ~3 KB | Phase 17: `pnpm lint` a verde (prettier de workflow + dep-cruiser, `.prettierignore` para working files del operador), evidencia del header HUD `v0.1.1` en el bundle, baseline `cargo test --lib` 1103 ok. |
 | 44 | [Phase 18 — ACP real host loop](./research/44%20-%20Phase%2018%20ACP%20real%20host%20loop.md) | ~3 KB | Phase 18: closeout Phase 1.5d — `session/prompt` despacha `delegate::DelegateOutcome` vía `PromptPlan` (exec step → CLI real, Fix/Restart explicados, NotSupported → Refusal), cwd por sesión, cancel simplificado documentado. |
+| 45 | [Phase 19 — LSP real server](./research/45%20-%20Phase%2019%20LSP%20real%20server.md) | ~3 KB | Phase 19: `AtlasLspBackend` con initialize/hover/did_open sobre stdio (pipe o `ATLAS_LSP_STDIO=1`); desktop preserva park; stub placeholder eliminado. |
 
 **Total: 33 RFCs, ~331 KB** de especificación.
 

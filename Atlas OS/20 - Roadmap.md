@@ -353,5 +353,11 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - Tests: `cargo test --features acp-server,cli acp::` → 42 ok. clippy `-D warnings` + fmt + cargo check (default/minimal/acp-server) verdes.
 - Cancel in-flight sigue simplificado (no hay trabajo real a cancelar aún) — anotado como deuda acotada, no ocultable como error.
 
+## Fase 19 — LSP real v1 (COMPLETA)
+
+- Stub `lsp::host::serve` sustituido por `AtlasLspBackend` (tower-lsp 0.20) con `initialize`/`initialized`/`shutdown`/`hover`/`did_open`; desktop sigue en "park" salvo pipe o `ATLAS_LSP_STDIO=1`.
+- `cargo test --lib lsp` → 9 ok; clippy `-D warnings`, fmt, cargo check verdes.
+- Evidencia en `Atlas OS/research/45 - Phase 19 LSP real server.md`.
+
 ## Out of scope v2
 - iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).
