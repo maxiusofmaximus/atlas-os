@@ -654,8 +654,9 @@ asumía `graph-rs-sdk` con `interactive-auth` (webview) y no contemplaba parser 
   MIT/Apache, Rust puro. **Elegido.**
 - Integración: feature `calendar-ics`, módulo `calendar/ics_reader.rs`, CLI
   `atlas calendar sync-ics <url>`; busy windows `source=ics_local`.
-- Follow-up: consolidar el WRITE en `icalendar` y retirar `ics` (ambos son
-  builder+parser vs write-only), reduciendo a una sola crate iCalendar.
+- **Consolidación WRITE→`icalendar` evaluada y RECHAZADA** (ver §15.8): el
+  writer de `icalendar` obliga a propiedades crudas para lo que aquí importa y
+  cambiaría la salida; se mantiene `ics` para WRITE.
 
 ### 15.4 Crates (delta vs Round 5)
 
@@ -685,3 +686,25 @@ asumía `graph-rs-sdk` con `interactive-auth` (webview) y no contemplaba parser 
 - ical-rs (pimalaya): https://github.com/pimalaya/ical
 - RFC 5545 (iCalendar): https://datatracker.ietf.org/doc/html/rfc5545
 - OAuth 2.0 device/loopback (RFC 8252): https://datatracker.ietf.org/doc/html/rfc8252
+
+### 15.8 Decisión: NO consolidar el WRITE en `icalendar`
+
+Se evaluó (docs.rs 0.17.14) retirar `ics` 0.5.8 del WRITE y usar `icalendar`
+también para emitir (`ics_writer.rs`), dejando una sola crate iCalendar. **Se
+rechaza.** Motivos concretos de la API del writer de `icalendar`:
+
+- **`METHOD` y `CATEGORIES` no son propiedades tipadas**: `Calendar` sólo expone
+  setters tipados para `NAME`/`DESCRIPTION`/`TIMEZONE`/`TTL`; `METHOD:PUBLISH` y
+  `CATEGORIES:<status>` habría que emitirlos con `append_property(Property::new(..))`
+  crudo → menos seguridad de tipos que `ics::properties::{Method, Categories}`.
+- **`PRODID` fijo**: `Calendar::new()` prefija `VERSION`/`PRODID`/`CALSCALE` con su
+  propio `PRODID`; para imponer `-//Atlas OS//Calendar//EN` hay que partir de
+  `Calendar::empty()` y añadir a mano `VERSION`/`PRODID`/`CALSCALE`.
+- **All-day cambia de forma**: `Event::all_day(NaiveDate)` emite **DTSTART y
+  DTEND** con `VALUE=DATE`; nuestra salida actual (RFC 5545 §3.6.1) usa sólo
+  `DTSTART;VALUE=DATE` sin `DTEND`. Aceptar el cambio obliga a reescribir los
+  tests de forma de salida sin ganancia funcional.
+- **Coste/beneficio**: `ics` es pure Rust (~30 KB) bajo el mismo feature opt-in
+  `calendar-ics`; el ahorro es marginal y la reescritura es más código con
+  propiedades crudas. Se mantiene el statu quo: `ics` = WRITE, `icalendar` = READ.
+  Ambos son RFC 5545; la duplicación es de emisor/parser, no de responsabilidad.
