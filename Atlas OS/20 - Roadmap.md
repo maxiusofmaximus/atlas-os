@@ -365,5 +365,10 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - Step 2: `impl Journal` del bloque `dag_mode` → `journal/dag_mode_ops.rs`; 228 tests journal verdes; `cargo check` + `--features dag_mode` verdes.
 - Siguientes (Phase 20.2+): `ModelInvocationRow` → journal/model_invocation.rs, dividir tests.rs por dominio.
 
+## Fase 21 — Audit panics/unwraps (CERRADO: test-only)
+
+- Todas las `panic!()`/`unwrap()` enumeradas viven en bloques `#[cfg(test)]`;
+  Phase 21 como refactor de producción queda CANCELADA. Documentado en `research/47`.
+
 ## Out of scope v2
 - iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).

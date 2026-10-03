@@ -183,6 +183,8 @@ cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- journal -n 10
 
 - **Phase 20 — Journal refactor (step 2)**: Section H y `dag_mode` impl blocks extraídos a `journal/model_resets_ops.rs` / `journal/dag_mode_ops.rs`; 228 tests journal verdes; check/default/dag_mode/fmt/clippy limpios. ✅
 
+- **Phase 21 — Audit panic!/unwrap()**: cancelada como cambio; las coincidencias son todas test-only (`#[cfg(test)]`). Documentado. ✅
+
 **ROADMAP v1 COMPLETO** (Phases 0-10, 33 RFCs, 1103 tests Rust + 67 frontend). **Roadmap v2**: Phase 11 (mobile testing ✅) + Phase 12 (distribución ✅) + Phase 14 (distribución Android ✅ físicamente validada) + Phase 15 (Release/Distribution Hardening ✅) — **Phase 13 (Laya real) BLOQUEADA upstream** hasta que el crate `laya` madure (criterio: >0.2.x o mantenedores ≥2). Roadmap v2 agotado; siguiente trabajo requiere decisión del operador + RFC propio (Roadmap v3 no iniciado).
 
 ## License
