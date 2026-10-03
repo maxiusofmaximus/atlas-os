@@ -173,7 +173,9 @@ cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- journal -n 10
 
 - **Phase 15 — Release/Distribution Hardening**: Versionado coherente (source of truth `Cargo.toml`, tag `vX.Y.Z` parejo con `versionName`, `versionCode` = minor*1000+patch) → `.github/workflows/release-android.yml` con gates (versionName == tag, cert keystore == cert APK) → release `v0.1.1` publicada con firma consistente (`cf091fd2` = keystore como secret) → validación física del update en TECNO KI7 vía MaxAppsHub (0.1.0 → 0.1.1, "Actualizada", Atlas arranca, HUD WS connected, artemis smoke PASS). ✅
 
-**ROADMAP v1 COMPLETO** (Phases 0-10, 33 RFCs, 1103 tests Rust + 67 frontend). **Roadmap v2**: Phase 11 (mobile testing ✅) + Phase 12 (distribución ✅) + Phase 14 (distribución Android ✅ físicamente validada) + Phase 15 (Release/Distribution Hardening ✅) — **Phase 13 (Laya real) BLOQUEADA upstream** hasta que el crate `laya` madure (criterio: >0.2.x o mantenedores ≥2). Siguiente: a decidir a partir del reporte final (Phase 16 / Roadmap v3 no iniciados).
+- **Phase 16 — Laya re-audit + cierre Roadmap v2**: re-audit periódico documentado con evidencia fechada (crates.io `laya 0.1.1`, GitHub 1 contributor, `tokenizers` 0.21, sin `rand` directo) → veredicto: criterio de desbloqueo NO cumplido → Phase 13 permanece BLOQUEADA. Roadmap v2 agotado: 11 ✅ / 12 ✅ / 14 ✅ / 15 ✅. Roadmap v3 requiere decisión del operador + RFC propio. ✅
+
+**ROADMAP v1 COMPLETO** (Phases 0-10, 33 RFCs, 1103 tests Rust + 67 frontend). **Roadmap v2**: Phase 11 (mobile testing ✅) + Phase 12 (distribución ✅) + Phase 14 (distribución Android ✅ físicamente validada) + Phase 15 (Release/Distribution Hardening ✅) — **Phase 13 (Laya real) BLOQUEADA upstream** hasta que el crate `laya` madure (criterio: >0.2.x o mantenedores ≥2). Roadmap v2 agotado; siguiente trabajo requiere decisión del operador + RFC propio (Roadmap v3 no iniciado).
 
 ## License
 

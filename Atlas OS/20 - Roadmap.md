@@ -315,6 +315,7 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 
 ## Fase 13 — Laya real (BLOQUEADO upstream)
 - **Criterio de re-audit:** `laya` >0.2.x o mantenedores ≥2 o fix de rand/tokenizers. Entonces: candle inference real detrás de la gate + compaction wiring (5.3) + winnow. NO delegar hasta cumplir el criterio.
+- **Re-audit 2026-10-02 (Phase 16, `research/42`):** crates.io `laya 0.1.1` (updated 2026-09-20), GitHub 1 contributor, `tokenizers` ya 0.21, sin dep directa de `rand`. Veredicto: criterio NO cumplido → **Phase 13 permanece BLOQUEADA**. Próximo re-audit cuando cambie versión o mantenedores.
 
 ## Fase 14 — Mobile companion + MaxAppsHub (RFC 41, plan research/40 extensión) (COMPLETA, sub-fases 14.0 → 14.2)
 
@@ -332,6 +333,12 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
   3. **artemis describió el HUD real**: *"The interface displays the Atlas OS v0.1.0 application with three main sections: HUD Mission Control, Audit export - posting format, and Autoresearch loop... A navigation bar is present at the bottom of the screen."* (12s, 1 paso, profile flash)
   4. La tarea Settings (batería) también completed (108s) — el flujo artemis + Gemini 2.5-flash key funciona
 - Config artemis del operador: `.env` con GEMINI_API_KEY (priorizada) + OPENAI_API_KEY (NVIDIA NIM — la key actual da 403 en inference, solo lista el catálogo) + `config/artemis.jsonc` default `google/gemini-2.5-flash` (el 3.8 está rate-limited en free tier) + fallback `gemini-2.5-flash-lite`.
+
+## Fase 16 — Laya re-audit + cierre Roadmap v2 (COMPLETA)
+
+- Re-audit periódico ejecutado con evidencia fechada (crates.io + GitHub API): `laya` sigue en 0.1.1, 1 contributor, tokenizers 0.21, sin rand directo → **criterio de desbloqueo NO cumplido**. Phase 13 permanece BLOQUEADA.
+- Roadmap v2 declarado agotado: Phases 11 ✅ / 12 ✅ / 14 ✅ / 15 ✅, Phase 13 bloqueada, sin fases pendientes.
+- Evidencia y veredicto completos en `Atlas OS/research/42 - Phase 16 Laya re-audit + roadmap v2 closure.md`.
 
 ## Out of scope v2
 - iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).
