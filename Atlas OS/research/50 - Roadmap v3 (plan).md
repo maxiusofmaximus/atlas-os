@@ -97,5 +97,10 @@ Outlook/Apple/Google; ningún turn proactivo se encola dentro de una busy window
   `atlas calendar busy list/count/add/rm`, sobre los envoltorios
   `Journal::busy_window_*` (`journal/calendar_ops.rs`). 1110 tests lib (4 nuevos),
   clippy/fmt limpios.
-- **v3.1.1 Graph READ:** pendiente (stubs `auth.rs`/`graph_reader.rs`).
-- **v3.1.2 Planning wiring:** pendiente (`AppState.context_busy_windows`).
+- **v3.1.1 Graph READ:** pendiente. Requiere credenciales Azure (client_id +
+  tenant + scopes) y un destino de token; no testeable sin ellas.
+- **v3.1.2 Planning wiring:** pendiente — **bloqueado en infraestructura**: el
+  repo **no tiene** un mecanismo de "turn proactivo" ni `AppState.context_window`
+  (grep repo-wide sin resultados). RFC 28 §G.4 item 8 (`Planning::next_free_slot`)
+  asume ese motor; construirlo es una fase con RFC propio, no un wiring. La
+  utilidad ya disponible es `Journal::busy_windows_overlapping` (v3.1.3).

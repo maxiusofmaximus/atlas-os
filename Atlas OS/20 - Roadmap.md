@@ -385,6 +385,8 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - **Fase v3.1** (sub-fases v3.1.0 ICS WRITE → v3.1.1 Graph READ → v3.1.2 Planning wiring → v3.1.3 CLI), un commit por sub-fase. Detalle en `research/50`.
 - **verificado 2026-10-03:** v3.1.0 ICS WRITE **ya implementado** (`calendar/ics_writer.rs` + `ics_route.rs` + ruta HUD; 42 tests `--features calendar-ics`); gap real = Graph READ (stubs), Planning wiring y CLI.
 - **v3.1.3 CLI surface COMPLETA:** `atlas calendar feed` + `atlas calendar busy list/count/add/rm` (envoltorios `Journal::busy_window_*` en `journal/calendar_ops.rs`); 1110 tests lib verdes.
+- **v3.1.1 bloqueado en credenciales:** Graph READ necesita una app Azure (client_id/tenant/scopes) — no testeable sin ellas.
+- **v3.1.2 bloqueado en infraestructura:** el repo no tiene motor de "turn proactivo" ni `AppState.context_window`; `Planning::next_free_slot` (RFC 28 §G.4 item 8) asume ese motor → requiere RFC propio antes de wiring.
 
 ## Out of scope v2
 - iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).
