@@ -398,6 +398,10 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - **EVAL.3 COMPLETA:** importador de Harbor `eval/harbor.rs` (`JobResult`/
   `TrialResult` → `eval_runs`/`eval_cases`, offline) + CLI `atlas eval import`
   + scaffold dev-only `tools/harbor_atlas/` (`AtlasAgent` + runner). 4 tests.
+- **EVAL.2 COMPLETA:** métricas normalizadas `eval/metrics.rs` (`EvalSummary` +
+  `summarize_by_harness_model` + `model_reliability`); HUD `GET /hud/eval/summary`
+  + card `<EvalCard.svelte>`; CLI `atlas eval metrics`. Cableado de *comportamiento*
+  del routing diferido (RFC del orquestador).
 - **v3.1.2 (Planning proactivo) queda condicionado a EVAL:** sin instrumento no se
   puede medir si los turnos proactivos ayudan o estorban.
 

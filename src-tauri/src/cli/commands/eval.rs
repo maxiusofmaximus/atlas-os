@@ -37,6 +37,11 @@ pub enum EvalAction {
     Report { id: Option<String> },
     /// Import a Harbor job result (`result.json` file, single trial, or job dir).
     Import { path: String },
+    /// Show normalized metrics over recent runs.
+    Metrics {
+        #[arg(short = 'n', long, default_value_t = 20)]
+        last: i64,
+    },
 }
 
 pub async fn run(cmd: EvalCmd, profile: &str) -> Result<()> {
@@ -48,7 +53,51 @@ pub async fn run(cmd: EvalCmd, profile: &str) -> Result<()> {
         EvalAction::List { last } => list(&journal, last),
         EvalAction::Report { id } => report(&journal, id.as_deref()),
         EvalAction::Import { path } => import(&journal, &path),
+        EvalAction::Metrics { last } => metrics(&journal, last),
     }
+}
+
+fn metrics(journal: &Journal, last: i64) -> Result<()> {
+    use crate::eval::metrics;
+
+    let limit = last.clamp(1, 512);
+    let summary = metrics::summarize_recent(journal, limit)?;
+    if summary.total == 0 {
+        println!("no eval cases yet (use `atlas eval run golden`)");
+        return Ok(());
+    }
+    println!(
+        "eval metrics (last {limit} runs): pass_rate={:.1}% ({}/{})  tokens/solved={:.0}  $/solved={:.4}",
+        summary.pass_rate * 100.0,
+        summary.passed,
+        summary.total,
+        summary.tokens_per_solved,
+        summary.cost_per_solved,
+    );
+    println!(
+        "  tokens={} no_action_turns={} cost=${:.4}",
+        summary.tokens_total, summary.no_action_turns, summary.cost_usd
+    );
+    if !summary.failure_kinds.is_empty() {
+        println!("  failure kinds:");
+        for (kind, n) in &summary.failure_kinds {
+            println!("    {kind}: {n}");
+        }
+    }
+    let groups = metrics::summarize_by_harness_model(journal, limit)?;
+    if groups.len() > 1 {
+        println!("  by harness/model:");
+        for g in groups {
+            println!(
+                "    {key}: {rate:.0}% tokens/solved={tps:.0} $/solved={cps:.4}",
+                key = g.key,
+                rate = g.summary.pass_rate * 100.0,
+                tps = g.summary.tokens_per_solved,
+                cps = g.summary.cost_per_solved,
+            );
+        }
+    }
+    Ok(())
 }
 
 fn import(journal: &Journal, path: &str) -> Result<()> {

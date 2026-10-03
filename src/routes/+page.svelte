@@ -22,6 +22,7 @@
     type SwarmMessagePayload,
   } from '$stores/hud';
   import AutoresearchCard from '$lib/components/AutoresearchCard.svelte';
+  import EvalCard from '$lib/components/EvalCard.svelte';
   import SwarmConsole from '$lib/components/SwarmConsole.svelte';
   import JournalObserver from '$lib/components/JournalObserver.svelte';
   import type { PageData } from './$types';
@@ -391,6 +392,15 @@
       agents={swarmAgents}
       messages={swarmMessages}
     />
+  </section>
+
+  <section class="eval">
+    <h2>Evaluation</h2>
+    <p class="hint">
+      RFC 20 Fase 22. pass rate, tokens/solved, $/solved and the failure-kind vector over recent
+      runs (<code>atlas eval run golden</code>, <code>atlas eval import &lt;job-dir&gt;</code>).
+    </p>
+    <EvalCard hudUrl={data.hudUrl ?? null} />
   </section>
 
   <section class="journal">

@@ -1,6 +1,6 @@
 # 51 — Phase 22 EVAL (Evaluación & Instrumentación — harness Layer 5)
 
-- **Estado:** plan aprobado; EVAL.0–EVAL.1–EVAL.3 implementadas (EVAL.2/EVAL.4 pendientes).
+- **Estado:** plan aprobado; EVAL.0–EVAL.1–EVAL.2–EVAL.3 implementadas (EVAL.4 pendiente).
 - **Fecha:** 2026-10-03.
 - **Motivación raíz:** investigación externa "harness engineering" (Round 9). La capa
   de mayor ROI que Atlas no tiene es **Evaluación/Instrumentación**, y ya estaba
@@ -85,9 +85,19 @@ Fuentes independientes convergen en 2026:
 - CLI `atlas eval run [suite] | list | report [id]` (`cli/commands/eval.rs`).
 - Smoke: `atlas eval run golden` → **6/6**, persistido; `report`/`list` OK.
 
-### EVAL.2 — Instrumentación + HUD + feedback
-- Métricas normalizadas + card HUD (`<EvalCard.svelte>`).
-- Cableado al feedback del Model Orchestrator (2.4) y al cost guard G11.
+### EVAL.2 — Instrumentación + HUD + feedback — **COMPLETA**
+- `eval/metrics.rs`: `EvalSummary` (pass_rate, tokens/solved, cost/solved,
+  no-action turns, histograma de `failure_kind`) + `summarize_recent` +
+  `summarize_by_harness_model` (unidad = harness×modelo) + `model_reliability`
+  (accessor para el feedback).
+- HUD `GET /hud/eval/summary` (`hud/eval.rs`) + card `<EvalCard.svelte>`
+  compuesta en `+page.svelte`.
+- CLI `atlas eval metrics [-n]`.
+- **Cableado del feedback / cost guard:** se expone `model_reliability` como
+  punto de consulta; el cambio de *comportamiento* del routing se difiere
+  (requiere el RFC del Model Orchestrator).
+- Tests: 2 (metrics) + 1 (handler HUD) + 1 (repo ya en EVAL.0); frontend
+  `pnpm check`/lint/test verdes.
 
 ### EVAL.3 — Adaptador Harbor — **COMPLETA**
 - **Importador** `eval/harbor.rs`: ingesta un `JobResult`/`TrialResult` de Harbor

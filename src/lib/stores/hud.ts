@@ -214,6 +214,54 @@ export async function fetchTail<T = unknown>(
   return (await res.json()) as T[];
 }
 
+// ────────────── RFC 20 Fase 22 (EVAL.2) — evaluation metrics ──────────────
+//
+// Mirrors `crate::eval::metrics::EvalSummary` so the `<EvalCard>` renders the
+// normalized metrics the field converges on (pass rate, tokens/solved,
+// $/solved, failure-kind histogram) plus the per harness × model breakdown.
+
+export interface EvalSummary {
+  runs: number;
+  total: number;
+  passed: number;
+  failed: number;
+  errored: number;
+  pass_rate: number;
+  tokens_total: number;
+  tokens_per_solved: number;
+  no_action_turns: number;
+  cost_usd: number;
+  cost_per_solved: number;
+  failure_kinds: Record<string, number>;
+}
+
+export interface EvalGroupSummary {
+  key: string;
+  summary: EvalSummary;
+}
+
+export interface EvalSummaryResponse {
+  summary: EvalSummary;
+  groups: EvalGroupSummary[];
+}
+
+/**
+ * Fetch the aggregated evaluation metrics. `hudUrl` is the HTTP root URL.
+ * Throws on HTTP failure or non-200 status so the card can surface the error.
+ */
+export async function fetchEvalSummary(
+  hudUrl: string,
+  last?: number,
+): Promise<EvalSummaryResponse> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const query = last ? `?last=${encodeURIComponent(last)}` : '';
+  const res = await fetch(`${trimmed}/hud/eval/summary${query}`);
+  if (!res.ok) {
+    throw new Error(`HUD eval summary failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as EvalSummaryResponse;
+}
+
 function connectWs(target: string) {
   let ws: WebSocket;
   try {
