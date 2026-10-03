@@ -313,9 +313,10 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - ort-sys ICE documentado: NOTA M45 en README + AGENTS (no `--all-features` en Windows rustc 1.96, no fixeable desde el repo, ver `docs/adr/0002-sqlite-and-sqlite-vec.md`).
 - Suite default 1103 verde; build mínimo 1060 verde; clippy `-D warnings` limpio en ambas configs. Nota: `swarm::rebase` git-shell flakea ~1/7 runs (preexistente, fuera de M45).
 
-## Fase 13 — Laya real (BLOQUEADO upstream)
+## Fase 13 — Laya real (BLOQUEO EN REVISIÓN — decisión del operador)
 - **Criterio de re-audit:** `laya` >0.2.x o mantenedores ≥2 o fix de rand/tokenizers. Entonces: candle inference real detrás de la gate + compaction wiring (5.3) + winnow. NO delegar hasta cumplir el criterio.
 - **Re-audit 2026-10-02 (Phase 16, `research/42`):** crates.io `laya 0.1.1` (updated 2026-09-20), GitHub 1 contributor, `tokenizers` ya 0.21, sin dep directa de `rand`. Veredicto: criterio NO cumplido → **Phase 13 permanece BLOQUEADA**. Próximo re-audit cuando cambie versión o mantenedores.
+- **Re-audit 2026-10-03 (`scripts/laya_reaudit.ps1`, `research/laya_reaudit_2026-10-03.md`):** `laya 0.1.1` sin cambio; GitHub ahora **2 contributors** (`aovestdipaperino`, `enzinol`) → eje mantenedores ≥2 **CUMPLIDO** (la API pública de contributors **no** confirma write-access; pendiente verificar). rand/tokenizers siguen resueltos. Veredicto: criterio cumplido en un eje → **requiere decisión del operador** sobre desbloquear Phase 13; no se actúa unilateralmente.
 
 ## Fase 14 — Mobile companion + MaxAppsHub (RFC 41, plan research/40 extensión) (COMPLETA, sub-fases 14.0 → 14.2)
 
