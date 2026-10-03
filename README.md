@@ -187,7 +187,7 @@ cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- journal -n 10
 
 - **Phase 21 — Audit panic!/unwrap()**: cancelada como cambio; las coincidencias son todas test-only (`#[cfg(test)]`). Documentado. ✅
 
-**ROADMAP v1 COMPLETO** (Phases 0-10, 33 RFCs, 1103 tests Rust + 67 frontend). **Roadmap v2**: Phase 11 (mobile testing ✅) + Phase 12 (distribución ✅) + Phase 14 (distribución Android ✅ físicamente validada) + Phase 15 (Release/Distribution Hardening ✅) — **Phase 13 (Laya real) BLOQUEO EN REVISIÓN**: re-audit 2026-10-03 (`scripts/laya_reaudit.ps1`) muestra `laya 0.1.1` pero **2 contributors**, cumpliendo el eje mantenedores ≥2 (pendiente confirmar write-access) → **requiere decisión del operador**. Roadmap v2 agotado; siguiente trabajo requiere decisión del operador + RFC propio (Roadmap v3 no iniciado).
+**ROADMAP v1 COMPLETO** (Phases 0-10, 33 RFCs, 1103 tests Rust + 67 frontend). **Roadmap v2**: Phase 11 (mobile testing ✅) + Phase 12 (distribución ✅) + Phase 14 (distribución Android ✅ físicamente validada) + Phase 15 (Release/Distribution Hardening ✅) — **Phase 13 (Laya real) BLOQUEO EN REVISIÓN**: re-audit 2026-10-03 (`scripts/laya_reaudit.ps1`) muestra `laya 0.1.1` pero **2 contributors**, cumpliendo el eje mantenedores ≥2 (pendiente confirmar write-access) → **requiere decisión del operador**. Roadmap v2 agotado; **Roadmap v3 iniciado** (`research/50`, decisión del operador 2026-10-03): prioridad **Windows Calendar real** (RFC 28 §G). Phase 13 sigue como **propuesta** (`research/49`) sin implementar.
 
 ## License
 

@@ -317,6 +317,7 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - **Criterio de re-audit:** `laya` >0.2.x o mantenedores ≥2 o fix de rand/tokenizers. Entonces: candle inference real detrás de la gate + compaction wiring (5.3) + winnow. NO delegar hasta cumplir el criterio.
 - **Re-audit 2026-10-02 (Phase 16, `research/42`):** crates.io `laya 0.1.1` (updated 2026-09-20), GitHub 1 contributor, `tokenizers` ya 0.21, sin dep directa de `rand`. Veredicto: criterio NO cumplido → **Phase 13 permanece BLOQUEADA**. Próximo re-audit cuando cambie versión o mantenedores.
 - **Re-audit 2026-10-03 (`scripts/laya_reaudit.ps1`, `research/laya_reaudit_2026-10-03.md`):** `laya 0.1.1` sin cambio; GitHub ahora **2 contributors** (`aovestdipaperino`, `enzinol`) → eje mantenedores ≥2 **CUMPLIDO** (la API pública de contributors **no** confirma write-access; pendiente verificar). rand/tokenizers siguen resueltos. Veredicto: criterio cumplido en un eje → **requiere decisión del operador** sobre desbloquear Phase 13; no se actúa unilateralmente.
+- **Decisión del operador 2026-10-03:** escribir el RFC propuesta (`research/49`) **sin implementar**; Phase 13 sigue sin código hasta confirmar write-access o un bump >0.2.x.
 
 ## Fase 14 — Mobile companion + MaxAppsHub (RFC 41, plan research/40 extensión) (COMPLETA, sub-fases 14.0 → 14.2)
 
@@ -377,6 +378,11 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 
 - Todas las `panic!()`/`unwrap()` enumeradas viven en bloques `#[cfg(test)]`;
   Phase 21 como refactor de producción queda CANCELADA. Documentado en `research/47`.
+
+## Roadmap v3 — Windows Calendar real (plan `research/50`)
+
+- **Decisión del operador 2026-10-03:** prioridad elegida por el gestor tras comparar A/B/C/D. Candidato **D (Windows Calendar real, RFC 28 §G)** por ser el de mayor base ya construida y verificable. B (Swarm HUD) ya implementado; A (Axum 0.8) y C (context-mode MCP) diferidos.
+- **Fase v3.1** (sub-fases v3.1.0 ICS WRITE → v3.1.1 Graph READ → v3.1.2 Planning wiring → v3.1.3 CLI), un commit por sub-fase. Detalle en `research/50`.
 
 ## Out of scope v2
 - iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).
