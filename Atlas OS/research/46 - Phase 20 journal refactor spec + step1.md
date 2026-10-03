@@ -1,4 +1,4 @@
-# 46 - Phase 20: journal refactor (steps 1-3)
+# 46 - Phase 20: journal refactor (steps 1-4)
 
 ## Objetivo
 
@@ -32,12 +32,26 @@ con API pública equivalente.
   `pub use model_invocation::ModelInvocationRow;`. API pública y callers intactos.
 - `model_resets_ops.rs` queda sólo con el dominio de resets/afinidad.
 
-## Verificación (steps 1-3)
+## Step 4 — tests por dominio (HECHO)
+
+- `journal/tests.rs` (2498 LOC, 99 tests) partido en `journal/tests/`:
+  `tests/mod.rs` declara los 15 antiguos módulos `*_tests` (journal_store,
+  verdict, plan, diff, validation, repair, pattern, checkpoint, skill,
+  mission_graph_schema, model_resets_schema, research_m25/m26/m27_schema,
+  journal_phase80), cada uno en su propio archivo.
+- Split puramente mecánico: misma ruta de módulo
+  (`crate::journal::tests::<name>`), mismos imports `crate::…`, cero cambios
+  de cuerpo.
+
+## Verificación (steps 1-4)
 
 - `cargo test --lib journal`: **228 passed; 0 failed**.
+- `cargo test --lib`: **1106 passed; 0 failed**.
 - `cargo check` (default y `--features dag_mode`): OK.
 - `cargo fmt --check` + `cargo clippy --all-targets -- -D warnings`: OK.
 
-## Siguiente (Phase 20.3)
+## Estado
 
-- Dividir `journal/tests.rs` por dominio (985 LOC, aislado del código de producción).
+Phase 20 (journal refactor) queda **CERRADA**: `mod.rs` sin los impl blocks
+de resets/dag_mode/model_invocation y sin el blob de tests; red de 228 tests
+journal intacta.

@@ -359,12 +359,12 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - `cargo test --lib lsp` → 9 ok; clippy `-D warnings`, fmt, cargo check verdes.
 - Evidencia en `Atlas OS/research/45 - Phase 19 LSP real server.md`.
 
-## Fase 20 — Journal refactor (steps 1-3 COMPLETOS)
+## Fase 20 — Journal refactor (steps 1-4 COMPLETOS, CERRADA)
 
 - Step 1: `Section H` → `journal/model_resets_ops.rs`.
 - Step 2: `impl Journal` del bloque `dag_mode` → `journal/dag_mode_ops.rs`; 228 tests journal verdes; `cargo check` + `--features dag_mode` verdes.
 - Step 3: `ModelInvocationRow` + record/read → `journal/model_invocation.rs` (re-export en `mod.rs`); API y callers intactos.
-- Siguiente (Phase 20.3): dividir `journal/tests.rs` por dominio.
+- Step 4: `journal/tests.rs` (2498 LOC) → `journal/tests/` con 15 módulos `*_tests`, uno por archivo; 228 journal / 1106 lib verdes.
 
 ## Fase 21 — Audit panics/unwraps (CERRADO: test-only)
 
