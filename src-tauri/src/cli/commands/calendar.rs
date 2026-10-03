@@ -15,6 +15,9 @@ use std::path::Path;
 use anyhow::Result;
 use clap::{Args, Subcommand};
 
+#[cfg(feature = "calendar-graph")]
+use anyhow::Context;
+
 use crate::calendar::payload::BusySource;
 use crate::calendar::queue::BusyWindowInput;
 use crate::journal::Journal;
@@ -34,6 +37,16 @@ pub enum CalendarAction {
         #[command(subcommand)]
         action: BusyAction,
     },
+    /// Authenticate against Microsoft Graph (OAuth device-code) and store the
+    /// encrypted refresh token in this profile (RFC 28 §G READ).
+    #[cfg(feature = "calendar-graph")]
+    Login,
+    /// Pull the next week of Graph events into `graph` busy windows.
+    #[cfg(feature = "calendar-graph")]
+    Sync,
+    /// Print the stored Graph token claims (aud/scp/tid) — diagnostics.
+    #[cfg(feature = "calendar-graph")]
+    Status,
 }
 
 #[derive(Subcommand, Debug)]
@@ -69,6 +82,18 @@ pub async fn run(cmd: CalendarCmd, profile: &str) -> Result<()> {
         CalendarAction::Busy { action } => {
             let journal = Journal::open(&root)?;
             busy(&journal, action)
+        }
+        #[cfg(feature = "calendar-graph")]
+        CalendarAction::Login => login(&root).await,
+        #[cfg(feature = "calendar-graph")]
+        CalendarAction::Sync => {
+            let journal = Journal::open(&root)?;
+            sync(&journal, &root).await
+        }
+        #[cfg(feature = "calendar-graph")]
+        CalendarAction::Status => {
+            let journal = Journal::open(&root)?;
+            status(&journal, &root).await
         }
     }
 }
@@ -139,6 +164,72 @@ fn busy(journal: &Journal, action: BusyAction) -> Result<()> {
                 if removed { "removed" } else { "not found" }
             );
         }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "calendar-graph")]
+const GRAPH_ACCOUNT: &str = "graph:default";
+
+#[cfg(feature = "calendar-graph")]
+async fn login(root: &Path) -> Result<()> {
+    use crate::calendar::auth;
+
+    let client = reqwest::Client::new();
+    let token = auth::login_loopback(&client).await?;
+    let refresh = token
+        .refresh_token
+        .context("Graph no devolvió refresh_token (¿falta offline_access?)")?;
+
+    let key = auth::load_or_create_key(root)?;
+    let blob = auth::encrypt_refresh_token(&key, &refresh)?;
+    let expires_at = token
+        .expires_in
+        .map(|s| chrono::Utc::now().timestamp_millis() + (s as i64) * 1000);
+
+    let journal = Journal::open(root)?;
+    journal.save_calendar_token(GRAPH_ACCOUNT, &blob, auth::KEY_HINT, expires_at)?;
+    println!("Login OK — token cifrado guardado en el perfil.");
+    Ok(())
+}
+
+#[cfg(feature = "calendar-graph")]
+async fn sync(journal: &Journal, root: &Path) -> Result<()> {
+    use crate::calendar::{auth, graph_reader};
+
+    let token_row = journal
+        .load_calendar_token(GRAPH_ACCOUNT)?
+        .context("sin token Graph; ejecuta `atlas calendar login` primero")?;
+    let key = auth::load_or_create_key(root)?;
+    let refresh = auth::decrypt_refresh_token(&key, &token_row.ciphertext)?;
+
+    let client = reqwest::Client::new();
+    let token = auth::refresh_access_token(&client, &refresh).await?;
+    let written = graph_reader::sync(journal, &token.access_token).await?;
+    println!("calendar sync: {written} busy windows `graph` actualizados");
+    Ok(())
+}
+
+#[cfg(feature = "calendar-graph")]
+async fn status(journal: &Journal, root: &Path) -> Result<()> {
+    use crate::calendar::auth;
+
+    let row = journal
+        .load_calendar_token(GRAPH_ACCOUNT)?
+        .context("sin token Graph; ejecuta `atlas calendar login` primero")?;
+    let key = auth::load_or_create_key(root)?;
+    let refresh = auth::decrypt_refresh_token(&key, &row.ciphertext)?;
+    let client = reqwest::Client::new();
+    let token = auth::refresh_access_token(&client, &refresh).await?;
+    match auth::decode_claims(&token.access_token) {
+        Some(c) => {
+            println!("aud: {}", c.aud.unwrap_or_default());
+            println!("scp: {}", c.scp.unwrap_or_default());
+            println!("tid: {}", c.tid.unwrap_or_default());
+            println!("upn: {}", c.upn.unwrap_or_default());
+            println!("exp: {}", c.exp.map(|e| e.to_string()).unwrap_or_default());
+        }
+        None => println!("token válido (formato opaco JWE — sin claims decodables)"),
     }
     Ok(())
 }

@@ -93,12 +93,25 @@ Outlook/Apple/Google; ningún turn proactivo se encola dentro de una busy window
 ## Estado de ejecución
 
 - **v3.1.0 ICS WRITE:** ✅ implementado (pre-existente, ruta HUD + `ics_writer`).
+- **v3.1.1 Graph READ:** ✅ implementado y **verificado end-to-end**.
+  - OAuth: authorization-code + PKCE con loopback (`calendar/auth.rs`); abre el
+    navegador y captura el `code` solo (sin pegar códigos). `reqwest` en lugar de
+    `graph-rs-sdk` (retirado de `calendar-graph`). Refresh token cifrado
+    AES-256-GCM con clave `<profile_root>/calendar.key`.
+  - Cliente: `atlas calendar login` / `sync` / `status` (`calendar-graph`).
+  - Reader: `calendar/graph_reader.rs` (`CalendarReader` → `me/calendarView`,
+    `graph` busy windows, dedupe `(source, external_id)`, eviction de la corrida
+    previa).
+  - Registro Azure (no es secreto): `client_id = a271f4c7-b9bb-48b2-84e5-47c1a6c3e8af`,
+    authority `common`, audience `AzureADandPersonalMicrosoftAccount`,
+    `Calendars.Read` delegado con consent `AllPrincipals`, public client con
+    redirects `http://localhost` + nativeclient. Overrides:
+    `ATLAS_GRAPH_CLIENT_ID` / `ATLAS_GRAPH_TENANT`.
+  - Smoke real: `sync` trajo 2 eventos ("Reunión con Pedro", "Ingeniero Plan de
+    Aula") → `calendar busy list` muestra 2 busy windows `graph` (w=0.50).
 - **v3.1.3 CLI surface:** ✅ implementado — `atlas calendar feed` +
   `atlas calendar busy list/count/add/rm`, sobre los envoltorios
-  `Journal::busy_window_*` (`journal/calendar_ops.rs`). 1110 tests lib (4 nuevos),
-  clippy/fmt limpios.
-- **v3.1.1 Graph READ:** pendiente. Requiere credenciales Azure (client_id +
-  tenant + scopes) y un destino de token; no testeable sin ellas.
+  `Journal::busy_window_*` (`journal/calendar_ops.rs`).
 - **v3.1.2 Planning wiring:** pendiente — **bloqueado en infraestructura**: el
   repo **no tiene** un mecanismo de "turn proactivo" ni `AppState.context_window`
   (grep repo-wide sin resultados). RFC 28 §G.4 item 8 (`Planning::next_free_slot`)

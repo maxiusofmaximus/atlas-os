@@ -52,7 +52,7 @@
 | 47 | [Phase 21 — Audit panics/unwraps test-only](./research/47%20-%20Phase%2021%20audit%20panics%20unwraps%20test-only.md) | ~2 KB | Phase 21: las coincidencias de `panic!`/`unwrap()` están todas en bloques `#[cfg(test)]`; cancelada como cambio de producción. |
 | 48 | [Phase 18.1 — ACP cancel in-flight](./research/48%20-%20Phase%2018.1%20ACP%20cancel%20in-flight.md) | ~3 KB | Phase 18.1: `exec step` corre en `run_until_cancelled`; `$/cancel_request` → `StopReason::Cancelled` (mandato ACP); 44 tests acp verdes. |
 | 49 | [Phase 13 — Laya real RFC propuesta](./research/49%20-%20Phase%2013%20Laya%20real%20RFC%20proposal.md) | ~2 KB | Phase 13 (PROPUESTA, sin implementar): re-audit 2026-10-03 con 2 contributors cumple el eje mantenedores≥2 (caveat: write-access sin confirmar); plan de swap de la gate `laya`. |
-| 50 | [Roadmap v3 (plan)](./research/50%20-%20Roadmap%20v3%20(plan).md) | ~5 KB | Roadmap v3: Windows Calendar real (RFC 28 §G). v3.1.0 ICS WRITE ✅ (42 tests) y v3.1.3 CLI ✅ (`atlas calendar feed/busy`); v3.1.1 bloqueado en credenciales Azure, v3.1.2 bloqueado en el motor proactivo (inexistente). |
+| 50 | [Roadmap v3 (plan)](./research/50%20-%20Roadmap%20v3%20(plan).md) | ~6 KB | Roadmap v3: Windows Calendar real (RFC 28 §G). v3.1.0 ICS WRITE ✅, v3.1.3 CLI ✅ y v3.1.1 Graph READ ✅ (auth-code+PKCE loopback, `atlas calendar login/sync/status`, 2 eventos reales persistidos); falta v3.1.2 (bloqueado en el motor proactivo). |
 
 **Total: 33 RFCs, ~331 KB** de especificación.
 
