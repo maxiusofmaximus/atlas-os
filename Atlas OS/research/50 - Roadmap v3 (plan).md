@@ -25,8 +25,14 @@ candidatos: **D — Windows Calendar real**. Phase 13 (Laya) queda como
   (`journal/schema.rs`).
 - `calendar` ya se consume en `lib.rs`, `hud/server.rs`,
   `journal/export/retention.rs`, `toast/payload.rs`.
-- **Gap real:** endpoint `.ics`, adaptador Graph (OAuth + token cifrado + poll),
-  y wiring de `BusyWindow{Graph}` al Planning.
+- **ICS WRITE YA IMPLEMENTADO (verificado 2026-10-03):** `calendar/ics_writer.rs`
+  (`CalendarWriter::render`) + `calendar/ics_route.rs` (`get_calendar_ics`)
+  cableado en `hud/server.rs:115` (`GET /atlas-calendar.ics`); feature
+  `calendar-ics`; `cargo test --features calendar-ics --lib calendar` → **42 ok**.
+- **Gap real (revisado):** `calendar/auth.rs` y `calendar/graph_reader.rs` son
+  **placeholders** (feature `calendar-graph`: compilan vacíos, sin lógica),
+  `AppState.context_busy_windows` **no existe**, no hay CLI `atlas calendar`, y
+  el endpoint `.ics` **no** valida todavía el token opaco del §G.2.
 
 ### A.3 Descarte de candidatos (evidencia)
 - **A (Axum 0.8):** higiene de deps; 25 rutas en `hud/server.rs`; sin feature
@@ -39,24 +45,23 @@ candidatos: **D — Windows Calendar real**. Phase 13 (Laya) queda como
 
 ## SECTOR B — Plan v3 (Fase v3.1: Windows Calendar real)
 
-### Sub-fase v3.1.0 — ICS WRITE (`GET /atlas-calendar.ics`)
-- Ruta HUD en `hud/server.rs` + handler en `calendar/` reutilizando
-  `IcsMission*` (ya existen): construye el feed RFC 5545 desde missions/schedules
-  del journal.
-- Token opaco `?token=base64url(16 random bytes)` (unguessable, sin auth) +
-  path reservado.
-- Tests: ICS bien formado (line folding/escaping), token inválido → 404, feed
-  vacío sigue siendo válido.
-- Smoke: `atlas calendar feed` imprime la URL `webcal://…`.
+### Sub-fase v3.1.0 — ICS WRITE (✅ YA IMPLEMENTADO)
 
-### Sub-fase v3.1.1 — Graph READ (OAuth + token cifrado + poll)
-- `calendar_auth` (m18) almacena el refresh token cifrado (AES-256-GCM).
-- CLI `atlas calendar login` (paste `client_id`+`tenant`, o popup), scopes
-  `Calendars.Read` + `offline_access`.
-- Poll 60 s (`tokio::spawn` desde `AppState::new()`): `/me/calendarView` →
-  `BusyWindowQueue::upsert` con `source=Graph` + `weight`.
-- Tests: token cifrado round-trip, expirado → silent refresh, fallo → Toast de
-  re-login.
+- `calendar/ics_writer.rs` + `calendar/ics_route.rs` + ruta `hud/server.rs:115`.
+- Pendiente menor: token opaco `?token=base64url(16 random bytes)` del RFC 28
+  §G.2 (hoy la ruta no valida query token). Tests del feed ya verdes (42 con
+  `--features calendar-ics`).
+
+### Sub-fase v3.1.1 — Graph READ (implementar desde los stubs)
+
+- `calendar/auth.rs`: OAuth `Calendars.Read` + `offline_access`; refresh token
+  cifrado AES-256-GCM en `calendar_auth` (m18).
+- `calendar/graph_reader.rs`: `CalendarReader::{new,authenticate,poll_once,spawn}`
+  (API proyectada en el stub); poll 60 s `/me/calendarView` →
+  `BusyWindowQueue::upsert` con `source=Graph`.
+- Feature `calendar-graph` ya declara `graph-rs-sdk`/`aes-gcm`/`ring` y compila
+  (`cargo check --features calendar-graph` OK).
+- Tests: token cipher round-trip, expirado → silent refresh, fallo → Toast re-login.
 
 ### Sub-fase v3.1.2 — Planning wiring
 - `AppState.context_busy_windows` (RFC 12 §3) recibe los `BusyWindow` de Graph;
@@ -65,7 +70,8 @@ candidatos: **D — Windows Calendar real**. Phase 13 (Laya) queda como
 - Tests: `overlaps` boundary, threshold, precedencia de `source`.
 
 ### Sub-fase v3.1.3 — CLI surface
-- `atlas calendar status/feed/login/logout` + `atlas calendar manual add <start> <end>`.
+- `atlas calendar status/feed/login/logout` + `atlas calendar manual add <start> <end>`
+  (hoy **no** existe `cli/commands/calendar.rs`).
 
 **Entregable:** el operador ve los runs de Atlas en su calendario nativo (webcal)
 y el Planning respeta sus busy windows. **KPI:** feed RFC 5545 válido en
@@ -80,6 +86,6 @@ Outlook/Apple/Google; ningún turn proactivo se encola dentro de una busy window
 ## SECTOR D — Siguiente paso operativo
 
 1. Commit de este plan + RFC 49 + Index 26 + README.
-2. Sub-fase v3.1.0 (ICS WRITE, autocontenida con el payload existente) → tests → commit.
+2. v3.1.0 ya está implementado: sólo falta el token opaco del §G.2 (commit pequeño).
 3. v3.1.1 (Graph) → v3.1.2 (Planning) → v3.1.3 (CLI), un commit por sub-fase.
 4. Phase 13 permanece en `research/49` hasta confirmar write-access/versión.

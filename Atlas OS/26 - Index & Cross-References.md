@@ -52,7 +52,7 @@
 | 47 | [Phase 21 — Audit panics/unwraps test-only](./research/47%20-%20Phase%2021%20audit%20panics%20unwraps%20test-only.md) | ~2 KB | Phase 21: las coincidencias de `panic!`/`unwrap()` están todas en bloques `#[cfg(test)]`; cancelada como cambio de producción. |
 | 48 | [Phase 18.1 — ACP cancel in-flight](./research/48%20-%20Phase%2018.1%20ACP%20cancel%20in-flight.md) | ~3 KB | Phase 18.1: `exec step` corre en `run_until_cancelled`; `$/cancel_request` → `StopReason::Cancelled` (mandato ACP); 44 tests acp verdes. |
 | 49 | [Phase 13 — Laya real RFC propuesta](./research/49%20-%20Phase%2013%20Laya%20real%20RFC%20proposal.md) | ~2 KB | Phase 13 (PROPUESTA, sin implementar): re-audit 2026-10-03 con 2 contributors cumple el eje mantenedores≥2 (caveat: write-access sin confirmar); plan de swap de la gate `laya`. |
-| 50 | [Roadmap v3 (plan)](./research/50%20-%20Roadmap%20v3%20(plan).md) | ~4 KB | Roadmap v3: prioridad Windows Calendar real (RFC 28 §G) — ICS WRITE + Graph READ + Planning wiring + CLI; B ya implementado, A/C diferidos. |
+| 50 | [Roadmap v3 (plan)](./research/50%20-%20Roadmap%20v3%20(plan).md) | ~4 KB | Roadmap v3: prioridad Windows Calendar real (RFC 28 §G). Verificado: ICS WRITE ya implementado (42 tests); gap = Graph READ (stubs `auth.rs`/`graph_reader.rs`) + Planning wiring + CLI. B ya implementado, A/C diferidos. |
 
 **Total: 33 RFCs, ~331 KB** de especificación.
 
