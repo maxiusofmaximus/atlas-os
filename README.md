@@ -181,6 +181,8 @@ cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- journal -n 10
 
 - **Phase 19 — LSP real v1**: `AtlasLspBackend` (tower-lsp 0.20) con initialize+hover+did_open sobre stdio cuando stdout es pipe/`ATLAS_LSP_STDIO=1`; desktop sigue parked. 9 tests lsp verdes, clippy/fmt/check limpios. ✅
 
+- **Phase 20 — Journal refactor (en curso)**: step 1 extrajo impl block Section H a `journal/model_resets_ops.rs`; 228 tests journal verdes, check/fmt/clippy limpios. ✅
+
 **ROADMAP v1 COMPLETO** (Phases 0-10, 33 RFCs, 1103 tests Rust + 67 frontend). **Roadmap v2**: Phase 11 (mobile testing ✅) + Phase 12 (distribución ✅) + Phase 14 (distribución Android ✅ físicamente validada) + Phase 15 (Release/Distribution Hardening ✅) — **Phase 13 (Laya real) BLOQUEADA upstream** hasta que el crate `laya` madure (criterio: >0.2.x o mantenedores ≥2). Roadmap v2 agotado; siguiente trabajo requiere decisión del operador + RFC propio (Roadmap v3 no iniciado).
 
 ## License

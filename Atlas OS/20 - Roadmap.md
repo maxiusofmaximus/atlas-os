@@ -359,5 +359,10 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - `cargo test --lib lsp` → 9 ok; clippy `-D warnings`, fmt, cargo check verdes.
 - Evidencia en `Atlas OS/research/45 - Phase 19 LSP real server.md`.
 
+## Fase 20 — Journal refactor (en curso, step 1)
+
+- Spec + step 1: impl block Section H (`model_reset_upsert`/`link_model_reset_toast`) movido a `journal/model_resets_ops.rs`; `cargo test --lib journal` 228 ok, cargo check / fmt / clippy verdes.
+- Siguientes: dag_mode impl → submódulo, `ModelInvocationRow` → journal/model_invocation.rs, dividir tests.rs por dominio.
+
 ## Out of scope v2
 - iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).
