@@ -347,5 +347,11 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - `cargo test --lib`: 1103 ok (baseline local tras cierres).
 - Evidencia completa en `Atlas OS/research/43 - Phase 17 baseline hardening + version build evidence.md`.
 
+## Fase 18 — ACP host loop real + Phase 1.5d closeout (COMPLETA)
+
+- `session/prompt` deja de devolver el refusal sintético Phase 1.5d; nuevo `PromptPlan` + `plan_prompt` (delegado a `delegate::DelegateOutcome`), cwd por sesión en `session/new → session/prompt`, y `exec step` despacha al CLI real. `Fix/Restart/NotSupported` responden con chunk explicativo; `NotSupported` mantiene `StopReason::Refusal`.
+- Tests: `cargo test --features acp-server,cli acp::` → 42 ok. clippy `-D warnings` + fmt + cargo check (default/minimal/acp-server) verdes.
+- Cancel in-flight sigue simplificado (no hay trabajo real a cancelar aún) — anotado como deuda acotada, no ocultable como error.
+
 ## Out of scope v2
 - iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).

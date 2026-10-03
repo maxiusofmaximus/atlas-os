@@ -177,6 +177,8 @@ cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- journal -n 10
 
 - **Phase 17 — Baseline de verificación + higiene de lint**: `pnpm lint` recuperado a verde (prettier de `release-android.yml` + `.dependency-cruiser.cjs`, `.prettierignore` para archivos de trabajo del operador), header HUD evidencia `v0.1.1` en el bundle compilado, baseline `cargo test --lib` 1103 ok. ✅
 
+- **Phase 18 — ACP host loop real (Phase 1.5d closeout)**: `session/prompt` ejecuta el dispatch real (`delegate::DelegateOutcome` → `PromptPlan`), cwd por sesión, `exec step` despacha al CLI real y cierra con `EndTurn`, refusal conservado solo para no-soportados. 42 tests acp verdes, clippy/fmt/check limpios. ✅
+
 **ROADMAP v1 COMPLETO** (Phases 0-10, 33 RFCs, 1103 tests Rust + 67 frontend). **Roadmap v2**: Phase 11 (mobile testing ✅) + Phase 12 (distribución ✅) + Phase 14 (distribución Android ✅ físicamente validada) + Phase 15 (Release/Distribution Hardening ✅) — **Phase 13 (Laya real) BLOQUEADA upstream** hasta que el crate `laya` madure (criterio: >0.2.x o mantenedores ≥2). Roadmap v2 agotado; siguiente trabajo requiere decisión del operador + RFC propio (Roadmap v3 no iniciado).
 
 ## License

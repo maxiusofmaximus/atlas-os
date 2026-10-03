@@ -12,10 +12,13 @@
 //     operator sees `/atlas fix`, `/atlas exec step`,
 //     `/atlas restart`, `/atlas mission new`, ``/atlas fork``,
 //     `/atlas resume` as soon as the session opens,
-//   * `session/prompt` immediately stops with `StopReason::Refusal` and
-//     streams a single `session/update` chunk carrying a sentinel text
-//     explaining "Phase 1.5d: agent host loop not wired" before the prompt
-//     response goes out,
+//   * `session/prompt` parses the first text block as an ACP slash-command
+//     (`/opencode fix`, `/opencode exec step`, `/opencode restart`) via the
+//     `delegate` contract. Supported commands dispatch to the real CLI
+//     dispatch (`crate::cli::commands::exec::run` for `exec step`) and stream
+//     one result/error `session/update` chunk before `StopReason::EndTurn`;
+//     unsupported or context-less commands stream an explanatory chunk and
+//     are refused (`StopReason::Refusal`) — never the Phase 1.5d sentinel.
 //   * the `$/cancel_request` notification is acknowledged via `tracing`
 //     and otherwise dropped — the stub never enters a host loop, so there is
 //     no in-flight work to cancel.
@@ -53,6 +56,63 @@ use agent_client_protocol::{
 };
 use uuid::Uuid;
 
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+
+/// Shared session → cwd map so `session/prompt` can recover the session cwd
+/// the client declared in `session/new` (stable across one `run_server` call).
+pub type SessionCwdMap = Arc<Mutex<HashMap<String, PathBuf>>>;
+
+/// Map the parsed ACP slash-command to concrete host-loop behaviour.
+/// Pure function — the async handler in `run_server` executes the effect.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PromptPlan {
+    /// `/opencode exec step <plan_id> <step_id>` → run the real CLI exec step.
+    ExecStep { plan_id: String, step_id: String },
+    /// `/opencode fix [hint]` → needs IT `wtcli`; without a capture the
+    /// prompt is refused with guidance instead of running a phantom Repair.
+    FixRequested { hint: Option<String> },
+    /// `/opencode restart` → echo a close+new directive and end the turn.
+    RestartRequested { cwd: PathBuf },
+    /// Any other slash command or free text → refuse with guidance.
+    NotSupported { command: String },
+}
+
+/// Consume the delegate contract and emit a routing plan that the host
+/// loop can execute without re-parsing the prompt.
+pub fn plan_prompt(line: &str, cwd: &str) -> PromptPlan {
+    match crate::acp::delegate::parse_delegate(line, cwd) {
+        crate::acp::delegate::DelegateOutcome::ExecStep {
+            mission_id,
+            step_id,
+        } => PromptPlan::ExecStep {
+            plan_id: mission_id,
+            step_id,
+        },
+        crate::acp::delegate::DelegateOutcome::FixRequested { hint, .. } => {
+            PromptPlan::FixRequested { hint }
+        }
+        crate::acp::delegate::DelegateOutcome::RestartRequested { cwd } => {
+            PromptPlan::RestartRequested { cwd }
+        }
+        crate::acp::delegate::DelegateOutcome::NotImplemented { command } => {
+            PromptPlan::NotSupported { command }
+        }
+    }
+}
+
+/// First text block from a `PromptRequest.prompt` payload; empty string when
+/// the prompt carries no text blocks (the handler then refuses with guidance).
+pub fn first_prompt_text(prompt: &[agent_client_protocol::schema::v1::ContentBlock]) -> String {
+    for block in prompt {
+        if let agent_client_protocol::schema::v1::ContentBlock::Text(t) = block {
+            return t.text.clone();
+        }
+    }
+    String::new()
+}
+
 /// Entry point invoked by the `atlas` binary when Microsoft IT detection
 /// requests an ACP stdio loop. Drives the JSON-RPC server over stdio until
 /// the client disconnects or the transport closes. Item 4 wires the binary
@@ -60,6 +120,7 @@ use uuid::Uuid;
 /// sees the IT host; without that env the subcommand list reuse the
 /// existing CLI dispatch.
 pub async fn run_server() -> agent_client_protocol::Result<()> {
+    let session_cwds: SessionCwdMap = Arc::new(Mutex::new(HashMap::new()));
     Agent
         .builder()
         .name("atlas")
@@ -76,6 +137,12 @@ pub async fn run_server() -> agent_client_protocol::Result<()> {
                 tracing::debug!(cwd = ?request.cwd, "acp session/new");
                 let response = build_new_session_response();
                 let session_id = response.session_id.clone();
+                if let Ok(mut map) = session_cwds.lock() {
+                    map.insert(
+                        session_id.0.as_ref().to_string(),
+                        request.cwd.clone(),
+                    );
+                }
                 responder.respond(response)?;
                 let update = SessionNotification::new(
                     session_id,
@@ -111,21 +178,113 @@ pub async fn run_server() -> agent_client_protocol::Result<()> {
         )
         .on_receive_request(
             async |request: PromptRequest, responder, connection| {
-                tracing::warn!(
-                    session_id = %request.session_id,
-                    "acp prompt rejected: phase 1.5d host loop not wired"
+                let line = first_prompt_text(&request.prompt);
+                let cwd = session_cwds
+                    .lock()
+                    .ok()
+                    .and_then(|map| map.get(request.session_id.0.as_ref()).cloned())
+                    .map(|p| p.to_string_lossy().into_owned())
+                    .unwrap_or_default();
+                tracing::info!(
+                    session_id = %request.session_id.0,
+                    prompt_text_hash = ?line.len(),
+                    "acp session/prompt"
                 );
-                let update = SessionNotification::new(
-                    request.session_id.clone(),
-                    SessionUpdate::AgentMessageChunk(
-                        agent_client_protocol::schema::v1::ContentChunk::new(ContentBlock::Text(
-                            TextContent::new("Phase 1.5d: agent host loop not wired.".to_string()),
-                        )),
-                    ),
-                );
-                connection.send_notification(update)?;
-                let response = PromptResponse::new(StopReason::Refusal);
-                responder.respond(response)?;
+                match plan_prompt(&line, &cwd) {
+                    PromptPlan::ExecStep { plan_id, step_id } => {
+                        let kickoff = SessionNotification::new(
+                            request.session_id.clone(),
+                            SessionUpdate::AgentMessageChunk(
+                                agent_client_protocol::schema::v1::ContentChunk::new(
+                                    ContentBlock::Text(TextContent::new(format!(
+                                        "atlas exec step {plan_id} {step_id}\n"
+                                    ))),
+                                ),
+                            ),
+                        );
+                        connection.send_notification(kickoff)?;
+                        let profile = crate::profiles::current().0;
+                        let outcome = crate::cli::commands::exec::run(
+                            crate::cli::commands::ExecCmd {
+                                action: crate::cli::commands::exec::ExecAction::Step {
+                                    plan_id: plan_id.clone(),
+                                    step_id: step_id.clone(),
+                                },
+                            },
+                            &profile,
+                        )
+                        .await;
+                        let text = match outcome {
+                            Ok(()) => {
+                                format!("exec step {plan_id}/{step_id} completed\n")
+                            }
+                            Err(e) => format!("exec step {plan_id}/{step_id} failed: {e}\n"),
+                        };
+                        let update = SessionNotification::new(
+                            request.session_id.clone(),
+                            SessionUpdate::AgentMessageChunk(
+                                agent_client_protocol::schema::v1::ContentChunk::new(
+                                    ContentBlock::Text(TextContent::new(text)),
+                                ),
+                            ),
+                        );
+                        connection.send_notification(update)?;
+                        responder.respond(PromptResponse::new(StopReason::EndTurn))?;
+                    }
+                    PromptPlan::FixRequested { hint } => {
+                        let scrollback = crate::acp::delegate::capture_active_pane_scrollback();
+                        let text = match scrollback {
+                            Ok(cap) => format!(
+                                "FixRequested captured scrollback ({} chars). Hint: {}\n",
+                                cap.scrollback.len(),
+                                hint.unwrap_or_default()
+                            ),
+                            Err(_) => format!(
+                                "FixRequested requires IT wtcli capture; not available here. Hint: {}\n",
+                                hint.unwrap_or_default()
+                            ),
+                        };
+                        let update = SessionNotification::new(
+                            request.session_id.clone(),
+                            SessionUpdate::AgentMessageChunk(
+                                agent_client_protocol::schema::v1::ContentChunk::new(
+                                    ContentBlock::Text(TextContent::new(text)),
+                                ),
+                            ),
+                        );
+                        connection.send_notification(update)?;
+                        responder.respond(PromptResponse::new(StopReason::EndTurn))?;
+                    }
+                    PromptPlan::RestartRequested { cwd } => {
+                        let update = SessionNotification::new(
+                            request.session_id.clone(),
+                            SessionUpdate::AgentMessageChunk(
+                                agent_client_protocol::schema::v1::ContentChunk::new(
+                                    ContentBlock::Text(TextContent::new(format!(
+                                        "Restart requested for cwd {}. Close + new session required.\n",
+                                        cwd.display()
+                                    ))),
+                                ),
+                            ),
+                        );
+                        connection.send_notification(update)?;
+                        responder.respond(PromptResponse::new(StopReason::EndTurn))?;
+                    }
+                    PromptPlan::NotSupported { command } => {
+                        let update = SessionNotification::new(
+                            request.session_id.clone(),
+                            SessionUpdate::AgentMessageChunk(
+                                agent_client_protocol::schema::v1::ContentChunk::new(
+                                    ContentBlock::Text(TextContent::new(format!(
+                                        "Command not supported yet in the ACP host loop: {command}. Use the headless CLI for this verb.\n"
+                                    ))),
+                                ),
+                            ),
+                        );
+                        connection.send_notification(update)?;
+                        responder.respond(PromptResponse::new(StopReason::Refusal))?;
+                    }
+                }
                 Ok(())
             },
             on_receive_request!(),
@@ -218,6 +377,42 @@ mod tests {
     fn set_mode_response_is_default_with_meta_unset() {
         let response = SetSessionModeResponse::new();
         assert!(response.meta.is_none());
+    }
+
+    #[test]
+    fn plan_prompt_routes_supported_commands() {
+        assert_eq!(
+            plan_prompt("/opencode exec step plan-1 step-2", "/tmp"),
+            PromptPlan::ExecStep {
+                plan_id: "plan-1".to_string(),
+                step_id: "step-2".to_string()
+            }
+        );
+        assert!(matches!(
+            plan_prompt("/opencode fix boom", "/tmp"),
+            PromptPlan::FixRequested { hint: Some(_) }
+        ));
+        assert!(matches!(
+            plan_prompt("/opencode restart", "/home/user"),
+            PromptPlan::RestartRequested { .. }
+        ));
+        assert!(matches!(
+            plan_prompt("/opencode frobnicate", "/tmp"),
+            PromptPlan::NotSupported { .. }
+        ));
+        assert!(matches!(
+            plan_prompt("hello world", "/tmp"),
+            PromptPlan::NotSupported { .. }
+        ));
+    }
+
+    #[test]
+    fn first_prompt_text_extracts_text_block() {
+        let blocks = vec![agent_client_protocol::schema::v1::ContentBlock::Text(
+            agent_client_protocol::schema::v1::TextContent::new("hi"),
+        )];
+        assert_eq!(first_prompt_text(&blocks), "hi");
+        assert!(first_prompt_text(&[]).is_empty());
     }
 
     #[test]
