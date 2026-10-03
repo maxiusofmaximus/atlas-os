@@ -14,7 +14,7 @@ use rusqlite::Connection;
 /// log and must never be renumbered. When adding M(N+1): bump this const
 /// AND change the final migration's `params![N, …]` to
 /// `params![CURRENT_SCHEMA_VERSION, …]` (same value).
-pub const CURRENT_SCHEMA_VERSION: i64 = 34;
+pub const CURRENT_SCHEMA_VERSION: i64 = 35;
 
 pub fn migrate(conn: &Connection) -> Result<()> {
     // M0 — Schema versioning.
@@ -1649,6 +1649,66 @@ pub fn migrate(conn: &Connection) -> Result<()> {
 
             CREATE INDEX IF NOT EXISTS cal_sub_enabled_idx
                 ON calendar_subscriptions(enabled);",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![34, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
+    // M36 (schema v35) — Evaluation harness (RFC 20 Fase 22, EVAL.0).
+    //   Resurrection of the deferred `eval_runs` (gap G16, Phase 2.5,
+    //   research/29) elevated to a first-class phase after the 2026
+    //   harness-engineering research: evaluation/instrumentation is the
+    //   highest-leverage missing layer. One `eval_runs` row per suite
+    //   execution — the unit of measure is the harness×model pair — and
+    //   one `eval_cases` row per task with the field's converged
+    //   metrics: pass/fail, turns, no-action turns, tokens, cost, and a
+    //   failure-kind vector (KDD "Scaffold Effect"). Created
+    //   unconditionally (same rule as M18) so the schema stays idempotent
+    //   across feature combos.
+    if current < 35 {
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS eval_runs (
+                id            TEXT PRIMARY KEY,
+                suite         TEXT NOT NULL,
+                agent         TEXT NOT NULL,
+                harness       TEXT NOT NULL,
+                model         TEXT,
+                status        TEXT NOT NULL DEFAULT 'running'
+                              CHECK (status IN ('running','completed','failed')),
+                total         INTEGER NOT NULL DEFAULT 0,
+                passed        INTEGER NOT NULL DEFAULT 0,
+                failed        INTEGER NOT NULL DEFAULT 0,
+                tokens_total  INTEGER NOT NULL DEFAULT 0,
+                cost_usd      REAL NOT NULL DEFAULT 0.0,
+                started_at    INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+                finished_at   INTEGER,
+                metadata_json TEXT
+            );
+
+            CREATE INDEX IF NOT EXISTS eval_runs_suite_idx
+                ON eval_runs(suite, started_at);
+
+            CREATE TABLE IF NOT EXISTS eval_cases (
+                id               TEXT PRIMARY KEY,
+                run_id           TEXT NOT NULL
+                                 REFERENCES eval_runs(id) ON DELETE CASCADE,
+                case_id          TEXT NOT NULL,
+                category         TEXT,
+                status           TEXT NOT NULL
+                                 CHECK (status IN ('pass','fail','error')),
+                duration_ms      INTEGER NOT NULL DEFAULT 0,
+                turns            INTEGER NOT NULL DEFAULT 0,
+                no_action_turns  INTEGER NOT NULL DEFAULT 0,
+                tokens_in        INTEGER NOT NULL DEFAULT 0,
+                tokens_out       INTEGER NOT NULL DEFAULT 0,
+                cost_usd         REAL NOT NULL DEFAULT 0.0,
+                failure_kind     TEXT,
+                detail           TEXT
+            );
+
+            CREATE INDEX IF NOT EXISTS eval_cases_run_idx
+                ON eval_cases(run_id);",
         )?;
         conn.execute(
             "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",

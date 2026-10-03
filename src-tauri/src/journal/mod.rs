@@ -7,6 +7,7 @@ pub mod ast_symbols;
 pub mod autoresearch;
 pub mod calendar_ops;
 pub mod compaction;
+pub mod eval_runs;
 pub mod export;
 pub mod frecency;
 #[cfg(feature = "dag_mode")]
@@ -36,6 +37,8 @@ pub use learning_graphs::{LearningGraphRow, ScoredGraph};
 pub use agent_events::AgentSessionEventRow;
 
 pub use ast_symbols::AstSymbolRow;
+
+pub use eval_runs::{EvalCaseRow, EvalRunRow};
 
 pub use model_resets::ModelResetRow;
 

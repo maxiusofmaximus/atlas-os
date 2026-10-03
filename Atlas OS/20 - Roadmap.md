@@ -379,6 +379,22 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - Todas las `panic!()`/`unwrap()` enumeradas viven en bloques `#[cfg(test)]`;
   Phase 21 como refactor de producción queda CANCELADA. Documentado en `research/47`.
 
+## Fase 22 — Evaluación & Instrumentación (EVAL) (plan: research/51, EN CURSO)
+
+- **Decisión 2026-10-03 (investigación harness engineering, `research/51` §1):** la
+  capa de mayor ROI que Atlas no tiene es **Evaluación/Instrumentación** (harness
+  Layer 5). Estaba planificada y diferida (`eval_runs`, gap **G16**, Phase 2.5).
+- **Sub-fases atómicas:** EVAL.0 foundation (schema + repo) → EVAL.1 runner local +
+  golden suite → EVAL.2 instrumentación + HUD + feedback del orquestador → EVAL.3
+  adaptador Harbor (Terminal-Bench 2.0 / SWE-bench Verified) → EVAL.4 gate de CI +
+  baseline público.
+- **EVAL.0 COMPLETA:** migración **M36 (schema v35)** `eval_runs` + `eval_cases`;
+  repositorio `journal/eval_runs.rs` (`eval_run_start/record_case/finish/get/list/
+  cases/delete`); 4 tests. Métricas del campo: pass/fail, turns, no-action turns,
+  tokens, coste y vector de `failure_kind`.
+- **v3.1.2 (Planning proactivo) queda condicionado a EVAL:** sin instrumento no se
+  puede medir si los turnos proactivos ayudan o estorban.
+
 ## Roadmap v3 — Windows Calendar real (plan `research/50`)
 
 - **Decisión del operador 2026-10-03:** prioridad elegida por el gestor tras comparar A/B/C/D. Candidato **D (Windows Calendar real, RFC 28 §G)** por ser el de mayor base ya construida y verificable. B (Swarm HUD) ya implementado; A (Axum 0.8) y C (context-mode MCP) diferidos.
@@ -389,7 +405,6 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - **v3.1.4 ICS subscription READ COMPLETA:** `atlas calendar sync-ics <url>` (`calendar/ics_reader.rs`, feature `calendar-ics`) con parser `icalendar 0.17` (write-only `ics` descartado para leer; decisión en `22 §15`); busy windows `source=ics_local`. 3 tests + smoke con ICS público (317 windows).
 - **v3.1.A.2 ICS subscriptions durables COMPLETA:** tabla `calendar_subscriptions` (migración 34) + `atlas calendar subscribe/unsubscribe/subscriptions/sync-all`; feeds namespaced `{name}:{uid}` con borrado por prefijo (varias suscripciones conviven) y GET condicional (`304`) en `calendar/ics_reader.rs`.
 - **v3.1.A.3 Poller en background COMPLETA:** `calendar/poller.rs` (`CalendarPoller` al estilo `ToastDriver`) spawneado desde `AppState::bootstrap`; cadencia por `ATLAS_CALENDAR_POLL_SECS` (default 900 s, `0` off), primer sync a 30 s; comparte `sync_all_ics` con el CLI. **A.2 cerrada.**
-- **v3.1.2 bloqueado en infraestructura:** el repo no tiene motor de "turn proactivo" ni `AppState.context_window`; `Planning::next_free_slot` (RFC 28 §G.4 item 8) asume ese motor → requiere RFC propio antes de wiring.
 - **v3.1.2 bloqueado en infraestructura:** el repo no tiene motor de "turn proactivo" ni `AppState.context_window`; `Planning::next_free_slot` (RFC 28 §G.4 item 8) asume ese motor → requiere RFC propio antes de wiring.
 
 ## Out of scope v2
