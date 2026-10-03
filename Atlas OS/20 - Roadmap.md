@@ -405,6 +405,18 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - **EVAL.4 COMPLETA:** gate de CI `.github/workflows/eval-gate.yml` (fmt + clippy +
   `cargo test --lib` + golden `--strict`); flag `atlas eval run --strict`; baseline
   público en el README. **Fase 22 CERRADA.**
+
+## Fase 23 — Proactive Turn Engine (v3.1.2) (plan: research/52)
+
+- **Decisión 2026-10-03:** retomar **v3.1.2** (el único ítem de producto bloqueado),
+  ahora **medible** con la Fase 22 EVAL. Motor de disponibilidad pura sobre las M18
+  busy windows (RFC 28 §G.4 item 8: `Planning::next_free_slot`).
+- **v3.1.2.0 COMPLETA:** `planning/availability.rs` (`TurnPolicy`/`Availability`/
+  `next_free_slot`/`availability_now`); 7 tests; golden task `planning.availability`;
+  CLI `atlas calendar availability [-e eta_ms] [-w threshold]`.
+- **Pendiente:** v3.1.2.1 (disparo del supervisor `EnqueueProactiveTurn`),
+  v3.1.2.2 (política persistida + HUD), v3.1.2.3 (métricas de turnos en EVAL).
+
 - **v3.1.2 (Planning proactivo) queda condicionado a EVAL:** sin instrumento no se
   puede medir si los turnos proactivos ayudan o estorban.
 

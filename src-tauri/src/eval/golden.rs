@@ -41,6 +41,11 @@ pub fn golden_suite() -> Vec<EvalTask> {
             category: "DATA",
             run: calendar_overlap_half_open,
         },
+        EvalTask {
+            id: "planning.availability",
+            category: "SYS",
+            run: planning_availability_respects_busy,
+        },
     ]
 }
 
@@ -166,6 +171,31 @@ fn calendar_overlap_half_open() -> TaskResult {
             hit.len(),
             touching.len()
         ),
+    )
+}
+
+fn planning_availability_respects_busy() -> TaskResult {
+    use crate::calendar::payload::BusySource;
+    use crate::calendar::queue::BusyWindowRow;
+    use crate::planning::availability::{next_free_slot, Availability, TurnPolicy};
+
+    let policy = TurnPolicy::default();
+    let free = next_free_slot(&[], 1_000_000, &policy);
+    let busy = [BusyWindowRow {
+        id: 0,
+        source: BusySource::Manual,
+        external_id: "e".into(),
+        subject: "busy".into(),
+        body: None,
+        starts_at: 999_000,
+        ends_at: 1_500_000,
+        weight: 1.0,
+        recorded_at: 0,
+    }];
+    let waiting = next_free_slot(&busy, 1_000_000, &policy);
+    TaskResult::assert(
+        free == Availability::RunNow && waiting == Availability::WaitUntil(1_500_000),
+        format!("free={free:?} waiting={waiting:?}"),
     )
 }
 

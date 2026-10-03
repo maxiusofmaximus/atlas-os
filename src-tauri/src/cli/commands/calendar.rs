@@ -37,6 +37,16 @@ pub enum CalendarAction {
         #[command(subcommand)]
         action: BusyAction,
     },
+    /// Show whether a proactive turn can start now (consults busy windows).
+    /// RFC 20 Fase 23 v3.1.2 (research/52).
+    Availability {
+        /// Estimated turn duration in ms (default 15 min).
+        #[arg(short = 'e', long, default_value_t = 900_000)]
+        eta_ms: i64,
+        /// Busy windows with `weight >= threshold` block the turn.
+        #[arg(short = 'w', long, default_value_t = 1.0)]
+        weight_threshold: f64,
+    },
     /// Authenticate against Microsoft Graph (OAuth device-code) and store the
     /// encrypted refresh token in this profile (RFC 28 §G READ).
     #[cfg(feature = "calendar-graph")]
@@ -108,6 +118,13 @@ pub async fn run(cmd: CalendarCmd, profile: &str) -> Result<()> {
         CalendarAction::Busy { action } => {
             let journal = Journal::open(&root)?;
             busy(&journal, action)
+        }
+        CalendarAction::Availability {
+            eta_ms,
+            weight_threshold,
+        } => {
+            let journal = Journal::open(&root)?;
+            availability(&journal, eta_ms, weight_threshold)
         }
         #[cfg(feature = "calendar-graph")]
         CalendarAction::Login => login(&root).await,
@@ -227,6 +244,25 @@ fn busy(journal: &Journal, action: BusyAction) -> Result<()> {
                 if removed { "removed" } else { "not found" }
             );
         }
+    }
+    Ok(())
+}
+
+fn availability(journal: &Journal, eta_ms: i64, weight_threshold: f64) -> Result<()> {
+    use crate::planning::availability::{availability_now, Availability, TurnPolicy};
+
+    let policy = TurnPolicy {
+        eta_ms,
+        weight_threshold,
+        ..TurnPolicy::default()
+    };
+    let now = chrono::Utc::now().timestamp_millis();
+    match availability_now(journal, now, &policy)? {
+        Availability::RunNow => println!("availability: RUN NOW (free for {eta_ms} ms)"),
+        Availability::WaitUntil(ts) => {
+            println!("availability: WAIT until {ts} (in {} ms)", ts - now)
+        }
+        Availability::Blocked => println!("availability: BLOCKED (no free slot within horizon)"),
     }
     Ok(())
 }

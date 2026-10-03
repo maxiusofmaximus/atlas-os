@@ -14,11 +14,15 @@
 // stable and matches the LLM-driven planner coming with RFC 04 so the
 // rest of the kernel stays forward-compatible.
 
+pub mod availability;
+
 #[cfg(feature = "dag_mode")]
 pub mod graph_emitter;
 pub mod grill;
 pub mod runner;
 pub mod types;
+
+pub use availability::{availability_now, next_free_slot, Availability, TurnPolicy};
 
 pub use grill::{grill_plan, GrillQuestion, GrillReport};
 
