@@ -21,6 +21,5 @@ con API pública equivalente.
 
 ## Siguiente (Phase 20.1+)
 
-- Mover el impl block `dag_mode` (feature `dag_mode`) a su submódulo.
-- Dividir `ModelInvocationRow` + record/read path a `journal/model_invocation.rs`.
-- Dividir `journal/tests.rs` por dominio cuando haya capacidad.
+- Step 2: `dag_mode` impl → `journal/dag_mode_ops.rs` (HECHO, `8dcc148`).
+- Phase 20.2+: pendiente — requiere una ronda de trabajo propia (tearing de `ModelInvocationRow` y domain split de `journal/tests.rs`). No se incluyen en este milestone; se documenta como deuda abierta acotada.
