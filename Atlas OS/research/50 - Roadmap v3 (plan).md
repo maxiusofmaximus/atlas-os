@@ -112,6 +112,10 @@ Outlook/Apple/Google; ningún turn proactivo se encola dentro de una busy window
 - **v3.1.3 CLI surface:** ✅ implementado — `atlas calendar feed` +
   `atlas calendar busy list/count/add/rm`, sobre los envoltorios
   `Journal::busy_window_*` (`journal/calendar_ops.rs`).
+- **v3.1.4 ICS subscription READ:** ✅ implementado — `atlas calendar sync-ics <url>`
+  (`calendar/ics_reader.rs`, feature `calendar-ics`), parser `icalendar 0.17`
+  (decisión y justificación en `22 §15`); busy windows `source=ics_local`.
+  3 tests (timed + all-day + malformado). Smoke: ICS público → 317 windows.
 - **v3.1.2 Planning wiring:** pendiente — **bloqueado en infraestructura**: el
   repo **no tiene** un mecanismo de "turn proactivo" ni `AppState.context_window`
   (grep repo-wide sin resultados). RFC 28 §G.4 item 8 (`Planning::next_free_slot`)

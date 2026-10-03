@@ -620,3 +620,68 @@ Las 4 referencias aportadas por el operador (Symlink toolset, cloudflare/securit
 - RFC 35: catálogo completo + priorización Phase 8/9/10.
 - RFC 26: filas RFC 35 + total 32 RFCs.
 - README: (siguiente actualización con el cierre de Phase 8).
+
+## 15. Investigación Round 8 (2026-10-03) — Calendar READ (v3.1.1 Graph + v3.1.A ICS)
+
+### 15.1 Motivación
+
+Cerrar la deuda del READ path de RFC 28 §G (calendario como contexto de busy
+windows) para v3.1. Dos fuentes: Microsoft Graph (cuentas Microsoft 365/personales)
+y una suscripción `.ics` (cualquier proveedor). El diseño original de Round 5 §G
+asumía `graph-rs-sdk` con `interactive-auth` (webview) y no contemplaba parser ICS.
+
+### 15.2 Decisión Graph READ: OAuth propio sobre `reqwest` (NO `graph-rs-sdk`)
+
+- `graph-rs-sdk 3.0.1` con `interactive-auth` abre un webview wry para el primer
+  OAuth; en la práctica, para una cuenta **personal** el **device-code** y el popup
+  webview dieron fricción (redirect/logout). Se implementó **authorization-code +
+  PKCE con loopback** (`redirect_uri=http://localhost:<puerto efímero>`, listener
+  TCP local) usando `reqwest` (ya dependencia base) y `ring` para el RNG/nonce.
+- `graph-rs-sdk` se **retira** del árbol (`calendar-graph = ["dep:aes-gcm", "dep:ring"]`).
+  Menos peso, más control, y testable en las partes puras (PKCE, URL, cifrado).
+- Refresh token cifrado AES-256-GCM (`aes-gcm 0.10`) con clave por-perfil
+  `<profile_root>/calendar.key`.
+
+### 15.3 Decisión ICS READ: `icalendar 0.17` (parser) — `ics` 0.5 es write-only
+
+- **`ics 0.5.8` (ya en stack) NO parsea** — es "A library for creating ICalendar
+  files". Para leer `.ics` se necesita un parser real.
+- Evaluación: `ical` (Peltoche) está **ARCHIVADO** (2024) → descartado.
+  `ical-rs` (pimalaya) es moderno y muy completo (RFC 5545 + 1.0 + 8984…) pero de
+  adopción muy baja → riesgo a largo plazo. **`icalendar` (hoodie) v0.17.14** es el
+  parser mantenido de industria: ~887k descargas, 28 contribuidores, releases
+  continuos 2026, `Calendar: FromStr` + `Component::{get_start,get_end,get_summary,get_uid}`,
+  MIT/Apache, Rust puro. **Elegido.**
+- Integración: feature `calendar-ics`, módulo `calendar/ics_reader.rs`, CLI
+  `atlas calendar sync-ics <url>`; busy windows `source=ics_local`.
+- Follow-up: consolidar el WRITE en `icalendar` y retirar `ics` (ambos son
+  builder+parser vs write-only), reduciendo a una sola crate iCalendar.
+
+### 15.4 Crates (delta vs Round 5)
+
+| Crate | Version | License | Uso | Gate |
+|---|---|---|---|---|
+| `icalendar` | `0.17.14` | MIT OR Apache-2.0 | ICS READ (parser) | `features = ["calendar-ics"]`, `default-features=false, features=["parser"]` |
+| ~~`graph-rs-sdk`~~ | ~~3.0.1~~ | MIT | **RETIRADO** (sustituido por OAuth propio + reqwest) | — |
+
+`aes-gcm 0.10` y `ring 0.17` permanecen para el cifrado del refresh token Graph.
+
+### 15.5 Single-binary safety audit
+
+- `icalendar`: pure Rust (nom + nom-language), sin native, sin build script. Single-binary safe.
+- `reqwest`/`ring`/`aes-gcm`: ya presentes; sin native nuevo.
+- Todas cumplen RFC 25 §11.
+
+### 15.6 Atribución
+
+- `src-tauri/src/calendar/ics_reader.rs` — `"Uses icalendar 0.17 (MIT OR Apache-2.0) by Hendrik Sollich (hoodie). https://github.com/hoodie/icalendar"`.
+- `src-tauri/src/calendar/auth.rs` — `"OAuth 2.0 authorization-code + PKCE over reqwest; AES-256-GCM via aes-gcm 0.10; RNG via ring 0.17."`
+
+### 15.7 URLs
+
+- icalendar crate: https://crates.io/crates/icalendar
+- icalendar repo: https://github.com/hoodie/icalendar
+- ical (archivado): https://github.com/Peltoche/ical-rs
+- ical-rs (pimalaya): https://github.com/pimalaya/ical
+- RFC 5545 (iCalendar): https://datatracker.ietf.org/doc/html/rfc5545
+- OAuth 2.0 device/loopback (RFC 8252): https://datatracker.ietf.org/doc/html/rfc8252

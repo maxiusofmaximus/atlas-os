@@ -142,7 +142,7 @@ toast = ["dep:winrt-toast-reborn"]
 # flow over `reqwest` against a registered public client. Both default
 # OFF — Phase 1.5g (and v3.1.1) are opt-in.
 calendar = ["calendar-ics", "calendar-graph"]
-calendar-ics = ["dep:ics", "hud"]
+calendar-ics = ["dep:ics", "dep:icalendar", "hud"]
 calendar-graph = ["dep:aes-gcm", "dep:ring"]
 
 [dependencies]
@@ -265,6 +265,10 @@ firecrawl = { version = "2.12.1", optional = true, default-features = false }
 # pure-Rust RFC 5545 emitter. Only depends on chrono — no native
 # libs, single-binary safe (RFC 25 §11).
 ics = { version = "0.5", optional = true, default-features = false, features = ["rfc7986"] }
+# RFC 28 Section G — Calendar ICS READ path (v3.1.A). `icalendar` (hoodie)
+# is the maintained RFC 5545 builder+parser (MIT/Apache, pure Rust, ~887k
+# downloads). We use only its `parser` feature; `ics` stays the WRITE path.
+icalendar = { version = "0.17", optional = true, default-features = false, features = ["parser"] }
 # RFC 28 Section G — Calendar READ path (optional, gated `calendar-
 # graph`). OAuth uses the device-code flow over `reqwest` (already a
 # base dependency) against the registered public client — no webview.

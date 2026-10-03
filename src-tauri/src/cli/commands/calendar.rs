@@ -47,6 +47,12 @@ pub enum CalendarAction {
     /// Print the stored Graph token claims (aud/scp/tid) — diagnostics.
     #[cfg(feature = "calendar-graph")]
     Status,
+    /// Fetch an `.ics` URL and replace `ics_local` busy windows (RFC 28 §G READ).
+    #[cfg(feature = "calendar-ics")]
+    SyncIcs {
+        /// Public `.ics` URL (Outlook/Google/Apple "secret address").
+        url: String,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -94,6 +100,13 @@ pub async fn run(cmd: CalendarCmd, profile: &str) -> Result<()> {
         CalendarAction::Status => {
             let journal = Journal::open(&root)?;
             status(&journal, &root).await
+        }
+        #[cfg(feature = "calendar-ics")]
+        CalendarAction::SyncIcs { url } => {
+            let journal = Journal::open(&root)?;
+            let written = crate::calendar::ics_reader::sync_ics(&journal, &url).await?;
+            println!("calendar sync-ics: {written} busy windows `ics_local` actualizados");
+            Ok(())
         }
     }
 }

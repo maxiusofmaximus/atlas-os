@@ -37,6 +37,9 @@ pub mod ics_writer;
 #[cfg(feature = "calendar-ics")]
 pub mod ics_route;
 
+#[cfg(feature = "calendar-ics")]
+pub mod ics_reader;
+
 #[cfg(feature = "calendar-graph")]
 pub mod auth;
 #[cfg(feature = "calendar-graph")]
