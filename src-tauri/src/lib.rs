@@ -15,6 +15,7 @@ pub mod core;
 pub mod eval;
 #[cfg(feature = "firecrawl")]
 pub mod firecrawl;
+pub mod gitcmd;
 pub mod graph;
 #[cfg(feature = "hud")]
 pub mod hud;

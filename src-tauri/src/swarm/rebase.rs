@@ -7,7 +7,7 @@
 // Conflicts fail safe to manual resolution via `RebaseError::Conflict`.
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
+// (git spawns go through `crate::gitcmd::git()`, which pins an absolute path)
 
 use crate::swarm::worktrees::WorktreeManager;
 
@@ -123,7 +123,7 @@ pub fn rebase_worktree(worktree: &Path, upstream: &str) -> Result<RebaseOutcome,
     if !WorktreeManager::git_available() {
         return Err(RebaseError::GitMissing);
     }
-    let fetch = Command::new("git")
+    let fetch = crate::gitcmd::git()
         .arg("-C")
         .arg(worktree)
         .arg("fetch")
@@ -137,7 +137,7 @@ pub fn rebase_worktree(worktree: &Path, upstream: &str) -> Result<RebaseOutcome,
             return Err(RebaseError::FetchFailed(detail));
         }
     }
-    let out = Command::new("git")
+    let out = crate::gitcmd::git()
         .arg("-C")
         .arg(worktree)
         .arg("rebase")
@@ -179,7 +179,7 @@ pub fn abort_rebase(worktree: &Path) -> Result<(), RebaseError> {
     if !WorktreeManager::git_available() {
         return Err(RebaseError::GitMissing);
     }
-    let out = Command::new("git")
+    let out = crate::gitcmd::git()
         .arg("-C")
         .arg(worktree)
         .arg("rebase")
@@ -236,10 +236,10 @@ pub fn rebase_after_merge(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::process::Command;
+    // (git spawns go through `crate::gitcmd::git()`, which pins an absolute path)
 
     fn git(args: &[&str], dir: &Path) {
-        let out = Command::new("git")
+        let out = crate::gitcmd::git()
             .args(args)
             .current_dir(dir)
             .output()
@@ -252,7 +252,7 @@ mod tests {
     }
 
     fn git_branch(dir: &Path) -> String {
-        let out = Command::new("git")
+        let out = crate::gitcmd::git()
             .args(["branch", "--show-current"])
             .current_dir(dir)
             .output()

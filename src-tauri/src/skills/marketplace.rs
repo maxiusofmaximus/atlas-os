@@ -4,7 +4,7 @@
 // por git/repos y `install` verifica la firma ANTES de copiar (patrón approval_for 7.1).
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
+// (git spawns go through `crate::gitcmd::git()`, which pins an absolute path)
 
 use crate::security::{self, ChecksumVerdict};
 use crate::skills::{load_skill, validate_skill_id, SkillManifest};
@@ -117,7 +117,7 @@ pub fn install_skill(source: &Path, skills_dir: &Path) -> anyhow::Result<Install
 }
 
 pub fn git_available() -> bool {
-    Command::new("git")
+    crate::gitcmd::git()
         .arg("--version")
         .output()
         .map(|o| o.status.success())
@@ -237,7 +237,7 @@ pub fn install_from_git(
     }
     let tmp = tempfile::tempdir().map_err(|e| anyhow::anyhow!("creating temp clone dir: {e}"))?;
     let clone_dest = tmp.path().join("repo");
-    let out = Command::new("git")
+    let out = crate::gitcmd::git()
         .arg("clone")
         .arg("--depth")
         .arg("1")
@@ -354,7 +354,7 @@ mod tests {
     }
 
     fn git_cmd(args: &[&str], dir: &Path) {
-        let status = std::process::Command::new("git")
+        let status = crate::gitcmd::git()
             .args(args)
             .current_dir(dir)
             .output()

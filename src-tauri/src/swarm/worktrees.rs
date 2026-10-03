@@ -7,7 +7,7 @@
 // fall back to in-place execution.
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
+// (git spawns go through `crate::gitcmd::git()`, which pins an absolute path)
 
 use anyhow::Context;
 
@@ -103,7 +103,7 @@ impl WorktreeManager {
     }
 
     pub fn git_available() -> bool {
-        Command::new("git")
+        crate::gitcmd::git()
             .arg("--version")
             .output()
             .map(|o| o.status.success())
@@ -132,7 +132,7 @@ impl WorktreeManager {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let mut cmd = Command::new("git");
+        let mut cmd = crate::gitcmd::git();
         cmd.arg("-C")
             .arg(&self.repo_root)
             .arg("worktree")
@@ -161,7 +161,7 @@ impl WorktreeManager {
             return Err(WorktreeError::NotFound(path.display().to_string()));
         }
         self.ensure_git()?;
-        let out = Command::new("git")
+        let out = crate::gitcmd::git()
             .arg("-C")
             .arg(&self.repo_root)
             .arg("worktree")
@@ -177,7 +177,7 @@ impl WorktreeManager {
 
     pub fn list(&self) -> Result<Vec<WorktreeEntry>, WorktreeError> {
         self.ensure_git()?;
-        let out = Command::new("git")
+        let out = crate::gitcmd::git()
             .arg("-C")
             .arg(&self.repo_root)
             .arg("worktree")
@@ -237,7 +237,7 @@ mod tests {
     }
 
     fn git(args: &[&str], dir: &Path) {
-        let status = Command::new("git")
+        let status = crate::gitcmd::git()
             .args(args)
             .current_dir(dir)
             .output()
