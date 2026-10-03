@@ -12,6 +12,7 @@ pub mod cli;
 pub mod coding;
 pub mod context;
 pub mod core;
+pub mod eval;
 #[cfg(feature = "firecrawl")]
 pub mod firecrawl;
 pub mod graph;

@@ -8,9 +8,9 @@ use super::commands::ResearchCmd;
 #[cfg(feature = "toast")]
 use super::commands::ToastCmd;
 use super::commands::{
-    AuditCmd, CalendarCmd, ExecCmd, ForkCmd, HudCmd, JournalCmd, LearnCmd, McpCmd, MissionCmd,
-    MobileCmd, ModelsCmd, MonitorCmd, PlanCmd, ProfileCmd, RemoteCmd, ResumeCmd, RunCmd,
-    SecurityCmd, SisterCmd, SkillCmd, SteerCmd, SwapModelCmd, SwarmCmd, ValidateCmd,
+    AuditCmd, CalendarCmd, EvalCmd, ExecCmd, ForkCmd, HudCmd, JournalCmd, LearnCmd, McpCmd,
+    MissionCmd, MobileCmd, ModelsCmd, MonitorCmd, PlanCmd, ProfileCmd, RemoteCmd, ResumeCmd,
+    RunCmd, SecurityCmd, SisterCmd, SkillCmd, SteerCmd, SwapModelCmd, SwarmCmd, ValidateCmd,
 };
 #[derive(Parser, Debug)]
 #[command(name = "atlas", version, propagate_version = true)]
@@ -66,6 +66,8 @@ pub enum Commands {
     Mobile(MobileCmd),
     /// LLM-driver Phase 2 entrypoints (RFC 27 §F).
     Exec(ExecCmd),
+    /// Evaluation harness — run/report deterministic suites (RFC 20 Fase 22).
+    Eval(EvalCmd),
     /// HUD server control.
     Hud(HudCmd),
     /// List/refresh MCP servers (RFC 07).

@@ -38,7 +38,7 @@ pub use agent_events::AgentSessionEventRow;
 
 pub use ast_symbols::AstSymbolRow;
 
-pub use eval_runs::{EvalCaseRow, EvalRunRow};
+pub use eval_runs::{EvalCaseInput, EvalCaseRow, EvalRunRow, EvalRunStart, EvalTotals};
 
 pub use model_resets::ModelResetRow;
 

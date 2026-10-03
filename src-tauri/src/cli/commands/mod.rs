@@ -3,6 +3,7 @@
 
 pub mod audit;
 pub mod calendar;
+pub mod eval;
 pub mod exec;
 pub mod fork;
 pub mod hud;
@@ -31,6 +32,7 @@ pub mod validate;
 
 pub use audit::AuditCmd;
 pub use calendar::CalendarCmd;
+pub use eval::EvalCmd;
 pub use exec::ExecCmd;
 pub use fork::ForkCmd;
 pub use hud::HudCmd;
@@ -84,6 +86,7 @@ pub async fn dispatch(cmd: Commands, profile: &str) -> Result<()> {
         Commands::Remote(c) => remote::run(c, profile).await,
         Commands::Audit(c) => audit::run(c, profile).await,
         Commands::Calendar(c) => calendar::run(c, profile).await,
+        Commands::Eval(c) => eval::run(c, profile).await,
         Commands::Validate(c) => validate::run(c, profile).await,
         Commands::Journal(c) => journal::run(c, profile).await,
         Commands::Learn(c) => learn::run(c, profile).await,

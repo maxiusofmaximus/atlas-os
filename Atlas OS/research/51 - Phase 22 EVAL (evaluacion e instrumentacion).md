@@ -1,6 +1,6 @@
 # 51 — Phase 22 EVAL (Evaluación & Instrumentación — harness Layer 5)
 
-- **Estado:** plan aprobado, EVAL.0 en implementación.
+- **Estado:** plan aprobado; EVAL.0–EVAL.1 implementadas (EVAL.2–4 pendientes).
 - **Fecha:** 2026-10-03.
 - **Motivación raíz:** investigación externa "harness engineering" (Round 9). La capa
   de mayor ROI que Atlas no tiene es **Evaluación/Instrumentación**, y ya estaba
@@ -76,11 +76,14 @@ Fuentes independientes convergen en 2026:
   list/cases/delete`).
 - Tests: ciclo start→casos→finish, listado, borrado, CHECK de status inválido.
 
-### EVAL.1 — Runner local + golden task set
-- `eval/runner.rs`: ejecuta un task set determinista (repos de fixture) por los
-  motores; registra cada caso en `eval_cases` con métricas.
-- CLI `atlas eval run <suite> [--agents <list>]` y `atlas eval report <id>`.
-- Golden suite mínima (≤10 tareas) para CI.
+### EVAL.1 — Runner local + golden suite — **COMPLETA**
+- `eval/mod.rs`: `EvalTask` / `TaskResult` / `TaskStatus` + `run_suite`
+  (in-process, `catch_unwind` por tarea → `error`/`REASON`, persiste en
+  `eval_runs`/`eval_cases`).
+- `eval/golden.rs`: 6 invariantes deterministas **offline** (schema idempotente,
+  supply-gate ×4, calendario half-open).
+- CLI `atlas eval run [suite] | list | report [id]` (`cli/commands/eval.rs`).
+- Smoke: `atlas eval run golden` → **6/6**, persistido; `report`/`list` OK.
 
 ### EVAL.2 — Instrumentación + HUD + feedback
 - Métricas normalizadas + card HUD (`<EvalCard.svelte>`).

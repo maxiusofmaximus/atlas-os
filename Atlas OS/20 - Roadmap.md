@@ -392,6 +392,9 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
   repositorio `journal/eval_runs.rs` (`eval_run_start/record_case/finish/get/list/
   cases/delete`); 4 tests. Métricas del campo: pass/fail, turns, no-action turns,
   tokens, coste y vector de `failure_kind`.
+- **EVAL.1 COMPLETA:** runner in-process `eval/` (`run_suite` + `EvalTask`/
+  `TaskResult`) y **golden suite** de 6 invariantes deterministas offline
+  (`golden.rs`); CLI `atlas eval run | list | report`. Smoke: 6/6 persistido.
 - **v3.1.2 (Planning proactivo) queda condicionado a EVAL:** sin instrumento no se
   puede medir si los turnos proactivos ayudan o estorban.
 
