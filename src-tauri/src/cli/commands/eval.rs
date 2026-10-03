@@ -35,6 +35,8 @@ pub enum EvalAction {
     },
     /// Report a run's cases (latest run when `id` is omitted).
     Report { id: Option<String> },
+    /// Import a Harbor job result (`result.json` file, single trial, or job dir).
+    Import { path: String },
 }
 
 pub async fn run(cmd: EvalCmd, profile: &str) -> Result<()> {
@@ -45,7 +47,17 @@ pub async fn run(cmd: EvalCmd, profile: &str) -> Result<()> {
         EvalAction::Run { suite } => run_suite(&journal, &suite),
         EvalAction::List { last } => list(&journal, last),
         EvalAction::Report { id } => report(&journal, id.as_deref()),
+        EvalAction::Import { path } => import(&journal, &path),
     }
+}
+
+fn import(journal: &Journal, path: &str) -> Result<()> {
+    let report = crate::eval::harbor::import_job(journal, std::path::Path::new(path))?;
+    println!(
+        "imported Harbor job → run {}: {}/{} passed ({} failed, {} errored)",
+        report.run_id, report.passed, report.total, report.failed, report.errored,
+    );
+    Ok(())
 }
 
 fn run_suite(journal: &Journal, name: &str) -> Result<()> {

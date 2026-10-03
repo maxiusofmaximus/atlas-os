@@ -1,6 +1,6 @@
 # 51 — Phase 22 EVAL (Evaluación & Instrumentación — harness Layer 5)
 
-- **Estado:** plan aprobado; EVAL.0–EVAL.1 implementadas (EVAL.2–4 pendientes).
+- **Estado:** plan aprobado; EVAL.0–EVAL.1–EVAL.3 implementadas (EVAL.2/EVAL.4 pendientes).
 - **Fecha:** 2026-10-03.
 - **Motivación raíz:** investigación externa "harness engineering" (Round 9). La capa
   de mayor ROI que Atlas no tiene es **Evaluación/Instrumentación**, y ya estaba
@@ -89,9 +89,19 @@ Fuentes independientes convergen en 2026:
 - Métricas normalizadas + card HUD (`<EvalCard.svelte>`).
 - Cableado al feedback del Model Orchestrator (2.4) y al cost guard G11.
 
-### EVAL.3 — Adaptador Harbor
-- `atlas` como agente Harbor; runner `harbor run --agent atlas …`; persistir el run
-  en `eval_runs` y publicar par harness–modelo + coste.
+### EVAL.3 — Adaptador Harbor — **COMPLETA**
+- **Importador** `eval/harbor.rs`: ingesta un `JobResult`/`TrialResult` de Harbor
+  (`results/<job>/result.json`, un trial suelto o un dir de job) en
+  `eval_runs`/`eval_cases`. Parseo tolerante por `serde_json::Value` contra el
+  esquema pydantic real (`trial_name`, `source`, `agent_info.model_info.name`,
+  `agent_result.{n_input_tokens,n_output_tokens,cost_usd}`,
+  `verifier_result.rewards{}`, `exception_info`). Offline — sin Harbor/Docker.
+- CLI `atlas eval import <path>`.
+- **Scaffold del agente** `tools/harbor_atlas/` (`atlas_agent.py`
+  `AtlasAgent(BaseInstalledAgent)` + `run-harbor.ps1` + README): dev-only, no
+  bundleado (RFC 25 §11).
+- 4 tests del importador (job con pass/fail/error, dir, trial suelto, fichero
+  ausente).
 
 ### EVAL.4 — Gate CI + baseline público
 - Job de CI que corre la golden eval; baseline en README.

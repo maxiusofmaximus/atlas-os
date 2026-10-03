@@ -395,6 +395,9 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - **EVAL.1 COMPLETA:** runner in-process `eval/` (`run_suite` + `EvalTask`/
   `TaskResult`) y **golden suite** de 6 invariantes deterministas offline
   (`golden.rs`); CLI `atlas eval run | list | report`. Smoke: 6/6 persistido.
+- **EVAL.3 COMPLETA:** importador de Harbor `eval/harbor.rs` (`JobResult`/
+  `TrialResult` → `eval_runs`/`eval_cases`, offline) + CLI `atlas eval import`
+  + scaffold dev-only `tools/harbor_atlas/` (`AtlasAgent` + runner). 4 tests.
 - **v3.1.2 (Planning proactivo) queda condicionado a EVAL:** sin instrumento no se
   puede medir si los turnos proactivos ayudan o estorban.
 

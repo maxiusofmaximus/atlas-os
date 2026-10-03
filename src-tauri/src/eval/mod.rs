@@ -12,6 +12,7 @@
 use crate::journal::{EvalCaseInput, EvalRunStart, EvalTotals, Journal};
 
 pub mod golden;
+pub mod harbor;
 
 /// Outcome of one task.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
