@@ -175,6 +175,8 @@ cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- journal -n 10
 
 - **Phase 16 — Laya re-audit + cierre Roadmap v2**: re-audit periódico documentado con evidencia fechada (crates.io `laya 0.1.1`, GitHub 1 contributor, `tokenizers` 0.21, sin `rand` directo) → veredicto: criterio de desbloqueo NO cumplido → Phase 13 permanece BLOQUEADA. Roadmap v2 agotado: 11 ✅ / 12 ✅ / 14 ✅ / 15 ✅. Roadmap v3 requiere decisión del operador + RFC propio. ✅
 
+- **Phase 17 — Baseline de verificación + higiene de lint**: `pnpm lint` recuperado a verde (prettier de `release-android.yml` + `.dependency-cruiser.cjs`, `.prettierignore` para archivos de trabajo del operador), header HUD evidencia `v0.1.1` en el bundle compilado, baseline `cargo test --lib` 1103 ok. ✅
+
 **ROADMAP v1 COMPLETO** (Phases 0-10, 33 RFCs, 1103 tests Rust + 67 frontend). **Roadmap v2**: Phase 11 (mobile testing ✅) + Phase 12 (distribución ✅) + Phase 14 (distribución Android ✅ físicamente validada) + Phase 15 (Release/Distribution Hardening ✅) — **Phase 13 (Laya real) BLOQUEADA upstream** hasta que el crate `laya` madure (criterio: >0.2.x o mantenedores ≥2). Roadmap v2 agotado; siguiente trabajo requiere decisión del operador + RFC propio (Roadmap v3 no iniciado).
 
 ## License

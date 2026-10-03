@@ -340,5 +340,12 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - Roadmap v2 declarado agotado: Phases 11 ✅ / 12 ✅ / 14 ✅ / 15 ✅, Phase 13 bloqueada, sin fases pendientes.
 - Evidencia y veredicto completos en `Atlas OS/research/42 - Phase 16 Laya re-audit + roadmap v2 closure.md`.
 
+## Fase 17 — Baseline de verificación + higiene de lint (COMPLETA)
+
+- `pnpm lint` en rojo por prettier (workflow `release-android.yml` y `.dependency-cruiser.cjs` sin formato) → formateados; `.prettierignore` aisla los archivos de trabajo del operador.
+- Verificación build: el HUD compila el header con `v0.1.1` (evidence: `h(K,"v0.1.1")` en el bundle).
+- `cargo test --lib`: 1103 ok (baseline local tras cierres).
+- Evidencia completa en `Atlas OS/research/43 - Phase 17 baseline hardening + version build evidence.md`.
+
 ## Out of scope v2
 - iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).
