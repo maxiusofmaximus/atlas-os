@@ -1,0 +1,36 @@
+name: eval-gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src-tauri/**'
+      - '.github/workflows/eval-gate.yml'
+  pull_request:
+    paths:
+      - 'src-tauri/**'
+      - '.github/workflows/eval-gate.yml'
+
+concurrency:
+  group: eval-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  golden:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: fmt
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+      - name: clippy
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+      - name: unit tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib
+      - name: golden eval gate
+        run: cargo run --manifest-path src-tauri/Cargo.toml --bin atlas -- --profile ci eval run golden --strict

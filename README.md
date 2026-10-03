@@ -189,6 +189,24 @@ cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- journal -n 10
 
 **ROADMAP v1 COMPLETO** (Phases 0-10, 33 RFCs, 1103 tests Rust + 67 frontend). **Roadmap v2**: Phase 11 (mobile testing ✅) + Phase 12 (distribución ✅) + Phase 14 (distribución Android ✅ físicamente validada) + Phase 15 (Release/Distribution Hardening ✅) — **Phase 13 (Laya real) BLOQUEO EN REVISIÓN**: re-audit 2026-10-03 (`scripts/laya_reaudit.ps1`) muestra `laya 0.1.1` pero **2 contributors**, cumpliendo el eje mantenedores ≥2 (pendiente confirmar write-access) → **requiere decisión del operador**. Roadmap v2 agotado; **Roadmap v3 iniciado** (`research/50`, decisión del operador 2026-10-03): prioridad **Windows Calendar real** (RFC 28 §G) — v3.1.0 ICS WRITE ✅, v3.1.3 CLI ✅, v3.1.1 Graph READ ✅ (OAuth auth-code+PKCE, `atlas calendar login/sync/status`, eventos reales → busy windows `graph`), v3.1.4 ICS subscription READ ✅ (`atlas calendar sync-ics <url>`, parser `icalendar`), v3.1.A.2 suscripciones durables ✅ (`atlas calendar subscribe/sync-all`, tabla `calendar_subscriptions`) y v3.1.A.3 poller ✅ (`CalendarPoller` en `AppState`, `ATLAS_CALENDAR_POLL_SECS`); solo falta v3.1.2 (Planning wiring, bloqueado en el motor proactivo). Nueva **Fase 22 — EVAL** (evaluación/instrumentación, `research/51`): EVAL.0 ✅ `eval_runs`+`eval_cases` (migración 36/v35), EVAL.1 ✅ runner `eval/` + golden suite (6 offline) + CLI `atlas eval run/list/report`; EVAL.2 ✅ métricas (`eval/metrics.rs`, `GET /hud/eval/summary`, card `<EvalCard>`, `atlas eval metrics`); EVAL.3 ✅ importador Harbor (`atlas eval import`) + scaffold `tools/harbor_atlas/`. Phase 13 sigue como **propuesta** (`research/49`) sin implementar.
 
+## Evaluation baseline (Fase 22 — EVAL)
+
+Local **golden suite** (deterministic, offline — the CI gate):
+
+```bash
+atlas eval run golden    # 6/6 invariants
+atlas eval metrics       # pass rate, tokens/solved, $/solved, failure-kind vector
+```
+
+- **Baseline (local):** `golden` **6/6** — `schema.migrate_idempotent`,
+  `supply.exact_known_passes`, `supply.typosquat_blocks`, `supply.install_script_blocks`,
+  `supply.env_access_warns`, `calendar.overlap_half_open`.
+- **External baseline (Harbor):** Terminal-Bench 2.0 / SWE-bench Verified. Run Atlas under
+  Harbor (`tools/harbor_atlas/`), then ingest: `atlas eval import jobs/<job-id>`. Metrics
+  surface in `atlas eval metrics` and the HUD `<EvalCard>` (`GET /hud/eval/summary`).
+- **CI gate:** `.github/workflows/eval-gate.yml` runs the golden suite with `--strict`
+  (non-zero exit on regression) on every engine change.
+
 ## License
 
 MIT — see [LICENSE](./LICENSE).

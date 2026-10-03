@@ -1,6 +1,6 @@
 # 51 — Phase 22 EVAL (Evaluación & Instrumentación — harness Layer 5)
 
-- **Estado:** plan aprobado; EVAL.0–EVAL.1–EVAL.2–EVAL.3 implementadas (EVAL.4 pendiente).
+- **Estado:** **COMPLETA** (EVAL.0–EVAL.4).
 - **Fecha:** 2026-10-03.
 - **Motivación raíz:** investigación externa "harness engineering" (Round 9). La capa
   de mayor ROI que Atlas no tiene es **Evaluación/Instrumentación**, y ya estaba
@@ -113,8 +113,12 @@ Fuentes independientes convergen en 2026:
 - 4 tests del importador (job con pass/fail/error, dir, trial suelto, fichero
   ausente).
 
-### EVAL.4 — Gate CI + baseline público
-- Job de CI que corre la golden eval; baseline en README.
+### EVAL.4 — Gate CI + baseline público — **COMPLETA**
+- Workflow `.github/workflows/eval-gate.yml` (Windows runner): `fmt` + `clippy -D warnings`
+  + `cargo test --lib` + **golden eval con `--strict`** (exit ≠ 0 ante regresión) en cada
+  cambio de `src-tauri/**`.
+- Flag `atlas eval run <suite> --strict`.
+- Baseline público en el README (§Evaluation baseline).
 
 ## 5. Métricas (definición)
 

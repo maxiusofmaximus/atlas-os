@@ -27,6 +27,9 @@ pub enum EvalAction {
         /// Suite to run (available: `golden`).
         #[arg(default_value = "golden")]
         suite: String,
+        /// Exit non-zero if any case fails or errors (CI gate).
+        #[arg(long)]
+        strict: bool,
     },
     /// List recent eval runs, newest first.
     List {
@@ -49,7 +52,7 @@ pub async fn run(cmd: EvalCmd, profile: &str) -> Result<()> {
     let root = crate::profiles::resolve_root(&pid)?;
     let journal = Journal::open(&root)?;
     match cmd.action {
-        EvalAction::Run { suite } => run_suite(&journal, &suite),
+        EvalAction::Run { suite, strict } => run_suite(&journal, &suite, strict),
         EvalAction::List { last } => list(&journal, last),
         EvalAction::Report { id } => report(&journal, id.as_deref()),
         EvalAction::Import { path } => import(&journal, &path),
@@ -109,7 +112,7 @@ fn import(journal: &Journal, path: &str) -> Result<()> {
     Ok(())
 }
 
-fn run_suite(journal: &Journal, name: &str) -> Result<()> {
+fn run_suite(journal: &Journal, name: &str, strict: bool) -> Result<()> {
     let tasks = match name {
         "golden" => crate::eval::golden::golden_suite(),
         other => bail!("unknown suite `{other}` (available: golden)"),
@@ -132,6 +135,12 @@ fn run_suite(journal: &Journal, name: &str) -> Result<()> {
             category = case.category.unwrap_or_default(),
             id = case.case_id,
             detail = case.detail.unwrap_or_default(),
+        );
+    }
+    if strict && (report.failed + report.errored) > 0 {
+        bail!(
+            "eval gate: {} case(s) failed/errored in suite `{name}`",
+            report.failed + report.errored
         );
     }
     Ok(())

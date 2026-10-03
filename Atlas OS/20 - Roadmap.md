@@ -379,7 +379,7 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - Todas las `panic!()`/`unwrap()` enumeradas viven en bloques `#[cfg(test)]`;
   Phase 21 como refactor de producción queda CANCELADA. Documentado en `research/47`.
 
-## Fase 22 — Evaluación & Instrumentación (EVAL) (plan: research/51, EN CURSO)
+## Fase 22 — Evaluación & Instrumentación (EVAL) (COMPLETA, sub-fases EVAL.0 → EVAL.4; plan: research/51)
 
 - **Decisión 2026-10-03 (investigación harness engineering, `research/51` §1):** la
   capa de mayor ROI que Atlas no tiene es **Evaluación/Instrumentación** (harness
@@ -402,6 +402,9 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
   `summarize_by_harness_model` + `model_reliability`); HUD `GET /hud/eval/summary`
   + card `<EvalCard.svelte>`; CLI `atlas eval metrics`. Cableado de *comportamiento*
   del routing diferido (RFC del orquestador).
+- **EVAL.4 COMPLETA:** gate de CI `.github/workflows/eval-gate.yml` (fmt + clippy +
+  `cargo test --lib` + golden `--strict`); flag `atlas eval run --strict`; baseline
+  público en el README. **Fase 22 CERRADA.**
 - **v3.1.2 (Planning proactivo) queda condicionado a EVAL:** sin instrumento no se
   puede medir si los turnos proactivos ayudan o estorban.
 
