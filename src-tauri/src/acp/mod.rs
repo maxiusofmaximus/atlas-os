@@ -19,9 +19,12 @@
 //     one result/error `session/update` chunk before `StopReason::EndTurn`;
 //     unsupported or context-less commands stream an explanatory chunk and
 //     are refused (`StopReason::Refusal`) — never the Phase 1.5d sentinel.
-//   * the `$/cancel_request` notification is acknowledged via `tracing`
-//     and otherwise dropped — the stub never enters a host loop, so there is
-//     no in-flight work to cancel.
+//   * `$/cancel_request` is honoured for the one long-running handler: the
+//     `exec step` dispatch is raced against the request's cancellation marker
+//     (`Responder::cancellation`); a cancel aborts the CLI call at its next
+//     await, streams a `... cancelled` chunk and answers
+//     `StopReason::Cancelled` (which ACP mandates). The notification handler
+//     below stays wired for tracing/diagnostics.
 //
 // The entry point is `run_server`. It is invoked by the `atlas` binary
 // when Microsoft IT detection requests an ACP stdio loop (see RFC 28 §B
@@ -99,6 +102,40 @@ pub fn plan_prompt(line: &str, cwd: &str) -> PromptPlan {
         crate::acp::delegate::DelegateOutcome::NotImplemented { command } => {
             PromptPlan::NotSupported { command }
         }
+    }
+}
+
+/// Terminal result of an in-flight `exec step`, after racing the CLI call
+/// against the request's ACP cancellation marker.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ExecStepOutcome {
+    Completed,
+    Failed(String),
+    Cancelled,
+}
+
+/// Pure mapping from an [`ExecStepOutcome`] to the `session/update` text plus
+/// the `PromptResponse` stop reason. `Cancelled` maps to the ACP-mandated
+/// [`StopReason::Cancelled`] so a `$/cancel_request` is acknowledged
+/// semantically rather than as a phantom success/failure.
+pub fn exec_step_outcome_text(
+    plan_id: &str,
+    step_id: &str,
+    outcome: &ExecStepOutcome,
+) -> (String, StopReason) {
+    match outcome {
+        ExecStepOutcome::Completed => (
+            format!("exec step {plan_id}/{step_id} completed\n"),
+            StopReason::EndTurn,
+        ),
+        ExecStepOutcome::Failed(error) => (
+            format!("exec step {plan_id}/{step_id} failed: {error}\n"),
+            StopReason::EndTurn,
+        ),
+        ExecStepOutcome::Cancelled => (
+            format!("exec step {plan_id}/{step_id} cancelled\n"),
+            StopReason::Cancelled,
+        ),
     }
 }
 
@@ -204,22 +241,29 @@ pub async fn run_server() -> agent_client_protocol::Result<()> {
                         );
                         connection.send_notification(kickoff)?;
                         let profile = crate::profiles::current().0;
-                        let outcome = crate::cli::commands::exec::run(
-                            crate::cli::commands::ExecCmd {
-                                action: crate::cli::commands::exec::ExecAction::Step {
-                                    plan_id: plan_id.clone(),
-                                    step_id: step_id.clone(),
-                                },
-                            },
-                            &profile,
-                        )
-                        .await;
-                        let text = match outcome {
-                            Ok(()) => {
-                                format!("exec step {plan_id}/{step_id} completed\n")
-                            }
-                            Err(e) => format!("exec step {plan_id}/{step_id} failed: {e}\n"),
+                        let cancellation = responder.cancellation();
+                        let raced = cancellation
+                            .run_until_cancelled(async {
+                                let result = crate::cli::commands::exec::run(
+                                    crate::cli::commands::ExecCmd {
+                                        action: crate::cli::commands::exec::ExecAction::Step {
+                                            plan_id: plan_id.clone(),
+                                            step_id: step_id.clone(),
+                                        },
+                                    },
+                                    &profile,
+                                )
+                                .await;
+                                Ok::<_, agent_client_protocol::Error>(result)
+                            })
+                            .await;
+                        let outcome = match raced {
+                            Ok(Ok(())) => ExecStepOutcome::Completed,
+                            Ok(Err(e)) => ExecStepOutcome::Failed(e.to_string()),
+                            Err(_cancelled) => ExecStepOutcome::Cancelled,
                         };
+                        let (text, stop_reason) =
+                            exec_step_outcome_text(&plan_id, &step_id, &outcome);
                         let update = SessionNotification::new(
                             request.session_id.clone(),
                             SessionUpdate::AgentMessageChunk(
@@ -229,7 +273,7 @@ pub async fn run_server() -> agent_client_protocol::Result<()> {
                             ),
                         );
                         connection.send_notification(update)?;
-                        responder.respond(PromptResponse::new(StopReason::EndTurn))?;
+                        responder.respond(PromptResponse::new(stop_reason))?;
                     }
                     PromptPlan::FixRequested { hint } => {
                         let scrollback = crate::acp::delegate::capture_active_pane_scrollback();
@@ -430,5 +474,24 @@ mod tests {
     #[test]
     fn unknown_acp_mode_id_is_parsed_as_none() {
         assert!(super::mode_mapping::parse_acp_mode_id("unknown-mode").is_none());
+    }
+
+    #[test]
+    fn exec_step_outcome_maps_cancelled_to_stop_reason_cancelled() {
+        let (text, stop) = exec_step_outcome_text("p1", "s1", &ExecStepOutcome::Cancelled);
+        assert!(text.contains("cancelled"));
+        assert_eq!(stop, StopReason::Cancelled);
+    }
+
+    #[test]
+    fn exec_step_outcome_maps_success_and_failure_to_end_turn() {
+        let (ok_text, ok_stop) = exec_step_outcome_text("p1", "s1", &ExecStepOutcome::Completed);
+        assert!(ok_text.contains("completed"));
+        assert_eq!(ok_stop, StopReason::EndTurn);
+
+        let (err_text, err_stop) =
+            exec_step_outcome_text("p1", "s1", &ExecStepOutcome::Failed("boom".to_string()));
+        assert!(err_text.contains("boom"));
+        assert_eq!(err_stop, StopReason::EndTurn);
     }
 }

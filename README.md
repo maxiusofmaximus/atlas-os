@@ -179,6 +179,8 @@ cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- journal -n 10
 
 - **Phase 18 — ACP host loop real (Phase 1.5d closeout)**: `session/prompt` ejecuta el dispatch real (`delegate::DelegateOutcome` → `PromptPlan`), cwd por sesión, `exec step` despacha al CLI real y cierra con `EndTurn`, refusal conservado solo para no-soportados. 42 tests acp verdes, clippy/fmt/check limpios. ✅
 
+- **Phase 18.1 — ACP cancel in-flight**: `exec step` corre dentro de `RequestCancellation::run_until_cancelled`; un `$/cancel_request` aborta el CLI y responde `StopReason::Cancelled` (mandato ACP). 44 tests acp verdes. ✅
+
 - **Phase 19 — LSP real v1**: `AtlasLspBackend` (tower-lsp 0.20) con initialize+hover+did_open sobre stdio cuando stdout es pipe/`ATLAS_LSP_STDIO=1`; desktop sigue parked. 9 tests lsp verdes, clippy/fmt/check limpios. ✅
 
 - **Phase 20 — Journal refactor (steps 1-4, CERRADA)**: Section H, `dag_mode`, `ModelInvocationRow`/record/read y el split por dominio de `journal/tests.rs` (15 archivos en `journal/tests/`); 228 tests journal / 1106 lib verdes; check/default/dag_mode/fmt/clippy limpios. ✅

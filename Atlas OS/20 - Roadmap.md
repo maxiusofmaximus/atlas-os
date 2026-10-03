@@ -351,7 +351,13 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 
 - `session/prompt` deja de devolver el refusal sintético Phase 1.5d; nuevo `PromptPlan` + `plan_prompt` (delegado a `delegate::DelegateOutcome`), cwd por sesión en `session/new → session/prompt`, y `exec step` despacha al CLI real. `Fix/Restart/NotSupported` responden con chunk explicativo; `NotSupported` mantiene `StopReason::Refusal`.
 - Tests: `cargo test --features acp-server,cli acp::` → 42 ok. clippy `-D warnings` + fmt + cargo check (default/minimal/acp-server) verdes.
-- Cancel in-flight sigue simplificado (no hay trabajo real a cancelar aún) — anotado como deuda acotada, no ocultable como error.
+- Cancel in-flight cerrado en Fase 18.1 (ver abajo).
+
+## Fase 18.1 — ACP cancel in-flight (COMPLETA)
+
+- `exec step` corre dentro de `RequestCancellation::run_until_cancelled` (`Responder::cancellation`); un `$/cancel_request` aborta el CLI en su siguiente await.
+- `ExecStepOutcome` + `exec_step_outcome_text` mapean a `StopReason::Cancelled` (mandato ACP) o `EndTurn`; `cargo test --features acp-server --lib acp` → 44 ok.
+- Evidencia en `Atlas OS/research/48 - Phase 18.1 ACP cancel in-flight.md`.
 
 ## Fase 19 — LSP real v1 (COMPLETA)
 

@@ -49,6 +49,8 @@
 | 44 | [Phase 18 — ACP real host loop](./research/44%20-%20Phase%2018%20ACP%20real%20host%20loop.md) | ~3 KB | Phase 18: closeout Phase 1.5d — `session/prompt` despacha `delegate::DelegateOutcome` vía `PromptPlan` (exec step → CLI real, Fix/Restart explicados, NotSupported → Refusal), cwd por sesión, cancel simplificado documentado. |
 | 45 | [Phase 19 — LSP real server](./research/45%20-%20Phase%2019%20LSP%20real%20server.md) | ~3 KB | Phase 19: `AtlasLspBackend` con initialize/hover/did_open sobre stdio (pipe o `ATLAS_LSP_STDIO=1`); desktop preserva park; stub placeholder eliminado. |
 | 46 | [Phase 20 — Journal refactor spec + steps 1-4](./research/46%20-%20Phase%2020%20journal%20refactor%20spec%20%2B%20step1.md) | ~4 KB | Phase 20 (CERRADA): split de `journal/mod.rs` y `tests.rs` sin romper tests — Section H → `model_resets_ops.rs`, `dag_mode` → `dag_mode_ops.rs`, `ModelInvocationRow` + record/read → `model_invocation.rs`, `tests.rs` → `tests/` (15 módulos); 228 journal / 1106 lib intactos. |
+| 47 | [Phase 21 — Audit panics/unwraps test-only](./research/47%20-%20Phase%2021%20audit%20panics%20unwraps%20test-only.md) | ~2 KB | Phase 21: las coincidencias de `panic!`/`unwrap()` están todas en bloques `#[cfg(test)]`; cancelada como cambio de producción. |
+| 48 | [Phase 18.1 — ACP cancel in-flight](./research/48%20-%20Phase%2018.1%20ACP%20cancel%20in-flight.md) | ~3 KB | Phase 18.1: `exec step` corre en `run_until_cancelled`; `$/cancel_request` → `StopReason::Cancelled` (mandato ACP); 44 tests acp verdes. |
 
 **Total: 33 RFCs, ~331 KB** de especificación.
 
