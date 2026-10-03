@@ -44,6 +44,12 @@ struct Inner {
     #[cfg(feature = "toast")]
     #[allow(dead_code)]
     pub toast_driver: Option<crate::toast::scheduler::ToastDriver>,
+    /// Calendar poller task handle (RFC 28 §G READ, v3.1.A.3). Present when
+    /// the `calendar-ics` feature is enabled and `ATLAS_CALENDAR_POLL_SECS`
+    /// is non-zero. Owned here so dropping the `AppState` tears it down.
+    #[cfg(feature = "calendar-ics")]
+    #[allow(dead_code)]
+    pub calendar_poller: Option<crate::calendar::poller::CalendarPoller>,
 }
 
 impl AppState {
@@ -71,6 +77,24 @@ impl AppState {
             ))
         };
 
+        #[cfg(feature = "calendar-ics")]
+        let calendar_poller = {
+            // Background ICS-subscription refresh (v3.1.A.3). Errors are
+            // non-fatal; `0` disables the poller entirely.
+            let secs = crate::calendar::poller::CalendarPoller::configured_interval_secs();
+            if secs == 0 {
+                None
+            } else {
+                Some(crate::calendar::poller::CalendarPoller::spawn(
+                    Arc::clone(&journal),
+                    std::time::Duration::from_secs(secs),
+                    std::time::Duration::from_secs(
+                        crate::calendar::poller::DEFAULT_INITIAL_DELAY_SECS,
+                    ),
+                ))
+            }
+        };
+
         Ok(Self {
             inner: Arc::new(Inner {
                 profile_id: RwLock::new(profile_id),
@@ -80,6 +104,8 @@ impl AppState {
                 hud_port: AtomicU16::new(0),
                 #[cfg(feature = "toast")]
                 toast_driver,
+                #[cfg(feature = "calendar-ics")]
+                calendar_poller,
             }),
         })
     }
@@ -180,6 +206,8 @@ impl AppState {
                 hud_port: AtomicU16::new(0),
                 #[cfg(feature = "toast")]
                 toast_driver: None,
+                #[cfg(feature = "calendar-ics")]
+                calendar_poller: None,
             }),
         }
     }

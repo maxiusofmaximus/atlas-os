@@ -123,8 +123,13 @@ Outlook/Apple/Google; ningún turn proactivo se encola dentro de una busy window
   `ics_local` sin pisarse) y GET condicional (`If-None-Match` /
   `If-Modified-Since` → `304`). Repo en `journal/calendar_ops.rs`. 5 tests
   nuevos (schema + queue + CLI). Smoke: subscribe + sync-all → 317 windows;
-  Google no envía validadores (304 best-effort). **Pendiente v3.1.A.3:**
-  poller en background (auto-refresh).
+  Google no envía validadores (304 best-effort).
+- **v3.1.A.3 Poller en background:** ✅ implementado — `calendar/poller.rs`
+  (`CalendarPoller`, mismo patrón que `ToastDriver`) spawneado desde
+  `AppState::bootstrap`; reusa `ics_reader::sync_all_ics`; cadencia vía
+  `ATLAS_CALENDAR_POLL_SECS` (default 900 s, `0` desactiva) y primer sync a
+  los 30 s. El I/O de red (`fetch_ics`) se separó de la escritura
+  (`apply_ics`) → testeable sin red. 4 tests nuevos. **v3.1.A.2 cerrada.**
 - **v3.1.2 Planning wiring:** pendiente — **bloqueado en infraestructura**: el
   repo **no tiene** un mecanismo de "turn proactivo" ni `AppState.context_window`
   (grep repo-wide sin resultados). RFC 28 §G.4 item 8 (`Planning::next_free_slot`)

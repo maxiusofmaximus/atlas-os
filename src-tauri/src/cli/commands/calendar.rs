@@ -155,6 +155,7 @@ pub async fn run(cmd: CalendarCmd, profile: &str) -> Result<()> {
         #[cfg(feature = "calendar-ics")]
         CalendarAction::SyncAll => {
             let journal = Journal::open(&root)?;
+            let journal = std::sync::Arc::new(parking_lot::Mutex::new(journal));
             sync_all(&journal).await
         }
     }
@@ -273,58 +274,30 @@ fn subscriptions(journal: &Journal) -> Result<()> {
 }
 
 #[cfg(feature = "calendar-ics")]
-async fn sync_all(journal: &Journal) -> Result<()> {
-    use crate::calendar::ics_reader::{self, Validators};
-
-    let enabled: Vec<_> = journal
-        .subscription_list()?
-        .into_iter()
-        .filter(|r| r.enabled)
-        .collect();
-    if enabled.is_empty() {
+async fn sync_all(journal: &std::sync::Arc<parking_lot::Mutex<Journal>>) -> Result<()> {
+    let results = crate::calendar::ics_reader::sync_all_ics(journal).await?;
+    if results.is_empty() {
         println!("no enabled subscriptions to sync");
         return Ok(());
     }
-    let mut total = 0usize;
-    let mut unchanged = 0usize;
-    for sub in &enabled {
-        if sub.kind != "ics" {
-            println!("  skip `{}` (kind={}, not an ICS feed)", sub.name, sub.kind);
-            continue;
-        }
-        let validators = Validators {
-            etag: sub.etag.as_deref(),
-            last_modified: sub.last_modified.as_deref(),
-        };
-        match ics_reader::sync_named(journal, &sub.name, &sub.url, validators).await {
-            Ok(outcome) if outcome.not_modified => {
+    let (mut total, mut unchanged, mut failed) = (0usize, 0usize, 0usize);
+    for r in &results {
+        match &r.error {
+            Some(e) => {
+                failed += 1;
+                println!("  `{}`: error: {e}", r.name);
+            }
+            None if r.not_modified => {
                 unchanged += 1;
-                journal.subscription_record_sync(
-                    &sub.name,
-                    outcome.etag.as_deref(),
-                    outcome.last_modified.as_deref(),
-                    "ok (304 not modified)",
-                )?;
-                println!("  `{}`: unchanged (304)", sub.name);
+                println!("  `{}`: unchanged (304)", r.name);
             }
-            Ok(outcome) => {
-                total += outcome.written;
-                journal.subscription_record_sync(
-                    &sub.name,
-                    outcome.etag.as_deref(),
-                    outcome.last_modified.as_deref(),
-                    &format!("ok ({} events)", outcome.written),
-                )?;
-                println!("  `{}`: {} events", sub.name, outcome.written);
-            }
-            Err(e) => {
-                let msg = format!("error: {e}");
-                journal.subscription_record_sync(&sub.name, None, None, &msg)?;
-                println!("  `{}`: {msg}", sub.name);
+            None => {
+                total += r.written;
+                println!("  `{}`: {} events", r.name, r.written);
             }
         }
     }
-    println!("sync-all: {total} events written, {unchanged} feeds unchanged");
+    println!("sync-all: {total} events written, {unchanged} feeds unchanged, {failed} failed");
     Ok(())
 }
 
