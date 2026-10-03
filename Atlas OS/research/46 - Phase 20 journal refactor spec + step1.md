@@ -1,4 +1,4 @@
-# 46 - Phase 20: journal refactor step 1 (model_resets_ops)
+# 46 - Phase 20: journal refactor (steps 1-3)
 
 ## Objetivo
 
@@ -19,7 +19,25 @@ con API pública equivalente.
 - `cargo test --lib journal`: **228 passed; 0 failed** (red preservada).
 - `cargo fmt --check`: OK (tras `cargo fmt`).
 
-## Siguiente (Phase 20.1+)
+## Step 2 — dag_mode_ops (HECHO)
 
-- Step 2: `dag_mode` impl → `journal/dag_mode_ops.rs` (HECHO, `8dcc148`).
-- Phase 20.2+: pendiente — requiere una ronda de trabajo propia (tearing de `ModelInvocationRow` y domain split de `journal/tests.rs`). No se incluyen en este milestone; se documenta como deuda abierta acotada.
+- `impl Journal` del bloque `dag_mode` (`persist_learning_graph`,
+  `retrieve_similar_learning_graphs`, `read_mission_graph`, `seed_test_graph_node`)
+  → `journal/dag_mode_ops.rs` (`8dcc148`).
+
+## Step 3 — model_invocation (HECHO)
+
+- `ModelInvocationRow` + `read_model_invocation_means`/`record_model_invocation`
+  extraídos a `journal/model_invocation.rs`; `mod.rs` re-exporta
+  `pub use model_invocation::ModelInvocationRow;`. API pública y callers intactos.
+- `model_resets_ops.rs` queda sólo con el dominio de resets/afinidad.
+
+## Verificación (steps 1-3)
+
+- `cargo test --lib journal`: **228 passed; 0 failed**.
+- `cargo check` (default y `--features dag_mode`): OK.
+- `cargo fmt --check` + `cargo clippy --all-targets -- -D warnings`: OK.
+
+## Siguiente (Phase 20.3)
+
+- Dividir `journal/tests.rs` por dominio (985 LOC, aislado del código de producción).

@@ -181,7 +181,7 @@ cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- journal -n 10
 
 - **Phase 19 — LSP real v1**: `AtlasLspBackend` (tower-lsp 0.20) con initialize+hover+did_open sobre stdio cuando stdout es pipe/`ATLAS_LSP_STDIO=1`; desktop sigue parked. 9 tests lsp verdes, clippy/fmt/check limpios. ✅
 
-- **Phase 20 — Journal refactor (step 2)**: Section H y `dag_mode` impl blocks extraídos a `journal/model_resets_ops.rs` / `journal/dag_mode_ops.rs`; 228 tests journal verdes; check/default/dag_mode/fmt/clippy limpios. ✅
+- **Phase 20 — Journal refactor (steps 1-3)**: Section H, `dag_mode` y `ModelInvocationRow`/record/read extraídos a `journal/model_resets_ops.rs` / `journal/dag_mode_ops.rs` / `journal/model_invocation.rs`; 228 tests journal verdes; check/default/dag_mode/fmt/clippy limpios. ✅
 
 - **Phase 21 — Audit panic!/unwrap()**: cancelada como cambio; las coincidencias son todas test-only (`#[cfg(test)]`). Documentado. ✅
 

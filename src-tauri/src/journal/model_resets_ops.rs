@@ -1,12 +1,12 @@
-﻿use crate::journal::*;
-// Section H â€” model reset-window helpers. `model_reset_upsert`
+use crate::journal::*;
+// Section H — model reset-window helpers. `model_reset_upsert`
 // and `link_model_reset_toast` are NOT feature-gated: the
 // `model_resets` table is created unconditionally (M19), and the
 // reset path persists the row even when the `toast` feature is off
 // (the HUD tail surfaces the next pending reset regardless). Only
 // the Toast enqueue is gated (`enqueue_model_ready_toast`).
 impl Journal {
-    /// RFC 28 Â§H.4 â€” persist a `SpendLimitError` observation into
+    /// RFC 28 §H.4 — persist a `SpendLimitError` observation into
     /// `model_resets` and read back the row id + any pre-existing
     /// Toast link (for idempotent replays). Returns
     /// `(reset_id, Option<toast_id>)` where the second slot is
@@ -31,11 +31,11 @@ impl Journal {
         Ok((reset_id, already_linked))
     }
 
-    /// RFC 28 Â§H.4 â€” enqueue the `kind='model_ready'` Toast for a
+    /// RFC 28 §H.4 — enqueue the `kind='model_ready'` Toast for a
     /// fresh `SpendLimitError` observation. Returns the new Toast
     /// queue row id; caller links it back via `link_model_reset_toast`.
     /// Feature-gated behind `toast` (the `toast_queue` table exists
-    /// regardless of the feature, but Â§H ships Toast-only).
+    /// regardless of the feature, but §H ships Toast-only).
     #[cfg(feature = "toast")]
     pub fn enqueue_model_ready_toast(
         &self,
@@ -59,14 +59,14 @@ impl Journal {
         )?)
     }
 
-    /// RFC 28 Â§H.4 â€” link a `model_resets` row to the Toast queue row
+    /// RFC 28 §H.4 — link a `model_resets` row to the Toast queue row
     /// enqueued for it, so the scheduler can correlate dismissals.
     pub fn link_model_reset_toast(&self, reset_id: i64, toast_id: i64) -> anyhow::Result<bool> {
         let conn = self.conn.lock();
         crate::journal::model_resets::link_toast_id(&conn, reset_id, toast_id)
     }
 
-    /// RFC 28 Â§H.4 â€” mark a `model_resets` row's Toast as dismissed,
+    /// RFC 28 §H.4 — mark a `model_resets` row's Toast as dismissed,
     /// looked up by `toast_queue.id`. Used by the Toast callback when
     /// the user dismisses the `model_ready` card (the dismiss is
     /// propagated through the scheduler -> here).
@@ -85,7 +85,7 @@ impl Journal {
 
     /// Count of `model_resets` rows for a given `(provider, model)`
     /// pair (regardless of pending / dismissed state). Used by tests
-    /// to assert idempotency of `handle_spend_limit_error` â€” production
+    /// to assert idempotency of `handle_spend_limit_error` — production
     /// callers should consult `pending_for` for the actual pending
     /// reset (it filters past + dismissed rows).
     #[cfg(test)]
@@ -106,7 +106,7 @@ impl Journal {
     // and groups by `(cd.predicted_task_type, mi.model_id)`, computing
     // `success_rate`, `p95_latency_ms`, `mean_cost_usd`, `n_samples`
     // over a bounded rolling window. The schema (M21 + M23) already
-    // exists â€” no migration is needed for 2.4.
+    // exists — no migration is needed for 2.4.
     //
     // The classifier-decision append records a row in
     // `task_classifier_decisions` keyed by `(prompt_hash,
@@ -257,7 +257,7 @@ impl Journal {
     /// `kind = "laya"` for the System One backend. The
     /// `(prompt_hash, classifier_kind)` UNIQUE
     /// constraint means a replay is silently ignored by `INSERT OR
-    /// IGNORE` â€” A/B replay on the same prompt is a no-op, not an
+    /// IGNORE` — A/B replay on the same prompt is a no-op, not an
     /// error.
     pub fn record_classifier_decision(
         &self,
@@ -292,9 +292,9 @@ impl Journal {
     }
 
     /// Record one `ast_symbols` row (Phase 9 sub-fase 9.2, M34).
-    /// Returns the row id â€” the existing id on replay thanks to the
+    /// Returns the row id — the existing id on replay thanks to the
     /// `(file, name, kind, line)` UNIQUE constraint plus
-    /// `INSERT OR IGNORE` (RFC 02 Â§3.1.2 idempotent consumer).
+    /// `INSERT OR IGNORE` (RFC 02 §3.1.2 idempotent consumer).
     pub fn record_ast_symbol(
         &self,
         file: &str,
@@ -311,103 +311,5 @@ impl Journal {
     pub fn ast_symbols_for_file(&self, file: &str) -> anyhow::Result<Vec<AstSymbolRow>> {
         let conn = self.conn.lock();
         ast_symbols::ast_symbols_for_file(&conn, file)
-    }
-
-    /// RFC 04 Â§6 sub-fase 2.4 â€” rolling-window means of
-    /// `model_invocations.tokens_in`, `tokens_out`, and a blended
-    /// input+output cost-per-1M figure for `cost_guard`'s
-    /// `AggregationCostContext::from_journal`. Used by the orchestrator
-    /// to estimate pre-aggregation spend based on what this model has
-    /// historically consumed per request.
-    ///
-    /// When no telemetry exists for `model_id`, returns zeros â€” the
-    /// caller's guard evaluates `0` as "no data" (the operator
-    /// explicitly-set `blended_cost_per_1m` in the profile takes over
-    /// only when the `Default::default()` path is used instead).
-    pub fn read_model_invocation_means(
-        &self,
-        model_id: &str,
-        window: u32,
-    ) -> anyhow::Result<(u64, u64, f64)> {
-        let conn = self.conn.lock();
-        let (mean_in, mean_out, total_cost, total_tokens) = conn.query_row(
-            "WITH ranked AS (
-                SELECT tokens_in, tokens_out,
-                       cost_usd,
-                       ROW_NUMBER() OVER (
-                           ORDER BY started_at DESC
-                       ) AS rk
-                FROM model_invocations
-                WHERE model_id = ?1
-                  AND tokens_in IS NOT NULL
-                  AND tokens_out IS NOT NULL
-            )
-            SELECT COALESCE(AVG(tokens_in), 0),
-                   COALESCE(AVG(tokens_out), 0),
-                   COALESCE(SUM(cost_usd), 0),
-                   COALESCE(SUM(tokens_in + tokens_out), 0)
-            FROM ranked
-            WHERE rk <= ?2",
-            rusqlite::params![model_id, i64::from(window)],
-            |r| {
-                let mean_in: Option<f64> = r.get(0)?;
-                let mean_out: Option<f64> = r.get(1)?;
-                let total_cost: Option<f64> = r.get(2)?;
-                let total_tokens: Option<f64> = r.get(3)?;
-                Ok((
-                    mean_in.unwrap_or(0.0) as u64,
-                    mean_out.unwrap_or(0.0) as u64,
-                    total_cost.unwrap_or(0.0),
-                    total_tokens.unwrap_or(0.0),
-                ))
-            },
-        )?;
-        let blended_cost_per_1m = if total_tokens > 0.0 {
-            (total_cost / total_tokens) * 1_000_000.0
-        } else {
-            0.0
-        };
-        Ok((mean_in, mean_out, blended_cost_per_1m))
-    }
-
-    /// Record a single `model_invocations` row. Used by the
-    /// orchestrator after every model invocation (Phase 2). Phases 0-1
-    /// never call this; the rows accumulate naturally once the
-    /// orchestrator loop lands.
-    pub fn record_model_invocation(&self, row: &ModelInvocationRow) -> anyhow::Result<()> {
-        let conn = self.conn.lock();
-        conn.execute(
-            "INSERT OR IGNORE INTO model_invocations
-             (id, mission_id, model_id, deployment_id, provider,
-              idempotency_key, started_at, finished_at, latency_ms,
-              tokens_in, tokens_out, cache_read_input_tokens, cost_usd,
-              seed, temperature, sampling_params_json, route_taken_json,
-              was_correct, error_kind, error_message)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
-                     ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
-            rusqlite::params![
-                row.id,
-                row.mission_id,
-                row.model_id,
-                row.deployment_id,
-                row.provider,
-                row.idempotency_key,
-                row.started_at,
-                row.finished_at,
-                row.latency_ms,
-                row.tokens_in,
-                row.tokens_out,
-                row.cache_read_input_tokens,
-                row.cost_usd,
-                row.seed,
-                row.temperature,
-                row.sampling_params_json,
-                row.route_taken_json,
-                row.was_correct,
-                row.error_kind,
-                row.error_message,
-            ],
-        )?;
-        Ok(())
     }
 }

@@ -13,6 +13,7 @@ pub mod learning_graphs;
 pub mod learning_rules;
 #[cfg(feature = "dag_mode")]
 pub mod mission_graph;
+pub mod model_invocation;
 pub mod model_resets;
 pub mod model_resets_ops;
 
@@ -49,33 +50,7 @@ pub use store::{
     RepairRunRow, SkillRow, StepStateRow, ValidationReportRow, VerdictRow,
 };
 
-/// RFC 04 §6 sub-fase 2.4 — one row of `model_invocations` (M21) as
-/// materialised by `Journal::record_model_invocation`. The struct
-/// mirrors the SQL column set 1:1; missing columns are `Option<…>`
-/// matching the schema's `NULL` allowance.
-#[derive(Debug, Clone, PartialEq)]
-pub struct ModelInvocationRow {
-    pub id: String,
-    pub mission_id: Option<String>,
-    pub model_id: String,
-    pub deployment_id: String,
-    pub provider: String,
-    pub idempotency_key: String,
-    pub started_at: String,
-    pub finished_at: Option<String>,
-    pub latency_ms: Option<i64>,
-    pub tokens_in: Option<i64>,
-    pub tokens_out: Option<i64>,
-    pub cache_read_input_tokens: Option<i64>,
-    pub cost_usd: Option<f64>,
-    pub seed: Option<i64>,
-    pub temperature: Option<f64>,
-    pub sampling_params_json: Option<String>,
-    pub route_taken_json: Option<String>,
-    pub was_correct: Option<i64>,
-    pub error_kind: Option<String>,
-    pub error_message: Option<String>,
-}
+pub use model_invocation::ModelInvocationRow;
 
 use std::path::{Path, PathBuf};
 
