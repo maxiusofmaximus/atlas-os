@@ -116,6 +116,15 @@ Outlook/Apple/Google; ningún turn proactivo se encola dentro de una busy window
   (`calendar/ics_reader.rs`, feature `calendar-ics`), parser `icalendar 0.17`
   (decisión y justificación en `22 §15`); busy windows `source=ics_local`.
   3 tests (timed + all-day + malformado). Smoke: ICS público → 317 windows.
+- **v3.1.A.2 ICS subscriptions durables:** ✅ implementado — tabla
+  `calendar_subscriptions` (migración 34) + `atlas calendar
+  subscribe/unsubscribe/subscriptions/sync-all`. Feeds namespaced
+  (`{name}:{uid}`) con borrado por prefijo (varias suscripciones conviven en
+  `ics_local` sin pisarse) y GET condicional (`If-None-Match` /
+  `If-Modified-Since` → `304`). Repo en `journal/calendar_ops.rs`. 5 tests
+  nuevos (schema + queue + CLI). Smoke: subscribe + sync-all → 317 windows;
+  Google no envía validadores (304 best-effort). **Pendiente v3.1.A.3:**
+  poller en background (auto-refresh).
 - **v3.1.2 Planning wiring:** pendiente — **bloqueado en infraestructura**: el
   repo **no tiene** un mecanismo de "turn proactivo" ni `AppState.context_window`
   (grep repo-wide sin resultados). RFC 28 §G.4 item 8 (`Planning::next_free_slot`)

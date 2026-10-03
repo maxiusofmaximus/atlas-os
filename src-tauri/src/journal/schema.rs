@@ -14,7 +14,7 @@ use rusqlite::Connection;
 /// log and must never be renumbered. When adding M(N+1): bump this const
 /// AND change the final migration's `params![N, …]` to
 /// `params![CURRENT_SCHEMA_VERSION, …]` (same value).
-pub const CURRENT_SCHEMA_VERSION: i64 = 33;
+pub const CURRENT_SCHEMA_VERSION: i64 = 34;
 
 pub fn migrate(conn: &Connection) -> Result<()> {
     // M0 — Schema versioning.
@@ -1610,6 +1610,45 @@ pub fn migrate(conn: &Connection) -> Result<()> {
                 ON ast_symbols(file, line);
             CREATE INDEX IF NOT EXISTS ast_symbols_name_idx
                 ON ast_symbols(name);",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![33, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
+    // M35 (schema v34) — Calendar subscriptions (RFC 28 §G READ, v3.1.A.2).
+    //   `calendar_subscriptions` is the durable registry of external
+    //   calendar feeds the operator subscribed to (ICS `https`/`webcal`
+    //   URLs now; a `graph` principal later). The busy-window table
+    //   records provenance only; this table records *which* feed a row
+    //   came from, so one feed can be re-synced or dropped without
+    //   touching the others (`ics_reader` namespaces
+    //   `calendar_busy_windows.external_id` as `{name}:{uid}` and evicts
+    //   by prefix). The conditional-GET validators (`etag`,
+    //   `last_modified`) and the last outcome (`last_status`,
+    //   `last_sync_ms`) live here so `calendar sync-all` and the poller
+    //   resume cheaply across restarts. Created unconditionally (same
+    //   rule as M18) so the schema stays idempotent across feature
+    //   combos.
+    if current < 34 {
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS calendar_subscriptions (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                name          TEXT NOT NULL UNIQUE,
+                url           TEXT NOT NULL,
+                kind          TEXT NOT NULL DEFAULT 'ics'
+                              CHECK (kind IN ('ics','graph')),
+                enabled       INTEGER NOT NULL DEFAULT 1,
+                etag          TEXT,
+                last_modified TEXT,
+                last_sync_ms  INTEGER,
+                last_status   TEXT,
+                created_at    INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+                updated_at    INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+            );
+
+            CREATE INDEX IF NOT EXISTS cal_sub_enabled_idx
+                ON calendar_subscriptions(enabled);",
         )?;
         conn.execute(
             "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",

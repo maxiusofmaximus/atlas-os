@@ -1,10 +1,17 @@
 // Atlas OS — Calendar ICS subscription reader (RFC 28 §G READ, v3.1.A).
 // Fetches an operator-provided `.ics` URL, parses RFC 5545 VEVENTs through the
-// `icalendar` crate, and replaces the `ics_local` busy windows in the journal.
+// `icalendar` crate, and replaces that feed's `ics_local` busy windows.
+//
+// Each feed is namespaced by its subscription name (`{name}:{uid}`) so several
+// `.ics` subscriptions can coexist in `source = ics_local` without colliding,
+// and one feed can be re-synced or dropped without evicting the others. A
+// conditional GET (`If-None-Match` / `If-Modified-Since`) short-circuits an
+// unchanged feed to a `304` so `calendar sync-all` and the poller stay cheap.
 
 use chrono::{NaiveDate, NaiveTime};
 use icalendar::{Calendar, CalendarDateTime, Component, DatePerhapsTime};
-use reqwest::Client;
+use reqwest::header::{ETAG, IF_MODIFIED_SINCE, IF_NONE_MATCH, LAST_MODIFIED};
+use reqwest::{Client, StatusCode};
 
 use crate::calendar::error::{CalendarError, Result};
 use crate::calendar::payload::BusySource;
@@ -22,18 +29,28 @@ pub struct IcsBusy {
     pub weight: f64,
 }
 
-impl IcsBusy {
-    fn as_input(&self) -> BusyWindowInput<'_> {
-        BusyWindowInput {
-            source: BusySource::IcsLocal,
-            external_id: &self.external_id,
-            subject: &self.subject,
-            body: self.body.as_deref(),
-            starts_at: self.starts_at,
-            ends_at: self.ends_at,
-            weight: self.weight,
-        }
-    }
+/// HTTP validators from a previous fetch, replayed as conditional-GET
+/// headers so an unchanged feed answers `304 Not Modified`.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Validators<'a> {
+    pub etag: Option<&'a str>,
+    pub last_modified: Option<&'a str>,
+}
+
+/// Outcome of a sync: how many rows were written (0 on `304`), whether the
+/// feed was unchanged, and the validators to persist for the next call.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SyncOutcome {
+    pub written: usize,
+    pub not_modified: bool,
+    pub etag: Option<String>,
+    pub last_modified: Option<String>,
+}
+
+/// Namespace an event UID under its subscription so several `.ics` feeds
+/// can coexist in `source = ics_local` without id collisions.
+fn namespaced(name: &str, uid: &str) -> String {
+    format!("{name}:{uid}")
 }
 
 /// Parse an iCalendar document into busy windows. All-day events (`VALUE=DATE`)
@@ -103,15 +120,51 @@ fn to_epoch_ms(dt: &CalendarDateTime) -> i64 {
     }
 }
 
-/// Fetch `url` and replace the `ics_local` busy windows with the events it
-/// declares. Returns the number of windows written.
-pub async fn sync_ics(journal: &crate::journal::Journal, url: &str) -> Result<usize> {
+fn header_string(
+    response: &reqwest::Response,
+    name: reqwest::header::HeaderName,
+) -> Option<String> {
+    response
+        .headers()
+        .get(name)
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_string)
+}
+
+/// Fetch `url` (conditionally) and replace subscription `name`'s busy windows
+/// with the events it declares. Returns the written count plus the validators
+/// to persist. A `304` is not an error: it yields `written = 0` and
+/// `not_modified = true`.
+pub async fn sync_named(
+    journal: &crate::journal::Journal,
+    name: &str,
+    url: &str,
+    validators: Validators<'_>,
+) -> Result<SyncOutcome> {
     let client = Client::new();
-    let response = client
-        .get(url)
+    let mut req = client.get(url);
+    if let Some(etag) = validators.etag {
+        req = req.header(IF_NONE_MATCH, etag);
+    }
+    if let Some(lm) = validators.last_modified {
+        req = req.header(IF_MODIFIED_SINCE, lm);
+    }
+    let response = req
         .send()
         .await
         .map_err(|e| CalendarError::Backend(anyhow::Error::from(e)))?;
+
+    let etag = header_string(&response, ETAG);
+    let last_modified = header_string(&response, LAST_MODIFIED);
+
+    if response.status() == StatusCode::NOT_MODIFIED {
+        return Ok(SyncOutcome {
+            written: 0,
+            not_modified: true,
+            etag,
+            last_modified,
+        });
+    }
     if !response.status().is_success() {
         return Err(CalendarError::Ics(format!(
             "ics HTTP {}",
@@ -124,15 +177,39 @@ pub async fn sync_ics(journal: &crate::journal::Journal, url: &str) -> Result<us
         .map_err(|e| CalendarError::Backend(anyhow::Error::from(e)))?;
 
     let rows = parse_ics(&body)?;
+    let prefix = format!("{name}:");
     journal
-        .busy_window_delete_by_source(BusySource::IcsLocal)
+        .busy_window_delete_by_source_prefix(BusySource::IcsLocal, &prefix)
         .map_err(CalendarError::Backend)?;
     for row in &rows {
+        let external_id = namespaced(name, &row.external_id);
+        let input = BusyWindowInput {
+            source: BusySource::IcsLocal,
+            external_id: &external_id,
+            subject: &row.subject,
+            body: row.body.as_deref(),
+            starts_at: row.starts_at,
+            ends_at: row.ends_at,
+            weight: row.weight,
+        };
         journal
-            .busy_window_upsert(&row.as_input())
+            .busy_window_upsert(&input)
             .map_err(CalendarError::Backend)?;
     }
-    Ok(rows.len())
+    Ok(SyncOutcome {
+        written: rows.len(),
+        not_modified: false,
+        etag,
+        last_modified,
+    })
+}
+
+/// Ad-hoc entry point used by `atlas calendar sync-ics <url>`: sync a bare URL
+/// under the fixed `adhoc` namespace with no conditional state.
+pub async fn sync_ics(journal: &crate::journal::Journal, url: &str) -> Result<usize> {
+    Ok(sync_named(journal, "adhoc", url, Validators::default())
+        .await?
+        .written)
 }
 
 #[cfg(test)]
@@ -181,7 +258,6 @@ END:VCALENDAR\r\n";
         assert_eq!(timed.weight, 1.0);
         assert_eq!(timed.starts_at, epoch(2026, 10, 3, 9, 0));
         assert_eq!(timed.ends_at, epoch(2026, 10, 3, 10, 0));
-        assert_eq!(timed.as_input().source, BusySource::IcsLocal);
 
         let all_day = rows
             .iter()
@@ -209,5 +285,11 @@ END:VCALENDAR\r\n";
             parse_ics("{ not ical"),
             Err(CalendarError::Ics(_))
         ));
+    }
+
+    #[test]
+    fn namespaced_ids_are_scoped_to_the_feed() {
+        assert_eq!(namespaced("work", "e1"), "work:e1");
+        assert_ne!(namespaced("work", "e1"), namespaced("home", "e1"));
     }
 }

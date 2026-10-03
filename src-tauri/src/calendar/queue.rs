@@ -160,6 +160,22 @@ impl<'a> BusyWindowQueue<'a> {
         Ok(n as i64)
     }
 
+    /// Delete every row from `source` whose `external_id` starts with
+    /// `prefix`. The ICS reader namespaces each feed's ids as
+    /// `{subscription}:{uid}`, so a single feed can be re-synced (or
+    /// dropped) without evicting the rows of the other feeds that share
+    /// `source = ics_local`. `prefix` is escaped for `LIKE` so a literal
+    /// `%`/`_` in a subscription name cannot widen the match.
+    pub fn delete_by_source_prefix(&self, source: BusySource, prefix: &str) -> Result<i64> {
+        let pattern = format!("{}%", escape_like(prefix));
+        let n = self.conn.execute(
+            "DELETE FROM calendar_busy_windows
+             WHERE source = ?1 AND external_id LIKE ?2 ESCAPE '\\'",
+            rusqlite::params![source.as_str(), pattern],
+        )?;
+        Ok(n as i64)
+    }
+
     /// Look up the row by id.
     pub fn get(&self, id: i64) -> Result<Option<BusyWindowRow>> {
         let mut stmt = self.conn.prepare(
@@ -237,6 +253,19 @@ impl<'a> BusyWindowQueue<'a> {
                 r.get(0)
             })?)
     }
+}
+
+/// Escape the `LIKE` metacharacters so a literal prefix (e.g. a
+/// subscription name that happens to contain `%`) matches itself.
+fn escape_like(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        if matches!(c, '\\' | '%' | '_') {
+            out.push('\\');
+        }
+        out.push(c);
+    }
+    out
 }
 
 fn row_to_busywindowrow(r: &rusqlite::Row<'_>) -> rusqlite::Result<BusyWindowRow> {
@@ -470,5 +499,78 @@ mod tests {
     fn get_returns_none_for_missing() {
         let q = fresh_queue();
         assert!(q.get(999).unwrap().is_none());
+    }
+
+    #[test]
+    fn delete_by_source_prefix_scopes_to_one_feed() {
+        let q = fresh_queue();
+        // two ICS feeds sharing `source = ics_local`, namespaced by feed.
+        q.upsert(&input(
+            BusySource::IcsLocal,
+            "work:e1",
+            "w1",
+            1_000,
+            2_000,
+            1.0,
+        ))
+        .unwrap();
+        q.upsert(&input(
+            BusySource::IcsLocal,
+            "work:e2",
+            "w2",
+            1_000,
+            2_000,
+            1.0,
+        ))
+        .unwrap();
+        q.upsert(&input(
+            BusySource::IcsLocal,
+            "home:e1",
+            "h1",
+            1_000,
+            2_000,
+            1.0,
+        ))
+        .unwrap();
+        q.insert_manual(&input(BusySource::Manual, "m-1", "m1", 1_000, 2_000, 0.5))
+            .unwrap();
+
+        let n = q
+            .delete_by_source_prefix(BusySource::IcsLocal, "work:")
+            .unwrap();
+        assert_eq!(n, 2);
+        let left = q.list(10).unwrap();
+        assert_eq!(left.len(), 2, "home feed + manual must survive");
+        assert!(left.iter().all(|r| r.external_id != "work:e1"));
+        assert!(left.iter().any(|r| r.external_id == "home:e1"));
+    }
+
+    #[test]
+    fn delete_by_source_prefix_escapes_like_metacharacters() {
+        let q = fresh_queue();
+        // A subscription literally named `100%` must only evict its own ids.
+        q.upsert(&input(
+            BusySource::IcsLocal,
+            "100%:e1",
+            "pct",
+            1_000,
+            2_000,
+            1.0,
+        ))
+        .unwrap();
+        q.upsert(&input(
+            BusySource::IcsLocal,
+            "100x:e1",
+            "other",
+            1_000,
+            2_000,
+            1.0,
+        ))
+        .unwrap();
+        let n = q
+            .delete_by_source_prefix(BusySource::IcsLocal, "100%:")
+            .unwrap();
+        assert_eq!(n, 1, "'%' must be literal, not a wildcard");
+        assert_eq!(q.count().unwrap(), 1);
     }
 }

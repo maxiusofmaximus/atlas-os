@@ -10,14 +10,18 @@
 //    Calendar. The feed is read-only (`METHOD:PUBLISH`) and emitted on
 //    demand via the axum HUD server (`calendar/ics_route.rs`).
 //
-// 2. **READ path** (`calendar-graph` feature) — `CalendarReader`
-//    pulls the user's Microsoft Graph `/me/calendarView` events every
-//    60 s, parses them into `BusyWindow` rows, and persists them into
+// 2. **READ path** — two sources feed `calendar_busy_windows`:
+//    (a) `calendar-graph` pulls Microsoft Graph `/me/calendarView` via
+//    OAuth 2.0 authorization-code + PKCE (loopback redirect; `auth.rs`)
+//    and refreshes silently against the persisted AES-256-GCM refresh
+//    token; (b) `calendar-ics` fetches operator-subscribed `.ics` feeds
+//    (`ics_reader.rs`) with a conditional GET. Both persist into
 //    `calendar_busy_windows` so the Planning engine (RFC 12 §3) can
 //    consult `next_free_slot(turn_eta)` before enqueuing a proactive
-//    turn. The auth uses `graph-rs-sdk` with `interactive-auth` (wry
-//    webview popup) the first time, then silent refreshes against the
-//    persisted encrypted refresh token (AES-256-GCM).
+//    turn. Subscribed feeds are registered durably in
+//    `calendar_subscriptions` (M35) so one feed can be re-synced or
+//    dropped without touching the others (ids are namespaced
+//    `{subscription}:{uid}`).
 //
 // On a default build (no `calendar-*` feature on) the M18 tables are
 // still created — that keeps the schema idempotent across feature

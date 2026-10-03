@@ -47,12 +47,32 @@ pub enum CalendarAction {
     /// Print the stored Graph token claims (aud/scp/tid) — diagnostics.
     #[cfg(feature = "calendar-graph")]
     Status,
-    /// Fetch an `.ics` URL and replace `ics_local` busy windows (RFC 28 §G READ).
+    /// Fetch an ad-hoc `.ics` URL and replace its `ics_local` busy windows.
     #[cfg(feature = "calendar-ics")]
     SyncIcs {
         /// Public `.ics` URL (Outlook/Google/Apple "secret address").
         url: String,
+        /// Local namespace for this feed's busy windows.
+        #[arg(short = 'n', long, default_value = "adhoc")]
+        name: String,
     },
+    /// Register (or re-point) a durable `.ics` feed subscription.
+    #[cfg(feature = "calendar-ics")]
+    Subscribe {
+        /// Stable local name for the feed (also the id namespace; no `:`).
+        name: String,
+        /// Public `.ics` URL.
+        url: String,
+    },
+    /// Remove a subscription (its busy windows are left in place).
+    #[cfg(feature = "calendar-ics")]
+    Unsubscribe { name: String },
+    /// List registered subscriptions with their last sync state.
+    #[cfg(feature = "calendar-ics")]
+    Subscriptions,
+    /// Sync every enabled subscription (conditional GET; `304` = no work).
+    #[cfg(feature = "calendar-ics")]
+    SyncAll,
 }
 
 #[derive(Subcommand, Debug)]
@@ -102,11 +122,40 @@ pub async fn run(cmd: CalendarCmd, profile: &str) -> Result<()> {
             status(&journal, &root).await
         }
         #[cfg(feature = "calendar-ics")]
-        CalendarAction::SyncIcs { url } => {
+        CalendarAction::SyncIcs { url, name } => {
             let journal = Journal::open(&root)?;
-            let written = crate::calendar::ics_reader::sync_ics(&journal, &url).await?;
-            println!("calendar sync-ics: {written} busy windows `ics_local` actualizados");
+            let outcome = crate::calendar::ics_reader::sync_named(
+                &journal,
+                &name,
+                &url,
+                crate::calendar::ics_reader::Validators::default(),
+            )
+            .await?;
+            println!(
+                "calendar sync-ics[{name}]: {} busy windows `ics_local` actualizados",
+                outcome.written
+            );
             Ok(())
+        }
+        #[cfg(feature = "calendar-ics")]
+        CalendarAction::Subscribe { name, url } => {
+            let journal = Journal::open(&root)?;
+            subscribe(&journal, &name, &url)
+        }
+        #[cfg(feature = "calendar-ics")]
+        CalendarAction::Unsubscribe { name } => {
+            let journal = Journal::open(&root)?;
+            unsubscribe(&journal, &name)
+        }
+        #[cfg(feature = "calendar-ics")]
+        CalendarAction::Subscriptions => {
+            let journal = Journal::open(&root)?;
+            subscriptions(&journal)
+        }
+        #[cfg(feature = "calendar-ics")]
+        CalendarAction::SyncAll => {
+            let journal = Journal::open(&root)?;
+            sync_all(&journal).await
         }
     }
 }
@@ -178,6 +227,104 @@ fn busy(journal: &Journal, action: BusyAction) -> Result<()> {
             );
         }
     }
+    Ok(())
+}
+
+#[cfg(feature = "calendar-ics")]
+fn subscribe(journal: &Journal, name: &str, url: &str) -> Result<()> {
+    let name = name.trim();
+    if name.is_empty() || name.contains(':') {
+        anyhow::bail!("subscription name must be non-empty and must not contain ':'");
+    }
+    journal.subscription_upsert(name, url, "ics")?;
+    println!("subscribed `{name}` -> {url}");
+    Ok(())
+}
+
+#[cfg(feature = "calendar-ics")]
+fn unsubscribe(journal: &Journal, name: &str) -> Result<()> {
+    let removed = journal.subscription_remove(name)?;
+    println!(
+        "subscription `{name}` {}",
+        if removed { "removed" } else { "not found" }
+    );
+    Ok(())
+}
+
+#[cfg(feature = "calendar-ics")]
+fn subscriptions(journal: &Journal) -> Result<()> {
+    let rows = journal.subscription_list()?;
+    if rows.is_empty() {
+        println!("no subscriptions (use `atlas calendar subscribe <name> <url>`)");
+        return Ok(());
+    }
+    println!("subscriptions ({}):", rows.len());
+    for r in rows {
+        println!(
+            "  {state} {name:<16} {kind:<5} {sync:<24} {url}",
+            state = if r.enabled { "on " } else { "off" },
+            name = r.name,
+            kind = r.kind,
+            sync = r.last_status.unwrap_or_else(|| "never synced".into()),
+            url = r.url,
+        );
+    }
+    Ok(())
+}
+
+#[cfg(feature = "calendar-ics")]
+async fn sync_all(journal: &Journal) -> Result<()> {
+    use crate::calendar::ics_reader::{self, Validators};
+
+    let enabled: Vec<_> = journal
+        .subscription_list()?
+        .into_iter()
+        .filter(|r| r.enabled)
+        .collect();
+    if enabled.is_empty() {
+        println!("no enabled subscriptions to sync");
+        return Ok(());
+    }
+    let mut total = 0usize;
+    let mut unchanged = 0usize;
+    for sub in &enabled {
+        if sub.kind != "ics" {
+            println!("  skip `{}` (kind={}, not an ICS feed)", sub.name, sub.kind);
+            continue;
+        }
+        let validators = Validators {
+            etag: sub.etag.as_deref(),
+            last_modified: sub.last_modified.as_deref(),
+        };
+        match ics_reader::sync_named(journal, &sub.name, &sub.url, validators).await {
+            Ok(outcome) if outcome.not_modified => {
+                unchanged += 1;
+                journal.subscription_record_sync(
+                    &sub.name,
+                    outcome.etag.as_deref(),
+                    outcome.last_modified.as_deref(),
+                    "ok (304 not modified)",
+                )?;
+                println!("  `{}`: unchanged (304)", sub.name);
+            }
+            Ok(outcome) => {
+                total += outcome.written;
+                journal.subscription_record_sync(
+                    &sub.name,
+                    outcome.etag.as_deref(),
+                    outcome.last_modified.as_deref(),
+                    &format!("ok ({} events)", outcome.written),
+                )?;
+                println!("  `{}`: {} events", sub.name, outcome.written);
+            }
+            Err(e) => {
+                let msg = format!("error: {e}");
+                journal.subscription_record_sync(&sub.name, None, None, &msg)?;
+                println!("  `{}`: {msg}", sub.name);
+            }
+        }
+    }
+    println!("sync-all: {total} events written, {unchanged} feeds unchanged");
     Ok(())
 }
 
@@ -340,5 +487,49 @@ mod tests {
             .busy_windows_overlapping(2_000, 3_000)
             .expect("half-open");
         assert!(touching.is_empty(), "event ending at t must not block t");
+    }
+
+    #[cfg(feature = "calendar-ics")]
+    #[test]
+    fn subscription_round_trip() {
+        let (_dir, journal) = fresh_journal();
+        subscribe(&journal, "work", "https://example.com/work.ics").expect("subscribe");
+        let rows = journal.subscription_list().expect("list");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].name, "work");
+        assert_eq!(rows[0].kind, "ics");
+        assert!(rows[0].enabled);
+        assert!(rows[0].last_status.is_none());
+
+        // re-subscribe re-points the URL, keeps a single row for `work`
+        subscribe(&journal, "work", "https://example.com/other.ics").expect("re-subscribe");
+        let rows = journal.subscription_list().expect("list");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].url, "https://example.com/other.ics");
+
+        journal
+            .subscription_record_sync("work", Some("\"e1\""), None, "ok (3 events)")
+            .expect("record");
+        let row = journal.subscription_get("work").expect("get").unwrap();
+        assert_eq!(row.etag.as_deref(), Some("\"e1\""));
+        assert_eq!(row.last_status.as_deref(), Some("ok (3 events)"));
+        assert!(row.last_sync_ms.is_some());
+
+        assert!(journal
+            .subscription_set_enabled("work", false)
+            .expect("disable"));
+        assert!(!journal.subscription_get("work").unwrap().unwrap().enabled);
+
+        unsubscribe(&journal, "work").expect("unsubscribe");
+        assert!(journal.subscription_list().expect("list").is_empty());
+    }
+
+    #[cfg(feature = "calendar-ics")]
+    #[test]
+    fn subscribe_rejects_colon_in_name() {
+        let (_dir, journal) = fresh_journal();
+        let err = subscribe(&journal, "a:b", "https://x/y.ics").unwrap_err();
+        assert!(format!("{err:#}").contains("':'"));
+        assert!(journal.subscription_list().expect("list").is_empty());
     }
 }
