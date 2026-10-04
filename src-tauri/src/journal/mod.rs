@@ -3,6 +3,7 @@
 // Schema is minimal in Phase 0 — Roadmap §Fase 0; expanded in later phases.
 
 pub mod agent_events;
+pub mod agent_runs;
 pub mod ast_symbols;
 pub mod autoresearch;
 pub mod calendar_ops;
@@ -40,6 +41,7 @@ pub use agent_events::AgentSessionEventRow;
 
 pub use ast_symbols::AstSymbolRow;
 
+pub use agent_runs::{AgentRunRow, AgentStepRow, ArtifactRow, ToolInvocationRow};
 pub use eval_runs::{EvalCaseInput, EvalCaseRow, EvalRunRow, EvalRunStart, EvalTotals};
 
 pub use model_resets::ModelResetRow;

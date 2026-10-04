@@ -14,7 +14,7 @@ use rusqlite::Connection;
 /// log and must never be renumbered. When adding M(N+1): bump this const
 /// AND change the final migration's `params![N, …]` to
 /// `params![CURRENT_SCHEMA_VERSION, …]` (same value).
-pub const CURRENT_SCHEMA_VERSION: i64 = 37;
+pub const CURRENT_SCHEMA_VERSION: i64 = 39;
 
 pub fn migrate(conn: &Connection) -> Result<()> {
     // M0 — Schema versioning.
@@ -1758,7 +1758,79 @@ pub fn migrate(conn: &Connection) -> Result<()> {
         )?;
         conn.execute(
             "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
-            rusqlite::params![CURRENT_SCHEMA_VERSION, chrono::Utc::now().to_rfc3339()],
+            rusqlite::params![37, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
+    // M49 (v38) — RFC 63 §6: agent runs + steps (the capability layer's spine).
+    if current < 38 {
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS agent_runs (
+                id               TEXT PRIMARY KEY,
+                mission_id       TEXT REFERENCES missions(id) ON DELETE CASCADE,
+                goal             TEXT NOT NULL,
+                success_predicate TEXT NOT NULL,
+                sandbox          TEXT NOT NULL,
+                status           TEXT NOT NULL CHECK (status IN ('running','done','failed','aborted')),
+                steps            INTEGER NOT NULL DEFAULT 0,
+                tokens_in        INTEGER NOT NULL DEFAULT 0,
+                tokens_out       INTEGER NOT NULL DEFAULT 0,
+                cost_usd         REAL NOT NULL DEFAULT 0,
+                ts_started       INTEGER NOT NULL,
+                ts_ended         INTEGER
+            );
+            CREATE TABLE IF NOT EXISTS agent_steps (
+                id            TEXT PRIMARY KEY,
+                run_id        TEXT NOT NULL REFERENCES agent_runs(id) ON DELETE CASCADE,
+                step          INTEGER NOT NULL,
+                thought       TEXT,
+                action        TEXT,
+                observation   TEXT,
+                evidence_json TEXT,
+                verdict       TEXT CHECK (verdict IN ('pass','fail','unknown')),
+                tokens_in     INTEGER NOT NULL DEFAULT 0,
+                tokens_out    INTEGER NOT NULL DEFAULT 0,
+                cost_usd      REAL NOT NULL DEFAULT 0,
+                ts            INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_agent_steps_run ON agent_steps(run_id, step);
+            CREATE INDEX IF NOT EXISTS idx_agent_runs_mission ON agent_runs(mission_id, ts_started);",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![38, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
+    // M50 (v39) — RFC 63 §6: per-tool invocations + verified artifacts.
+    if current < 39 {
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS tool_invocations (
+                id          TEXT PRIMARY KEY,
+                run_id      TEXT NOT NULL REFERENCES agent_runs(id) ON DELETE CASCADE,
+                step        INTEGER NOT NULL,
+                tool        TEXT NOT NULL,
+                args_json   TEXT NOT NULL,
+                result_json TEXT,
+                exit_code   INTEGER,
+                duration_ms INTEGER,
+                tokens      INTEGER,
+                cost_usd    REAL,
+                ts          INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_tool_invocations_run ON tool_invocations(run_id, step);
+            CREATE TABLE IF NOT EXISTS artifacts (
+                id            TEXT PRIMARY KEY,
+                run_id        TEXT NOT NULL REFERENCES agent_runs(id) ON DELETE CASCADE,
+                kind          TEXT NOT NULL,
+                path          TEXT,
+                sha256        TEXT,
+                verified      INTEGER NOT NULL DEFAULT 0,
+                evidence_json TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_artifacts_run ON artifacts(run_id);",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![39, chrono::Utc::now().to_rfc3339()],
         )?;
     }
     Ok(())
