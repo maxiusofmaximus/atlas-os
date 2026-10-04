@@ -5,6 +5,7 @@
 // pipeline entry-point (RFC 25 §3.1.1 SOP).
 
 pub mod bus;
+#[cfg(feature = "tauri")]
 pub mod ipc;
 pub mod pipeline;
 pub mod state;

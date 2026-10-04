@@ -2,6 +2,7 @@
 // Exposes `AppState` consumed by both the Tauri desktop binary and the
 // headless `atlas` CLI (RFC 25 §3.9). See RFC 25 §2 for the topology.
 
+#[cfg(feature = "tauri")]
 use tauri::Manager;
 use tracing_subscriber::EnvFilter;
 
@@ -50,6 +51,7 @@ pub use core::state::AppState;
 /// exports the runtime symbols the Android packaging validates — they live in
 /// this cdylib, not in the `atlas-os` desktop bin (whose own entry is
 /// `main.rs::run`).
+#[cfg(feature = "tauri")]
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[allow(clippy::missing_panics_doc)]
 pub fn run_app() {

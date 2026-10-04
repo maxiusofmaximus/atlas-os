@@ -31,7 +31,7 @@ required-features = ["tui", "cli"]
 
 [features]
 default = ["tauri", "hud", "lsp", "cli", "bundled-skills"]
-tauri = ["dep:tauri"]
+tauri = ["dep:tauri", "dep:tauri-plugin-shell", "dep:tauri-plugin-dialog", "dep:tauri-plugin-fs", "dep:tauri-plugin-process", "dep:tauri-plugin-opener", "dep:tauri-plugin-os", "dep:tauri-plugin-clipboard-manager"]
 hud = ["dep:axum", "dep:tower-http", "dep:tower"]
 lsp = ["dep:tower-lsp", "dep:lsp-types"]
 fastembed = ["dep:fastembed"]
@@ -184,13 +184,13 @@ fastembed = { version = "4", optional = true }
 
 # Tauri shell + plugins
 tauri = { version = "2", optional = true, features = ["tray-icon", "image-png", "image-ico"] }
-tauri-plugin-shell = "2"
-tauri-plugin-dialog = "2"
-tauri-plugin-fs = "2"
-tauri-plugin-process = "2"
-tauri-plugin-opener = "2"
-tauri-plugin-os = "2"
-tauri-plugin-clipboard-manager = "2"
+tauri-plugin-shell = { version = "2", optional = true }
+tauri-plugin-dialog = { version = "2", optional = true }
+tauri-plugin-fs = { version = "2", optional = true }
+tauri-plugin-process = { version = "2", optional = true }
+tauri-plugin-opener = { version = "2", optional = true }
+tauri-plugin-os = { version = "2", optional = true }
+tauri-plugin-clipboard-manager = { version = "2", optional = true }
 
 # HUD local server (axum)
 axum = { version = "0.7", optional = true, features = ["ws", "macros"] }
