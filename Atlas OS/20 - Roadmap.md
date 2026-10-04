@@ -478,7 +478,7 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - **v3.1.A.3 Poller en background COMPLETA:** `calendar/poller.rs` (`CalendarPoller` al estilo `ToastDriver`) spawneado desde `AppState::bootstrap`; cadencia por `ATLAS_CALENDAR_POLL_SECS` (default 900 s, `0` off), primer sync a 30 s; comparte `sync_all_ics` con el CLI. **A.2 cerrada.**
 - **v3.1.2 bloqueado en infraestructura:** el repo no tiene motor de "turn proactivo" ni `AppState.context_window`; `Planning::next_free_slot` (RFC 28 §G.4 item 8) asume ese motor → requiere RFC propio antes de wiring.
 
-## Fase 26 — LLM-driven Coding en el execution loop (plan: research/55)
+## Fase 26 — LLM-driven Coding en el execution loop (COMPLETA, sub-fases v26.0 → v26.3; plan: research/55)
 
 - **Decisión 2026-10-03:** dos loops paralelos no se tocaban (`atlas run` heurístico
   edita+valida sin LLM; `atlas execute` enruta con LLM pero no edita ni valida). B mide

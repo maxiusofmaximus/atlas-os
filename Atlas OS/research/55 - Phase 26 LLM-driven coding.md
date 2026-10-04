@@ -1,7 +1,7 @@
 # research/55 — Fase 26: LLM-driven Coding en el execution loop
 
 - **Fecha:** 2026-10-03
-- **Estado:** aprobado; v26.0-v26.2 **COMPLETAS** (v26.3–v26.3 pendientes).
+- **Estado:** aprobado; **COMPLETA** (v26.0-v26.3) — **Fase 26 CERRADA**.
 - **Contexto:** cierre de la Fase 25 (research/54). El loop `atlas execute` ya enruta
   (cascade/gate/coste/cancel) pero **no edita ni valida**: pide chat y registra el contenido.
   El loop heurístico `atlas run` (`cli/commands/mission.rs::run_single_step`) **sí** hace
@@ -51,7 +51,7 @@ Todos los motores ya existen y son **puros**:
 - **v26.2** — wiring del `Diff` por el loop puro: `validation::runner::run` + (en Fail/Critical)
   `repair::runner::run`, alimentando los eventos del supervisor. **COMPLETA** —
   `orchestrator/verify.rs::verify_diff` + `VerifyConfig`/`VerifyOutcome`; 3 tests.
-- **v26.3** — CLI/HUD: pill de step; `atlas execute` reporta diff/validación/repair; cierre.
+- **v26.3** — CLI/HUD: pill de step; `atlas execute` reporta diff/validación/repair; cierre. **COMPLETA** (`orchestrator/execute.rs::execute_coding_step` + `atlas execute --coding`; 2 tests).
 
 ## 4. No-goals
 
