@@ -7,15 +7,19 @@
 // through the registry, never directly, so permissions and instrumentation are
 // enforced in one place.
 
+pub mod code;
 pub mod exec;
 pub mod fs;
 pub mod registry;
+pub mod web;
 
 use serde::{Deserialize, Serialize};
 
+pub use code::CodeApplyDiffTool;
 pub use exec::ExecRunTool;
 pub use fs::{FsEditTool, FsListTool, FsReadTool, FsWriteTool};
 pub use registry::ToolRegistry;
+pub use web::{WebFetchTool, WebSearchTool};
 
 /// Outcome of a tool call. `ok` is the tool-level success (not the process
 /// exit code); `exit_code` carries the process code for `exec.*`.

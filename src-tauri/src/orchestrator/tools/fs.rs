@@ -15,7 +15,7 @@ use super::{Tool, ToolContext, ToolResult};
 
 /// Resolve `rel` inside `root`, refusing any escape. Returns the absolute path
 /// only if it stays within `root` after normalization.
-fn resolve(root: &Path, rel: &str) -> Result<PathBuf, String> {
+pub(super) fn resolve(root: &Path, rel: &str) -> Result<PathBuf, String> {
     if rel.trim().is_empty() {
         return Err("empty path".into());
     }

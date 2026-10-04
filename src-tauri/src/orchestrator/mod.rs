@@ -45,7 +45,6 @@ pub mod verify;
 pub mod wire;
 
 pub use affinity::{AffinityIndex, AffinityRow};
-pub use artifacts::{verify_artifacts, ArtifactCheck, ArtifactResult, VerifyVerdict};
 pub use agent::{
     parse_action, run_agent, run_agent_real, run_command, AgentAction, AgentConfig, AgentOutcome,
     CommandResult, AGENT_SYSTEM_PROMPT,
@@ -54,6 +53,7 @@ pub use aggregation::{
     AggregationContext, AggregationError, AggregationMode, AggregationModeSnapshot, Aggregator,
     FusedResponse, ReflectionEpisodeOut, StopCondition,
 };
+pub use artifacts::{verify_artifacts, ArtifactCheck, ArtifactResult, VerifyVerdict};
 
 pub use backpressure::{BackPressure, BackPressureConfig};
 pub use cache_control::{

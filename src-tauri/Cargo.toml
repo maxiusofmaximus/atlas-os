@@ -205,7 +205,7 @@ tower-lsp = { version = "0.20", optional = true }
 lsp-types = { version = "0.97", optional = true }
 
 # HTTP client for model providers
-reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls"], default-features = false }
+reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls", "blocking"], default-features = false }
 eventsource-stream = "0.2"
 
 # Token counting (RFC 04 §1 — pre-flight context-window check)

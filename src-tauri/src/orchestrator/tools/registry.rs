@@ -39,6 +39,17 @@ impl ToolRegistry {
         r.register(Box::new(super::fs::FsEditTool));
         r.register(Box::new(super::fs::FsListTool));
         r.register(Box::new(super::exec::ExecRunTool));
+        r.register(Box::new(super::code::CodeApplyDiffTool));
+        r
+    }
+
+    /// Core tools plus the network tools (`web.fetch`/`web.search`). Kept
+    /// separate so a caller can opt out of egress (RFC 18 `NetworkEgress`) by
+    /// using `with_core_tools`, and in so it can enable browsing.
+    pub fn with_web_tools() -> Self {
+        let mut r = Self::with_core_tools();
+        r.register(Box::new(super::web::WebFetchTool));
+        r.register(Box::new(super::web::WebSearchTool));
         r
     }
 
@@ -120,9 +131,25 @@ mod tests {
     fn core_registry_lists_the_expected_tools() {
         let r = ToolRegistry::with_core_tools();
         let names = r.names();
-        for t in ["fs.read", "fs.write", "fs.edit", "fs.list", "exec.run"] {
+        for t in [
+            "fs.read",
+            "fs.write",
+            "fs.edit",
+            "fs.list",
+            "exec.run",
+            "code.apply_diff",
+        ] {
             assert!(names.contains(&t), "missing {t}");
         }
+        assert!(!names.contains(&"web.fetch"), "web is opt-in");
+    }
+
+    #[test]
+    fn web_registry_adds_the_network_tools() {
+        let r = ToolRegistry::with_web_tools();
+        let names = r.names();
+        assert!(names.contains(&"web.fetch"));
+        assert!(names.contains(&"web.search"));
     }
 
     #[test]
