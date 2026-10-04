@@ -36,6 +36,10 @@ pub struct AgentCmd {
     /// `done` is only accepted once every check holds (RFC 63).
     #[arg(long)]
     pub verify: Option<String>,
+    /// Enable the network tools (`web.fetch`/`web.search`, RFC 63 §4). Off by
+    /// default: they are `NetworkEgress` (RFC 18) and need a backend.
+    #[arg(long, default_value_t = false)]
+    pub web: bool,
 }
 
 pub async fn run(cmd: AgentCmd, profile: &str) -> Result<()> {
@@ -116,18 +120,32 @@ pub async fn run(cmd: AgentCmd, profile: &str) -> Result<()> {
         }
         None => Vec::new(),
     };
+    // RFC 63 §4: build the live tool registry (web tools opt-in via --web).
+    let registry = if cmd.web {
+        crate::orchestrator::ToolRegistry::with_web_tools()
+    } else {
+        crate::orchestrator::ToolRegistry::with_core_tools()
+    };
+    let tools: Vec<(String, String)> = registry
+        .catalog()
+        .into_iter()
+        .map(|(n, d)| (n.to_string(), d.to_string()))
+        .collect();
+
     let cfg = AgentConfig {
         max_steps: cmd.max_steps,
         timeout: std::time::Duration::from_secs(cmd.command_timeout),
         max_attempts: cmd.max_attempts,
         success_predicate,
+        tools,
     };
 
     println!(
-        "agent: model={} root={} max_steps={}",
+        "agent: model={} root={} max_steps={} tools={}",
         model,
         work.display(),
-        cfg.max_steps
+        cfg.max_steps,
+        registry.catalog().len()
     );
 
     let client = HttpProviderClient::new();
@@ -161,6 +179,7 @@ pub async fn run(cmd: AgentCmd, profile: &str) -> Result<()> {
         &work,
         &cfg,
         &denied,
+        Some(registry),
     )
     .await
     .context("agent loop failed")?;
@@ -198,23 +217,28 @@ pub async fn run(cmd: AgentCmd, profile: &str) -> Result<()> {
             cost_usd: 0.0,
         });
         let _ = journal.publish(&event);
-        if rec.action == "run_command" {
-            if let Some(obs) = &rec.observation {
-                let _ = journal.record_tool_invocation(&crate::journal::ToolInvocationRow {
-                    id: format!("{step_id}_exec"),
-                    run_id: run_id.clone(),
-                    step: rec.turn as i64,
-                    tool: "exec.run".into(),
-                    args_json: "{}".into(),
-                    result_json: Some(serde_json::to_string(obs).unwrap_or_default()),
-                    exit_code: None,
-                    duration_ms: None,
-                    tokens: None,
-                    cost_usd: None,
-                    ts: chrono::Utc::now().timestamp_millis(),
-                });
-            }
-        }
+    }
+    // RFC 63 §6 (M50): one tool_invocation row per tool call, with its real args.
+    for (i, tr) in outcome.tool_results.iter().enumerate() {
+        let _ = journal.record_tool_invocation(&crate::journal::ToolInvocationRow {
+            id: format!("{run_id}_t{i}"),
+            run_id: run_id.clone(),
+            step: i as i64,
+            tool: tr.tool.clone(),
+            args_json: tr.args_json.clone().unwrap_or_else(|| "{}".into()),
+            result_json: Some(
+                serde_json::to_string(&crate::orchestrator::tools::ToolResult {
+                    args_json: None,
+                    ..tr.clone()
+                })
+                .unwrap_or_default(),
+            ),
+            exit_code: tr.exit_code.map(|c| c as i64),
+            duration_ms: None,
+            tokens: None,
+            cost_usd: None,
+            ts: chrono::Utc::now().timestamp_millis(),
+        });
     }
     let ts_ended = chrono::Utc::now().timestamp_millis();
     let status = if outcome.done { "done" } else { "failed" };
@@ -228,7 +252,7 @@ pub async fn run(cmd: AgentCmd, profile: &str) -> Result<()> {
         ts_ended,
     );
 
-    for step in &outcome.steps {
+    for step in &outcome.steps() {
         println!(
             "  $ {}  → exit {}",
             step.command.lines().next().unwrap_or(""),
@@ -236,10 +260,10 @@ pub async fn run(cmd: AgentCmd, profile: &str) -> Result<()> {
         );
     }
     println!(
-        "agent done={} turns={} commands={} tokens_in={} tokens_out={} run_id={} summary={}",
+        "agent done={} turns={} tools={} tokens_in={} tokens_out={} run_id={} summary={}",
         outcome.done,
         outcome.turns,
-        outcome.steps.len(),
+        outcome.tool_results.len(),
         tokens_in,
         tokens_out,
         run_id,

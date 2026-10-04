@@ -32,6 +32,9 @@ pub struct ToolResult {
     pub output: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    /// The args the tool was called with (JSON string), for `tool_invocations`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub args_json: Option<String>,
 }
 
 impl ToolResult {
@@ -42,6 +45,7 @@ impl ToolResult {
             exit_code: None,
             output: output.into(),
             error: None,
+            args_json: None,
         }
     }
 
@@ -52,7 +56,21 @@ impl ToolResult {
             exit_code: None,
             output: String::new(),
             error: Some(error.into()),
+            args_json: None,
         }
+    }
+
+    /// Attach the call args (builder for instrumentation).
+    pub fn with_args(mut self, args_json: impl Into<String>) -> Self {
+        self.args_json = Some(args_json.into());
+        self
+    }
+
+    /// The `command` field of this call's args, when present (`exec.run`).
+    pub fn args_command(&self) -> Option<String> {
+        let raw = self.args_json.as_ref()?;
+        let v: serde_json::Value = serde_json::from_str(raw).ok()?;
+        v.get("command").and_then(|c| c.as_str()).map(String::from)
     }
 
     /// Render for the model: bounded, human-readable.

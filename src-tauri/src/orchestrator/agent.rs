@@ -152,15 +152,23 @@ struct AgentTurn {
     #[serde(default)]
     command: Option<String>,
     #[serde(default)]
+    args: Option<serde_json::Value>,
+    #[serde(default)]
     done: bool,
     #[serde(default)]
     summary: String,
 }
 
 /// A parsed model turn.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum AgentAction {
+    /// Legacy shell action (`{"tool":"run_command","command":"..."}`).
     Run(String),
+    /// Generic tool call (`{"tool":"fs.write","args":{...}}`, RFC 63 §4).
+    Call {
+        tool: String,
+        args: serde_json::Value,
+    },
     Done(String),
     /// The reply wasn't valid protocol JSON.
     Invalid(String),
@@ -177,11 +185,35 @@ pub fn parse_action(content: &str) -> AgentAction {
     }
     match serde_json::from_str::<AgentTurn>(&s[start..=end]) {
         Ok(t) if t.done => AgentAction::Done(t.summary),
+        // `run_command` is the shell tool; keep accepting its `command` field and
+        // normalise it to the generic `exec.run` call so one code path handles it.
         Ok(t) if t.tool.as_deref() == Some("run_command") => match t.command {
-            Some(c) if !c.trim().is_empty() => AgentAction::Run(c),
+            Some(c) if !c.trim().is_empty() => AgentAction::Call {
+                tool: "exec.run".into(),
+                args: serde_json::json!({ "command": c }),
+            },
             _ => AgentAction::Invalid("run_command without command".into()),
         },
-        Ok(_) => AgentAction::Invalid(content.to_string()),
+        Ok(t) if t.tool.as_deref() == Some("exec.run") => match t.command {
+            Some(c) if !c.trim().is_empty() => AgentAction::Call {
+                tool: "exec.run".into(),
+                args: serde_json::json!({ "command": c }),
+            },
+            _ => match t.args {
+                Some(a) => AgentAction::Call {
+                    tool: "exec.run".into(),
+                    args: a,
+                },
+                None => AgentAction::Invalid("exec.run without command".into()),
+            },
+        },
+        Ok(t) => match t.tool {
+            Some(tool) if !tool.trim().is_empty() => AgentAction::Call {
+                tool,
+                args: t.args.unwrap_or(serde_json::json!({})),
+            },
+            _ => AgentAction::Invalid(content.to_string()),
+        },
         Err(_) => AgentAction::Invalid(content.to_string()),
     }
 }
@@ -195,6 +227,10 @@ pub struct AgentConfig {
     /// Declarative artifact predicates that MUST pass before `done` is accepted
     /// (RFC 63 §4/§8, success_predicate). Empty = accept the model's `done`.
     pub success_predicate: Vec<crate::orchestrator::artifacts::ArtifactCheck>,
+    /// `(name, description)` of every tool the model may call (RFC 63 §4). The
+    /// host fills this from the `ToolRegistry`; empty = the legacy shell-only
+    /// prompt (back-compat).
+    pub tools: Vec<(String, String)>,
 }
 
 impl Default for AgentConfig {
@@ -204,14 +240,34 @@ impl Default for AgentConfig {
             timeout: Duration::from_secs(120),
             max_attempts: 5,
             success_predicate: Vec::new(),
+            tools: Vec::new(),
         }
     }
+}
+
+/// Build the system prompt for a run: the tool protocol plus the live tool
+/// catalog, so the model knows exactly which tools exist (RFC 63 §4).
+pub fn agent_system_prompt(cfg: &AgentConfig) -> String {
+    if cfg.tools.is_empty() {
+        return AGENT_SYSTEM_PROMPT.to_string();
+    }
+    let mut catalog = String::new();
+    for (name, desc) in &cfg.tools {
+        catalog.push_str(&format!("- {name}: {desc}\n"));
+    }
+    format!(
+        "{AGENT_SYSTEM_PROMPT}\n\
+         Available tools (reply with {{\"tool\":\"<name>\",\"args\":{{...}}}}):\n{catalog}\n\
+         You may also reply {{\"done\":true,\"summary\":\"...\"}}.\n"
+    )
 }
 
 /// Result of an agent run.
 #[derive(Clone, Debug)]
 pub struct AgentOutcome {
-    pub steps: Vec<CommandResult>,
+    /// Every tool call's structured result, in order (RFC 63 §6). Shell commands
+    /// arrive as `exec.run` results here — `CommandResult` is derived from them.
+    pub tool_results: Vec<crate::orchestrator::tools::ToolResult>,
     pub done: bool,
     pub summary: String,
     pub turns: u32,
@@ -219,6 +275,23 @@ pub struct AgentOutcome {
     /// the verdict the evidence gate returned. One entry per completed turn,
     /// including the final `done` turn. Persisted to `agent_steps` by the host.
     pub turn_records: Vec<AgentTurnRecord>,
+}
+
+impl AgentOutcome {
+    /// Shell steps (the `exec.run` results) rendered back as `CommandResult`, for
+    /// callers that only care about commands.
+    pub fn steps(&self) -> Vec<CommandResult> {
+        self.tool_results
+            .iter()
+            .filter(|r| r.tool == "exec.run")
+            .map(|r| CommandResult {
+                command: r.args_command().unwrap_or_default(),
+                exit_code: r.exit_code.unwrap_or(if r.ok { 0 } else { 1 }),
+                stdout: r.output.clone(),
+                stderr: r.error.clone().unwrap_or_default(),
+            })
+            .collect()
+    }
 }
 
 /// Forensic record of one loop turn, ready to persist to M49/M50.
@@ -262,14 +335,14 @@ pub async fn run_agent<C, F, V>(
 ) -> Result<AgentOutcome, crate::orchestrator::code::StepDiffError>
 where
     C: ProviderClient,
-    F: Fn(&str) -> CommandResult,
+    F: Fn(&str, &serde_json::Value) -> crate::orchestrator::tools::ToolResult,
     V: Fn() -> crate::orchestrator::artifacts::VerifyVerdict,
 {
     let mut messages = vec![
-        ChatMessage::system(AGENT_SYSTEM_PROMPT),
+        ChatMessage::system(agent_system_prompt(cfg)),
         ChatMessage::user(task),
     ];
-    let mut steps: Vec<CommandResult> = Vec::new();
+    let mut tool_results: Vec<crate::orchestrator::tools::ToolResult> = Vec::new();
     let mut turn_records: Vec<AgentTurnRecord> = Vec::new();
 
     for turn in 0..cfg.max_steps {
@@ -307,7 +380,7 @@ where
                         tokens_out,
                     });
                     return Ok(AgentOutcome {
-                        steps,
+                        tool_results,
                         done: true,
                         summary,
                         turns: turn + 1,
@@ -326,7 +399,7 @@ where
                         tokens_out,
                     });
                     return Ok(AgentOutcome {
-                        steps,
+                        tool_results,
                         done: true,
                         summary,
                         turns: turn + 1,
@@ -351,11 +424,16 @@ where
                 });
                 messages.push(ChatMessage::user(format!(
                     "You declared done but the required evidence does not hold yet:\n{failures}\n\n\
-                     Fix it and reply with one JSON object (run_command or done)."
+                     Fix it and reply with one JSON object (a tool call or done)."
                 )));
             }
             AgentAction::Run(cmd) => {
-                let result = exec(&cmd);
+                // Defensive: `parse_action` normalises shell calls to `exec.run`
+                // `Call`, but a hand-built `Run` (tests) still routes through the
+                // executor as a shell command.
+                let args = serde_json::json!({ "command": cmd });
+                let args_json = serde_json::to_string(&args).unwrap_or_else(|_| "{}".into());
+                let result = exec("exec.run", &args).with_args(args_json);
                 let rendered = result.render();
                 turn_records.push(AgentTurnRecord {
                     turn,
@@ -366,9 +444,32 @@ where
                     tokens_in,
                     tokens_out,
                 });
-                steps.push(result);
+                tool_results.push(result);
                 messages.push(ChatMessage::user(format!(
-                    "Command output:\n{rendered}\n\nWhat next? Reply with one JSON object."
+                    "Tool `exec.run` output:\n{rendered}\n\nWhat next? Reply with one JSON object."
+                )));
+            }
+            AgentAction::Call { tool, args } => {
+                let args_json = serde_json::to_string(&args).unwrap_or_else(|_| "{}".into());
+                let result = exec(&tool, &args).with_args(args_json);
+                let rendered = result.render();
+                let action = if tool == "exec.run" {
+                    "run_command".to_string()
+                } else {
+                    tool.clone()
+                };
+                turn_records.push(AgentTurnRecord {
+                    turn,
+                    thought: content,
+                    action,
+                    observation: Some(rendered.clone()),
+                    verdict: None,
+                    tokens_in,
+                    tokens_out,
+                });
+                tool_results.push(result);
+                messages.push(ChatMessage::user(format!(
+                    "Tool `{tool}` output:\n{rendered}\n\nWhat next? Reply with one JSON object."
                 )));
             }
             AgentAction::Invalid(reply) => {
@@ -383,7 +484,7 @@ where
                 });
                 messages.push(ChatMessage::user(
                     "Your reply was not valid protocol JSON. Reply with EXACTLY one object:\n\
-                     {\"tool\":\"run_command\",\"command\":\"...\"}  or  {\"done\":true,\"summary\":\"...\"}"
+                     {\"tool\":\"<name>\",\"args\":{...}}  or  {\"done\":true,\"summary\":\"...\"}"
                         .to_string(),
                 ));
             }
@@ -391,7 +492,7 @@ where
     }
 
     Ok(AgentOutcome {
-        steps,
+        tool_results,
         done: false,
         summary: format!("step budget ({}) exhausted", cfg.max_steps),
         turns: cfg.max_steps,
@@ -399,7 +500,9 @@ where
     })
 }
 
-/// Convenience: run the loop with the real shell executor rooted at `root`.
+/// Convenience: run the loop with the real tool executor rooted at `root`.
+/// `registry` is the live `ToolRegistry` (RFC 63 §4); when `None`, a core
+/// registry is built so the agent still gets fs/exec/code.
 #[allow(clippy::too_many_arguments)]
 pub async fn run_agent_real<C: ProviderClient>(
     client: &C,
@@ -410,6 +513,7 @@ pub async fn run_agent_real<C: ProviderClient>(
     root: &Path,
     cfg: &AgentConfig,
     denied: &[String],
+    registry: Option<crate::orchestrator::tools::ToolRegistry>,
 ) -> Result<AgentOutcome, crate::orchestrator::code::StepDiffError> {
     let owned = root.to_path_buf();
     let exec_root = owned.clone();
@@ -417,6 +521,8 @@ pub async fn run_agent_real<C: ProviderClient>(
     let timeout = cfg.timeout;
     let checks = cfg.success_predicate.clone();
     let sandbox = crate::orchestrator::sandbox::resolve_sandbox();
+    let registry =
+        registry.unwrap_or_else(crate::orchestrator::tools::ToolRegistry::with_core_tools);
     run_agent(
         client,
         routing,
@@ -426,7 +532,21 @@ pub async fn run_agent_real<C: ProviderClient>(
         &owned,
         cfg,
         denied,
-        move |cmd| run_command(&exec_root, cmd, timeout),
+        move |tool, args| {
+            let ctx = crate::orchestrator::tools::ToolContext::new(exec_root.clone());
+            // `exec.run` keeps the loop's timeout when the model omits one.
+            let mut args = args.clone();
+            if tool == "exec.run" {
+                if let Some(obj) = args.as_object_mut() {
+                    obj.entry("timeout_ms")
+                        .or_insert_with(|| serde_json::json!(timeout.as_millis() as u64));
+                }
+            }
+            match registry.call(tool, &ctx, &args) {
+                Ok(r) => r,
+                Err(e) => crate::orchestrator::tools::ToolResult::err(tool, e.to_string()),
+            }
+        },
         move || {
             if checks.is_empty() {
                 crate::orchestrator::artifacts::VerifyVerdict {
@@ -451,10 +571,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_run_command() {
+    fn parses_run_command_as_an_exec_call() {
         assert_eq!(
             parse_action(r#"{"tool":"run_command","command":"ls -la"}"#),
-            AgentAction::Run("ls -la".into())
+            AgentAction::Call {
+                tool: "exec.run".into(),
+                args: serde_json::json!({ "command": "ls -la" })
+            }
+        );
+    }
+
+    #[test]
+    fn parses_a_generic_tool_call() {
+        assert_eq!(
+            parse_action(r#"{"tool":"fs.write","args":{"path":"a.txt","content":"hi"}}"#),
+            AgentAction::Call {
+                tool: "fs.write".into(),
+                args: serde_json::json!({ "path": "a.txt", "content": "hi" })
+            }
         );
     }
 
@@ -469,7 +603,13 @@ mod tests {
     #[test]
     fn tolerates_fences() {
         let r = "here:\n```json\n{\"tool\":\"run_command\",\"command\":\"pwd\"}\n```";
-        assert_eq!(parse_action(r), AgentAction::Run("pwd".into()));
+        assert_eq!(
+            parse_action(r),
+            AgentAction::Call {
+                tool: "exec.run".into(),
+                args: serde_json::json!({ "command": "pwd" })
+            }
+        );
     }
 
     #[test]
@@ -534,7 +674,7 @@ mod tests {
             tmp.path(),
             &AgentConfig::default(),
             &[],
-            |cmd| run_command(tmp.path(), cmd, Duration::from_secs(10)),
+            test_exec(tmp.path()),
             || crate::orchestrator::artifacts::VerifyVerdict {
                 allowed: true,
                 results: Vec::new(),
@@ -544,13 +684,28 @@ mod tests {
         .await
         .unwrap();
         assert!(out.done);
-        assert_eq!(out.steps.len(), 1);
+        assert_eq!(out.tool_results.len(), 1);
+        assert_eq!(out.tool_results[0].tool, "exec.run");
         assert_eq!(out.summary, "ok");
         // Forensic trail (RFC 63 §6): one record for the command turn + the done.
         assert_eq!(out.turn_records.len(), 2);
         assert_eq!(out.turn_records[0].action, "run_command");
         assert!(out.turn_records[0].observation.is_some());
         assert_eq!(out.turn_records[1].action, "done");
+    }
+
+    /// Test executor: a core `ToolRegistry` rooted at `root`.
+    fn test_exec(
+        root: &Path,
+    ) -> impl Fn(&str, &serde_json::Value) -> crate::orchestrator::tools::ToolResult + '_ {
+        let reg = crate::orchestrator::tools::ToolRegistry::with_core_tools();
+        let root = root.to_path_buf();
+        move |tool, args| {
+            let ctx = crate::orchestrator::tools::ToolContext::new(root.clone());
+            reg.call(tool, &ctx, args).unwrap_or_else(|e| {
+                crate::orchestrator::tools::ToolResult::err(tool, e.to_string())
+            })
+        }
     }
 
     #[tokio::test]
@@ -600,7 +755,7 @@ mod tests {
             &root,
             &cfg,
             &[],
-            |cmd| run_command(&root, cmd, Duration::from_secs(10)),
+            test_exec(&root),
             move || verify_artifacts(&vr, &cfg_predicate(), &LocalSandbox),
         )
         .await
@@ -613,5 +768,71 @@ mod tests {
         vec![crate::orchestrator::artifacts::ArtifactCheck::FileExists {
             path: "out.txt".into(),
         }]
+    }
+
+    #[tokio::test]
+    async fn loop_routes_a_generic_tool_call_through_the_registry() {
+        // RFC 63 §4: the agent calls `fs.write` (not `run_command`) and the
+        // registry executes it. Proves the loop is tool-generic.
+        use crate::orchestrator::client::{ChatResponse, ClientResult};
+        use std::sync::Mutex;
+        struct Scripted {
+            replies: Mutex<Vec<String>>,
+        }
+        impl ProviderClient for Scripted {
+            async fn chat(&self, _d: &Deployment, _r: &ChatRequest) -> ClientResult<ChatResponse> {
+                let c = self.replies.lock().unwrap().remove(0);
+                Ok(ChatResponse {
+                    model: "m".into(),
+                    content: c,
+                    usage: None,
+                })
+            }
+        }
+        let client = Scripted {
+            replies: Mutex::new(vec![
+                r#"{"tool":"fs.write","args":{"path":"made.txt","content":"hi"}}"#.into(),
+                r#"{"done":true,"summary":"wrote it"}"#.into(),
+            ]),
+        };
+        let tmp = tempfile::TempDir::new().unwrap();
+        let root = tmp.path().to_path_buf();
+        let cfg = AgentConfig {
+            tools: vec![("fs.write".into(), "write a file".into())],
+            success_predicate: vec![crate::orchestrator::artifacts::ArtifactCheck::FileExists {
+                path: "made.txt".into(),
+            }],
+            ..AgentConfig::default()
+        };
+        let vr = root.clone();
+        let out = run_agent(
+            &client,
+            RoutingConfig::default(),
+            "m",
+            &[dep("m")],
+            "make made.txt",
+            &root,
+            &cfg,
+            &[],
+            test_exec(&root),
+            move || {
+                crate::orchestrator::artifacts::verify_artifacts(
+                    &vr,
+                    &cfg_predicate_named("made.txt"),
+                    &crate::orchestrator::sandbox::LocalSandbox,
+                )
+            },
+        )
+        .await
+        .unwrap();
+        assert!(out.done, "done accepted once fs.write created the file");
+        assert_eq!(out.tool_results.len(), 1);
+        assert_eq!(out.tool_results[0].tool, "fs.write");
+        assert_eq!(out.turn_records[0].action, "fs.write");
+        assert!(root.join("made.txt").exists());
+    }
+
+    fn cfg_predicate_named(path: &str) -> Vec<crate::orchestrator::artifacts::ArtifactCheck> {
+        vec![crate::orchestrator::artifacts::ArtifactCheck::FileExists { path: path.into() }]
     }
 }
