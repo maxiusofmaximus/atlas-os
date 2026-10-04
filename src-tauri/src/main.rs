@@ -65,7 +65,9 @@ pub fn run() {
         })
         .expect("failed to spawn HUD thread");
 
+    #[cfg(feature = "lsp")]
     let lsp_state = Arc::clone(&state);
+    #[cfg(feature = "lsp")]
     let _lsp_handle = std::thread::Builder::new()
         .name("oc-lsp".into())
         .spawn(move || {

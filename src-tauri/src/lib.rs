@@ -21,6 +21,7 @@ pub mod graph;
 pub mod hud;
 pub mod journal;
 pub mod learning;
+#[cfg(feature = "lsp")]
 pub mod lsp;
 pub mod mobile;
 pub mod monitor;
@@ -100,7 +101,9 @@ pub fn run_app() {
         })
         .expect("failed to spawn HUD thread");
 
+    #[cfg(feature = "lsp")]
     let lsp_state = std::sync::Arc::clone(&state);
+    #[cfg(feature = "lsp")]
     let _lsp_handle = std::thread::Builder::new()
         .name("oc-lsp".into())
         .spawn(move || {

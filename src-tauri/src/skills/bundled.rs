@@ -55,6 +55,7 @@ pub fn load_bundled(graph: &mut SkillGraph) -> anyhow::Result<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(feature = "bundled-skills")]
     use crate::skills::Engine;
 
     #[test]
