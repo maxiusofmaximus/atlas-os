@@ -37,6 +37,7 @@ pub mod registry;
 pub mod reliability_gate;
 pub mod retry;
 pub mod routing;
+pub mod sandbox;
 pub mod tokenizer;
 pub mod tools;
 pub mod verify;
@@ -96,6 +97,7 @@ pub use routing::{
     Condition, FallbackBucket, FallbackMap, RouteContext, RouteDecision, Router, RoutingConfig,
     RoutingStrategy, SkipReason,
 };
+pub use sandbox::{resolve_sandbox, LocalSandbox, Sandbox};
 pub use tokenizer::{estimate_prompt, PromptMessage, PromptRole, Tokenizer};
 pub use tools::{Tool, ToolContext, ToolError, ToolRegistry, ToolResult};
 pub use verify::{verify_diff, VerifyConfig, VerifyOutcome};
