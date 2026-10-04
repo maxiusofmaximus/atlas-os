@@ -462,8 +462,10 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - **v25.0 COMPLETA:** `orchestrator/client.rs` — trait `ProviderClient` (AFIT/RPITIT) +
   `HttpProviderClient` (reqwest, OpenAI-compatible) + codecs puros (`build_chat_body`,
   `parse_chat_response`, `chat_endpoint`) + golden task `orchestrator.request_codec`. 8 tests.
-- **Pendiente:** v25.1 (call-with-cascade), v25.2 (loop integration `atlas execute` con
-  budgets+supervisor), v25.3 (observabilidad HUD).
+- **v25.1 COMPLETA:** `orchestrator/call.rs` — `call_with_cascade` (primario + failover por
+  `FailureMode` vía `Cascade`, excluyendo intentados) + `mode_of`; 4 tests con mock.
+- **Pendiente:** v25.2 (loop integration `atlas execute` con budgets+supervisor),
+  v25.3 (observabilidad HUD).
 - **v3.1.3 CLI surface COMPLETA:** `atlas calendar feed` + `atlas calendar busy list/count/add/rm` (envoltorios `Journal::busy_window_*` en `journal/calendar_ops.rs`).
 - **v3.1.1 Graph READ COMPLETA (verificada end-to-end):** OAuth auth-code + PKCE con loopback (`calendar/auth.rs`), `me/calendarView` → `graph` busy windows (`calendar/graph_reader.rs`), CLI `atlas calendar login/sync/status` (`calendar-graph`). Smoke real: 2 eventos persistidos; 1125 tests lib verdes. App Azure `client_id=a271f4c7-…`, authority `common`, `Calendars.Read` consentido.
 - **v3.1.4 ICS subscription READ COMPLETA:** `atlas calendar sync-ics <url>` (`calendar/ics_reader.rs`, feature `calendar-ics`) con parser `icalendar 0.17` (write-only `ics` descartado para leer; decisión en `22 §15`); busy windows `source=ics_local`. 3 tests + smoke con ICS público (317 windows).

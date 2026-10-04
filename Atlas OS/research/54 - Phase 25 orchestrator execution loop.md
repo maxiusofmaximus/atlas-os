@@ -1,6 +1,6 @@
 # 54 — Phase 25: Orchestrator execution loop (v25)
 
-- **Estado:** plan aprobado; v25.0 **COMPLETA** (v25.1–v25.3 pendientes).
+- **Estado:** plan aprobado; v25.0–v25.1 **COMPLETAS** (v25.2–v25.3 pendientes).
 - **Fecha:** 2026-10-03.
 - **Decisión:** hacer **A antes que B** (research/53 §… y conversación 2026-10-03). B (Harbor)
   mide el *harness*; un harness que no enruta produce un artefacto del "Scaffold Effect"
@@ -31,10 +31,14 @@ provider client → cost guard`, journaled, cancelable, con budgets. **No** swar
 - `ChatMessage`/`ChatRequest`/`ChatResponse`/`Usage`/`ClientError`.
 - Mock (`ScriptedClient`) en tests → el loop y el cascade podrán testearse **offline**.
 
-### v25.1 — Call-with-cascade
-- `call_with_cascade(client, candidates, request, cascade, retry, cooldown)`: intenta los
-  deployments **gateados** en orden por `FailureMode`, devuelve respuesta o `Exhausted`.
-  Testeado con el mock (éxito, 429→fallback, agotamiento).
+### v25.1 — Call-with-cascade — **COMPLETA**
+- `orchestrator/call.rs`: `call_with_cascade(client, config, primary_model_id, deployments,
+  request, max_attempts)`. Hallazgo: `Cascade::next_target` **no** elige el primario (arranca
+  en failover/escalado), así que el caller elige el primario y luego cede cada `FailureMode`
+  al cascade (same-group → buckets) excluyendo los ya intentados.
+- `mode_of(ClientError) -> FailureMode` (429/5xx→RateLimited; 401/403/404/408→BadConfig;
+  400/413/422 con contexto→ContextWindowOverflow, con "content/policy"→ContentPolicyRefusal).
+- 4 tests con mock (primario OK; 429→fallback a otro modelo; agotamiento; `mode_of`).
 
 ### v25.2 — Loop integration
 - `atlas execute <mission_id>` (o extender `run`): integra supervisor (`tick`) + routing +

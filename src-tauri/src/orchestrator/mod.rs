@@ -19,6 +19,7 @@ pub mod affinity;
 pub mod aggregation;
 pub mod backpressure;
 pub mod cache_control;
+pub mod call;
 pub mod cascade;
 pub mod classifier;
 pub mod client;
@@ -46,6 +47,7 @@ pub use backpressure::{BackPressure, BackPressureConfig};
 pub use cache_control::{
     extract_cache_creation, extract_cache_read, inject_breakpoints, CachePolicy, CacheTtl,
 };
+pub use call::{call_with_cascade, mode_of, CallError, CallOutcome};
 pub use cascade::{Cascade, CascadeStep, ExhaustionReason, FailureMode};
 pub use classifier::{
     classifier_for, AutoRouterConfig, ClassifierContext, ClassifierError, ClassifierKind,
