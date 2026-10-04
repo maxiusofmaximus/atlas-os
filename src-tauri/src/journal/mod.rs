@@ -20,6 +20,7 @@ pub mod model_resets;
 pub mod model_resets_ops;
 
 pub mod monitor_cost;
+pub mod proactive;
 pub mod research;
 pub mod schema;
 pub mod search;
@@ -41,6 +42,8 @@ pub use ast_symbols::AstSymbolRow;
 pub use eval_runs::{EvalCaseInput, EvalCaseRow, EvalRunRow, EvalRunStart, EvalTotals};
 
 pub use model_resets::ModelResetRow;
+
+pub use proactive::ProactivePolicyRow;
 
 pub use research::{ResearchConsensusRow, ResearchRunRow, ResearchSourceRow};
 

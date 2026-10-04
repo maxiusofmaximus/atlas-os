@@ -1,6 +1,6 @@
 # 52 — Phase 23: Proactive Turn Engine (v3.1.2)
 
-- **Estado:** plan aprobado; v3.1.2.0–v3.1.2.1 **COMPLETAS**.
+- **Estado:** plan aprobado; v3.1.2.0–v3.1.2.2 **COMPLETAS** (falta v3.1.2.3).
 - **Fecha:** 2026-10-03.
 - **Motivación:** cerrar el único ítem de producto bloqueado del Roadmap v3 — el
   "turno proactivo" que `RFC 28 §G.4 item 8` asumía (`Planning::next_free_slot`)
@@ -84,7 +84,16 @@ busy* bloquea; el *soft busy* 0.5 no), `horizon_ms = 24 h`.
     `availability == RunNow`; respeta `BudgetCaps` (evaluadas al inicio del tick).
   - `AppState::context_availability(policy)` — el `context_window` que faltaba.
   - 4 tests (libre/con misión, busy window, supervisor ocupado, sin backlog).
-- **v3.1.2.2 — Política + HUD + CLI** (persistencia + card + endpoint).
+- **v3.1.2.2 — Política + CLI + HUD** — **COMPLETA**:
+  - Persistencia: migración **M37 (schema v36)** tabla `proactive_policy` (fila
+    única) + `journal/proactive.rs` (`load/save_proactive_policy`,
+    `next_pending_mission` = misión más antigua en `received`).
+  - **Host caller** `supervisor/host.rs`: `proactive_check` / `proactive_check_at`
+    (disponibilidad + backlog → `tick(ProactiveCheck)`), puro y testeable.
+  - CLI `atlas calendar policy [--eta-ms] [--weight] [--horizon-ms]
+    [--enable|--disable]` y `atlas calendar proactive`.
+  - HUD `GET /hud/availability` (política + disponibilidad + misión pendiente).
+  - 5 tests (journal ×2, host ×2, handler HUD). Card Svelte diferida.
 - **v3.1.2.3 — Medición** (métricas de turnos proactivos en EVAL).
 
 ## 4. KPI

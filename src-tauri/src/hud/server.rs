@@ -99,7 +99,11 @@ pub async fn serve(state: Arc<AppState>, shutdown: CancellationToken) {
             "/remote/status",
             get(super::remote_status::get_remote_status),
         )
-        .route("/hud/eval/summary", get(super::eval::get_eval_summary));
+        .route("/hud/eval/summary", get(super::eval::get_eval_summary))
+        .route(
+            "/hud/availability",
+            get(super::availability::get_availability),
+        );
 
     // Phase 1.5c §C item 7 — graph read endpoint (RFC 28). Only
     // mounted when the optional `dag_mode` feature is enabled: the

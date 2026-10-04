@@ -14,7 +14,7 @@ use rusqlite::Connection;
 /// log and must never be renumbered. When adding M(N+1): bump this const
 /// AND change the final migration's `params![N, …]` to
 /// `params![CURRENT_SCHEMA_VERSION, …]` (same value).
-pub const CURRENT_SCHEMA_VERSION: i64 = 35;
+pub const CURRENT_SCHEMA_VERSION: i64 = 36;
 
 pub fn migrate(conn: &Connection) -> Result<()> {
     // M0 — Schema versioning.
@@ -1709,6 +1709,29 @@ pub fn migrate(conn: &Connection) -> Result<()> {
 
             CREATE INDEX IF NOT EXISTS eval_cases_run_idx
                 ON eval_cases(run_id);",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![35, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
+    // M37 (schema v36) — Proactive-turn policy (RFC 20 Fase 23 v3.1.2.2).
+    //   Single-row (`id = 1`) per profile: the operator's `TurnPolicy` for
+    //   the proactive turn engine (`planning::availability`). `eta_ms` is the
+    //   estimated turn duration, `weight_threshold` the busy-window weight at
+    //   which a window blocks, `horizon_ms` how far ahead to look for a free
+    //   slot, `enabled` the global on/off. Created unconditionally (same rule
+    //   as M18) so the schema stays idempotent across feature combos.
+    if current < 36 {
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS proactive_policy (
+                id               INTEGER PRIMARY KEY CHECK (id = 1),
+                eta_ms           INTEGER NOT NULL,
+                weight_threshold REAL NOT NULL,
+                horizon_ms       INTEGER NOT NULL,
+                enabled          INTEGER NOT NULL DEFAULT 1,
+                updated_at       INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+            );",
         )?;
         conn.execute(
             "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",

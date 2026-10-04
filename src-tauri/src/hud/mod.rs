@@ -5,6 +5,7 @@
 
 pub mod annotate;
 pub mod autoresearch;
+pub mod availability;
 pub mod cards;
 pub mod eval;
 pub mod export;

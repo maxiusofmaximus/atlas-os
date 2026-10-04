@@ -419,8 +419,11 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
   supervisor está `Idle`/`Done` y la disponibilidad es `RunNow`; respeta
   `BudgetCaps`. `AppState::context_availability(policy)` (el `context_window`
   que faltaba). 4 tests.
-- **Pendiente:** v3.1.2.2 (política persistida + HUD + caller que consulta el
-  backlog), v3.1.2.3 (métricas de turnos proactivos en EVAL).
+- **v3.1.2.2 COMPLETA:** política persistida (M37/v36 `proactive_policy`),
+  backlog `next_pending_mission`, host caller `supervisor/host.rs`
+  (`proactive_check`), CLI `atlas calendar policy|proactive`, HUD
+  `GET /hud/availability`. 5 tests. (Card Svelte diferida.)
+- **Pendiente:** v3.1.2.3 (métricas de turnos proactivos en EVAL + card HUD).
 
 - **v3.1.2 (Planning proactivo) queda condicionado a EVAL:** sin instrumento no se
   puede medir si los turnos proactivos ayudan o estorban.

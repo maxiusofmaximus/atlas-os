@@ -47,6 +47,21 @@ pub enum CalendarAction {
         #[arg(short = 'w', long, default_value_t = 1.0)]
         weight_threshold: f64,
     },
+    /// Show or set the persisted proactive-turn policy (RFC 20 Fase 23 v3.1.2.2).
+    Policy {
+        #[arg(long)]
+        eta_ms: Option<i64>,
+        #[arg(long)]
+        weight: Option<f64>,
+        #[arg(long)]
+        horizon_ms: Option<i64>,
+        #[arg(long)]
+        enable: bool,
+        #[arg(long)]
+        disable: bool,
+    },
+    /// Run one proactive probe: availability + backlog → supervisor action.
+    Proactive,
     /// Authenticate against Microsoft Graph (OAuth device-code) and store the
     /// encrypted refresh token in this profile (RFC 28 §G READ).
     #[cfg(feature = "calendar-graph")]
@@ -125,6 +140,20 @@ pub async fn run(cmd: CalendarCmd, profile: &str) -> Result<()> {
         } => {
             let journal = Journal::open(&root)?;
             availability(&journal, eta_ms, weight_threshold)
+        }
+        CalendarAction::Policy {
+            eta_ms,
+            weight,
+            horizon_ms,
+            enable,
+            disable,
+        } => {
+            let journal = Journal::open(&root)?;
+            policy_cmd(&journal, eta_ms, weight, horizon_ms, enable, disable)
+        }
+        CalendarAction::Proactive => {
+            let journal = Journal::open(&root)?;
+            proactive_cmd(&journal)
         }
         #[cfg(feature = "calendar-graph")]
         CalendarAction::Login => login(&root).await,
@@ -263,6 +292,83 @@ fn availability(journal: &Journal, eta_ms: i64, weight_threshold: f64) -> Result
             println!("availability: WAIT until {ts} (in {} ms)", ts - now)
         }
         Availability::Blocked => println!("availability: BLOCKED (no free slot within horizon)"),
+    }
+    Ok(())
+}
+
+fn policy_cmd(
+    journal: &Journal,
+    eta_ms: Option<i64>,
+    weight: Option<f64>,
+    horizon_ms: Option<i64>,
+    enable: bool,
+    disable: bool,
+) -> Result<()> {
+    use crate::journal::ProactivePolicyRow;
+
+    let mut policy = journal
+        .load_proactive_policy()?
+        .unwrap_or_else(ProactivePolicyRow::defaults);
+    let writing = eta_ms.is_some() || weight.is_some() || horizon_ms.is_some() || enable || disable;
+    if writing {
+        if let Some(v) = eta_ms {
+            policy.eta_ms = v.max(0);
+        }
+        if let Some(v) = weight {
+            policy.weight_threshold = v.clamp(0.0, 1.0);
+        }
+        if let Some(v) = horizon_ms {
+            policy.horizon_ms = v.max(0);
+        }
+        if enable {
+            policy.enabled = true;
+        }
+        if disable {
+            policy.enabled = false;
+        }
+        journal.save_proactive_policy(&policy)?;
+        println!("proactive policy updated");
+    }
+    println!(
+        "proactive policy: enabled={} eta_ms={} weight_threshold={:.2} horizon_ms={}",
+        policy.enabled, policy.eta_ms, policy.weight_threshold, policy.horizon_ms
+    );
+    Ok(())
+}
+
+fn proactive_cmd(journal: &Journal) -> Result<()> {
+    use crate::journal::ProactivePolicyRow;
+    use crate::planning::availability::TurnPolicy;
+    use crate::supervisor::host::proactive_check;
+    use crate::supervisor::runner::TickContext;
+    use crate::supervisor::types::{BudgetCaps, ExecutionMode, SupervisorState};
+
+    let row = journal
+        .load_proactive_policy()?
+        .unwrap_or_else(ProactivePolicyRow::defaults);
+    if !row.enabled {
+        println!("proactive: disabled (enable with `atlas calendar policy --enable`)");
+        return Ok(());
+    }
+    let policy = TurnPolicy {
+        eta_ms: row.eta_ms,
+        weight_threshold: row.weight_threshold,
+        horizon_ms: row.horizon_ms,
+    };
+    let mut ctx = TickContext::new(ExecutionMode::HumanInLoop);
+    let state = SupervisorState::new(BudgetCaps::DEFAULT, ExecutionMode::HumanInLoop);
+    let probe = proactive_check(journal, &mut ctx, state, &policy)?;
+    println!("availability: {:?}", probe.availability);
+    match probe.pending_mission {
+        Some(m) => println!("pending mission: {m}"),
+        None => println!("pending mission: none (backlog empty)"),
+    }
+    if probe.output.actions.is_empty() {
+        println!("action: none");
+    } else {
+        for action in &probe.output.actions {
+            println!("action: {action:?}");
+        }
     }
     Ok(())
 }
