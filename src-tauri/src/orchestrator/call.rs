@@ -69,20 +69,52 @@ fn primary_of<'a>(deployments: &'a [Deployment], model_id: &str) -> Option<&'a D
 
 /// Route `request` to the primary model and, on failure, fall back through the
 /// cascade. `deployments` is the full (already reliability-gated) candidate set.
-pub async fn call_with_cascade<'a, C: ProviderClient>(
+pub async fn call_with_cascade<C: ProviderClient>(
+    client: &C,
+    config: RoutingConfig,
+    primary_model_id: &str,
+    deployments: &[Deployment],
+    request: &ChatRequest,
+    max_attempts: u8,
+) -> Result<CallOutcome, CallError> {
+    call_with_cascade_and_denied(
+        client,
+        config,
+        primary_model_id,
+        deployments,
+        request,
+        max_attempts,
+        &[],
+    )
+    .await
+}
+
+/// Like `call_with_cascade`, but excludes `denied` model ids from BOTH the
+/// primary choice and every failover group. The reliability gate computes this
+/// set (`filter_deployments` + `denied`), so a model whose historical pass rate
+/// is below threshold — or that has too few samples — never gets a Diff step.
+#[allow(clippy::too_many_arguments)]
+pub async fn call_with_cascade_and_denied<'a, C: ProviderClient>(
     client: &C,
     config: RoutingConfig,
     primary_model_id: &str,
     deployments: &'a [Deployment],
     request: &ChatRequest,
     max_attempts: u8,
+    denied: &[String],
 ) -> Result<CallOutcome, CallError> {
+    let is_denied = |id: &str| denied.iter().any(|d| d == id);
     let mut cascade = Cascade::new(config, primary_model_id);
     let mut last: Option<ClientError> = None;
     let mut tries = 0u8;
 
-    // 1. Primary group.
-    if let Some(deployment) = primary_of(deployments, primary_model_id) {
+    // 1. Primary group (unless the gate denied it).
+    let primary = if is_denied(primary_model_id) {
+        None
+    } else {
+        primary_of(deployments, primary_model_id)
+    };
+    if let Some(deployment) = primary {
         tries += 1;
         match client.chat(deployment, request).await {
             Ok(response) => {
@@ -105,6 +137,9 @@ pub async fn call_with_cascade<'a, C: ProviderClient>(
             .as_ref()
             .map_or(FailureMode::BadConfigOrNetwork, mode_of);
         let healthy_for = |model_id: &str| -> Vec<&'a Deployment> {
+            if is_denied(model_id) {
+                return Vec::new();
+            }
             deployments
                 .iter()
                 .filter(|d| d.model_id == model_id)

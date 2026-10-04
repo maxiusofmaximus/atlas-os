@@ -8,7 +8,7 @@
 
 use crate::coding::llm::{parse_diff_json, DiffMeta, DiffParseError, DIFF_CONTRACT_PROMPT};
 use crate::coding::types::Diff;
-use crate::orchestrator::call::{call_with_cascade, CallError};
+use crate::orchestrator::call::{call_with_cascade_and_denied, CallError};
 use crate::orchestrator::client::{ChatMessage, ChatRequest, ProviderClient, Usage};
 use crate::orchestrator::provider::Deployment;
 use crate::orchestrator::routing::RoutingConfig;
@@ -35,8 +35,10 @@ pub enum StepDiffError {
 
 /// Ask the routed model for a structured `Diff` for `step_statement` and parse
 /// it. `meta` carries the kernel-side identity the model must not supply.
+/// `denied` lists model ids the reliability gate has excluded (Fase 24/F33):
+/// they are skipped for both the primary and the failover groups.
 #[allow(clippy::too_many_arguments)]
-pub async fn call_diff_with_cascade<C: ProviderClient>(
+pub async fn call_diff_with_cascade_and_denied<C: ProviderClient>(
     client: &C,
     routing: RoutingConfig,
     model: &str,
@@ -44,6 +46,7 @@ pub async fn call_diff_with_cascade<C: ProviderClient>(
     step_statement: &str,
     meta: DiffMeta,
     max_attempts: u8,
+    denied: &[String],
 ) -> Result<StepDiffOutcome, StepDiffError> {
     let request = ChatRequest {
         model: model.to_string(),
@@ -55,8 +58,16 @@ pub async fn call_diff_with_cascade<C: ProviderClient>(
         max_tokens: None,
     };
 
-    let outcome =
-        call_with_cascade(client, routing, model, deployments, &request, max_attempts).await?;
+    let outcome = call_with_cascade_and_denied(
+        client,
+        routing,
+        model,
+        deployments,
+        &request,
+        max_attempts,
+        denied,
+    )
+    .await?;
     let diff = parse_diff_json(&outcome.response.content, meta)?;
 
     Ok(StepDiffOutcome {
@@ -67,10 +78,34 @@ pub async fn call_diff_with_cascade<C: ProviderClient>(
     })
 }
 
+/// Convenience wrapper with no denied models (behaviour identical to before F33).
+#[allow(clippy::too_many_arguments)]
+pub async fn call_diff_with_cascade<C: ProviderClient>(
+    client: &C,
+    routing: RoutingConfig,
+    model: &str,
+    deployments: &[Deployment],
+    step_statement: &str,
+    meta: DiffMeta,
+    max_attempts: u8,
+) -> Result<StepDiffOutcome, StepDiffError> {
+    call_diff_with_cascade_and_denied(
+        client,
+        routing,
+        model,
+        deployments,
+        step_statement,
+        meta,
+        max_attempts,
+        &[],
+    )
+    .await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::orchestrator::client::{ChatResponse, ClientError, ClientResult};
+    use crate::orchestrator::client::{ChatResponse, ClientResult};
     use std::sync::Mutex;
     use uuid::Uuid;
 
@@ -169,20 +204,35 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn cascade_failure_propagates() {
-        let deployments = vec![dep("m1", "d1")];
-        let client = Scripted::new(vec![Err(ClientError::Http("boom".into()))]);
-        let err = call_diff_with_cascade(
+    async fn denied_primary_is_skipped_for_the_failover_model() {
+        use std::collections::HashMap;
+        let deployments = vec![dep("m1", "d1"), dep("m2", "d2")];
+        let client = Scripted::new(vec![Ok(json_reply())]);
+        // m1 denied → the cascade fails over to m2 via the configured bucket.
+        let mut fallback = HashMap::new();
+        fallback.insert("m1".to_string(), vec!["m2".to_string()]);
+        let routing = RoutingConfig {
+            fallback: crate::orchestrator::routing::FallbackMap {
+                fallbacks: fallback,
+                ..Default::default()
+            },
+            ..RoutingConfig::default()
+        };
+        let out = call_diff_with_cascade_and_denied(
             &client,
-            RoutingConfig::default(),
+            routing,
             "m1",
             &deployments,
             "add a hi() function",
             meta(),
             5,
+            &["m1".to_string()],
         )
         .await
-        .unwrap_err();
-        assert!(matches!(err, StepDiffError::Call(_)), "got {err:?}");
+        .expect("failover to m2");
+        assert_eq!(
+            out.deployment_id, "d2",
+            "the denied primary must not be used"
+        );
     }
 }

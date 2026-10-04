@@ -16,9 +16,10 @@ use crate::core::bus::{BusEvent, BusEventKind};
 use crate::journal::{Journal, ModelInvocationRow};
 use crate::orchestrator::client::HttpProviderClient;
 use crate::orchestrator::execute::{
-    execute_coding_step, execute_steps, ExecuteConfig, ExecuteStep, ModelPrice,
+    execute_coding_step_denied, execute_steps, ExecuteConfig, ExecuteStep, ModelPrice,
 };
 use crate::orchestrator::provider::Deployment;
+use crate::orchestrator::reliability_gate::{filter_deployments, ReliabilityGate};
 use crate::orchestrator::routing::RoutingConfig;
 use crate::planning::types::Plan;
 
@@ -107,20 +108,74 @@ pub async fn run(cmd: ExecuteCmd, profile: &str) -> Result<()> {
 
     if cmd.coding {
         let agent_id = Uuid::new_v4();
+        // Fase 24/33: if the reliability gate is enabled, deny models whose
+        // historical pass rate is below threshold (or too few samples) so the
+        // coding loop never routes a Diff to an unreliable model.
+        let policy = journal.load_reliability_gate().ok().flatten();
+        let (gate_enabled, denied): (bool, Vec<String>) = match policy {
+            Some(p) if p.enabled => {
+                let models: Vec<String> = {
+                    let mut seen = std::collections::BTreeSet::new();
+                    deployments
+                        .iter()
+                        .filter(|d| seen.insert(d.model_id.clone()))
+                        .map(|d| d.model_id.clone())
+                        .collect()
+                };
+                let reliabilities =
+                    crate::orchestrator::reliability_gate::reliabilities_from_journal(
+                        &journal, &models, 200,
+                    );
+                let gate = ReliabilityGate {
+                    min_samples: p.min_samples,
+                    min_pass_rate: p.min_pass_rate,
+                    allow_unknown: p.allow_unknown,
+                };
+                let (_allowed, denied) = filter_deployments(&deployments, &reliabilities, &gate);
+                (
+                    true,
+                    denied
+                        .into_iter()
+                        .map(|(d, _)| d.model_id.clone())
+                        .collect(),
+                )
+            }
+            _ => (false, Vec::new()),
+        };
+        println!(
+            "execute --coding reliability_gate={} denied={denied:?}",
+            if gate_enabled { "on" } else { "off" }
+        );
         let mut ok = 0usize;
         for step in &steps {
-            let out = execute_coding_step(
-                &client,
-                RoutingConfig::default(),
-                step,
-                &deployments,
-                mission_id,
-                plan.plan_id,
-                agent_id,
-                cmd.max_attempts,
-                &price_of,
-            )
-            .await
+            let out = if denied.is_empty() {
+                crate::orchestrator::execute::execute_coding_step(
+                    &client,
+                    RoutingConfig::default(),
+                    step,
+                    &deployments,
+                    mission_id,
+                    plan.plan_id,
+                    agent_id,
+                    cmd.max_attempts,
+                    &price_of,
+                )
+                .await
+            } else {
+                execute_coding_step_denied(
+                    &client,
+                    RoutingConfig::default(),
+                    step,
+                    &deployments,
+                    mission_id,
+                    plan.plan_id,
+                    agent_id,
+                    cmd.max_attempts,
+                    &price_of,
+                    &denied,
+                )
+                .await
+            }
             .with_context(|| format!("coding step `{}` failed", step.id))?;
             journal.save_diff(&out.diff)?;
             journal.save_report(&out.report)?;

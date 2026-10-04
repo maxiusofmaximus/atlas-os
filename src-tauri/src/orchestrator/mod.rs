@@ -50,7 +50,7 @@ pub use backpressure::{BackPressure, BackPressureConfig};
 pub use cache_control::{
     extract_cache_creation, extract_cache_read, inject_breakpoints, CachePolicy, CacheTtl,
 };
-pub use call::{call_with_cascade, mode_of, CallError, CallOutcome};
+pub use call::{call_with_cascade, call_with_cascade_and_denied, mode_of, CallError, CallOutcome};
 pub use cascade::{Cascade, CascadeStep, ExhaustionReason, FailureMode};
 pub use classifier::{
     classifier_for, AutoRouterConfig, ClassifierContext, ClassifierError, ClassifierKind,
@@ -62,7 +62,9 @@ pub use client::{
     build_chat_body, chat_endpoint, parse_chat_response, ChatMessage, ChatRequest, ChatResponse,
     ClientError, HttpProviderClient, ProviderClient, Usage,
 };
-pub use code::{call_diff_with_cascade, StepDiffError, StepDiffOutcome};
+pub use code::{
+    call_diff_with_cascade, call_diff_with_cascade_and_denied, StepDiffError, StepDiffOutcome,
+};
 pub use cooldown::{CooldownConfig, CooldownOrigin, CooldownOutcome, RetryAfterSource};
 pub use cost_guard::{
     AggregationCostBreakdown, AggregationCostContext, AggregationPolicy, CouncilCostGuard,
@@ -72,8 +74,8 @@ pub use cost_guard::{
 pub use data_parts::{DataPart, DataPartBuffer};
 pub use error::{ResetKind, SpendLimitError};
 pub use execute::{
-    execute_coding_step, execute_steps, CodingStepOutcome, ExecuteConfig, ExecuteReport,
-    ExecuteStep, StepOutcome,
+    execute_coding_step, execute_coding_step_denied, execute_steps, CodingStepOutcome,
+    ExecuteConfig, ExecuteReport, ExecuteStep, StepOutcome,
 };
 pub use idempotency::RequestFrame;
 pub use parse_error::ParseError;

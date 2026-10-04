@@ -500,5 +500,17 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
   2 tests. **Fase 26 CERRADA** — el path LLM edita código y se auto-valida; B mediría el
   harness real, no un chat.
 
+## F33 — Reliability gate en el coding loop (COMPLETA; plan: research/56)
+
+- **Decisión 2026-10-03 (research/56):** la compuerta de fiabilidad (Fase 24) es *opt-in* y
+  no tocaba el coding loop; un `Diff` podía enrutarse a un modelo poco fiable. La
+  investigación advierte además: **no decidir routing con muestras pequeñas** (`min_samples`
+  ya existe) y **no degradar en silencio** (auditar la decisión).
+- **v33.0 COMPLETA:** `call_with_cascade_and_denied` + `call_diff_with_cascade_and_denied` +
+  `execute_coding_step_denied` — el gate excluye modelos denegados del primario Y del
+  failover (fail-safe: set original si todo denegado). CLI `atlas execute --coding` lee
+  `load_reliability_gate`, construye `reliabilities_from_journal(models, 200)`, filtra y
+  loguea `reliability_gate=on/off denied=[...]`. 1 test nuevo. **Fase 33 CERRADA.**
+
 ## Out of scope v2
 - iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).

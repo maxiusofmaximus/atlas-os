@@ -23,7 +23,7 @@ use crate::supervisor::types::{
 
 use crate::coding::llm::DiffMeta;
 use crate::coding::types::Diff;
-use crate::orchestrator::code::{call_diff_with_cascade, StepDiffError};
+use crate::orchestrator::code::{call_diff_with_cascade_and_denied, StepDiffError};
 use crate::orchestrator::verify::{verify_diff, VerifyConfig};
 use crate::repair::types::RepairReport;
 use crate::validation::types::ValidationReport;
@@ -240,6 +240,36 @@ pub async fn execute_coding_step<C: ProviderClient, P: Fn(&str) -> Option<ModelP
     max_attempts: u8,
     price_of: P,
 ) -> Result<CodingStepOutcome, StepDiffError> {
+    execute_coding_step_denied(
+        client,
+        routing,
+        step,
+        deployments,
+        mission_id,
+        plan_id,
+        agent_id,
+        max_attempts,
+        price_of,
+        &[],
+    )
+    .await
+}
+
+/// Like `execute_coding_step`, but the reliability gate can deny model ids
+/// (Fase 24): a denied model is not used as the primary nor as a failover.
+#[allow(clippy::too_many_arguments)]
+pub async fn execute_coding_step_denied<C: ProviderClient, P: Fn(&str) -> Option<ModelPrice>>(
+    client: &C,
+    routing: RoutingConfig,
+    step: &ExecuteStep,
+    deployments: &[Deployment],
+    mission_id: Uuid,
+    plan_id: Uuid,
+    agent_id: Uuid,
+    max_attempts: u8,
+    price_of: P,
+    denied: &[String],
+) -> Result<CodingStepOutcome, StepDiffError> {
     let started = std::time::Instant::now();
 
     let meta = DiffMeta {
@@ -249,7 +279,7 @@ pub async fn execute_coding_step<C: ProviderClient, P: Fn(&str) -> Option<ModelP
         agent_id,
         model_id: step.model_id.clone(),
     };
-    let routed = call_diff_with_cascade(
+    let routed = call_diff_with_cascade_and_denied(
         client,
         routing,
         &step.model_id,
@@ -257,6 +287,7 @@ pub async fn execute_coding_step<C: ProviderClient, P: Fn(&str) -> Option<ModelP
         &step.statement,
         meta,
         max_attempts,
+        denied,
     )
     .await?;
 
