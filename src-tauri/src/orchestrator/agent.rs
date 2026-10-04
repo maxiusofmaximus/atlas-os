@@ -215,6 +215,34 @@ pub struct AgentOutcome {
     pub done: bool,
     pub summary: String,
     pub turns: u32,
+    /// Per-turn forensic detail (RFC 63 §6): the observation the model saw and
+    /// the verdict the evidence gate returned. One entry per completed turn,
+    /// including the final `done` turn. Persisted to `agent_steps` by the host.
+    pub turn_records: Vec<AgentTurnRecord>,
+}
+
+/// Forensic record of one loop turn, ready to persist to M49/M50.
+#[derive(Clone, Debug, PartialEq)]
+pub struct AgentTurnRecord {
+    /// 0-based turn index.
+    pub turn: u32,
+    /// The raw model reply for this turn.
+    pub thought: String,
+    /// A compact action label: `run_command`, `done`, or `invalid`.
+    pub action: String,
+    /// What the executor/model observed (command output, verification failures).
+    pub observation: Option<String>,
+    /// Evidence verdict when a predicate ran this turn (`pass`/`fail`/`unknown`).
+    pub verdict: Option<String>,
+    pub tokens_in: i64,
+    pub tokens_out: i64,
+}
+
+fn usage_tokens(u: Option<&crate::orchestrator::client::Usage>) -> (i64, i64) {
+    match u {
+        Some(u) => (u.prompt_tokens as i64, u.completion_tokens as i64),
+        None => (0, 0),
+    }
 }
 
 /// Drive the model↔terminal loop over `task`. Generic over `ProviderClient` so
@@ -242,6 +270,7 @@ where
         ChatMessage::user(task),
     ];
     let mut steps: Vec<CommandResult> = Vec::new();
+    let mut turn_records: Vec<AgentTurnRecord> = Vec::new();
 
     for turn in 0..cfg.max_steps {
         let request = ChatRequest {
@@ -261,26 +290,47 @@ where
         )
         .await?;
         let content = out.response.content.clone();
+        let (tokens_in, tokens_out) = usage_tokens(out.response.usage.as_ref());
         messages.push(ChatMessage::assistant(content.clone()));
 
         match parse_action(&content) {
             AgentAction::Done(summary) => {
                 // RFC 63 §8: `done` only counts if the success predicate holds.
                 if cfg.success_predicate.is_empty() {
+                    turn_records.push(AgentTurnRecord {
+                        turn,
+                        thought: content,
+                        action: "done".into(),
+                        observation: Some(summary.clone()),
+                        verdict: None,
+                        tokens_in,
+                        tokens_out,
+                    });
                     return Ok(AgentOutcome {
                         steps,
                         done: true,
                         summary,
                         turns: turn + 1,
+                        turn_records,
                     });
                 }
                 let verdict = verify();
                 if verdict.allowed {
+                    turn_records.push(AgentTurnRecord {
+                        turn,
+                        thought: content,
+                        action: "done".into(),
+                        observation: Some(summary.clone()),
+                        verdict: Some("pass".into()),
+                        tokens_in,
+                        tokens_out,
+                    });
                     return Ok(AgentOutcome {
                         steps,
                         done: true,
                         summary,
                         turns: turn + 1,
+                        turn_records,
                     });
                 }
                 // Evidence missing: tell the model exactly what failed and loop.
@@ -290,6 +340,15 @@ where
                     .map(|r| format!("- {}", r.detail))
                     .collect::<Vec<_>>()
                     .join("\n");
+                turn_records.push(AgentTurnRecord {
+                    turn,
+                    thought: content,
+                    action: "done".into(),
+                    observation: Some(format!("evidence gate rejected done:\n{failures}")),
+                    verdict: Some("fail".into()),
+                    tokens_in,
+                    tokens_out,
+                });
                 messages.push(ChatMessage::user(format!(
                     "You declared done but the required evidence does not hold yet:\n{failures}\n\n\
                      Fix it and reply with one JSON object (run_command or done)."
@@ -298,18 +357,35 @@ where
             AgentAction::Run(cmd) => {
                 let result = exec(&cmd);
                 let rendered = result.render();
+                turn_records.push(AgentTurnRecord {
+                    turn,
+                    thought: content,
+                    action: "run_command".into(),
+                    observation: Some(rendered.clone()),
+                    verdict: None,
+                    tokens_in,
+                    tokens_out,
+                });
                 steps.push(result);
                 messages.push(ChatMessage::user(format!(
                     "Command output:\n{rendered}\n\nWhat next? Reply with one JSON object."
                 )));
             }
             AgentAction::Invalid(reply) => {
+                turn_records.push(AgentTurnRecord {
+                    turn,
+                    thought: content,
+                    action: "invalid".into(),
+                    observation: Some(reply),
+                    verdict: None,
+                    tokens_in,
+                    tokens_out,
+                });
                 messages.push(ChatMessage::user(
                     "Your reply was not valid protocol JSON. Reply with EXACTLY one object:\n\
                      {\"tool\":\"run_command\",\"command\":\"...\"}  or  {\"done\":true,\"summary\":\"...\"}"
                         .to_string(),
                 ));
-                let _ = reply;
             }
         }
     }
@@ -319,6 +395,7 @@ where
         done: false,
         summary: format!("step budget ({}) exhausted", cfg.max_steps),
         turns: cfg.max_steps,
+        turn_records,
     })
 }
 
@@ -469,6 +546,11 @@ mod tests {
         assert!(out.done);
         assert_eq!(out.steps.len(), 1);
         assert_eq!(out.summary, "ok");
+        // Forensic trail (RFC 63 §6): one record for the command turn + the done.
+        assert_eq!(out.turn_records.len(), 2);
+        assert_eq!(out.turn_records[0].action, "run_command");
+        assert!(out.turn_records[0].observation.is_some());
+        assert_eq!(out.turn_records[1].action, "done");
     }
 
     #[tokio::test]

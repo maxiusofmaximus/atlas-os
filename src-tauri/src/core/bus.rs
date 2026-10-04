@@ -48,6 +48,18 @@ pub enum BusEventKind {
         tokens_out: u64,
         cost_usd: f64,
     },
+    /// One agent loop turn (RFC 63 §7/§9): the capability layer's live feed for
+    /// `AgentCard`. Emitted per turn so the HUD can stream steps/tools/evidence.
+    AgentStep {
+        run_id: String,
+        step: u32,
+        action: String,
+        observation: Option<String>,
+        verdict: Option<String>,
+        tokens_in: u64,
+        tokens_out: u64,
+        cost_usd: f64,
+    },
     AgentHeartbeat {
         agent_id: Uuid,
     },
@@ -279,6 +291,7 @@ impl BusEventKind {
             BusEventKind::AgentStatusChanged { .. } => "agent_status",
             BusEventKind::AgentDiff { .. } => "agent_diff",
             BusEventKind::AgentTokens { .. } => "agent_tokens",
+            BusEventKind::AgentStep { .. } => "agent_step",
             BusEventKind::AgentHeartbeat { .. } => "agent_heartbeat",
             BusEventKind::ApprovalRequest { .. } => "approval_request",
             BusEventKind::ApprovalDecision { .. } => "approval_decision",

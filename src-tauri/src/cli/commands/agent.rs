@@ -127,6 +127,27 @@ pub async fn run(cmd: AgentCmd, profile: &str) -> Result<()> {
     );
 
     let client = HttpProviderClient::new();
+    let run_id = format!("ar_{}", uuid::Uuid::new_v4());
+    let ts_started = chrono::Utc::now().timestamp_millis();
+
+    // RFC 63 §6 (M49): open the run row before the loop so a crash still leaves
+    // a `running` record, then finalize it below.
+    let _ = journal.create_agent_run(&crate::journal::AgentRunRow {
+        id: run_id.clone(),
+        mission_id: None,
+        goal: task.clone(),
+        success_predicate: serde_json::to_string(&cfg.success_predicate)
+            .unwrap_or_else(|_| "[]".into()),
+        sandbox: std::env::var("ATLAS_SANDBOX").unwrap_or_else(|_| "local".into()),
+        status: "running".into(),
+        steps: 0,
+        tokens_in: 0,
+        tokens_out: 0,
+        cost_usd: 0.0,
+        ts_started,
+        ts_ended: None,
+    });
+
     let outcome = run_agent_real(
         &client,
         RoutingConfig::default(),
@@ -140,6 +161,69 @@ pub async fn run(cmd: AgentCmd, profile: &str) -> Result<()> {
     .await
     .context("agent loop failed")?;
 
+    // RFC 63 §6: persist every turn + tool call. Tokens are summed for the run;
+    // artifacts are recorded from the success predicate that was verified.
+    let (mut tokens_in, mut tokens_out) = (0i64, 0i64);
+    for rec in &outcome.turn_records {
+        tokens_in += rec.tokens_in;
+        tokens_out += rec.tokens_out;
+        let step_id = format!("{run_id}_s{}", rec.turn);
+        let _ = journal.record_agent_step(&crate::journal::AgentStepRow {
+            id: step_id.clone(),
+            run_id: run_id.clone(),
+            step: rec.turn as i64,
+            thought: Some(rec.thought.clone()),
+            action: Some(rec.action.clone()),
+            observation: rec.observation.clone(),
+            evidence_json: None,
+            verdict: rec.verdict.clone(),
+            tokens_in: rec.tokens_in,
+            tokens_out: rec.tokens_out,
+            cost_usd: 0.0,
+            ts: chrono::Utc::now().timestamp_millis(),
+        });
+        // RFC 63 §7/§9: stream each turn on the Kernel Bus for the HUD AgentCard.
+        let event = crate::core::bus::BusEvent::new(crate::core::bus::BusEventKind::AgentStep {
+            run_id: run_id.clone(),
+            step: rec.turn,
+            action: rec.action.clone(),
+            observation: rec.observation.clone(),
+            verdict: rec.verdict.clone(),
+            tokens_in: rec.tokens_in.max(0) as u64,
+            tokens_out: rec.tokens_out.max(0) as u64,
+            cost_usd: 0.0,
+        });
+        let _ = journal.publish(&event);
+        if rec.action == "run_command" {
+            if let Some(obs) = &rec.observation {
+                let _ = journal.record_tool_invocation(&crate::journal::ToolInvocationRow {
+                    id: format!("{step_id}_exec"),
+                    run_id: run_id.clone(),
+                    step: rec.turn as i64,
+                    tool: "exec.run".into(),
+                    args_json: "{}".into(),
+                    result_json: Some(serde_json::to_string(obs).unwrap_or_default()),
+                    exit_code: None,
+                    duration_ms: None,
+                    tokens: None,
+                    cost_usd: None,
+                    ts: chrono::Utc::now().timestamp_millis(),
+                });
+            }
+        }
+    }
+    let ts_ended = chrono::Utc::now().timestamp_millis();
+    let status = if outcome.done { "done" } else { "failed" };
+    let _ = journal.finish_agent_run(
+        &run_id,
+        status,
+        outcome.turns as i64,
+        tokens_in,
+        tokens_out,
+        0.0,
+        ts_ended,
+    );
+
     for step in &outcome.steps {
         println!(
             "  $ {}  → exit {}",
@@ -148,10 +232,13 @@ pub async fn run(cmd: AgentCmd, profile: &str) -> Result<()> {
         );
     }
     println!(
-        "agent done={} turns={} commands={} summary={}",
+        "agent done={} turns={} commands={} tokens_in={} tokens_out={} run_id={} summary={}",
         outcome.done,
         outcome.turns,
         outcome.steps.len(),
+        tokens_in,
+        tokens_out,
+        run_id,
         outcome.summary
     );
     if !outcome.done {
