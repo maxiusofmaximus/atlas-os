@@ -1,6 +1,6 @@
 # 54 — Phase 25: Orchestrator execution loop (v25)
 
-- **Estado:** plan aprobado; v25.0–v25.2 **COMPLETAS** (v25.3 pendiente).
+- **Estado:** **COMPLETA** (v25.0–v25.3).
 - **Fecha:** 2026-10-03.
 - **Decisión:** hacer **A antes que B** (research/53 §… y conversación 2026-10-03). B (Harbor)
   mide el *harness*; un harness que no enruta produce un artefacto del "Scaffold Effect"
@@ -53,8 +53,15 @@ provider client → cost guard`, journaled, cancelable, con budgets. **No** swar
 - **Diferido a v25.3:** escritura de `model_invocations` + eventos de bus + wiring de
   señal de cancelación + cost guard con precios (hoy `cost_usd = 0.0`).
 
-### v25.3 — Observabilidad
-- Telemetría por run (modelo elegido, tokens, coste, fallbacks) → HUD.
+### v25.3 — Observabilidad — **COMPLETA**
+- **Coste real**: `cost_of(usage, price)` (input/output por 1M) + `ModelPrice`; el loop lo
+  pasa al `ToolCall` → `BudgetCaps.max_cost_usd` deja de ser inerte.
+- **Journal + bus**: el CLI `atlas execute` persiste una fila `model_invocations` por paso
+  (modelo, deployment, tokens, coste, latencia, idempotency_key) y publica `AgentTokens`.
+- **Cancelación por señal**: `tokio::signal::ctrl_c()` setea el `AtomicBool` compartido.
+- 2 tests nuevos (coste desde usage+precio; `cost_of` con entradas ausentes).
+- **Diferido:** card/endpoint HUD dedicado (el dato ya está en `model_invocations` y en el
+  stdout del CLI).
 
 ## 3. No-goals / riesgos
 

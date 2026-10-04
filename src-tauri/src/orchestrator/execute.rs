@@ -1,7 +1,7 @@
-// Atlas OS — Orchestrator execution loop (RFC 20 Fase 25 v25.2; research/54).
+// Atlas OS — Orchestrator execution loop (RFC 20 Fase 25 v25.2/v25.3; research/54).
 //
-// The libration point: the first code that actually DRIVES a mission — for each
-// plan step it routes to a model through `call_with_cascade`, feeds a
+// The first code that DRIVES a mission: for each plan step it routes to a model
+// through `call_with_cascade`, computes cost from the pricing table, feeds a
 // `ToolCall` to the Execution Supervisor (bumping the budget tally and possibly
 // tripping a cap → HaltSession), honours a cancellation flag, and records the
 // outcome. Generic over `ProviderClient`, so it is unit-tested offline with a
@@ -12,7 +12,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use uuid::Uuid;
 
 use crate::orchestrator::call::call_with_cascade;
-use crate::orchestrator::client::{ChatMessage, ChatRequest, ProviderClient};
+use crate::orchestrator::client::{ChatMessage, ChatRequest, ProviderClient, Usage};
 use crate::orchestrator::provider::Deployment;
 use crate::orchestrator::routing::RoutingConfig;
 use crate::supervisor::runner::{tick, TickContext};
@@ -20,6 +20,13 @@ use crate::supervisor::types::{
     BudgetCaps, BudgetTally, ExecutionMode, MissionPhase, SupervisorAction, SupervisorEvent,
     SupervisorState,
 };
+
+/// Price for a model, per 1M tokens.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ModelPrice {
+    pub input_per_1m: f64,
+    pub output_per_1m: f64,
+}
 
 /// One step to execute (a projection of `planning::types::Step`).
 #[derive(Clone, Debug, PartialEq)]
@@ -33,9 +40,13 @@ pub struct ExecuteStep {
 #[derive(Clone, Debug, PartialEq)]
 pub struct StepOutcome {
     pub step_id: String,
+    pub model_id: String,
     pub deployment_id: String,
     pub content: String,
     pub attempts: u8,
+    pub usage: Option<Usage>,
+    pub cost_usd: f64,
+    pub latency_ms: i64,
 }
 
 #[derive(Clone, Debug)]
@@ -64,10 +75,22 @@ pub struct ExecuteReport {
     pub elapsed_ms: i64,
 }
 
+/// Pure: blended cost of a request given its usage and the model price.
+pub fn cost_of(usage: Option<Usage>, price: Option<ModelPrice>) -> f64 {
+    match (usage, price) {
+        (Some(u), Some(p)) => {
+            (u.prompt_tokens as f64 / 1_000_000.0) * p.input_per_1m
+                + (u.completion_tokens as f64 / 1_000_000.0) * p.output_per_1m
+        }
+        _ => 0.0,
+    }
+}
+
 /// Drive `steps` through the orchestrator. Never panics; failures are recorded
-/// in `report.halted`.
+/// in `report.halted`. `price_of` resolves a model id to its token price (or
+/// `None` when unknown → cost 0).
 #[allow(clippy::too_many_arguments)]
-pub async fn execute_steps<C: ProviderClient>(
+pub async fn execute_steps<C: ProviderClient, P: Fn(&str) -> Option<ModelPrice>>(
     client: &C,
     deployments: &[Deployment],
     routing: RoutingConfig,
@@ -77,6 +100,7 @@ pub async fn execute_steps<C: ProviderClient>(
     system_prompt: &str,
     cfg: &ExecuteConfig,
     cancel: &AtomicBool,
+    price_of: P,
 ) -> ExecuteReport {
     let started = std::time::Instant::now();
     let mut ctx = TickContext::new(ExecutionMode::HumanInLoop);
@@ -112,6 +136,7 @@ pub async fn execute_steps<C: ProviderClient>(
             max_tokens: None,
         };
 
+        let step_started = std::time::Instant::now();
         match call_with_cascade(
             client,
             routing.clone(),
@@ -123,21 +148,28 @@ pub async fn execute_steps<C: ProviderClient>(
         .await
         {
             Ok(outcome) => {
+                let latency_ms = step_started.elapsed().as_millis() as i64;
+                let usage = outcome.response.usage;
+                let cost = cost_of(usage, price_of(&step.model_id));
                 outcomes.push(StepOutcome {
                     step_id: step.id.clone(),
+                    model_id: step.model_id.clone(),
                     deployment_id: outcome.deployment_id.clone(),
                     content: outcome.response.content.clone(),
                     attempts: outcome.attempts,
+                    usage,
+                    cost_usd: cost,
+                    latency_ms,
                 });
-                // Feed the supervisor so the budget tally advances and a cap can
-                // trip (`HaltSession`).
+                // Feed the supervisor so the budget tally (iterations + cost)
+                // advances and a cap can trip (`HaltSession`).
                 let out = tick(
                     &mut ctx,
                     state,
                     SupervisorEvent::ToolCall {
                         tool: "model".into(),
                         input_hash: format!("{}:{}", step.id, outcome.deployment_id),
-                        cost_usd: 0.0,
+                        cost_usd: cost,
                         ts: chrono::Utc::now().to_rfc3339(),
                     },
                 );
@@ -170,7 +202,7 @@ pub async fn execute_steps<C: ProviderClient>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::orchestrator::client::{ChatResponse, ClientResult};
+    use crate::orchestrator::client::{ChatResponse, ClientError, ClientResult};
     use std::sync::Mutex;
 
     struct Scripted {
@@ -224,6 +256,10 @@ mod tests {
         ]
     }
 
+    fn no_price(_: &str) -> Option<ModelPrice> {
+        None
+    }
+
     #[tokio::test]
     async fn executes_all_steps_when_they_succeed() {
         let deployments = vec![dep("m1", "d1"), dep("m2", "d2")];
@@ -238,6 +274,7 @@ mod tests {
             "sys",
             &ExecuteConfig::default(),
             &AtomicBool::new(false),
+            no_price,
         )
         .await;
         assert_eq!(report.outcomes.len(), 2);
@@ -250,7 +287,6 @@ mod tests {
     async fn halts_when_cancelled() {
         let deployments = vec![dep("m1", "d1")];
         let client = Scripted::new(vec![Ok(ok("a"))]);
-        let cancel = AtomicBool::new(true);
         let report = execute_steps(
             &client,
             &deployments,
@@ -260,7 +296,8 @@ mod tests {
             &steps(),
             "sys",
             &ExecuteConfig::default(),
-            &cancel,
+            &AtomicBool::new(true),
+            no_price,
         )
         .await;
         assert!(report.outcomes.is_empty());
@@ -291,6 +328,7 @@ mod tests {
             "sys",
             &cfg,
             &AtomicBool::new(false),
+            no_price,
         )
         .await;
         assert_eq!(
@@ -305,9 +343,7 @@ mod tests {
     #[tokio::test]
     async fn halts_when_a_step_fails() {
         let deployments = vec![dep("m1", "d1")];
-        let client = Scripted::new(vec![Err(crate::orchestrator::client::ClientError::Http(
-            "boom".into(),
-        ))]);
+        let client = Scripted::new(vec![Err(ClientError::Http("boom".into()))]);
         let report = execute_steps(
             &client,
             &deployments,
@@ -318,9 +354,65 @@ mod tests {
             "sys",
             &ExecuteConfig::default(),
             &AtomicBool::new(false),
+            no_price,
         )
         .await;
         assert!(report.halted.is_some());
         assert!(report.outcomes.is_empty());
+    }
+
+    #[tokio::test]
+    async fn computes_cost_from_usage_and_price() {
+        let deployments = vec![dep("m1", "d1")];
+        let client = Scripted::new(vec![Ok(ChatResponse {
+            model: "m1".into(),
+            content: "x".into(),
+            usage: Some(Usage {
+                prompt_tokens: 1_000_000,
+                completion_tokens: 500_000,
+            }),
+        })]);
+        let price = |_: &str| {
+            Some(ModelPrice {
+                input_per_1m: 3.0,
+                output_per_1m: 15.0,
+            })
+        };
+        let report = execute_steps(
+            &client,
+            &deployments,
+            RoutingConfig::default(),
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+            &steps()[..1],
+            "sys",
+            &ExecuteConfig::default(),
+            &AtomicBool::new(false),
+            price,
+        )
+        .await;
+        // 1M in * 3 + 0.5M out * 15 = 3 + 7.5 = 10.5
+        assert!((report.outcomes[0].cost_usd - 10.5).abs() < 1e-9);
+        assert!((report.tally.cost_usd - 10.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn cost_of_handles_missing_inputs() {
+        let p = Some(ModelPrice {
+            input_per_1m: 1.0,
+            output_per_1m: 1.0,
+        });
+        assert_eq!(cost_of(None, p), 0.0);
+        assert_eq!(cost_of(None, None), 0.0);
+        assert_eq!(
+            cost_of(
+                Some(Usage {
+                    prompt_tokens: 2_000_000,
+                    completion_tokens: 0
+                }),
+                None
+            ),
+            0.0
+        );
     }
 }

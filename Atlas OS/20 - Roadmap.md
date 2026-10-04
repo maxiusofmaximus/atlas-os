@@ -454,7 +454,7 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
   [--min-samples] [--min-pass-rate] [--allow-unknown|--strict] [--enable|--disable]`;
   HUD `GET /hud/reliability`. 2 tests. **Fase 24 CERRADA.**
 
-## Fase 25 — Orchestrator execution loop (plan: research/54)
+## Fase 25 — Orchestrator execution loop (COMPLETA, sub-fases v25.0 → v25.3; plan: research/54)
 
 - **Decisión 2026-10-03:** A antes que B (research/53). `atlas run` es un pase Phase-1;
   sin caller de `Cascade`/`Router`/`CostGuard`; sin cliente HTTP de provider. A activa el
@@ -467,8 +467,10 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - **v25.2 COMPLETA:** `orchestrator/execute.rs` (`execute_steps`: supervisor `ToolCall` +
   `BudgetCaps` + cancelación `AtomicBool`) + CLI `atlas execute <mission> [--max-attempts]`.
   4 tests con mock. **El routing/cascade se ejecuta en un loop real por primera vez.**
-- **Pendiente:** v25.3 (journal `model_invocations` + bus + cancel por señal + cost guard
-  con precios + observabilidad HUD).
+- **v25.3 COMPLETA:** coste real desde precios (`cost_of`/`ModelPrice` → `BudgetCaps.max_cost_usd`
+  operativo); journal `model_invocations` + bus `AgentTokens` por paso; cancelación por
+  Ctrl-C (`tokio::signal`). 2 tests. **Fase 25 CERRADA** — el routing/cascade/coste corren en
+  un loop real, que es lo que hacía falta para que un benchmark externo mida el harness real.
 - **v3.1.3 CLI surface COMPLETA:** `atlas calendar feed` + `atlas calendar busy list/count/add/rm` (envoltorios `Journal::busy_window_*` en `journal/calendar_ops.rs`).
 - **v3.1.1 Graph READ COMPLETA (verificada end-to-end):** OAuth auth-code + PKCE con loopback (`calendar/auth.rs`), `me/calendarView` → `graph` busy windows (`calendar/graph_reader.rs`), CLI `atlas calendar login/sync/status` (`calendar-graph`). Smoke real: 2 eventos persistidos; 1125 tests lib verdes. App Azure `client_id=a271f4c7-…`, authority `common`, `Calendars.Read` consentido.
 - **v3.1.4 ICS subscription READ COMPLETA:** `atlas calendar sync-ics <url>` (`calendar/ics_reader.rs`, feature `calendar-ics`) con parser `icalendar 0.17` (write-only `ics` descartado para leer; decisión en `22 §15`); busy windows `source=ics_local`. 3 tests + smoke con ICS público (317 windows).
