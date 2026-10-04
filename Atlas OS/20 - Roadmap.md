@@ -488,8 +488,9 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
   `parse_diff_json(content, meta) -> Result<Diff, DiffParseError>` (tolerante a fences/prosa,
   normaliza `\`→`/`, clampa `old_end`, rechaza vacío/sin JSON/inválido/sin files/sin hunks);
   golden task `coding.llm_diff_codec`. 11 tests.
-- **Pendiente:** v26.1 (request + parse por step), v26.2 (wiring Validation/Repair + eventos
-  supervisor), v26.3 (CLI/HUD + cierre).
+- **v26.1 COMPLETA:** `orchestrator/code.rs` — `call_diff_with_cascade` (routing + failover →
+  parse `Diff` con `parse_diff_json`) + `StepDiffOutcome`/`StepDiffError`. 3 tests con mock.
+- **Pendiente:** v26.2 (wiring Validation/Repair + eventos supervisor), v26.3 (CLI/HUD + cierre).
 
 ## Out of scope v2
 - iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).

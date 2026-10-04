@@ -46,7 +46,8 @@ Todos los motores ya existen y son **puros**:
   fences/prosa; normaliza `\`→`/`; clampa `old_end`; rechaza vacío / sin JSON / JSON inválido /
   sin files / file sin hunks. Golden task `coding.llm_diff_codec`. 11 tests.
 - **v26.1** — `orchestrator`: pedir el `Diff` al modelo por step (`ChatRequest` con
-  `DIFF_CONTRACT_PROMPT` en el system message) y parsear con `parse_diff_json`; tests con mock.
+  `DIFF_CONTRACT_PROMPT` en el system message) y parsear con `parse_diff_json`. **COMPLETA** —
+  `orchestrator/code.rs::call_diff_with_cascade` + `StepDiffOutcome`/`StepDiffError`; 3 tests con mock.
 - **v26.2** — wiring del `Diff` por el loop puro: `validation::runner::run` + (en Fail/Critical)
   `repair::runner::run`, alimentando los eventos del supervisor; workspace inyectado (sin FS).
 - **v26.3** — CLI/HUD: pill de step; `atlas execute` reporta diff/validación/repair; cierre.

@@ -23,6 +23,7 @@ pub mod call;
 pub mod cascade;
 pub mod classifier;
 pub mod client;
+pub mod code;
 pub mod cooldown;
 pub mod cost_guard;
 pub mod data_parts;
@@ -60,6 +61,7 @@ pub use client::{
     build_chat_body, chat_endpoint, parse_chat_response, ChatMessage, ChatRequest, ChatResponse,
     ClientError, HttpProviderClient, ProviderClient, Usage,
 };
+pub use code::{call_diff_with_cascade, StepDiffError, StepDiffOutcome};
 pub use cooldown::{CooldownConfig, CooldownOrigin, CooldownOutcome, RetryAfterSource};
 pub use cost_guard::{
     AggregationCostBreakdown, AggregationCostContext, AggregationPolicy, CouncilCostGuard,
