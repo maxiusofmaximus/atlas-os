@@ -41,14 +41,15 @@ class AtlasAgent(BaseInstalledAgent):
         prompt = shlex.quote(instruction)
         # 1) force-lock the mission (offline heuristic planner; `--force` overrides
         #    the auto-lock confidence threshold so the pipeline never stalls),
-        # 2) generate the Plan, 3) drive it through the orchestrator loop.
+        # 2) generate the Plan, 3) drive it through the orchestrator's real coding
+        #    loop (structured Diff → Validation → Repair → apply to the workspace).
         # `&&` makes any failing stage fail the trial.
         command = (
             "ID=$(atlas --profile harbor mission new --force "
             + prompt
             + " | awk '/^mission /{print $2; exit}') && "
             'atlas --profile harbor plan "$ID" && '
-            'atlas --profile harbor execute "$ID"'
+            'atlas --profile harbor execute --coding --apply --root . "$ID"'
         )
         await self.exec_as_agent(environment, command=command)
 

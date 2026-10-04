@@ -1,5 +1,8 @@
 # Harbor adapter (Atlas OS EVAL.3 / Fase 25)
 
+> **Paso a paso completo:** [`RUNBOOK.md`](./RUNBOOK.md) (Docker/WSL → Harbor → ingestión).
+> Este README es la referencia corta; el runbook es el procedimiento operativo.
+
 Dev-only integration to run **Atlas OS as an agent under [Harbor](https://github.com/harbor-framework/harbor)**
 (Harbor is the official harness for **Terminal-Bench 2.0**; it also drives
 SWE-bench Verified, Aider Polyglot, etc.).
