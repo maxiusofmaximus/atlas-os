@@ -69,6 +69,7 @@ pub async fn serve(state: Arc<AppState>, shutdown: CancellationToken) {
         .route("/tail/skills", get(super::tail::tail_skills))
         .route("/tail/model_swaps", get(super::tail::tail_model_swaps))
         .route("/tail/step_states", get(super::tail::tail_step_states))
+        .route("/tail/agent_steps", get(super::tail::tail_agent_steps))
         // Phase 6 (research 33 SECTOR B 6.1) — full journal inspection
         // view (RFC 19 §10): complete payloads plus limit/offset
         // pagination and an optional kind filter. The `/tail/*` routes

@@ -191,7 +191,8 @@ export type TailKind =
   | 'checkpoints'
   | 'skills'
   | 'model_swaps'
-  | 'step_states';
+  | 'step_states'
+  | 'agent_steps';
 
 /**
  * Fetch a tail. `hudUrl` is the HTTP root URL (no `/tail/` segment).
@@ -922,4 +923,84 @@ export function monitorPressureOf(snap: HardwareSnapshotPayload): {
       : 'ok';
   const cost = classifyMonitorPressure(snap.cost_usd, MONITOR_COST_WARN_USD, MONITOR_COST_CRIT_USD);
   return { ram, vram, cost };
+}
+
+// ═══════════ RFC 63 §7/§9 + RFC 65 §3 — AgentCard (capability layer) ═══════════
+//
+// The Rust agent loop emits `BusEventKind::AgentStep` per turn (tag
+// `agent_step`); the store folds the WS tail into one run's step timeline so
+// `<AgentCard>` renders steps / tool calls / evidence / tokens live. Mirrors
+// `crate::core::bus::BusEventKind::AgentStep` (serde renames run_id, etc.).
+
+export type AgentStepAction = 'run_command' | 'done' | 'invalid';
+export type AgentStepVerdict = 'pass' | 'fail' | 'unknown';
+
+export interface AgentStepPayload {
+  run_id: string;
+  step: number;
+  action: string;
+  observation: string | null;
+  verdict: string | null;
+  tokens_in: number;
+  tokens_out: number;
+  cost_usd: number;
+}
+
+export const AGENT_STEP_KIND = 'agent_step';
+
+/** Last `agent_step` run in the WS tail, or `null` when none arrived yet. */
+export function agentRunId(events: HudEvent[]): string | null {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const evt = events[i];
+    if (!evt || evt.kind !== AGENT_STEP_KIND) continue;
+    const p = evt.payload as AgentStepPayload | null;
+    if (p?.run_id) return p.run_id;
+  }
+  return null;
+}
+
+/** All steps for `runId`, in broadcast order (the live timeline). */
+export function projectAgentSteps(events: HudEvent[], runId: string): AgentStepPayload[] {
+  const out: AgentStepPayload[] = [];
+  for (const evt of events) {
+    if (evt.kind !== AGENT_STEP_KIND) continue;
+    const p = evt.payload as AgentStepPayload | null;
+    if (p?.run_id === runId && typeof p.step === 'number') {
+      out.push(p);
+    }
+  }
+  return out;
+}
+
+/** Colour token for a step's action/verdict pill. */
+export function agentStepColor(action: string, verdict: string | null): string {
+  if (verdict === 'fail') return 'red';
+  if (verdict === 'pass') return 'green';
+  if (verdict === 'unknown') return 'amber';
+  switch (action) {
+    case 'done':
+      return 'green';
+    case 'run_command':
+      return 'blue';
+    case 'invalid':
+      return 'red';
+    default:
+      return 'grey';
+  }
+}
+
+/** Aggregate tokens for a run's step list. */
+export function agentRunTotals(steps: AgentStepPayload[]): {
+  tokens_in: number;
+  tokens_out: number;
+  cost_usd: number;
+} {
+  return steps.reduce(
+    (acc, s) => ({
+      tokens_in: acc.tokens_in + (s.tokens_in ?? 0),
+      tokens_out: acc.tokens_out + (s.tokens_out ?? 0),
+      cost_usd: acc.cost_usd + (s.cost_usd ?? 0),
+    }),
+    { tokens_in: 0, tokens_out: 0, cost_usd: 0 },
+  );
 }

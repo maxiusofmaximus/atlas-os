@@ -21,8 +21,8 @@ use serde_json::Value;
 
 use crate::core::state::AppState;
 use crate::journal::{
-    CheckpointRow, ConsolidatedRow, DiffRow, Mission, ModelSwapRow, PatternRow, PlanRow,
-    RepairRunRow, SkillRow, StepStateRow, ValidationReportRow, VerdictRow,
+    AgentStepRow, CheckpointRow, ConsolidatedRow, DiffRow, Mission, ModelSwapRow, PatternRow,
+    PlanRow, RepairRunRow, SkillRow, StepStateRow, ValidationReportRow, VerdictRow,
 };
 
 /// Default and maximum number of rows returned by any tail route.
@@ -136,6 +136,11 @@ impl TailRow for StepStateRow {
         j.step_state_tail(n)
     }
 }
+impl TailRow for AgentStepRow {
+    fn fetch(j: &crate::journal::Journal, n: i64) -> anyhow::Result<Vec<Self>> {
+        j.agent_step_tail(n)
+    }
+}
 
 // ── public route wrappers (kept thin so `hud/server.rs` keeps its
 // existing imports; the route registration table is unchanged). ─────
@@ -181,6 +186,9 @@ pub async fn tail_model_swaps(state: State<Arc<AppState>>, q: Query<TailQuery>) 
 }
 pub async fn tail_step_states(state: State<Arc<AppState>>, q: Query<TailQuery>) -> TailResult {
     tail_of::<StepStateRow>(state, q).await
+}
+pub async fn tail_agent_steps(state: State<Arc<AppState>>, q: Query<TailQuery>) -> TailResult {
+    tail_of::<AgentStepRow>(state, q).await
 }
 
 // `tail_journal` and `tail_missions` keep dedicated handlers — the

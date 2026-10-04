@@ -6,7 +6,18 @@
 // Control tail boxes hit the right axum route.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { get } from 'svelte/store';
-import { hud, toWsUrl, fetchTail, fetchAnnotations, postAnnotation, type TailKind } from './hud';
+import {
+  hud,
+  toWsUrl,
+  fetchTail,
+  fetchAnnotations,
+  postAnnotation,
+  agentRunId,
+  projectAgentSteps,
+  agentStepColor,
+  agentRunTotals,
+  type TailKind,
+} from './hud';
 
 describe('hud store', () => {
   it('starts disconnected', () => {
@@ -904,5 +915,51 @@ describe('hardware monitor (RFC 20 Phase 8.2)', () => {
     expect(levels.ram).toBe('critical');
     expect(levels.vram).toBe('ok');
     expect(levels.cost).toBe('critical');
+  });
+});
+
+describe('RFC 63/65 — AgentCard projections', () => {
+  const evt = (id: number, kind: string, payload: unknown) => ({
+    id: `e${id}`,
+    ts: '2026-01-01T00:00:00Z',
+    kind,
+    payload,
+  });
+
+  it('agentRunId picks the most recent run_id', () => {
+    const events = [
+      evt(1, 'agent_step', { run_id: 'ar_a', step: 0 }),
+      evt(2, 'agent_step', { run_id: 'ar_b', step: 0 }),
+    ];
+    expect(agentRunId(events)).toBe('ar_b');
+  });
+
+  it('projectAgentSteps keeps only the run and preserves order', () => {
+    const events = [
+      evt(1, 'agent_step', { run_id: 'ar_a', step: 0, action: 'run_command' }),
+      evt(2, 'agent_step', { run_id: 'ar_b', step: 0, action: 'run_command' }),
+      evt(3, 'agent_step', { run_id: 'ar_a', step: 1, action: 'done', verdict: 'pass' }),
+    ];
+    const steps = projectAgentSteps(events, 'ar_a');
+    expect(steps.map((s) => s.step)).toEqual([0, 1]);
+    expect(steps[1]?.verdict).toBe('pass');
+  });
+
+  it('agentStepColor orders verdict over action', () => {
+    expect(agentStepColor('done', 'fail')).toBe('red');
+    expect(agentStepColor('done', 'pass')).toBe('green');
+    expect(agentStepColor('run_command', null)).toBe('blue');
+    expect(agentStepColor('invalid', null)).toBe('red');
+  });
+
+  it('agentRunTotals sums tokens and cost', () => {
+    const steps = [
+      { run_id: 'ar_a', step: 0, action: 'run_command', observation: null, verdict: null, tokens_in: 10, tokens_out: 5, cost_usd: 0.01 },
+      { run_id: 'ar_a', step: 1, action: 'done', observation: null, verdict: 'pass', tokens_in: 20, tokens_out: 8, cost_usd: 0.02 },
+    ];
+    const t = agentRunTotals(steps);
+    expect(t.tokens_in).toBe(30);
+    expect(t.tokens_out).toBe(13);
+    expect(t.cost_usd).toBeCloseTo(0.03);
   });
 });

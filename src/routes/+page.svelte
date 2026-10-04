@@ -22,6 +22,7 @@
     type SwarmMessagePayload,
   } from '$stores/hud';
   import AutoresearchCard from '$lib/components/AutoresearchCard.svelte';
+  import AgentCard from '$lib/components/AgentCard.svelte';
   import AvailabilityCard from '$lib/components/AvailabilityCard.svelte';
   import EvalCard from '$lib/components/EvalCard.svelte';
   import SwarmConsole from '$lib/components/SwarmConsole.svelte';
@@ -412,6 +413,15 @@
       runs (<code>atlas eval run golden</code>, <code>atlas eval import &lt;job-dir&gt;</code>).
     </p>
     <EvalCard hudUrl={data.hudUrl ?? null} />
+  </section>
+
+  <section class="agent">
+    <h2>Agent (live)</h2>
+    <p class="hint">
+      RFC 63 §9 / RFC 65 §3. Step timeline of the capability layer, streamed via the Kernel Bus
+      <code>agent_step</code> event (<code>atlas agent "&lt;task&gt;" --verify</code>).
+    </p>
+    <AgentCard hudUrl={data.hudUrl ?? null} />
   </section>
 
   <section class="journal">

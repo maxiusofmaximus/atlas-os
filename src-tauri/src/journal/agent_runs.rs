@@ -209,22 +209,36 @@ impl Journal {
                     tokens_in, tokens_out, cost_usd, ts
              FROM agent_steps WHERE run_id = ?1 ORDER BY step ASC",
         )?;
-        let rows = stmt.query_map([run_id], |r| {
-            Ok(AgentStepRow {
-                id: r.get(0)?,
-                run_id: r.get(1)?,
-                step: r.get(2)?,
-                thought: r.get(3)?,
-                action: r.get(4)?,
-                observation: r.get(5)?,
-                evidence_json: r.get(6)?,
-                verdict: r.get(7)?,
-                tokens_in: r.get(8)?,
-                tokens_out: r.get(9)?,
-                cost_usd: r.get(10)?,
-                ts: r.get(11)?,
-            })
-        })?;
+        let rows = stmt.query_map([run_id], Self::map_agent_step)?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    }
+
+    fn map_agent_step(r: &rusqlite::Row<'_>) -> rusqlite::Result<AgentStepRow> {
+        Ok(AgentStepRow {
+            id: r.get(0)?,
+            run_id: r.get(1)?,
+            step: r.get(2)?,
+            thought: r.get(3)?,
+            action: r.get(4)?,
+            observation: r.get(5)?,
+            evidence_json: r.get(6)?,
+            verdict: r.get(7)?,
+            tokens_in: r.get(8)?,
+            tokens_out: r.get(9)?,
+            cost_usd: r.get(10)?,
+            ts: r.get(11)?,
+        })
+    }
+
+    /// Newest-N steps across ALL runs (RFC 63 §9 / HUD `/tail/agent_steps`).
+    pub fn agent_step_tail(&self, last: i64) -> anyhow::Result<Vec<AgentStepRow>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT id, run_id, step, thought, action, observation, evidence_json, verdict,
+                    tokens_in, tokens_out, cost_usd, ts
+             FROM agent_steps ORDER BY ts DESC, step DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map([last], Self::map_agent_step)?;
         Ok(rows.collect::<Result<Vec<_>, _>>()?)
     }
 
@@ -439,5 +453,33 @@ mod tests {
             .map(|r| r.id)
             .collect();
         assert_eq!(ids, vec!["b", "c", "a"]);
+    }
+
+    #[test]
+    fn agent_step_tail_spans_runs_newest_first() {
+        let j = open();
+        j.create_agent_run(&run("r1")).unwrap();
+        j.create_agent_run(&run("r2")).unwrap();
+        for (id, run_id, step, ts) in [("a", "r1", 0, 1), ("b", "r2", 0, 5), ("c", "r2", 1, 6)] {
+            j.record_agent_step(&AgentStepRow {
+                id: id.into(),
+                run_id: run_id.into(),
+                step,
+                thought: None,
+                action: Some("run_command".into()),
+                observation: None,
+                evidence_json: None,
+                verdict: None,
+                tokens_in: 0,
+                tokens_out: 0,
+                cost_usd: 0.0,
+                ts,
+            })
+            .unwrap();
+        }
+        let tail = j.agent_step_tail(10).unwrap();
+        // newest ts first (c=6), and it spans both runs.
+        assert_eq!(tail[0].id, "c");
+        assert_eq!(tail.iter().filter(|s| s.run_id == "r2").count(), 2);
     }
 }
