@@ -20,6 +20,7 @@ use crate::supervisor::types::{
     BudgetCaps, BudgetTally, ExecutionMode, MissionPhase, SupervisorAction, SupervisorEvent,
     SupervisorState,
 };
+use crate::swarm::merge::{merge_diffs, MergeOutcome};
 
 use crate::coding::llm::DiffMeta;
 use crate::coding::types::Diff;
@@ -330,6 +331,29 @@ pub async fn execute_coding_step_denied<C: ProviderClient, P: Fn(&str) -> Option
     })
 }
 
+/// Shard `steps` across `n_agents` buckets (round-robin), so a pool swarm can
+/// run them concurrently (RFC 05 §5, Fase 37). `n_agents` is clamped to at least
+/// 1 and at most `steps.len()`; empty input yields no buckets.
+pub fn plan_steps(steps: &[ExecuteStep], n_agents: usize) -> Vec<Vec<ExecuteStep>> {
+    if steps.is_empty() {
+        return Vec::new();
+    }
+    let n = n_agents.clamp(1, steps.len());
+    let mut buckets: Vec<Vec<ExecuteStep>> = vec![Vec::new(); n];
+    for (i, step) in steps.iter().enumerate() {
+        buckets[i % n].push(step.clone());
+    }
+    buckets
+}
+
+/// Compose N per-agent coding diff outcomes into ONE merged diff via the Swarm
+/// Merger (RFC 05 §4). Pure with respect to the merge; the caller has already
+/// routed/validated each agent's diff.
+pub fn merge_coding_diffs(outcomes: &[CodingStepOutcome]) -> MergeOutcome {
+    let diffs: Vec<Diff> = outcomes.iter().map(|o| o.diff.clone()).collect();
+    merge_diffs(&diffs)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -606,5 +630,35 @@ mod tests {
         .await
         .unwrap_err();
         assert!(matches!(err, StepDiffError::Parse(_)), "got {err:?}");
+    }
+
+    #[test]
+    fn plan_steps_round_robins_and_clamps() {
+        let steps = vec![
+            ExecuteStep {
+                id: "s1".into(),
+                model_id: "m".into(),
+                statement: "a".into(),
+            },
+            ExecuteStep {
+                id: "s2".into(),
+                model_id: "m".into(),
+                statement: "b".into(),
+            },
+            ExecuteStep {
+                id: "s3".into(),
+                model_id: "m".into(),
+                statement: "c".into(),
+            },
+        ];
+        let two = plan_steps(&steps, 2);
+        assert_eq!(two.len(), 2);
+        assert_eq!(two[0].len(), 2);
+        assert_eq!(two[1].len(), 1);
+        assert_eq!(two[0][0].id, "s1");
+        assert_eq!(two[1][0].id, "s2");
+        assert_eq!(plan_steps(&steps, 99).len(), 3, "clamped to step count");
+        assert_eq!(plan_steps(&steps, 0).len(), 1, "at least one bucket");
+        assert!(plan_steps(&[], 3).is_empty());
     }
 }

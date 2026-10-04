@@ -62,6 +62,7 @@
 | 56 §4 | F34 ✅ — `atlas execute --coding` persiste `model_invocations` por `Diff` (tokens/coste/`was_correct`/`route_taken_json` con la decisión del gate) + `AgentTokens`. |
 | 57 | research/57 — Fase 35: aplicar el `Diff` al workspace. Kernel puro `coding/apply.rs` + `atlas execute --coding --apply [--root]` (checkpoint → aplica → escribe). v35.0 ✅ 9 tests. |
 | 58 | research/58 — Fase 36: research evidence en el coding loop. `ResearchContext` + `cites` por índice → refs reales en el `Diff`; prompt pide test. v36.0 ✅ 2 tests. |
+| 59 | research/59 — Fase 37: swarm merger de `Diff`s + sharding. Kernel puro `swarm/merge.rs::merge_diffs` (orden determinista, conflicto = mismo rango) + `plan_steps`/`merge_coding_diffs`. v37.0 ✅ 5 tests. |
 
 **Total: 33 RFCs, ~331 KB** de especificación.
 

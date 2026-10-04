@@ -540,5 +540,15 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
   El prompt pide además tocar/crear un test cuando cambia comportamiento. 2 tests.
   **F36 CERRADA** — un `Diff` con narrativa + test o refs pasa la EvidenceGate sin repair.
 
+## F37 — Swarm: merger de `Diff`s + sharding (COMPLETA; plan: research/59)
+
+- **Hallazgo:** el `SwarmRunner` YA tiene pool/roles/topología (`run_parallel`, `run_topology`,
+  5 fases), file locks y rebase post-merge. El gap: **no había Merger que componga N `Diff`s**
+  (RFC 05 §4) ni forma de repartir steps a varios agentes desde el coding loop.
+- **v37.0 COMPLETA:** kernel puro `swarm/merge.rs` — `merge_diffs(&[Diff]) -> MergeOutcome`
+  (orden determinista por `agent_id`; agrupa por path; **conflicto = mismo rango semiabierto**
+  → reportado, no resuelto en silencio); `orchestrator/execute.rs::plan_steps` (shard
+  round-robin clampeado) + `merge_coding_diffs`. 5 tests. **F37 CERRADA.**
+
 ## Out of scope v2
 - iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).
