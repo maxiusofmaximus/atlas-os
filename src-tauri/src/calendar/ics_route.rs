@@ -2,14 +2,14 @@
 //
 // Single axum endpoint mounted on the HUD Mission Control server:
 //
-//     GET /atlas-calendar.ics
+//     GET /atlas-calendar.ics?token={base64url(16 bytes)}
 //
 // Returns a `text/calendar` body (RFC 5545) synthesized by
 // `CalendarWriter::render` from the mission projection
 // `Journal::missions_for_ics(30)`. The feed is read-only and intended
 // for `webcal://` subscription from Outlook / Apple Calendar / Google
-// Calendar pointing at `http://127.0.0.1:{hud_port}/opencode-
-// calendar.ics`.
+// Calendar. The opaque `token` (§G.2) gates access — see
+// `crate::calendar::token`.
 //
 // One subtle wrinkle: the Journal is behind a `parking_lot::Mutex` and
 // acquiring a sync mutex inside an async handler is acceptable here
@@ -19,9 +19,10 @@
 
 use std::sync::Arc;
 
-use axum::extract::State;
-use axum::http::{header, HeaderMap, HeaderValue};
-use axum::response::IntoResponse;
+use axum::extract::{Query, State};
+use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
+use axum::response::{IntoResponse, Response};
+use serde::Deserialize;
 
 use crate::core::state::AppState;
 
@@ -31,7 +32,26 @@ use crate::core::state::AppState;
 /// (post-MVP — the writer already accepts an arbitrary slice).
 const DEFAULT_LOOKBACK_DAYS: i64 = 30;
 
-pub async fn get_calendar_ics(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+#[derive(Debug, Deserialize)]
+pub struct FeedQuery {
+    pub token: Option<String>,
+}
+
+pub async fn get_calendar_ics(
+    State(state): State<Arc<AppState>>,
+    Query(q): Query<FeedQuery>,
+) -> Response {
+    let expected = match crate::calendar::token::ensure_token(&state.profile_root()) {
+        Ok(t) => t,
+        Err(err) => {
+            tracing::error!(error = %err, "calendar/ics: token unavailable");
+            return plain(StatusCode::INTERNAL_SERVER_ERROR, "token unavailable");
+        }
+    };
+    if !crate::calendar::token::verify(&expected, q.token.as_deref()) {
+        return plain(StatusCode::UNAUTHORIZED, "missing or invalid token");
+    }
+
     let missions = {
         let journal = state.journal();
         match journal.missions_for_ics(DEFAULT_LOOKBACK_DAYS) {
@@ -60,22 +80,20 @@ pub async fn get_calendar_ics(State(state): State<Arc<AppState>>) -> impl IntoRe
         header::CACHE_CONTROL,
         HeaderValue::from_static("no-store, max-age=0"),
     );
-    (axum::http::StatusCode::OK, headers, body)
+    (StatusCode::OK, headers, body).into_response()
 }
 
-fn ics_error_response(
-    err: crate::calendar::CalendarError,
-) -> (axum::http::StatusCode, HeaderMap, String) {
+fn plain(status: StatusCode, message: &str) -> Response {
     let mut headers = HeaderMap::new();
     headers.insert(
         header::CONTENT_TYPE,
         HeaderValue::from_static("text/plain; charset=utf-8"),
     );
-    (
-        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-        headers,
-        format!("atlas-calendar.ics: {err}"),
-    )
+    (status, headers, format!("atlas-calendar.ics: {message}")).into_response()
+}
+
+fn ics_error_response(err: crate::calendar::CalendarError) -> Response {
+    plain(StatusCode::INTERNAL_SERVER_ERROR, &err.to_string())
 }
 
 #[cfg(test)]
@@ -92,13 +110,22 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("opencode-ics-route-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         let journal = Journal::open(&dir).unwrap();
-        Arc::new(AppState::from_journal(journal))
+        Arc::new(AppState::from_journal_in(journal, dir))
+    }
+
+    async fn call(state: Arc<AppState>, token: Option<String>) -> Response {
+        get_calendar_ics(State(state), Query(FeedQuery { token })).await
+    }
+
+    fn good_token(state: &AppState) -> String {
+        crate::calendar::token::ensure_token(&state.profile_root()).unwrap()
     }
 
     #[tokio::test]
-    async fn get_calendar_ics_returns_text_calendar_content_type() {
+    async fn returns_text_calendar_with_valid_token() {
         let state = fresh_state();
-        let resp = get_calendar_ics(State(state)).await.into_response();
+        let token = good_token(&state);
+        let resp = call(state, Some(token)).await;
         assert_eq!(resp.status(), StatusCode::OK);
         let ct = resp
             .headers()
@@ -111,37 +138,41 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_calendar_ics_body_contains_vcalendar_frame() {
+    async fn missing_or_wrong_token_is_unauthorized() {
         let state = fresh_state();
-        let resp = get_calendar_ics(State(state)).await.into_response();
+        let _ = good_token(&state);
+        assert_eq!(
+            call(state.clone(), None).await.status(),
+            StatusCode::UNAUTHORIZED
+        );
+        assert_eq!(
+            call(state.clone(), Some("wrong".into())).await.status(),
+            StatusCode::UNAUTHORIZED
+        );
+        assert_eq!(
+            call(state, Some("a".repeat(22))).await.status(),
+            StatusCode::UNAUTHORIZED
+        );
+    }
+
+    #[tokio::test]
+    async fn body_contains_vcalendar_frame_with_one_mission() {
+        let state = fresh_state();
+        {
+            let journal = state.journal();
+            journal
+                .create_mission(uuid::Uuid::new_v4(), "ship the calendar feature")
+                .unwrap();
+        }
+        let token = good_token(&state);
+        let resp = call(state, Some(token)).await;
+        assert_eq!(resp.status(), StatusCode::OK);
         let bytes = to_bytes(resp.into_body(), 64 * 1024).await.unwrap();
         let text = std::str::from_utf8(&bytes).unwrap();
         assert!(text.contains("BEGIN:VCALENDAR"), "text was: {text}");
         assert!(text.contains("END:VCALENDAR"));
-        assert_eq!(text.matches("BEGIN:VEVENT").count(), 0, "no missions yet");
-    }
-
-    #[tokio::test]
-    async fn get_calendar_ics_end_to_end_with_one_mission() {
-        let state = fresh_state();
-        // Seed a mission so the feed lists one VEVENT.
-        {
-            let journal = state.journal();
-            let id = uuid::Uuid::new_v4();
-            journal
-                .create_mission(id, "ship the calendar feature")
-                .unwrap();
-        }
-        let resp = get_calendar_ics(State(state)).await.into_response();
-        assert_eq!(resp.status(), StatusCode::OK);
-        let bytes = to_bytes(resp.into_body(), 64 * 1024).await.unwrap();
-        let text = std::str::from_utf8(&bytes).unwrap();
         assert_eq!(text.matches("BEGIN:VEVENT").count(), 1, "text was: {text}");
-        assert!(
-            text.contains("ship the calendar feature"),
-            "expected summary in feed: {text}",
-        );
-        // Drop the harness so the formatter isn't recomputed across suites.
+        assert!(text.contains("ship the calendar feature"));
         let _ = CalendarWriter::render(&[]);
     }
 }

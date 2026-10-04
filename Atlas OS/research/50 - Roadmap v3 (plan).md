@@ -32,7 +32,7 @@ candidatos: **D — Windows Calendar real**. Phase 13 (Laya) queda como
 - **Gap real (revisado):** `calendar/auth.rs` y `calendar/graph_reader.rs` son
   **placeholders** (feature `calendar-graph`: compilan vacíos, sin lógica),
   `AppState.context_busy_windows` **no existe**, no hay CLI `atlas calendar`, y
-  el endpoint `.ics` **no** valida todavía el token opaco del §G.2.
+  el endpoint `.ics` **valida** el token opaco del §G.2 (implementado 2026-10-03, `calendar/token.rs`).
 
 ### A.3 Descarte de candidatos (evidencia)
 - **A (Axum 0.8):** higiene de deps; 25 rutas en `hud/server.rs`; sin feature
@@ -48,9 +48,10 @@ candidatos: **D — Windows Calendar real**. Phase 13 (Laya) queda como
 ### Sub-fase v3.1.0 — ICS WRITE (✅ YA IMPLEMENTADO)
 
 - `calendar/ics_writer.rs` + `calendar/ics_route.rs` + ruta `hud/server.rs:115`.
-- Pendiente menor: token opaco `?token=base64url(16 random bytes)` del RFC 28
-  §G.2 (hoy la ruta no valida query token). Tests del feed ya verdes (42 con
-  `--features calendar-ics`).
+- **Token opaco ✅** (2026-10-03): `calendar/token.rs` genera `base64url(16 bytes)`
+  (vía `Uuid::as_bytes`, sin crate nueva), lo persiste en
+  `<root>/calendar_ics_token.txt` y la ruta exige `?token=…` (401 si falta o es
+  erróneo); `atlas calendar feed` emite la URL con `?token=`. 4 tests.
 
 ### Sub-fase v3.1.1 — Graph READ (implementar desde los stubs)
 
@@ -86,7 +87,7 @@ Outlook/Apple/Google; ningún turn proactivo se encola dentro de una busy window
 ## SECTOR D — Siguiente paso operativo
 
 1. Commit de este plan + RFC 49 + Index 26 + README.
-2. v3.1.0 ya está implementado: sólo falta el token opaco del §G.2 (commit pequeño).
+2. v3.1.0 **COMPLETO** (token opaco §G.2 ✅ `calendar/token.rs`).
 3. v3.1.1 (Graph) → v3.1.2 (Planning) → v3.1.3 (CLI), un commit por sub-fase.
 4. Phase 13 permanece en `research/49` hasta confirmar write-access/versión.
 

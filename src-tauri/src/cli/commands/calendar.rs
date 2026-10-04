@@ -127,7 +127,8 @@ pub async fn run(cmd: CalendarCmd, profile: &str) -> Result<()> {
     let root = crate::profiles::resolve_root(&pid)?;
     match cmd.action {
         CalendarAction::Feed => {
-            println!("{}", feed_url(read_hud_port(&root)));
+            let token = crate::calendar::token::ensure_token(&root)?;
+            println!("{}", feed_url(read_hud_port(&root), &token));
             Ok(())
         }
         CalendarAction::Busy { action } => {
@@ -216,13 +217,15 @@ fn read_hud_port(root: &Path) -> Option<u16> {
         .ok()
 }
 
-/// Pure URL builder so the shape is testable without a running HUD.
-pub fn feed_url(port: Option<u16>) -> String {
+/// Pure URL builder so the shape is testable without a running HUD. The
+/// opaque `token` (RFC 28 §G.2) gates the feed.
+pub fn feed_url(port: Option<u16>, token: &str) -> String {
     match port {
-        Some(p) => format!("webcal://127.0.0.1:{p}/atlas-calendar.ics"),
-        None => "start the HUD (`atlas hud`) to serve GET /atlas-calendar.ics; then \
-                 subscribe to webcal://127.0.0.1:<hud_port>/atlas-calendar.ics"
-            .to_string(),
+        Some(p) => format!("webcal://127.0.0.1:{p}/atlas-calendar.ics?token={token}"),
+        None => format!(
+            "start the HUD (`atlas hud`) to serve GET /atlas-calendar.ics; then \
+             subscribe to webcal://127.0.0.1:<hud_port>/atlas-calendar.ics?token={token}"
+        ),
     }
 }
 
@@ -521,12 +524,14 @@ mod tests {
     }
 
     #[test]
-    fn feed_url_uses_port_when_present() {
+    fn feed_url_uses_port_and_token() {
         assert_eq!(
-            feed_url(Some(8090)),
-            "webcal://127.0.0.1:8090/atlas-calendar.ics"
+            feed_url(Some(8090), "tok123"),
+            "webcal://127.0.0.1:8090/atlas-calendar.ics?token=tok123"
         );
-        assert!(feed_url(None).contains("atlas hud"));
+        let none = feed_url(None, "tok123");
+        assert!(none.contains("atlas hud"));
+        assert!(none.contains("token=tok123"));
     }
 
     #[test]

@@ -34,6 +34,7 @@
 pub mod error;
 pub mod payload;
 pub mod queue;
+pub mod token;
 
 #[cfg(feature = "calendar-ics")]
 pub mod ics_writer;
