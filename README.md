@@ -202,14 +202,27 @@ atlas eval metrics       # pass rate, tokens/solved, $/solved, failure-kind vect
   `supply.exact_known_passes`, `supply.typosquat_blocks`, `supply.install_script_blocks`,
   `supply.env_access_warns`, `calendar.overlap_half_open`.
 - **External baseline (Harbor):** Terminal-Bench 2.0. Docker vía WSL2 + Harbor 0.23, adapter
-  `tools/harbor_atlas/` conduciendo `mission new --force → plan → execute --coding --apply`.
-  Runbook verificado en `tools/harbor_atlas/RUNBOOK.md`. Ingesta: `atlas eval import jobs/<id>`.
-  - **Medido (2026-10-04):** Terminal-Bench 2, `AtlasAgent` × `moonshotai/kimi-k3` (NIM) →
-    **89/89 trials, pass_rate 0.000**, 4 excepciones (3× `NonZeroAgentExitCode`, 1× `AgentTimeout`).
-    El solver de referencia `oracle` da **mean ≈ 0.88** en el mismo harness, así que el
-    instrumento mide bien: el 0.000 es la **capacidad actual** de Atlas (aún no ejecuta
-    comandos de terminal ni verifica artefactos por sí mismo). Gap de observabilidad pendiente:
-    el `AgentContext` va sin tokens/coste (`populate_context_post_run` sin rellenar).
+  `tools/harbor_atlas/`. Runbook verificado en `tools/harbor_atlas/RUNBOOK.md`.
+  Ingesta: `atlas eval import jobs/<id>`.
+
+  | #   | Fecha      | Agente × modelo                                                     | Modo       | Trials | pass_rate         | coste  |
+  | --- | ---------- | ------------------------------------------------------------------- | ---------- | ------ | ----------------- | ------ |
+  | 1   | 2026-10-04 | `AtlasAgent` × `kimi-k3` (NIM, nube)                                | `--coding` | 89/89  | **0.000**         | API    |
+  | 2   | 2026-10-04 | `AtlasAgent` × `gpt-oss-120b` (Groq, nube)                          | `--agent`  | 11/11  | **0.000**         | API    |
+  | 3   | 2026-10-04 | `AtlasAgent` × `qwen3.8-flash-next-iq2_xs` (125B **local**, Strata) | `--agent`  | 89/89  | **>0** (2 tareas) | **$0** |
+  - **Control:** el solver de referencia `oracle` da **mean ≈ 0.88** en el mismo harness →
+    el instrumento mide bien; los ceros eran capacidad, no artefacto del andamio.
+  - **Corrida 1** (`--coding`): el loop editaba ficheros pero **no ejecutaba comandos** → 0.
+  - **Corrida 2** (`--agent`, nube): ejecuta comandos (F39) pero el modelo free-tier no
+    resuelve las tareas → 0.
+  - **Corrida 3** (`--agent`, **Qwen 125B local**): el modelo de frontera local rompe el
+    0.000 — resueltas `fix-git` y `prove-plus-comm`, a **coste $0** (inferencia local vía
+    Strata en `127.0.0.1:8080`, expuesta a los contenedores de Harbor por relay WSL).
+  - **Lectura:** la barrera no era Atlas ni la infra, era el **modelo**. Detalle y causas
+    raíz (GLIBC del binario, aislamiento del CLI de Tauri, relay de red) en `research/61`.
+  - **Gap de observabilidad pendiente:** el `AgentContext` va sin tokens/coste
+    (`populate_context_post_run` sin rellenar).
+
 - **CI gate:** `.github/workflows/eval-gate.yml` runs the golden suite with `--strict`
   (non-zero exit on regression) on every engine change.
 

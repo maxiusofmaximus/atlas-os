@@ -21,6 +21,21 @@ artefactos por sí mismo (lo que sí hace `oracle`); ese es el siguiente salto d
 no rellena `populate_context_post_run` (habría que volcar `model_invocations` del journal).
 Por eso el harness no ve el coste de Atlas.
 
+### Corridas (2026-10-04), consolidado
+
+| #   | Modelo                                       | Modo       | Trials | pass_rate                             | coste  |
+| --- | -------------------------------------------- | ---------- | ------ | ------------------------------------- | ------ |
+| 1   | `moonshotai/kimi-k3` (NIM)                   | `--coding` | 89/89  | 0.000                                 | API    |
+| 2   | `openai/gpt-oss-120b` (Groq)                 | `--agent`  | 11/11  | 0.000                                 | API    |
+| 3   | `qwen3.8-flash-next-iq2_xs` (125B **local**) | `--agent`  | 89/89  | **>0** (`fix-git`, `prove-plus-comm`) | **$0** |
+
+`oracle` ≈ 0.88 (control). Ver `README.md` §Evaluation baseline y `research/61 §8bis`.
+
+**Requisitos para la corrida local (#3):** binario `atlas` **estático musl** montado en el
+contenedor; Strata sirviendo el modelo en el host; `networkingMode=mirrored` en WSL + relay
+`socat` (WSL `:8099` → Strata `:8080`) para que el contenedor alcance el modelo; `--ae`
+con `ATLAS_LLM_BASE_URL=http://172.17.0.1:8099/v1`. Modelo: `ATLAS_AGENT_MODE=agent`.
+
 ### Modo agente (Fase 39)
 
 El adapter tiene dos modos (env `ATLAS_AGENT_MODE`): `agent` (default, el terminal agent loop
