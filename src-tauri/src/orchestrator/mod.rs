@@ -38,6 +38,7 @@ pub mod reliability_gate;
 pub mod retry;
 pub mod routing;
 pub mod tokenizer;
+pub mod tools;
 pub mod verify;
 pub mod wire;
 
@@ -96,6 +97,7 @@ pub use routing::{
     RoutingStrategy, SkipReason,
 };
 pub use tokenizer::{estimate_prompt, PromptMessage, PromptRole, Tokenizer};
+pub use tools::{Tool, ToolContext, ToolError, ToolRegistry, ToolResult};
 pub use verify::{verify_diff, VerifyConfig, VerifyOutcome};
 pub use wire::{OpShape, OpenAIToolFunction, ToolCall, ToolCallError};
 
