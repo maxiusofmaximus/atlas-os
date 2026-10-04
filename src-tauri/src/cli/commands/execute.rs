@@ -146,6 +146,7 @@ pub async fn run(cmd: ExecuteCmd, profile: &str) -> Result<()> {
             "execute --coding reliability_gate={} denied={denied:?}",
             if gate_enabled { "on" } else { "off" }
         );
+        let now = chrono::Utc::now().to_rfc3339();
         let mut ok = 0usize;
         for step in &steps {
             let out = if denied.is_empty() {
@@ -182,6 +183,55 @@ pub async fn run(cmd: ExecuteCmd, profile: &str) -> Result<()> {
             if let Some(repair) = &out.repair {
                 journal.save_repair(repair)?;
             }
+
+            // F34 — one auditable model_invocation per Diff, carrying the gate
+            // decision (route_taken_json) so a routing choice can be reviewed
+            // after the fact (the "measure the decision, not only the outcome"
+            // rule from research/56).
+            let provider = registry
+                .get(&out.model_id)
+                .map(|d| format!("{:?}", d.provider))
+                .unwrap_or_else(|| "unknown".into());
+            let route_taken = serde_json::json!({
+                "coding": true,
+                "step_id": out.step_id,
+                "diff_id": out.diff.diff_id.to_string(),
+                "reliability_gate": if gate_enabled { "on" } else { "off" },
+                "denied": denied,
+                "deployment_id": out.deployment_id,
+                "attempts": out.attempts,
+            })
+            .to_string();
+            let row = ModelInvocationRow {
+                id: Uuid::new_v4().to_string(),
+                mission_id: Some(mission_id.to_string()),
+                model_id: out.model_id.clone(),
+                deployment_id: out.deployment_id.clone(),
+                provider,
+                idempotency_key: format!("{mission_id}:{}:diff", out.step_id),
+                started_at: now.clone(),
+                finished_at: Some(now.clone()),
+                latency_ms: Some(out.latency_ms),
+                tokens_in: out.usage.map(|u| u.prompt_tokens as i64),
+                tokens_out: out.usage.map(|u| u.completion_tokens as i64),
+                cache_read_input_tokens: None,
+                cost_usd: Some(out.cost_usd),
+                seed: None,
+                temperature: None,
+                sampling_params_json: None,
+                route_taken_json: Some(route_taken),
+                was_correct: Some(if out.report.is_pass() { 1 } else { 0 }),
+                error_kind: None,
+                error_message: None,
+            };
+            journal.record_model_invocation(&row)?;
+            let _ = journal.publish(&BusEvent::new(BusEventKind::AgentTokens {
+                agent_id: mission_id,
+                tokens_in: out.usage.map(|u| u.prompt_tokens).unwrap_or(0),
+                tokens_out: out.usage.map(|u| u.completion_tokens).unwrap_or(0),
+                cost_usd: out.cost_usd,
+            }));
+
             println!(
                 "  step {} -> {} diff={} files={} validation={:?} repair={:?} ${:.6}",
                 step.id,

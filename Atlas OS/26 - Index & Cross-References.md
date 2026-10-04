@@ -59,6 +59,7 @@
 | 54 | [Phase 25 — Orchestrator execution loop](./research/54%20-%20Phase%2025%20orchestrator%20execution%20loop.md) | ~3 KB | Phase 25 (v25.0 ✅): `orchestrator/client.rs` — trait `ProviderClient` (AFIT) + `HttpProviderClient` (reqwest, OpenAI-compatible) + codecs puros + golden task `orchestrator.request_codec`; v25.1 ✅ `orchestrator/call.rs` `call_with_cascade` + `mode_of` (primario + failover por `FailureMode`); v25.2 ✅ `orchestrator/execute.rs` (`execute_steps`: supervisor+budgets+cancel) + CLI `atlas execute`. v25.3 ✅ coste desde precios + journal `model_invocations` + bus `AgentTokens` + Ctrl-C. **Fase 25 CERRADA** (card HUD diferida). |
 | 55 | research/55 — Fase 26: LLM-driven Coding en el execution loop. Puente LLM→`Diff`→Validation→Repair (RFC 13 Fase 2). v26.0 ✅ codec `coding/llm.rs` + golden `coding.llm_diff_codec`; v26.1 ✅ `orchestrator/code.rs` (request+parse `Diff`); v26.2 ✅ `orchestrator/verify.rs` (validación+repair + eventos supervisor); v26.3 ✅ `execute_coding_step` + `atlas execute --coding`. **Fase 26 CERRADA**. |
 | 56 | research/56 — Fase 33: reliability gate en el coding loop. El gate (F24) filtra candidatos antes del `call_diff` y en el failover; CLI lee `load_reliability_gate`. v33.0 ✅. |
+| 56 §4 | F34 ✅ — `atlas execute --coding` persiste `model_invocations` por `Diff` (tokens/coste/`was_correct`/`route_taken_json` con la decisión del gate) + `AgentTokens`. |
 
 **Total: 33 RFCs, ~331 KB** de especificación.
 

@@ -512,5 +512,14 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
   `load_reliability_gate`, construye `reliabilities_from_journal(models, 200)`, filtra y
   loguea `reliability_gate=on/off denied=[...]`. 1 test nuevo. **Fase 33 CERRADA.**
 
+## F34 — Coste/observabilidad del coding loop (COMPLETA; plan: research/56 §4)
+
+- **v34.0 COMPLETA:** `atlas execute --coding` persiste una `ModelInvocationRow` por `Diff`
+  (tokens in/out, coste, latencia, `was_correct` = validación pasó) con
+  `route_taken_json` = `{coding, step_id, diff_id, reliability_gate, denied, deployment_id,
+  attempts}` — la decisión de routing queda auditable por `Diff`. Publica `AgentTokens`.
+  **F34 CERRADA** (endpoint/HUD dedicado no necesario: los datos ya están en
+  `model_invocations.route_taken_json`).
+
 ## Out of scope v2
 - iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).
