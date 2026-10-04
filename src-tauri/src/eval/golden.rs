@@ -51,6 +51,11 @@ pub fn golden_suite() -> Vec<EvalTask> {
             category: "SYS",
             run: planning_proactive_trigger,
         },
+        EvalTask {
+            id: "orchestrator.reliability_gate",
+            category: "SYS",
+            run: orchestrator_reliability_gate,
+        },
     ]
 }
 
@@ -239,6 +244,36 @@ fn planning_proactive_trigger() -> TaskResult {
     TaskResult::assert(
         started && wait.actions.is_empty(),
         format!("run={:?} wait={:?}", run.actions, wait.actions),
+    )
+}
+
+fn orchestrator_reliability_gate() -> TaskResult {
+    use std::collections::HashMap;
+
+    use crate::eval::metrics::Reliability;
+    use crate::orchestrator::reliability_gate::{gate_model, GateDecision, ReliabilityGate};
+
+    let rel = |model: &str, n: i64, pass_rate: f64| Reliability {
+        model: model.to_string(),
+        n,
+        pass_rate,
+        tokens_per_solved: 0.0,
+        cost_per_solved: 0.0,
+    };
+    let mut reliabilities: HashMap<String, Reliability> = HashMap::new();
+    reliabilities.insert("bad".into(), rel("bad", 50, 0.1));
+    reliabilities.insert("thin".into(), rel("thin", 3, 0.0));
+
+    let gate = ReliabilityGate::default();
+    let bad = gate_model("bad", &reliabilities, &gate);
+    let thin = gate_model("thin", &reliabilities, &gate);
+    let unknown = gate_model("mystery", &reliabilities, &gate);
+
+    TaskResult::assert(
+        bad == GateDecision::Deny("pass_rate below threshold")
+            && thin == GateDecision::Allow
+            && unknown == GateDecision::Allow,
+        format!("bad={bad:?} thin={thin:?} unknown={unknown:?}"),
     )
 }
 

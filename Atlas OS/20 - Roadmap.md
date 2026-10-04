@@ -436,6 +436,18 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - **Fase v3.1** (sub-fases v3.1.0 ICS WRITE → v3.1.1 Graph READ → v3.1.2 Planning wiring → v3.1.3 CLI), un commit por sub-fase. Detalle en `research/50`.
 - **verificado 2026-10-03:** v3.1.0 ICS WRITE **ya implementado** (`calendar/ics_writer.rs` + `ics_route.rs` + ruta HUD; 42 tests `--features calendar-ics`); gap real = Graph READ (stubs), Planning wiring y CLI.
 - **v3.1.0 token opaco §G.2 COMPLETO:** `calendar/token.rs` (base64url 16 bytes vía `Uuid`, persistido en `<root>/calendar_ics_token.txt`, ruta 401 si falta/erróneo); `atlas calendar feed` incluye `?token=`. **v3.1.0 cerrado.**
+
+## Fase 24 — Model reliability → routing (EVAL-informed routing) (plan: research/53)
+
+- **Decisión 2026-10-03:** cerrar el bucle **EVAL → routing**. `eval::metrics::model_reliability`
+  existe desde la Fase 22 pero nadie lo consume; el router elige por latencia/coste/uso,
+  nunca por fiabilidad histórica (research/51 §1, trust calibration).
+- **v24.0 COMPLETA:** gate puro `orchestrator/reliability_gate.rs`
+  (`ReliabilityGate`/`GateDecision`/`gate_model`/`filter_deployments`) con guarda
+  `n >= min_samples` (no degradar por ruido) + golden task `orchestrator.reliability_gate`.
+  **Opt-in**: no cambia el default del routing.
+- **Pendiente:** v24.1 (host: poblar reliabilities desde EVAL + filtrar antes de
+  `RouteContext`, con fallback al set original), v24.2 (política persistida + CLI + HUD).
 - **v3.1.3 CLI surface COMPLETA:** `atlas calendar feed` + `atlas calendar busy list/count/add/rm` (envoltorios `Journal::busy_window_*` en `journal/calendar_ops.rs`).
 - **v3.1.1 Graph READ COMPLETA (verificada end-to-end):** OAuth auth-code + PKCE con loopback (`calendar/auth.rs`), `me/calendarView` → `graph` busy windows (`calendar/graph_reader.rs`), CLI `atlas calendar login/sync/status` (`calendar-graph`). Smoke real: 2 eventos persistidos; 1125 tests lib verdes. App Azure `client_id=a271f4c7-…`, authority `common`, `Calendars.Read` consentido.
 - **v3.1.4 ICS subscription READ COMPLETA:** `atlas calendar sync-ics <url>` (`calendar/ics_reader.rs`, feature `calendar-ics`) con parser `icalendar 0.17` (write-only `ics` descartado para leer; decisión en `22 §15`); busy windows `source=ics_local`. 3 tests + smoke con ICS público (317 windows).

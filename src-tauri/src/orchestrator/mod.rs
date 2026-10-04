@@ -29,6 +29,7 @@ pub mod idempotency;
 pub mod parse_error;
 pub mod provider;
 pub mod registry;
+pub mod reliability_gate;
 pub mod retry;
 pub mod routing;
 pub mod tokenizer;
@@ -65,6 +66,7 @@ pub use provider::{
     Capability, Config as ProviderConfig, Deployment, ModelDescriptor, Provider, ProviderWire, Tier,
 };
 pub use registry::{Registry, RegistrySeed, RegistrySeedMeta, ResourceMode};
+pub use reliability_gate::{filter_deployments, gate_model, GateDecision, ReliabilityGate};
 pub use retry::{BailDecision, RetryPolicy};
 pub use routing::{
     Condition, FallbackBucket, FallbackMap, RouteContext, RouteDecision, Router, RoutingConfig,
