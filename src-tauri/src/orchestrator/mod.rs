@@ -37,6 +37,7 @@ pub mod reliability_gate;
 pub mod retry;
 pub mod routing;
 pub mod tokenizer;
+pub mod verify;
 pub mod wire;
 
 pub use affinity::{AffinityIndex, AffinityRow};
@@ -84,6 +85,7 @@ pub use routing::{
     RoutingStrategy, SkipReason,
 };
 pub use tokenizer::{estimate_prompt, PromptMessage, PromptRole, Tokenizer};
+pub use verify::{verify_diff, VerifyConfig, VerifyOutcome};
 pub use wire::{OpShape, OpenAIToolFunction, ToolCall, ToolCallError};
 
 use anyhow::Context;

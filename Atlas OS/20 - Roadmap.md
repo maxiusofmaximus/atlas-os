@@ -490,7 +490,11 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
   golden task `coding.llm_diff_codec`. 11 tests.
 - **v26.1 COMPLETA:** `orchestrator/code.rs` — `call_diff_with_cascade` (routing + failover →
   parse `Diff` con `parse_diff_json`) + `StepDiffOutcome`/`StepDiffError`. 3 tests con mock.
-- **Pendiente:** v26.2 (wiring Validation/Repair + eventos supervisor), v26.3 (CLI/HUD + cierre).
+- **v26.2 COMPLETA:** `orchestrator/verify.rs` — `verify_diff` corre el `Diff` por
+  `validation::runner::run` + (en Fail/Critical) `repair::runner::run`, alimentando el
+  supervisor (`ValidationStarted` → `Passed`/`Failed`/`Critical` → `RepairAttempted`).
+  3 tests. Los motores son puros → ciclo verificable offline.
+- **Pendiente:** v26.3 (CLI/HUD + cierre).
 
 ## Out of scope v2
 - iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).
