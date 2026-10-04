@@ -32,5 +32,9 @@ jobs:
         run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
       - name: unit tests
         run: cargo test --manifest-path src-tauri/Cargo.toml --lib
-      - name: golden eval gate
+      # The golden suite is the CI gate for engine + capability invariants. It
+      # includes `agent.loop_closes` and `agent.evidence_blocks_done` (RFC 63
+      # §10) — the agent loop must run a tool, verify the artifact, and refuse a
+      # `done` with no evidence. `--strict` fails the job on any non-pass.
+      - name: golden eval gate (incl. agent capability)
         run: cargo run --manifest-path src-tauri/Cargo.toml --bin atlas -- --profile ci eval run golden --strict

@@ -66,6 +66,16 @@ pub fn golden_suite() -> Vec<EvalTask> {
             category: "SYS",
             run: coding_llm_diff_codec,
         },
+        EvalTask {
+            id: "agent.loop_closes",
+            category: "SYS",
+            run: agent_loop_closes,
+        },
+        EvalTask {
+            id: "agent.evidence_blocks_done",
+            category: "SYS",
+            run: agent_evidence_blocks_done,
+        },
     ]
 }
 
@@ -342,6 +352,133 @@ fn coding_llm_diff_codec() -> TaskResult {
         ok && rejected,
         format!("ok={ok} rejected={rejected} parsed={parsed:?}"),
     )
+}
+
+/// RFC 63 §10 — `agent.loop_closes`: the agent runs a tool, verifies the
+/// artifact, and closes the loop. Offline (scripted client), deterministic.
+fn agent_loop_closes() -> TaskResult {
+    run_agent_case(
+        vec![
+            r#"{"tool":"fs.write","args":{"path":"out.txt","content":"hello world"}}"#.into(),
+            r#"{"done":true,"summary":"wrote out.txt"}"#.into(),
+        ],
+        &[
+            crate::orchestrator::artifacts::ArtifactCheck::FileContains {
+                path: "out.txt".into(),
+                needle: "hello world".into(),
+            },
+        ],
+        true,
+    )
+}
+
+/// RFC 63 §10 — `agent.evidence_blocks_done`: a `done` with no evidence is
+/// rejected, forcing another turn until the predicate holds.
+fn agent_evidence_blocks_done() -> TaskResult {
+    run_agent_case(
+        vec![
+            r#"{"done":true,"summary":"claim"}"#.into(),
+            r#"{"tool":"fs.write","args":{"path":"out.txt","content":"ok"}}"#.into(),
+            r#"{"done":true,"summary":"really done"}"#.into(),
+        ],
+        &[crate::orchestrator::artifacts::ArtifactCheck::FileExists {
+            path: "out.txt".into(),
+        }],
+        true,
+    )
+}
+
+/// Shared driver: run the agent loop offline with a scripted client and the
+/// core `ToolRegistry`, against a temp root with `checks` as success predicate.
+fn run_agent_case(
+    replies: Vec<String>,
+    checks: &[crate::orchestrator::artifacts::ArtifactCheck],
+    expect_done: bool,
+) -> TaskResult {
+    use crate::orchestrator::agent::{run_agent, AgentConfig};
+    use crate::orchestrator::client::{ChatRequest, ChatResponse, ClientResult, ProviderClient};
+    use crate::orchestrator::provider::Deployment;
+    use crate::orchestrator::routing::RoutingConfig;
+    use std::sync::Mutex;
+
+    struct Scripted {
+        replies: Mutex<Vec<String>>,
+    }
+    impl ProviderClient for Scripted {
+        async fn chat(&self, _d: &Deployment, _r: &ChatRequest) -> ClientResult<ChatResponse> {
+            let c = self.replies.lock().unwrap().remove(0);
+            Ok(ChatResponse {
+                model: "m".into(),
+                content: c,
+                usage: None,
+            })
+        }
+    }
+
+    let tmp = match tempfile::TempDir::new() {
+        Ok(d) => d,
+        Err(e) => return TaskResult::error(format!("tmp: {e}")),
+    };
+    let root = tmp.path().to_path_buf();
+    let client = Scripted {
+        replies: Mutex::new(replies),
+    };
+    let cfg = AgentConfig {
+        success_predicate: checks.to_vec(),
+        tools: vec![("fs.write".into(), "write a file".into())],
+        ..AgentConfig::default()
+    };
+    let reg = crate::orchestrator::tools::ToolRegistry::with_core_tools();
+    let exec_root = root.clone();
+    let vr = root.clone();
+    let checks = checks.to_vec();
+    let dep = {
+        let mut d = Deployment::new("m", "http://x");
+        d.id = "d1".into();
+        d
+    };
+
+    // `futures::executor::block_on` works both standalone (cargo test) and
+    // inside a tokio runtime (the CLI's async main) — unlike `Runtime::block_on`,
+    // which panics with "cannot start a runtime from within a runtime". The
+    // scripted client does no I/O, so no reactor is needed.
+    let outcome = futures::executor::block_on(async {
+        run_agent(
+            &client,
+            RoutingConfig::default(),
+            "m",
+            &[dep],
+            "do the task",
+            &root,
+            &cfg,
+            &[],
+            move |tool, args| {
+                let ctx = crate::orchestrator::tools::ToolContext::new(exec_root.clone());
+                reg.call(tool, &ctx, args).unwrap_or_else(|e| {
+                    crate::orchestrator::tools::ToolResult::err(tool, e.to_string())
+                })
+            },
+            move || {
+                crate::orchestrator::artifacts::verify_artifacts(
+                    &vr,
+                    &checks,
+                    &crate::orchestrator::sandbox::LocalSandbox,
+                )
+            },
+        )
+        .await
+    });
+
+    match outcome {
+        Ok(o) => {
+            let ok = o.done == expect_done;
+            TaskResult::assert(
+                ok,
+                format!("done={} expected={} turns={}", o.done, expect_done, o.turns),
+            )
+        }
+        Err(e) => TaskResult::fail("REASON", format!("agent loop errored: {e:?}")),
+    }
 }
 
 #[cfg(test)]
