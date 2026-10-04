@@ -14,6 +14,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::eval::metrics::Reliability;
+use crate::journal::Journal;
 use crate::orchestrator::provider::Deployment;
 
 /// Policy for gating deployments by historical eval reliability.
@@ -82,6 +83,57 @@ pub fn filter_deployments<'a>(
         }
     }
     (allowed, denied)
+}
+
+/// Build the `model_id → Reliability` map from the eval store for `models`.
+/// This is the host glue that turns the Fase-22 EVAL metrics into routing
+/// signal; models never evaluated are simply absent from the map.
+pub fn reliabilities_from_journal(
+    journal: &Journal,
+    models: &[String],
+    limit: i64,
+) -> HashMap<String, Reliability> {
+    let mut out = HashMap::new();
+    for model in models {
+        if let Ok(Some(r)) = crate::eval::metrics::model_reliability(journal, model, limit) {
+            out.insert(model.clone(), r);
+        }
+    }
+    out
+}
+
+/// Gate a borrowed candidate set, returning `(kept, denied-with-reason)`.
+/// Unlike [`filter_deployments`] this takes references — the shape the
+/// cascade's `healthy_for` closure produces.
+pub fn gate_refs_with_denied<'a>(
+    eligible: Vec<&'a Deployment>,
+    reliabilities: &HashMap<String, Reliability>,
+    gate: &ReliabilityGate,
+) -> (Vec<&'a Deployment>, Vec<(&'a Deployment, &'static str)>) {
+    let mut kept = Vec::new();
+    let mut denied = Vec::new();
+    for deployment in eligible {
+        match gate_model(&deployment.model_id, reliabilities, gate) {
+            GateDecision::Allow => kept.push(deployment),
+            GateDecision::Deny(reason) => denied.push((deployment, reason)),
+        }
+    }
+    (kept, denied)
+}
+
+/// Fail-safe gated view: if the gate would drop **every** candidate, the
+/// original set is returned so the cascade never loses its route.
+pub fn gate_refs<'a>(
+    eligible: &[&'a Deployment],
+    reliabilities: &HashMap<String, Reliability>,
+    gate: &ReliabilityGate,
+) -> Vec<&'a Deployment> {
+    let (kept, _denied) = gate_refs_with_denied(eligible.to_vec(), reliabilities, gate);
+    if kept.is_empty() {
+        eligible.to_vec()
+    } else {
+        kept
+    }
 }
 
 #[cfg(test)]
@@ -159,5 +211,85 @@ mod tests {
         assert_eq!(denied.len(), 1);
         assert_eq!(denied[0].0.model_id, "bad");
         assert_eq!(denied[0].1, "pass_rate below threshold");
+    }
+
+    #[test]
+    fn gate_refs_falls_back_when_everything_is_denied() {
+        let only = Deployment::new("bad", "http://b");
+        let refs = vec![&only];
+        let rels = map(&[("bad", rel("bad", 100, 0.0))]);
+        let gated = gate_refs(&refs, &rels, &ReliabilityGate::default());
+        assert_eq!(gated.len(), 1, "never leave the cascade without a route");
+        assert_eq!(gated[0].model_id, "bad");
+    }
+
+    #[test]
+    fn gate_refs_keeps_allowed_and_drops_denied() {
+        let good = Deployment::new("good", "http://a");
+        let bad = Deployment::new("bad", "http://b");
+        let refs = vec![&good, &bad];
+        let rels = map(&[("bad", rel("bad", 100, 0.1))]);
+        let gated = gate_refs(&refs, &rels, &ReliabilityGate::default());
+        let ids: Vec<&str> = gated.iter().map(|d| d.model_id.as_str()).collect();
+        assert_eq!(ids, vec!["good"]);
+    }
+
+    #[test]
+    fn reliabilities_from_journal_populates_evaluated_models() {
+        use crate::journal::{EvalCaseInput, EvalRunStart, EvalTotals};
+        use tempfile::TempDir;
+
+        let dir = TempDir::new().unwrap();
+        let journal = Journal::open(dir.path()).unwrap();
+        let run = journal
+            .eval_run_start(&EvalRunStart {
+                suite: "golden",
+                agent: "atlas",
+                harness: "atlas-local",
+                model: Some("m1"),
+                metadata_json: None,
+            })
+            .unwrap();
+        for (id, status) in [("a", "pass"), ("b", "pass"), ("c", "fail")] {
+            journal
+                .eval_run_record_case(&EvalCaseInput {
+                    run_id: &run,
+                    case_id: id,
+                    category: Some("SYS"),
+                    status,
+                    duration_ms: 0,
+                    turns: 0,
+                    no_action_turns: 0,
+                    tokens_in: 0,
+                    tokens_out: 0,
+                    cost_usd: 0.0,
+                    failure_kind: if status == "pass" {
+                        None
+                    } else {
+                        Some("VERIFY")
+                    },
+                    detail: None,
+                })
+                .unwrap();
+        }
+        journal
+            .eval_run_finish(
+                &run,
+                &EvalTotals {
+                    status: "completed",
+                    total: 3,
+                    passed: 2,
+                    failed: 1,
+                    tokens_total: 0,
+                    cost_usd: 0.0,
+                },
+            )
+            .unwrap();
+
+        let models = vec!["m1".to_string(), "never-evaluated".to_string()];
+        let map = reliabilities_from_journal(&journal, &models, 20);
+        assert!(map.contains_key("m1"));
+        assert!(!map.contains_key("never-evaluated"));
+        assert_eq!(map["m1"].n, 3);
     }
 }

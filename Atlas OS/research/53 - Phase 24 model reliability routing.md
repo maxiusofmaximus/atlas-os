@@ -1,6 +1,6 @@
 # 53 — Phase 24: Model reliability → routing (EVAL-informed routing)
 
-- **Estado:** plan aprobado; v24.0 (gate puro) EN IMPLEMENTACIÓN.
+- **Estado:** plan aprobado; v24.0–v24.1 **COMPLETAS** (falta v24.2).
 - **Fecha:** 2026-10-03.
 - **Motivación:** cerrar el bucle **EVAL → routing**. Hoy `eval::metrics::model_reliability`
   existe (Fase 22) pero **nadie lo consume**: el router elige por latencia/coste/uso,
@@ -68,8 +68,14 @@ Default: `min_samples = 20`, `min_pass_rate = 0.5`, `allow_unknown = true`.
 ## 5. Sub-fases atómicas
 
 - **v24.0 — Gate puro** (`reliability_gate.rs` + tests + golden task). **EN IMPLEMENTACIÓN.**
-- **v24.1 — Host glue** (poblar reliabilities + filtrar antes de `RouteContext`,
-  opt-in, fallback al set original).
+- **v24.1 — Host glue** — **COMPLETA**:
+  - `reliabilities_from_journal(journal, models, limit)` — puebla el mapa desde
+    el store EVAL (`eval::metrics::model_reliability`); modelos sin historial no
+    aparecen.
+  - `gate_refs` / `gate_refs_with_denied` — la forma que consume el closure
+    `healthy_for` del cascade; **fail-safe**: si el gate dejaría 0 candidatos,
+    devuelve el set original (nunca sin ruta).
+  - 3 tests (fallback total, parcial, poblado desde EVAL).
 - **v24.2 — Política persistida + CLI + HUD.**
 
 ## 6. Fuentes
