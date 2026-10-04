@@ -25,7 +25,8 @@ from harbor.models.agent.context import AgentContext
 class AtlasAgent(BaseInstalledAgent):
     """Runs the Atlas OS orchestrated pipeline headlessly in the container."""
 
-    def name(self) -> str:
+    @staticmethod
+    def name() -> str:
         return "atlas"
 
     async def install(self, environment: BaseEnvironment) -> None:
@@ -43,13 +44,19 @@ class AtlasAgent(BaseInstalledAgent):
         #    the auto-lock confidence threshold so the pipeline never stalls),
         # 2) generate the Plan, 3) drive it through the orchestrator's real coding
         #    loop (structured Diff → Validation → Repair → apply to the workspace).
-        # `&&` makes any failing stage fail the trial.
+        # `&&` makes any failing stage fail the trial. `execute` retries on a
+        # transient "cascade exhausted ... 0 attempts" (provider rate-limit):
+        # without it a single 429 in a concurrent sweep fails the whole trial.
         command = (
             "ID=$(atlas --profile harbor mission new --force "
             + prompt
             + " | awk '/^mission /{print $2; exit}') && "
             'atlas --profile harbor plan "$ID" && '
-            'atlas --profile harbor execute --coding --apply --root . "$ID"'
+            'for i in 1 2 3 4 5; do '
+            'atlas --profile harbor execute --coding --apply --root . "$ID" && break; '
+            'echo "execute attempt $i failed (transient?), retrying in $((i*10))s"; '
+            'sleep $((i*10)); '
+            "done"
         )
         await self.exec_as_agent(environment, command=command)
 
