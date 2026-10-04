@@ -60,6 +60,7 @@
 | 55 | research/55 — Fase 26: LLM-driven Coding en el execution loop. Puente LLM→`Diff`→Validation→Repair (RFC 13 Fase 2). v26.0 ✅ codec `coding/llm.rs` + golden `coding.llm_diff_codec`; v26.1 ✅ `orchestrator/code.rs` (request+parse `Diff`); v26.2 ✅ `orchestrator/verify.rs` (validación+repair + eventos supervisor); v26.3 ✅ `execute_coding_step` + `atlas execute --coding`. **Fase 26 CERRADA**. |
 | 56 | research/56 — Fase 33: reliability gate en el coding loop. El gate (F24) filtra candidatos antes del `call_diff` y en el failover; CLI lee `load_reliability_gate`. v33.0 ✅. |
 | 56 §4 | F34 ✅ — `atlas execute --coding` persiste `model_invocations` por `Diff` (tokens/coste/`was_correct`/`route_taken_json` con la decisión del gate) + `AgentTokens`. |
+| 57 | research/57 — Fase 35: aplicar el `Diff` al workspace. Kernel puro `coding/apply.rs` + `atlas execute --coding --apply [--root]` (checkpoint → aplica → escribe). v35.0 ✅ 9 tests. |
 
 **Total: 33 RFCs, ~331 KB** de especificación.
 

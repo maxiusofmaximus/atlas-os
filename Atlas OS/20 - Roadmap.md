@@ -521,5 +521,13 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
   **F34 CERRADA** (endpoint/HUD dedicado no necesario: los datos ya están en
   `model_invocations.route_taken_json`).
 
+## F35 — Aplicar el `Diff` al workspace (COMPLETA; plan: research/57)
+
+- **v35.0 COMPLETA:** `coding/apply.rs` — kernel puro `apply_file_edit`/`apply_diff`
+  (hunks semiabiertos 0-based, orden descendente, clamp, `ApplyError` estructurado; nunca
+  paniquea). CLI `atlas execute --coding --apply [--root]`: checkpoint
+  (`MissionCheckpoint`) → lee el workspace → aplica → escribe/borra. 9 tests.
+  **F35 CERRADA** — el `Diff` validado ya se escribe al workspace de forma determinista.
+
 ## Out of scope v2
 - iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).

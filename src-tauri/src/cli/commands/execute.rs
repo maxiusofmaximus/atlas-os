@@ -26,6 +26,67 @@ use crate::planning::types::Plan;
 const SYSTEM_PROMPT: &str =
     "You are Atlas OS executing one plan step. Reply with the concrete change or action.";
 
+/// Persist a checkpoint, apply `diff` to `root` (filesystem), and return the
+/// number of files written. Pure application logic lives in `coding::apply`; this
+/// only does the I/O + pre-write audit (Fase 35).
+fn apply_coding_diff(
+    journal: &Journal,
+    diff: &crate::coding::types::Diff,
+    mission_id: Uuid,
+    plan_id: Uuid,
+    root: &std::path::Path,
+) -> Result<usize> {
+    use std::collections::BTreeMap;
+
+    // Pre-write checkpoint so the state before the edit is auditable.
+    let checkpoint = crate::supervisor::types::MissionCheckpoint {
+        checkpoint_id: Uuid::new_v4(),
+        mission_id,
+        phase: crate::supervisor::types::MissionPhase::Executing,
+        current_plan_id: Some(plan_id),
+        last_validation_report_id: None,
+        last_repair_id: None,
+        budget_tally: crate::supervisor::types::BudgetTally::default(),
+        caps: None,
+        mode: None,
+        generated_at: chrono::Utc::now().to_rfc3339(),
+    };
+    journal.save_checkpoint(&checkpoint)?;
+
+    // Read the current contents of the files the diff touches.
+    let mut workspace: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for edit in &diff.files {
+        let abs = root.join(&edit.path);
+        if let Ok(text) = std::fs::read_to_string(&abs) {
+            let lines = text.split('\n').map(|l| l.to_string()).collect();
+            workspace.insert(edit.path.clone(), lines);
+        }
+    }
+
+    let applied = crate::coding::apply::apply_diff(diff, &workspace)
+        .map_err(|e| anyhow::anyhow!("apply diff: {e}"))?;
+
+    let mut written = 0usize;
+    for file in &applied {
+        let abs = root.join(&file.path);
+        if file.deleted {
+            if abs.exists() {
+                std::fs::remove_file(&abs).with_context(|| format!("delete {}", abs.display()))?;
+            }
+            written += 1;
+            continue;
+        }
+        if let Some(parent) = abs.parent() {
+            std::fs::create_dir_all(parent)
+                .with_context(|| format!("mkdir {}", parent.display()))?;
+        }
+        let body = file.lines.join("\n");
+        std::fs::write(&abs, body).with_context(|| format!("write {}", abs.display()))?;
+        written += 1;
+    }
+    Ok(written)
+}
+
 #[derive(Args, Debug)]
 pub struct ExecuteCmd {
     /// Mission UUID whose latest Plan should be executed through the orchestrator.
@@ -38,6 +99,13 @@ pub struct ExecuteCmd {
     /// the validation report and any repair (Fase 26).
     #[arg(long, default_value_t = false)]
     pub coding: bool,
+    /// With `--coding`, write each validated Diff to the workspace under `--root`
+    /// (default: the current directory) after a checkpoint. Fase 35.
+    #[arg(long, default_value_t = false)]
+    pub apply: bool,
+    /// Workspace root that `--apply` reads/writes. Defaults to the current dir.
+    #[arg(long, default_value = ".")]
+    pub root: String,
 }
 
 pub async fn run(cmd: ExecuteCmd, profile: &str) -> Result<()> {
@@ -242,6 +310,19 @@ pub async fn run(cmd: ExecuteCmd, profile: &str) -> Result<()> {
                 out.repair.as_ref().map(|r| r.outcome),
                 out.cost_usd,
             );
+
+            // F35 — apply the validated Diff to the workspace under `--root`,
+            // after a checkpoint so the pre-edit state is auditable.
+            if cmd.apply {
+                let root = std::path::Path::new(&cmd.root);
+                let applied =
+                    apply_coding_diff(&journal, &out.diff, mission_id, plan.plan_id, root)?;
+                println!(
+                    "    apply: {} file(s) written under {}",
+                    applied,
+                    root.display()
+                );
+            }
             ok += 1;
         }
         println!("execute --coding mission={mission_id} steps_ok={ok}");
