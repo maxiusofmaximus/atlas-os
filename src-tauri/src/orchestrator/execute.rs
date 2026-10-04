@@ -255,6 +255,7 @@ pub async fn execute_coding_step<C: ProviderClient, P: Fn(&str) -> Option<ModelP
         price_of,
         &[],
         &ResearchContext::default(),
+        &crate::orchestrator::code::WorkspaceContext::default(),
     )
     .await
 }
@@ -274,6 +275,7 @@ pub async fn execute_coding_step_denied<C: ProviderClient, P: Fn(&str) -> Option
     price_of: P,
     denied: &[String],
     research: &ResearchContext,
+    workspace: &crate::orchestrator::code::WorkspaceContext,
 ) -> Result<CodingStepOutcome, StepDiffError> {
     let started = std::time::Instant::now();
 
@@ -294,6 +296,7 @@ pub async fn execute_coding_step_denied<C: ProviderClient, P: Fn(&str) -> Option
         max_attempts,
         denied,
         research,
+        workspace,
     )
     .await?;
 

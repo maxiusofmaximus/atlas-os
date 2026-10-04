@@ -28,6 +28,44 @@ pub struct StepDiffOutcome {
     pub narrative_missing: bool,
 }
 
+/// Workspace context fed to the model so it can produce a GROUNDED `Diff`
+/// instead of asking for context it cannot see (a real-LLM finding: with only
+/// the bare step statement, a model legitimately refuses). `files` is the tree
+/// (relative paths) and `snippets` is `path -> content` for the files most
+/// likely relevant to the step, already truncated to a token budget by the host.
+#[derive(Clone, Debug, Default)]
+pub struct WorkspaceContext {
+    pub files: Vec<String>,
+    pub snippets: Vec<(String, String)>,
+}
+
+impl WorkspaceContext {
+    pub fn is_empty(&self) -> bool {
+        self.files.is_empty() && self.snippets.is_empty()
+    }
+
+    /// Render as a prompt section. `snippets` are the highest-signal part, so
+    /// they come first; the file list follows as a short map.
+    pub fn render(&self) -> String {
+        let mut out = String::new();
+        if !self.files.is_empty() {
+            out.push_str("\nWorkspace files (relative to repo root):\n");
+            for f in self.files.iter().take(200) {
+                out.push_str("  - ");
+                out.push_str(f);
+                out.push('\n');
+            }
+        }
+        if !self.snippets.is_empty() {
+            out.push_str("\nRelevant file contents (ground your hunks on these line numbers):\n");
+            for (path, body) in &self.snippets {
+                out.push_str(&format!("\n--- {path} ---\n{body}\n"));
+            }
+        }
+        out
+    }
+}
+
 /// The code prompt asks the model for a structured diff whose `narrative`
 /// states why, keeping the EvidenceGate (RFC 30 §2.1) satisfiable.
 pub const CODING_DIFF_PROMPT: &str = r#"You are the Atlas Coding Engine. Produce the code change for the step below as ONE JSON object and nothing else — no prose, no markdown fences.
@@ -101,10 +139,13 @@ pub async fn call_diff_with_cascade_and_denied<C: ProviderClient>(
     max_attempts: u8,
     denied: &[String],
     research: &ResearchContext,
+    workspace: &WorkspaceContext,
 ) -> Result<StepDiffOutcome, StepDiffError> {
-    let system = if research.is_empty() {
-        CODING_DIFF_PROMPT.to_string()
-    } else {
+    let mut system = CODING_DIFF_PROMPT.to_string();
+    if !workspace.is_empty() {
+        system.push_str(&workspace.render());
+    }
+    if !research.is_empty() {
         let listing = research
             .refs
             .iter()
@@ -115,10 +156,10 @@ pub async fn call_diff_with_cascade_and_denied<C: ProviderClient>(
             })
             .collect::<Vec<_>>()
             .join("\n");
-        format!(
-            "{CODING_DIFF_PROMPT}\nResearch evidence (cite the indexes you rely on via a top-level \"cites\": [n, ...] field):\n{listing}"
-        )
-    };
+        system.push_str(&format!(
+            "\nResearch evidence (cite the indexes you rely on via a top-level \"cites\": [n, ...] field):\n{listing}"
+        ));
+    }
     let request = ChatRequest {
         model: model.to_string(),
         messages: vec![
@@ -248,6 +289,7 @@ pub async fn call_diff_with_cascade<C: ProviderClient>(
         max_attempts,
         &[],
         &ResearchContext::default(),
+        &WorkspaceContext::default(),
     )
     .await
 }
@@ -385,6 +427,7 @@ mod tests {
             5,
             &["m1".to_string()],
             &ResearchContext::default(),
+            &WorkspaceContext::default(),
         )
         .await
         .expect("failover to m2");
@@ -419,6 +462,7 @@ mod tests {
             5,
             &[],
             &research,
+            &WorkspaceContext::default(),
         )
         .await
         .expect("cites parsed");
@@ -450,6 +494,7 @@ mod tests {
             5,
             &[],
             &research,
+            &WorkspaceContext::default(),
         )
         .await
         .expect("out-of-range cite is ignored, not fatal");

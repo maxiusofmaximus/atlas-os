@@ -26,6 +26,95 @@ use crate::planning::types::Plan;
 const SYSTEM_PROMPT: &str =
     "You are Atlas OS executing one plan step. Reply with the concrete change or action.";
 
+/// Build a `WorkspaceContext` from `root`: a shallow file tree plus the content
+/// of the most relevant files, capped so the prompt stays bounded. "Relevant" =
+/// source-ish files (not binaries/lockfiles/hidden dirs), preferring smaller
+/// ones so a few real files fit the budget. This is what makes a real LLM stop
+/// asking for context and emit grounded hunks.
+fn build_workspace_context(root: &std::path::Path) -> crate::orchestrator::code::WorkspaceContext {
+    use crate::orchestrator::code::WorkspaceContext;
+    const MAX_FILES: usize = 120;
+    const MAX_SNIPPET_BYTES: usize = 40_000;
+    const MAX_FILE_BYTES: usize = 12_000;
+
+    let mut files: Vec<String> = Vec::new();
+    let mut candidates: Vec<(u64, std::path::PathBuf)> = Vec::new();
+    collect_files(root, root, &mut files, &mut candidates);
+    files.sort();
+
+    // Prefer small, code-like files (they fit more context per byte).
+    candidates.sort_by_key(|(size, _)| *size);
+    let mut snippets: Vec<(String, String)> = Vec::new();
+    let mut budget = MAX_SNIPPET_BYTES;
+    for (size, path) in candidates {
+        if budget == 0 || snippets.len() >= 12 {
+            break;
+        }
+        if size as usize > MAX_FILE_BYTES {
+            continue;
+        }
+        let Ok(body) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        let rel = path
+            .strip_prefix(root)
+            .unwrap_or(&path)
+            .to_string_lossy()
+            .replace('\\', "/");
+        let take = body.len().min(budget);
+        snippets.push((rel, body[..take].to_string()));
+        budget = budget.saturating_sub(take);
+    }
+
+    WorkspaceContext {
+        files: files.into_iter().take(MAX_FILES).collect(),
+        snippets,
+    }
+}
+
+fn collect_files(
+    root: &std::path::Path,
+    dir: &std::path::Path,
+    files: &mut Vec<String>,
+    candidates: &mut Vec<(u64, std::path::PathBuf)>,
+) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with('.') || name == "target" || name == "node_modules" {
+            continue;
+        }
+        let Ok(meta) = entry.metadata() else { continue };
+        if meta.is_dir() {
+            collect_files(root, &path, files, candidates);
+        } else if meta.is_file() {
+            let rel = path
+                .strip_prefix(root)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .replace('\\', "/");
+            files.push(rel);
+            if is_textish(&name) {
+                candidates.push((meta.len(), path));
+            }
+        }
+    }
+}
+
+fn is_textish(name: &str) -> bool {
+    const EXT: &[&str] = &[
+        "rs", "toml", "md", "ts", "js", "svelte", "json", "py", "go", "java", "kt", "c", "h",
+        "cpp", "cs", "rb", "sh", "yml", "yaml", "txt", "css", "html",
+    ];
+    match name.rsplit_once('.') {
+        Some((_, ext)) => EXT.contains(&ext.to_ascii_lowercase().as_str()),
+        None => false,
+    }
+}
+
 /// Load `.env` from the current dir into the process env once (no dependency:
 /// simple `KEY=VALUE` parser, `#` comments, optional quotes). Existing env vars
 /// win so a shell override is never clobbered.
@@ -340,6 +429,12 @@ pub async fn run(cmd: ExecuteCmd, profile: &str) -> Result<()> {
         }
 
         let now = chrono::Utc::now().to_rfc3339();
+        let workspace = build_workspace_context(std::path::Path::new(&cmd.root));
+        eprintln!(
+            "execute --coding workspace files={} snippets={}",
+            workspace.files.len(),
+            workspace.snippets.len()
+        );
         let mut ok = 0usize;
         for step in &steps {
             let out = if denied.is_empty() {
@@ -355,6 +450,7 @@ pub async fn run(cmd: ExecuteCmd, profile: &str) -> Result<()> {
                     &price_of,
                     &[],
                     &research,
+                    &workspace,
                 )
                 .await
             } else {
@@ -370,10 +466,24 @@ pub async fn run(cmd: ExecuteCmd, profile: &str) -> Result<()> {
                     &price_of,
                     &denied,
                     &research,
+                    &workspace,
                 )
                 .await
-            }
-            .with_context(|| format!("coding step `{}` failed", step.id))?;
+            };
+            // A no-diff reply is not a harness failure: a research/read-only
+            // step legitimately has nothing to write, and models occasionally
+            // decline. Skip it (record nothing) rather than aborting the run.
+            let out = match out {
+                Ok(o) => o,
+                Err(crate::orchestrator::code::StepDiffError::Parse(e)) => {
+                    eprintln!("  step {} skipped: no diff ({e})", step.id);
+                    continue;
+                }
+                Err(e) => {
+                    return Err(anyhow::anyhow!(e))
+                        .with_context(|| format!("coding step `{}` failed", step.id));
+                }
+            };
             journal.save_diff(&out.diff)?;
             journal.save_report(&out.report)?;
             if let Some(repair) = &out.repair {
