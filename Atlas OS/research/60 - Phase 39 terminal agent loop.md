@@ -39,6 +39,20 @@ stdout+stderr, y repite hasta `{"done":true,"summary":"…"}` o agotar el presup
 Re-correr Terminal-Bench con `--agent` (en vez de `--coding`) para medir el delta de capacidad
 frente al 0.000. El adapter de Harbor necesita un modo que use `atlas agent <task>`.
 
+### Corrida F38 (2026-10-04) — hecha
+
+- Adapter en modo `agent` (`ATLAS_AGENT_MODE=agent`), Groq `openai/gpt-oss-120b`.
+- **11/89 completados antes de detener** (corrida larga; se paró por coste/tiempo con el
+  patrón ya claro): **0/11 passed**. El agente **opera el terminal de verdad** (recibe la
+  tarea, corre `atlas agent --max-steps 40`, ejecuta comandos, termina sin crash), pero
+  **no resuelve** las tareas: son difíciles (p.ej. `circuit-fibsqrt` requiere escribir 32.000
+  líneas de un simulador de puertas lógicas).
+- **Conclusión honesta:** F39 elevó la *capacidad mecánica* (ejecutar comandos, autocorregirse),
+  pero el 0.000 persiste porque las tareas de Terminal-Bench exigen razonamiento de agente de
+  nivel frontera + muchas horas de crédito de modelo. El harness mide bien (oracle 0.88).
+- Ingestión verificada: `atlas eval import` + `eval metrics` con desglose por harness/modelo.
+
+
 ## 5. Fuentes
 
 - research/55/60 (coding loop), baseline `tools/harbor_atlas/README.md`, RFC 20 Fase 39.

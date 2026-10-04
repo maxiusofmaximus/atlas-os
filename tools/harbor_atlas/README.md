@@ -21,6 +21,14 @@ artefactos por sí mismo (lo que sí hace `oracle`); ese es el siguiente salto d
 no rellena `populate_context_post_run` (habría que volcar `model_invocations` del journal).
 Por eso el harness no ve el coste de Atlas.
 
+### Modo agente (Fase 39)
+
+El adapter tiene dos modos (env `ATLAS_AGENT_MODE`): `agent` (default, el terminal agent loop
+`atlas agent "<task>"`) y `pipeline` (mission→plan→execute --coding). El modo agente es el que
+**ejecuta comandos** (paradigma Terminal-Bench). Corrida de agente (Groq `gpt-oss-120b`,
+2026-10-04): el agente opera el terminal y termina sin crash, pero **0/11 passed** en las 11
+tareas completadas — las tareas exigen razonamiento de nivel frontera. Ingestión verificada.
+
 Pipeline verificado (reproducible):
 
 ```
