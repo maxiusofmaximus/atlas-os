@@ -550,5 +550,18 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
   → reportado, no resuelto en silencio); `orchestrator/execute.rs::plan_steps` (shard
   round-robin clampeado) + `merge_coding_diffs`. 5 tests. **F37 CERRADA.**
 
+## F32 — Cerrar B: baseline externo (prereqs offline hechos; corrida bloqueada por infra)
+
+- **Prereqs offline (hechos):** adaptador Harbor conduce el pipeline orquestado
+  (`mission new --force → plan → execute --coding --apply`); schema real de
+  `JobResult`/`TrialResult` documentado (research/56 §5); ingestión `atlas eval import` lista.
+- **Runbook completo:** `tools/harbor_atlas/RUNBOOK.md` (Docker/WSL → Harbor → ingestión →
+  publicación → CI opt-in → troubleshooting).
+- **Bloqueado por infra:** `harbor run` necesita Docker + endpoint alcanzable desde el
+  contenedor + binario `atlas` Linux en la imagen (runbook §0/§3).
+- **Ya verificado SIN Docker:** el harness LLM funciona end-to-end contra un modelo real
+  (NVIDIA NIM / kimi-k3): `route → Diff → validate → repair → apply` a disco (commits
+  `0d5cee7`, `0390f49`). 4 bugs reales de endpoint arreglados en esa prueba.
+
 ## Out of scope v2
 - iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).
