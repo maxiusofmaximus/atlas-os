@@ -18,6 +18,7 @@
 pub mod affinity;
 pub mod agent;
 pub mod aggregation;
+pub mod artifacts;
 pub mod backpressure;
 pub mod cache_control;
 pub mod call;
@@ -44,6 +45,7 @@ pub mod verify;
 pub mod wire;
 
 pub use affinity::{AffinityIndex, AffinityRow};
+pub use artifacts::{verify_artifacts, ArtifactCheck, ArtifactResult, VerifyVerdict};
 pub use agent::{
     parse_action, run_agent, run_agent_real, run_command, AgentAction, AgentConfig, AgentOutcome,
     CommandResult, AGENT_SYSTEM_PROMPT,

@@ -86,6 +86,7 @@ pub async fn run(cmd: AgentCmd, profile: &str) -> Result<()> {
         max_steps: cmd.max_steps,
         timeout: std::time::Duration::from_secs(cmd.command_timeout),
         max_attempts: cmd.max_attempts,
+        success_predicate: Vec::new(),
     };
 
     println!(

@@ -192,6 +192,9 @@ pub struct AgentConfig {
     pub max_steps: u32,
     pub timeout: Duration,
     pub max_attempts: u8,
+    /// Declarative artifact predicates that MUST pass before `done` is accepted
+    /// (RFC 63 §4/§8, success_predicate). Empty = accept the model's `done`.
+    pub success_predicate: Vec<crate::orchestrator::artifacts::ArtifactCheck>,
 }
 
 impl Default for AgentConfig {
@@ -200,6 +203,7 @@ impl Default for AgentConfig {
             max_steps: 25,
             timeout: Duration::from_secs(120),
             max_attempts: 5,
+            success_predicate: Vec::new(),
         }
     }
 }
@@ -216,7 +220,7 @@ pub struct AgentOutcome {
 /// Drive the model↔terminal loop over `task`. Generic over `ProviderClient` so
 /// the loop itself is offline-testable; `run` is injectable for the executor.
 #[allow(clippy::too_many_arguments)]
-pub async fn run_agent<C, F>(
+pub async fn run_agent<C, F, V>(
     client: &C,
     routing: RoutingConfig,
     model: &str,
@@ -226,10 +230,12 @@ pub async fn run_agent<C, F>(
     cfg: &AgentConfig,
     denied: &[String],
     exec: F,
+    verify: V,
 ) -> Result<AgentOutcome, crate::orchestrator::code::StepDiffError>
 where
     C: ProviderClient,
     F: Fn(&str) -> CommandResult,
+    V: Fn() -> crate::orchestrator::artifacts::VerifyVerdict,
 {
     let mut messages = vec![
         ChatMessage::system(AGENT_SYSTEM_PROMPT),
@@ -259,12 +265,35 @@ where
 
         match parse_action(&content) {
             AgentAction::Done(summary) => {
-                return Ok(AgentOutcome {
-                    steps,
-                    done: true,
-                    summary,
-                    turns: turn + 1,
-                });
+                // RFC 63 §8: `done` only counts if the success predicate holds.
+                if cfg.success_predicate.is_empty() {
+                    return Ok(AgentOutcome {
+                        steps,
+                        done: true,
+                        summary,
+                        turns: turn + 1,
+                    });
+                }
+                let verdict = verify();
+                if verdict.allowed {
+                    return Ok(AgentOutcome {
+                        steps,
+                        done: true,
+                        summary,
+                        turns: turn + 1,
+                    });
+                }
+                // Evidence missing: tell the model exactly what failed and loop.
+                let failures = verdict
+                    .failures()
+                    .iter()
+                    .map(|r| format!("- {}", r.detail))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                messages.push(ChatMessage::user(format!(
+                    "You declared done but the required evidence does not hold yet:\n{failures}\n\n\
+                     Fix it and reply with one JSON object (run_command or done)."
+                )));
             }
             AgentAction::Run(cmd) => {
                 let result = exec(&cmd);
@@ -307,7 +336,10 @@ pub async fn run_agent_real<C: ProviderClient>(
 ) -> Result<AgentOutcome, crate::orchestrator::code::StepDiffError> {
     let owned = root.to_path_buf();
     let exec_root = owned.clone();
+    let verify_root = owned.clone();
     let timeout = cfg.timeout;
+    let checks = cfg.success_predicate.clone();
+    let sandbox = crate::orchestrator::sandbox::resolve_sandbox();
     run_agent(
         client,
         routing,
@@ -318,6 +350,21 @@ pub async fn run_agent_real<C: ProviderClient>(
         cfg,
         denied,
         move |cmd| run_command(&exec_root, cmd, timeout),
+        move || {
+            if checks.is_empty() {
+                crate::orchestrator::artifacts::VerifyVerdict {
+                    allowed: true,
+                    results: Vec::new(),
+                    summary: "no predicate".into(),
+                }
+            } else {
+                crate::orchestrator::artifacts::verify_artifacts(
+                    &verify_root,
+                    &checks,
+                    sandbox.as_ref(),
+                )
+            }
+        },
     )
     .await
 }
@@ -411,11 +458,78 @@ mod tests {
             &AgentConfig::default(),
             &[],
             |cmd| run_command(tmp.path(), cmd, Duration::from_secs(10)),
+            || crate::orchestrator::artifacts::VerifyVerdict {
+                allowed: true,
+                results: Vec::new(),
+                summary: "no predicate".into(),
+            },
         )
         .await
         .unwrap();
         assert!(out.done);
         assert_eq!(out.steps.len(), 1);
         assert_eq!(out.summary, "ok");
+    }
+
+    #[tokio::test]
+    async fn done_is_blocked_until_the_success_predicate_holds() {
+        use crate::orchestrator::artifacts::{verify_artifacts, ArtifactCheck};
+        use crate::orchestrator::client::{ChatResponse, ClientResult};
+        use crate::orchestrator::sandbox::LocalSandbox;
+        use std::sync::Mutex;
+        struct Scripted {
+            replies: Mutex<Vec<String>>,
+        }
+        impl ProviderClient for Scripted {
+            async fn chat(&self, _d: &Deployment, _r: &ChatRequest) -> ClientResult<ChatResponse> {
+                let c = self.replies.lock().unwrap().remove(0);
+                Ok(ChatResponse {
+                    model: "m".into(),
+                    content: c,
+                    usage: None,
+                })
+            }
+        }
+        // Model claims done twice; only after it actually creates the file does
+        // the predicate (`FileExists out.txt`) hold. The loop must reject the
+        // first `done` and accept the second.
+        let client = Scripted {
+            replies: Mutex::new(vec![
+                r#"{"done":true,"summary":"claim"}"#.into(),
+                r#"{"tool":"run_command","command":"echo ok > out.txt"}"#.into(),
+                r#"{"done":true,"summary":"really done"}"#.into(),
+            ]),
+        };
+        let tmp = tempfile::TempDir::new().unwrap();
+        let root = tmp.path().to_path_buf();
+        let cfg = AgentConfig {
+            success_predicate: vec![ArtifactCheck::FileExists {
+                path: "out.txt".into(),
+            }],
+            ..AgentConfig::default()
+        };
+        let vr = root.clone();
+        let out = run_agent(
+            &client,
+            RoutingConfig::default(),
+            "m",
+            &[dep("m")],
+            "make out.txt",
+            &root,
+            &cfg,
+            &[],
+            |cmd| run_command(&root, cmd, Duration::from_secs(10)),
+            move || verify_artifacts(&vr, &cfg_predicate(), &LocalSandbox),
+        )
+        .await
+        .unwrap();
+        assert!(out.done, "second done must be accepted once evidence holds");
+        assert_eq!(out.summary, "really done");
+    }
+
+    fn cfg_predicate() -> Vec<crate::orchestrator::artifacts::ArtifactCheck> {
+        vec![crate::orchestrator::artifacts::ArtifactCheck::FileExists {
+            path: "out.txt".into(),
+        }]
     }
 }
