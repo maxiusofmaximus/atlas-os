@@ -23,7 +23,9 @@ use crate::supervisor::types::{
 
 use crate::coding::llm::DiffMeta;
 use crate::coding::types::Diff;
-use crate::orchestrator::code::{call_diff_with_cascade_and_denied, StepDiffError};
+use crate::orchestrator::code::{
+    call_diff_with_cascade_and_denied, ResearchContext, StepDiffError,
+};
 use crate::orchestrator::verify::{verify_diff, VerifyConfig};
 use crate::repair::types::RepairReport;
 use crate::validation::types::ValidationReport;
@@ -251,6 +253,7 @@ pub async fn execute_coding_step<C: ProviderClient, P: Fn(&str) -> Option<ModelP
         max_attempts,
         price_of,
         &[],
+        &ResearchContext::default(),
     )
     .await
 }
@@ -269,6 +272,7 @@ pub async fn execute_coding_step_denied<C: ProviderClient, P: Fn(&str) -> Option
     max_attempts: u8,
     price_of: P,
     denied: &[String],
+    research: &ResearchContext,
 ) -> Result<CodingStepOutcome, StepDiffError> {
     let started = std::time::Instant::now();
 
@@ -288,6 +292,7 @@ pub async fn execute_coding_step_denied<C: ProviderClient, P: Fn(&str) -> Option
         meta,
         max_attempts,
         denied,
+        research,
     )
     .await?;
 

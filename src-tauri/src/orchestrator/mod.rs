@@ -63,7 +63,8 @@ pub use client::{
     ClientError, HttpProviderClient, ProviderClient, Usage,
 };
 pub use code::{
-    call_diff_with_cascade, call_diff_with_cascade_and_denied, StepDiffError, StepDiffOutcome,
+    call_diff_with_cascade, call_diff_with_cascade_and_denied, ResearchContext, StepDiffError,
+    StepDiffOutcome, CODING_DIFF_PROMPT,
 };
 pub use cooldown::{CooldownConfig, CooldownOrigin, CooldownOutcome, RetryAfterSource};
 pub use cost_guard::{

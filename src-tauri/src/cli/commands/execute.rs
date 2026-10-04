@@ -26,6 +26,49 @@ use crate::planning::types::Plan;
 const SYSTEM_PROMPT: &str =
     "You are Atlas OS executing one plan step. Reply with the concrete change or action.";
 
+/// Build a `ResearchContext` from explicit `--research-ref` flags (Fase 36). The
+/// operator passes refs (e.g. a past `atlas research query` result) so a coding
+/// Diff carries evidence the EvidenceGate accepts. Empty → behaves as before.
+fn research_context_from(cmd: &ExecuteCmd) -> crate::orchestrator::code::ResearchContext {
+    use crate::orchestrator::code::ResearchContext;
+    let mut refs = Vec::new();
+    let mut notes = Vec::new();
+    for raw in &cmd.research_refs {
+        let raw = raw.trim();
+        if raw.is_empty() {
+            continue;
+        }
+        match Uuid::parse_str(raw) {
+            Ok(u) => {
+                refs.push(u);
+                notes.push(raw.to_string());
+            }
+            Err(_) => {
+                refs.push(uuid_from_text(raw));
+                notes.push(raw.to_string());
+            }
+        }
+    }
+    ResearchContext {
+        run_id: cmd.research_run.clone().unwrap_or_else(|| "-".to_string()),
+        refs,
+        notes,
+    }
+}
+
+/// Deterministic UUID for a free-text ref (so the same string yields the same
+/// `research_refs` entry across runs) without needing the `v5` uuid feature.
+fn uuid_from_text(s: &str) -> Uuid {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    s.hash(&mut h);
+    let a = h.finish();
+    let mut h2 = std::collections::hash_map::DefaultHasher::new();
+    (s, a).hash(&mut h2);
+    let b = h2.finish();
+    Uuid::from_u128((a as u128) << 64 | b as u128)
+}
+
 /// Persist a checkpoint, apply `diff` to `root` (filesystem), and return the
 /// number of files written. Pure application logic lives in `coding::apply`; this
 /// only does the I/O + pre-write audit (Fase 35).
@@ -106,6 +149,13 @@ pub struct ExecuteCmd {
     /// Workspace root that `--apply` reads/writes. Defaults to the current dir.
     #[arg(long, default_value = ".")]
     pub root: String,
+    /// Research refs (repeatable) attached to each coding Diff as evidence
+    /// (Fase 36). Accepts a UUID or any free text (hashed deterministically).
+    #[arg(long = "research-ref")]
+    pub research_refs: Vec<String>,
+    /// Optional research run id shown in the report (e.g. `rr-...`).
+    #[arg(long)]
+    pub research_run: Option<String>,
 }
 
 pub async fn run(cmd: ExecuteCmd, profile: &str) -> Result<()> {
@@ -214,11 +264,24 @@ pub async fn run(cmd: ExecuteCmd, profile: &str) -> Result<()> {
             "execute --coding reliability_gate={} denied={denied:?}",
             if gate_enabled { "on" } else { "off" }
         );
+
+        // Fase 36 — attach recent Research Engine refs so a code Diff can carry
+        // evidence the EvidenceGate accepts (RFC 30 §2.1), instead of always
+        // failing to repair for lack of a research artefact.
+        let research = research_context_from(&cmd);
+        if !research.is_empty() {
+            println!(
+                "execute --coding research={} refs={}",
+                research.run_id,
+                research.refs.len()
+            );
+        }
+
         let now = chrono::Utc::now().to_rfc3339();
         let mut ok = 0usize;
         for step in &steps {
             let out = if denied.is_empty() {
-                crate::orchestrator::execute::execute_coding_step(
+                crate::orchestrator::execute::execute_coding_step_denied(
                     &client,
                     RoutingConfig::default(),
                     step,
@@ -228,6 +291,8 @@ pub async fn run(cmd: ExecuteCmd, profile: &str) -> Result<()> {
                     agent_id,
                     cmd.max_attempts,
                     &price_of,
+                    &[],
+                    &research,
                 )
                 .await
             } else {
@@ -242,6 +307,7 @@ pub async fn run(cmd: ExecuteCmd, profile: &str) -> Result<()> {
                     cmd.max_attempts,
                     &price_of,
                     &denied,
+                    &research,
                 )
                 .await
             }

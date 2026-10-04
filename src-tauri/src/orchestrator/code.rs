@@ -6,7 +6,10 @@
 // `Diff` is what the pure Validation/Repair engines consume (v26.2), so a code
 // step stops being "a chat message" and becomes an edit that gets verified.
 
-use crate::coding::llm::{parse_diff_json, DiffMeta, DiffParseError, DIFF_CONTRACT_PROMPT};
+use serde::Deserialize;
+use uuid::Uuid;
+
+use crate::coding::llm::{parse_diff_json, DiffMeta, DiffParseError};
 use crate::coding::types::Diff;
 use crate::orchestrator::call::{call_with_cascade_and_denied, CallError};
 use crate::orchestrator::client::{ChatMessage, ChatRequest, ProviderClient, Usage};
@@ -20,6 +23,55 @@ pub struct StepDiffOutcome {
     pub deployment_id: String,
     pub attempts: u8,
     pub usage: Option<Usage>,
+    /// `true` when the model's reply dropped the `narrative`, so the caller can
+    /// surface that the gate would warn even on an otherwise clean diff.
+    pub narrative_missing: bool,
+}
+
+/// The code prompt asks the model for a structured diff whose `narrative`
+/// states why, keeping the EvidenceGate (RFC 30 §2.1) satisfiable.
+pub const CODING_DIFF_PROMPT: &str = r#"You are the Atlas Coding Engine. Produce the code change for the step below as ONE JSON object and nothing else — no prose, no markdown fences.
+
+Schema:
+{
+  "narrative": "<what changed, what it does now, why — required>",
+  "files": [
+    { "path": "relative/path.ext", "is_new_file": false, "is_delete": false,
+      "hunks": [ { "old_start": 10, "old_end": 12, "new_lines": ["line"], "rationale": "why" } ] }
+  ]
+}
+
+Rules:
+- The `narrative` is REQUIRED and must state the change and its rationale.
+- Emit structured hunks, never a unified-diff blob. `old_start`..`old_end` is the half-open 0-based range being replaced; `0,0` inserts at the top; empty `new_lines` deletes.
+- Paths are relative to the repo root with `/`.
+- If the change affects behaviour, also edit or add a test file so the change carries check evidence.
+"#;
+
+/// Optional Research Engine evidence (Fase 36). When present the model is asked
+/// to cite which research refs justify the change, and those refs are attached
+/// to the `Diff` verbatim — the EvidenceGate (RFC 30 §2.1) is what consumes
+/// them. Citations are matched by INDEX so the model cannot coin a UUID.
+#[derive(Clone, Debug, Default)]
+pub struct ResearchContext {
+    pub run_id: String,
+    pub refs: Vec<Uuid>,
+    /// Short summaries parallel to `refs` (what each ref found).
+    pub notes: Vec<String>,
+}
+
+impl ResearchContext {
+    pub fn is_empty(&self) -> bool {
+        self.refs.is_empty()
+    }
+}
+
+#[derive(Deserialize)]
+struct RawCitedDiff {
+    #[serde(default)]
+    narrative: String,
+    #[serde(default)]
+    cites: Vec<usize>,
 }
 
 /// Either the cascade could not reach any model, or the reply was not a usable
@@ -36,7 +88,8 @@ pub enum StepDiffError {
 /// Ask the routed model for a structured `Diff` for `step_statement` and parse
 /// it. `meta` carries the kernel-side identity the model must not supply.
 /// `denied` lists model ids the reliability gate has excluded (Fase 24/F33):
-/// they are skipped for both the primary and the failover groups.
+/// they are skipped for both the primary and the failover groups. `research`,
+/// when present, adds the refs so the model cites them (Fase 36).
 #[allow(clippy::too_many_arguments)]
 pub async fn call_diff_with_cascade_and_denied<C: ProviderClient>(
     client: &C,
@@ -47,11 +100,29 @@ pub async fn call_diff_with_cascade_and_denied<C: ProviderClient>(
     meta: DiffMeta,
     max_attempts: u8,
     denied: &[String],
+    research: &ResearchContext,
 ) -> Result<StepDiffOutcome, StepDiffError> {
+    let system = if research.is_empty() {
+        CODING_DIFF_PROMPT.to_string()
+    } else {
+        let listing = research
+            .refs
+            .iter()
+            .enumerate()
+            .map(|(i, r)| {
+                let note = research.notes.get(i).map(String::as_str).unwrap_or("");
+                format!("[{i}] ({r}) {note}")
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        format!(
+            "{CODING_DIFF_PROMPT}\nResearch evidence (cite the indexes you rely on via a top-level \"cites\": [n, ...] field):\n{listing}"
+        )
+    };
     let request = ChatRequest {
         model: model.to_string(),
         messages: vec![
-            ChatMessage::system(DIFF_CONTRACT_PROMPT),
+            ChatMessage::system(system),
             ChatMessage::user(step_statement),
         ],
         temperature: None,
@@ -68,17 +139,49 @@ pub async fn call_diff_with_cascade_and_denied<C: ProviderClient>(
         denied,
     )
     .await?;
-    let diff = parse_diff_json(&outcome.response.content, meta)?;
+
+    let content = &outcome.response.content;
+    let mut diff = parse_diff_json(content, meta)?;
+    let narrative_missing = diff.narrative.trim().is_empty();
+    if !research.is_empty() {
+        if let Some(raw) = parse_cited_diff(content) {
+            if diff.narrative.trim().is_empty() && !raw.narrative.trim().is_empty() {
+                diff.narrative = raw.narrative;
+            }
+            let mut seen = std::collections::BTreeSet::new();
+            for idx in raw.cites {
+                if let Some(r) = research.refs.get(idx) {
+                    if seen.insert(*r) && !diff.research_refs.contains(r) {
+                        diff.research_refs.push(*r);
+                    }
+                }
+            }
+        }
+    }
 
     Ok(StepDiffOutcome {
         diff,
         deployment_id: outcome.deployment_id,
         attempts: outcome.attempts,
         usage: outcome.response.usage,
+        narrative_missing,
     })
 }
 
-/// Convenience wrapper with no denied models (behaviour identical to before F33).
+/// Best-effort second parse that also captures the optional `cites` array. The
+/// strict `parse_diff_json` owns validation; this only extracts extra fields.
+fn parse_cited_diff(content: &str) -> Option<RawCitedDiff> {
+    let s = content.trim();
+    let start = s.find('{')?;
+    let end = s.rfind('}')?;
+    if end <= start {
+        return None;
+    }
+    serde_json::from_str(&s[start..=end]).ok()
+}
+
+/// Convenience wrapper with no denied models and no research (behaviour
+/// identical to before F33/F36).
 #[allow(clippy::too_many_arguments)]
 pub async fn call_diff_with_cascade<C: ProviderClient>(
     client: &C,
@@ -98,6 +201,7 @@ pub async fn call_diff_with_cascade<C: ProviderClient>(
         meta,
         max_attempts,
         &[],
+        &ResearchContext::default(),
     )
     .await
 }
@@ -227,6 +331,7 @@ mod tests {
             meta(),
             5,
             &["m1".to_string()],
+            &ResearchContext::default(),
         )
         .await
         .expect("failover to m2");
@@ -234,5 +339,67 @@ mod tests {
             out.deployment_id, "d2",
             "the denied primary must not be used"
         );
+    }
+
+    #[tokio::test]
+    async fn research_refs_are_attached_from_citations() {
+        let deployments = vec![dep("m1", "d1")];
+        let r0 = uuid::Uuid::new_v4();
+        let r1 = uuid::Uuid::new_v4();
+        let client = Scripted::new(vec![Ok(ChatResponse {
+            model: "m1".into(),
+            content: r#"{"narrative":"adds add() per research","cites":[0],"files":[{"path":"src/lib.rs","hunks":[{"old_start":0,"old_end":0,"new_lines":["pub fn add(a: u32, b: u32) -> u32 { a + b }"],"rationale":"r"}]}]}"#.into(),
+            usage: None,
+        })]);
+        let research = ResearchContext {
+            run_id: "rr-x".into(),
+            refs: vec![r0, r1],
+            notes: vec!["tokio spawn docs".into(), "unused".into()],
+        };
+        let out = call_diff_with_cascade_and_denied(
+            &client,
+            RoutingConfig::default(),
+            "m1",
+            &deployments,
+            "add add()",
+            meta(),
+            5,
+            &[],
+            &research,
+        )
+        .await
+        .expect("cites parsed");
+        assert_eq!(out.diff.research_refs, vec![r0], "only cited refs attach");
+        assert!(!out.narrative_missing);
+    }
+
+    #[tokio::test]
+    async fn invalid_citation_indexes_are_ignored() {
+        let deployments = vec![dep("m1", "d1")];
+        let r0 = uuid::Uuid::new_v4();
+        let client = Scripted::new(vec![Ok(ChatResponse {
+            model: "m1".into(),
+            content: r#"{"narrative":"n","cites":[99],"files":[{"path":"a.rs","hunks":[{"old_start":0,"old_end":0,"new_lines":["x"]}]}]}"#.into(),
+            usage: None,
+        })]);
+        let research = ResearchContext {
+            run_id: "rr-x".into(),
+            refs: vec![r0],
+            notes: vec![],
+        };
+        let out = call_diff_with_cascade_and_denied(
+            &client,
+            RoutingConfig::default(),
+            "m1",
+            &deployments,
+            "s",
+            meta(),
+            5,
+            &[],
+            &research,
+        )
+        .await
+        .expect("out-of-range cite is ignored, not fatal");
+        assert!(out.diff.research_refs.is_empty());
     }
 }

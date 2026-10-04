@@ -529,5 +529,16 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
   (`MissionCheckpoint`) → lee el workspace → aplica → escribe/borra. 9 tests.
   **F35 CERRADA** — el `Diff` validado ya se escribe al workspace de forma determinista.
 
+## F36 — Research evidence en el coding loop (COMPLETA; plan: research/58)
+
+- **Hallazgo:** el motor de Research (RFC 10, Fases 3.0–3.5) YA existe (`research::*`,
+  `atlas research query/note/branches`). El gap real: un `Diff` de código **siempre** falla
+  la EvidenceGate (RFC 30 §2.1) por falta de artefacto (test/refs/risk) → siempre a repair.
+- **v36.0 COMPLETA:** el coding loop acepta `ResearchContext` (`--research-ref` repeatable +
+  `--research-run`); el system prompt pide citar por **índice** (`cites:[n]`), el codec
+  resuelve índices→UUIDs reales y adjunta los refs al `Diff` (verbatim, no inventables).
+  El prompt pide además tocar/crear un test cuando cambia comportamiento. 2 tests.
+  **F36 CERRADA** — un `Diff` con narrativa + test o refs pasa la EvidenceGate sin repair.
+
 ## Out of scope v2
 - iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).
