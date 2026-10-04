@@ -137,6 +137,18 @@ impl AppState {
         self.inner.journal.lock()
     }
 
+    /// RFC 20 Fase 23 v3.1.2.1 — current operator availability for a
+    /// proactive turn, computed from the M18 busy windows (research/52).
+    /// This is the `context_availability` the repo lacked.
+    pub fn context_availability(
+        &self,
+        policy: &crate::planning::availability::TurnPolicy,
+    ) -> anyhow::Result<crate::planning::availability::Availability> {
+        let now = chrono::Utc::now().timestamp_millis();
+        let journal = self.inner.journal.lock();
+        crate::planning::availability::availability_now(&journal, now, policy)
+    }
+
     pub fn bus(&self) -> broadcast::Sender<BusEvent> {
         self.inner.bus_tx.clone()
     }

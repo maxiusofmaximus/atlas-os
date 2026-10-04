@@ -414,8 +414,13 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - **v3.1.2.0 COMPLETA:** `planning/availability.rs` (`TurnPolicy`/`Availability`/
   `next_free_slot`/`availability_now`); 7 tests; golden task `planning.availability`;
   CLI `atlas calendar availability [-e eta_ms] [-w threshold]`.
-- **Pendiente:** v3.1.2.1 (disparo del supervisor `EnqueueProactiveTurn`),
-  v3.1.2.2 (política persistida + HUD), v3.1.2.3 (métricas de turnos en EVAL).
+- **v3.1.2.1 COMPLETA:** `SupervisorEvent::ProactiveCheck` +
+  `SupervisorAction::EnqueueProactiveTurn`; `tick` arranca el turno solo si el
+  supervisor está `Idle`/`Done` y la disponibilidad es `RunNow`; respeta
+  `BudgetCaps`. `AppState::context_availability(policy)` (el `context_window`
+  que faltaba). 4 tests.
+- **Pendiente:** v3.1.2.2 (política persistida + HUD + caller que consulta el
+  backlog), v3.1.2.3 (métricas de turnos proactivos en EVAL).
 
 - **v3.1.2 (Planning proactivo) queda condicionado a EVAL:** sin instrumento no se
   puede medir si los turnos proactivos ayudan o estorban.

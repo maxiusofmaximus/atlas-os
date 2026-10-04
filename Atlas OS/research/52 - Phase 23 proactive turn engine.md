@@ -1,6 +1,6 @@
 # 52 — Phase 23: Proactive Turn Engine (v3.1.2)
 
-- **Estado:** plan aprobado; v3.1.2.0 (núcleo de disponibilidad) **COMPLETA**.
+- **Estado:** plan aprobado; v3.1.2.0–v3.1.2.1 **COMPLETAS**.
 - **Fecha:** 2026-10-03.
 - **Motivación:** cerrar el único ítem de producto bloqueado del Roadmap v3 — el
   "turno proactivo" que `RFC 28 §G.4 item 8` asumía (`Planning::next_free_slot`)
@@ -76,8 +76,14 @@ busy* bloquea; el *soft busy* 0.5 no), `horizon_ms = 24 h`.
 - **v3.1.2.0 — Núcleo de disponibilidad** (`planning/availability.rs` +
   `TurnPolicy`/`Availability`/`next_free_slot`/`availability_now` + 7 tests +
   golden task `planning.availability` + CLI `atlas calendar availability`). **COMPLETA.**
-- **v3.1.2.1 — Disparo del supervisor** (`AppState.context_availability` +
-  `SupervisorAction::EnqueueProactiveTurn` + tests).
+- **v3.1.2.1 — Disparo del supervisor** — **COMPLETA**:
+  - `SupervisorEvent::ProactiveCheck { availability, pending_mission }` +
+    `SupervisorAction::EnqueueProactiveTurn { mission_id }` (el host aporta
+    disponibilidad + misión pendiente; el FSM sigue puro).
+  - `tick` inicia turno solo si `phase.accepts_new_mission()` y
+    `availability == RunNow`; respeta `BudgetCaps` (evaluadas al inicio del tick).
+  - `AppState::context_availability(policy)` — el `context_window` que faltaba.
+  - 4 tests (libre/con misión, busy window, supervisor ocupado, sin backlog).
 - **v3.1.2.2 — Política + HUD + CLI** (persistencia + card + endpoint).
 - **v3.1.2.3 — Medición** (métricas de turnos proactivos en EVAL).
 

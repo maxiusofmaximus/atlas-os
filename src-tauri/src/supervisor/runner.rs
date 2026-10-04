@@ -40,6 +40,8 @@ use uuid::Uuid;
 use super::doom_loop::{DoomLoopConfig, DoomLoopDetector};
 use super::types::*;
 
+use crate::planning::availability::Availability;
+
 /// Phase-1 host-owned context. Keeps the runner pure by holding the
 /// mutable bits the runner needs (clock + doom-loop detector). The
 /// host calls `tick(&mut ctx, state, event)`.
@@ -419,6 +421,25 @@ pub fn tick(ctx: &mut TickContext, state: SupervisorState, event: SupervisorEven
             next.mission_id = None;
             TickOutput::with_actions(next, vec![])
         }
+        SupervisorEvent::ProactiveCheck {
+            availability,
+            pending_mission,
+        } => {
+            // v3.1.2.1 (research/52): the host supplies the current
+            // availability + whether a mission awaits a proactive turn.
+            // Start it only when the operator is free and the supervisor is
+            // idle (BudgetCaps were already evaluated above with `next`).
+            if !state.phase.accepts_new_mission() {
+                return TickOutput::pass_through(next);
+            }
+            match (availability, pending_mission) {
+                (Availability::RunNow, Some(mission_id)) => TickOutput::with_actions(
+                    next,
+                    vec![SupervisorAction::EnqueueProactiveTurn { mission_id }],
+                ),
+                _ => TickOutput::pass_through(next),
+            }
+        }
         SupervisorEvent::ToolCall { .. } => {
             // Iteration/cost tally already handled above.
             TickOutput::pass_through(next)
@@ -497,6 +518,7 @@ fn snapshot_with(state: &SupervisorState) -> MissionCheckpoint {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::planning::availability::Availability;
     use crate::repair::types::RepairOutcome;
 
     fn fresh_state() -> SupervisorState {
@@ -867,6 +889,78 @@ mod tests {
             .actions
             .iter()
             .any(|a| matches!(a, SupervisorAction::Restart { .. })));
+    }
+
+    #[test]
+    fn proactive_check_starts_pending_mission_when_free() {
+        let mut ctx = TickContext::new(ExecutionMode::HumanInLoop);
+        let mission = mission_id();
+        let out = tick(
+            &mut ctx,
+            fresh_state(),
+            SupervisorEvent::ProactiveCheck {
+                availability: Availability::RunNow,
+                pending_mission: Some(mission),
+            },
+        );
+        assert_eq!(
+            out.state.phase,
+            MissionPhase::Idle,
+            "proactive start does not move the FSM"
+        );
+        assert!(matches!(
+            out.actions.as_slice(),
+            [SupervisorAction::EnqueueProactiveTurn { mission_id }] if *mission_id == mission
+        ));
+    }
+
+    #[test]
+    fn proactive_check_waits_when_busy_window() {
+        let mut ctx = TickContext::new(ExecutionMode::HumanInLoop);
+        let out = tick(
+            &mut ctx,
+            fresh_state(),
+            SupervisorEvent::ProactiveCheck {
+                availability: Availability::WaitUntil(12_345),
+                pending_mission: Some(mission_id()),
+            },
+        );
+        assert!(
+            out.actions.is_empty(),
+            "must not start work while the operator is busy"
+        );
+    }
+
+    #[test]
+    fn proactive_check_ignored_when_supervisor_busy() {
+        let mut ctx = TickContext::new(ExecutionMode::HumanInLoop);
+        let state = advance_planning(fresh_state(), &mut ctx); // Executing
+        let out = tick(
+            &mut ctx,
+            state,
+            SupervisorEvent::ProactiveCheck {
+                availability: Availability::RunNow,
+                pending_mission: Some(mission_id()),
+            },
+        );
+        assert!(
+            out.actions.is_empty(),
+            "no proactive start while a mission is running"
+        );
+    }
+
+    #[test]
+    fn proactive_check_without_pending_work_is_noop() {
+        let mut ctx = TickContext::new(ExecutionMode::HumanInLoop);
+        let out = tick(
+            &mut ctx,
+            fresh_state(),
+            SupervisorEvent::ProactiveCheck {
+                availability: Availability::RunNow,
+                pending_mission: None,
+            },
+        );
+        assert!(out.actions.is_empty());
     }
 
     #[test]

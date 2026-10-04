@@ -36,7 +36,7 @@ impl Default for TurnPolicy {
 }
 
 /// Decision for the proactive turn engine.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Availability {
     /// A free slot of `eta` starts now.
     RunNow,

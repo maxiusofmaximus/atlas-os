@@ -22,6 +22,8 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::planning::availability::Availability;
+
 /// RFC 19 §6.1 — the seven lifecycle states of a mission under
 // supervision. Transitions are documented in `SupervisorState::next`
 /// and asserted by the runner; each transition leaves its traza in the
@@ -313,6 +315,14 @@ pub enum SupervisorEvent {
     },
     UserApproved,
     UserHalted,
+    /// v3.1.2.1 (research/52) — host-supplied probe: is the operator free
+    /// (`availability`) and is there a mission awaiting a proactive turn
+    /// (`pending_mission`)? The host computes both (Journal + calendar) so
+    /// the runner stays pure.
+    ProactiveCheck {
+        availability: Availability,
+        pending_mission: Option<Uuid>,
+    },
 }
 
 /// RFC 19 §4/§6 — the actions the supervisor asks the host to perform.
@@ -350,6 +360,9 @@ pub enum SupervisorAction {
     /// RFC 30 §2.1 — refuse an evidence-less done claim without leaving
     /// `Verifying`. The host surfaces `reason` exactly as Canny does.
     BlockDone { reason: String },
+    /// v3.1.2.1 — start the next queued mission proactively because the
+    /// operator is free. The host resolves `mission_id` and kicks the run.
+    EnqueueProactiveTurn { mission_id: Uuid },
 }
 
 /// RFC 19 §6.1 — the full supervisor state passed between `tick`
