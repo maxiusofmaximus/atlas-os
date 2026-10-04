@@ -61,6 +61,11 @@ pub fn golden_suite() -> Vec<EvalTask> {
             category: "SYS",
             run: orchestrator_request_codec,
         },
+        EvalTask {
+            id: "coding.llm_diff_codec",
+            category: "SYS",
+            run: coding_llm_diff_codec,
+        },
     ]
 }
 
@@ -311,6 +316,31 @@ fn orchestrator_request_codec() -> TaskResult {
     TaskResult::assert(
         body_ok && parse_ok,
         format!("body_ok={body_ok} parsed={parsed:?}"),
+    )
+}
+
+fn coding_llm_diff_codec() -> TaskResult {
+    use crate::coding::llm::{parse_diff_json, DiffMeta};
+
+    let meta = DiffMeta {
+        mission_id: uuid::Uuid::new_v4(),
+        plan_id: uuid::Uuid::new_v4(),
+        step_id: "S1".into(),
+        agent_id: uuid::Uuid::new_v4(),
+        model_id: "gpt-x".into(),
+    };
+    let fenced = "here:\n```json\n{\"narrative\":\"n\",\"files\":[{\"path\":\"src\\\\lib.rs\",\"hunks\":[{\"old_start\":0,\"old_end\":0,\"new_lines\":[\"pub fn hi() {}\"],\"rationale\":\"r\"}]}]}\n```";
+    let parsed = parse_diff_json(fenced, meta.clone());
+    let ok = matches!(
+        &parsed,
+        Ok(d) if d.files[0].path == "src/lib.rs"
+            && d.files[0].hunks[0].new_lines == vec!["pub fn hi() {}".to_string()]
+            && d.model_id == "gpt-x"
+    );
+    let rejected = parse_diff_json("no json at all", meta).is_err();
+    TaskResult::assert(
+        ok && rejected,
+        format!("ok={ok} rejected={rejected} parsed={parsed:?}"),
     )
 }
 

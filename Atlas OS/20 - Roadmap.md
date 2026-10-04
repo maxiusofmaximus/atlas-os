@@ -478,5 +478,18 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - **v3.1.A.3 Poller en background COMPLETA:** `calendar/poller.rs` (`CalendarPoller` al estilo `ToastDriver`) spawneado desde `AppState::bootstrap`; cadencia por `ATLAS_CALENDAR_POLL_SECS` (default 900 s, `0` off), primer sync a 30 s; comparte `sync_all_ics` con el CLI. **A.2 cerrada.**
 - **v3.1.2 bloqueado en infraestructura:** el repo no tiene motor de "turn proactivo" ni `AppState.context_window`; `Planning::next_free_slot` (RFC 28 §G.4 item 8) asume ese motor → requiere RFC propio antes de wiring.
 
+## Fase 26 — LLM-driven Coding en el execution loop (plan: research/55)
+
+- **Decisión 2026-10-03:** dos loops paralelos no se tocaban (`atlas run` heurístico
+  edita+valida sin LLM; `atlas execute` enruta con LLM pero no edita ni valida). B mide
+  "un LLM que charla" si no se cierra el ciclo. Fase 26 = **LLM-driven Coding** (RFC 13
+  "Phase 2"), el puente que mete un `Diff` del modelo en el loop Validation→Repair puro.
+- **v26.0 COMPLETA:** codec puro `coding/llm.rs` — `DIFF_CONTRACT_PROMPT` + `DiffMeta` +
+  `parse_diff_json(content, meta) -> Result<Diff, DiffParseError>` (tolerante a fences/prosa,
+  normaliza `\`→`/`, clampa `old_end`, rechaza vacío/sin JSON/inválido/sin files/sin hunks);
+  golden task `coding.llm_diff_codec`. 11 tests.
+- **Pendiente:** v26.1 (request + parse por step), v26.2 (wiring Validation/Repair + eventos
+  supervisor), v26.3 (CLI/HUD + cierre).
+
 ## Out of scope v2
 - iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).

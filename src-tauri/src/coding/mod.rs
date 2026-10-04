@@ -9,9 +9,11 @@
 // LLM-driven coder coming with RFC 04 so the rest of the kernel stays
 // forward-compatible.
 
+pub mod llm;
 pub mod runner;
 pub mod types;
 
+pub use llm::{parse_diff_json, DiffMeta, DiffParseError, DIFF_CONTRACT_PROMPT};
 pub use runner::{run, CodingInput, WorkspaceFile};
 pub use types::*;
 
