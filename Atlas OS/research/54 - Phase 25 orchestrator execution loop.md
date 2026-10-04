@@ -70,7 +70,16 @@ provider client → cost guard`, journaled, cancelable, con budgets. **No** swar
 - **No** wire Anthropic/Gemini en v25.0 (follow-up); el payload layer (`wire.rs`) ya existe.
 - Riesgo: scope balloon → el RFC fija el corte (una llamada real, no swarm).
 
-## 4. Fuentes
+## 4. B-prep (adaptador Harbor)
+
+- `tools/harbor_atlas/atlas_agent.py` ahora conduce el **pipeline real**
+  (`atlas --profile harbor mission new --force → plan → execute`), de modo que el número
+  externo mide el **harness orquestado** (routing + cascade + gate + coste), no el pase
+  Phase-1.
+- Falta la **corrida real**: requiere Harbor + Docker + creds de modelo + perfil `harbor`.
+  La ingestión ya está lista (`atlas eval import jobs/<job-id>`).
+
+## 5. Fuentes
 
 - Conversación 2026-10-03 y `research/53` (A→B). `research/51` (EVAL), `research/29`
   (Phase 2 orchestrator), KDD 2026 (Scaffold Effect), `Atlas OS/04` (RFC 04 §2/§6).

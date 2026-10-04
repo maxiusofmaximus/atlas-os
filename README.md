@@ -201,9 +201,12 @@ atlas eval metrics       # pass rate, tokens/solved, $/solved, failure-kind vect
 - **Baseline (local):** `golden` **6/6** — `schema.migrate_idempotent`,
   `supply.exact_known_passes`, `supply.typosquat_blocks`, `supply.install_script_blocks`,
   `supply.env_access_warns`, `calendar.overlap_half_open`.
-- **External baseline (Harbor):** Terminal-Bench 2.0 / SWE-bench Verified. Run Atlas under
-  Harbor (`tools/harbor_atlas/`), then ingest: `atlas eval import jobs/<job-id>`. Metrics
-  surface in `atlas eval metrics` and the HUD `<EvalCard>` (`GET /hud/eval/summary`).
+- **External baseline (Harbor):** Terminal-Bench 2.0 / SWE-bench Verified. The adapter
+  (`tools/harbor_atlas/`) drives the **orchestrated** pipeline
+  (`mission new --force → plan → execute`), so the number measures the real harness
+  (routing + cascade + reliability gate + cost guard). Run it under Harbor, then ingest:
+  `atlas eval import jobs/<job-id>`. Metrics surface in `atlas eval metrics` and the HUD
+  `<EvalCard>` (`GET /hud/eval/summary`). A live run needs Harbor + Docker + model creds.
 - **CI gate:** `.github/workflows/eval-gate.yml` runs the golden suite with `--strict`
   (non-zero exit on regression) on every engine change.
 

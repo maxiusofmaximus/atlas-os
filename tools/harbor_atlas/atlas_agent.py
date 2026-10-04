@@ -1,7 +1,8 @@
-"""Harbor installed-agent adapter for Atlas OS (RFC 20 Fase 22, EVAL.3).
+"""Harbor installed-agent adapter for Atlas OS (RFC 20 Fase 25; research/54).
 
 Dev-only integration scaffold: it is NOT part of the Atlas single-binary
-distribution (RFC 25 §11). It requires Harbor + Docker + a model endpoint.
+distribution (RFC 25 §11). It requires Harbor + Docker + a model endpoint and a
+`harbor` Atlas profile with a matching deployment/API key.
 
 Register it with Harbor (from the repo root, with `PYTHONPATH=tools`):
 
@@ -9,9 +10,9 @@ Register it with Harbor (from the repo root, with `PYTHONPATH=tools`):
         --agent harbor_atlas.atlas_agent:AtlasAgent \\
         --model <provider/model>
 
-The `run` body is the integration point: point it at the Atlas headless
-entrypoint you want evaluated. Ingest the results with
-`atlas eval import jobs/<job-id>` (see README.md).
+The agent drives the REAL Atlas pipeline — mission → plan → execute — so the
+resulting benchmark number measures the orchestrated harness (routing + cascade
++ reliability gate + cost guard), not the Phase-1 single pass.
 """
 
 import shlex
@@ -22,7 +23,7 @@ from harbor.models.agent.context import AgentContext
 
 
 class AtlasAgent(BaseInstalledAgent):
-    """Runs the Atlas OS CLI headlessly inside the task container."""
+    """Runs the Atlas OS orchestrated pipeline headlessly in the container."""
 
     def name(self) -> str:
         return "atlas"
@@ -38,13 +39,18 @@ class AtlasAgent(BaseInstalledAgent):
         self, instruction: str, environment: BaseEnvironment, context: AgentContext
     ) -> None:
         prompt = shlex.quote(instruction)
-        await self.exec_as_agent(
-            environment,
-            command=(
-                "atlas --profile harbor mission new " + prompt + " && "
-                "atlas --profile harbor run"
-            ),
+        # 1) force-lock the mission (offline heuristic planner; `--force` overrides
+        #    the auto-lock confidence threshold so the pipeline never stalls),
+        # 2) generate the Plan, 3) drive it through the orchestrator loop.
+        # `&&` makes any failing stage fail the trial.
+        command = (
+            "ID=$(atlas --profile harbor mission new --force "
+            + prompt
+            + " | awk '/^mission /{print $2; exit}') && "
+            'atlas --profile harbor plan "$ID" && '
+            'atlas --profile harbor execute "$ID"'
         )
+        await self.exec_as_agent(environment, command=command)
 
     def populate_context_post_run(self, context: AgentContext) -> None:
         return None
