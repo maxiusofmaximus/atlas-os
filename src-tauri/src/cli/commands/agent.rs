@@ -15,7 +15,11 @@ use crate::orchestrator::routing::RoutingConfig;
 #[derive(Args, Debug)]
 pub struct AgentCmd {
     /// The task for the agent to complete by running shell commands.
-    pub task: String,
+    /// Omit it (with `--list-tools`) to print the tool catalog instead.
+    pub task: Option<String>,
+    /// List the ToolRegistry catalog and exit (RFC 63).
+    #[arg(long, default_value_t = false)]
+    pub list_tools: bool,
     /// Working directory the commands run in.
     #[arg(long, default_value = ".")]
     pub root: String,
@@ -28,9 +32,26 @@ pub struct AgentCmd {
     /// Max cascade attempts per model call.
     #[arg(long, default_value_t = 5)]
     pub max_attempts: u8,
+    /// Path to a JSON file with the success predicate (array of ArtifactCheck).
+    /// `done` is only accepted once every check holds (RFC 63).
+    #[arg(long)]
+    pub verify: Option<String>,
 }
 
 pub async fn run(cmd: AgentCmd, profile: &str) -> Result<()> {
+    if cmd.list_tools {
+        let reg = crate::orchestrator::ToolRegistry::with_core_tools();
+        println!("atlas agent tools ({}):", reg.catalog().len());
+        for (name, desc) in reg.catalog() {
+            println!("  {name:<12} {desc}");
+        }
+        return Ok(());
+    }
+    let task = cmd
+        .task
+        .clone()
+        .context("missing <TASK> (or pass --list-tools)")?;
+
     let pid = crate::profiles::ProfileId::new(profile);
     let root = crate::profiles::resolve_root(&pid)?;
     let journal = crate::journal::Journal::open(&root)?;
@@ -82,11 +103,20 @@ pub async fn run(cmd: AgentCmd, profile: &str) -> Result<()> {
     };
 
     let work = std::path::PathBuf::from(&cmd.root);
+    let success_predicate = match &cmd.verify {
+        Some(path) => {
+            let text = std::fs::read_to_string(path)
+                .with_context(|| format!("read verify file {path}"))?;
+            serde_json::from_str::<Vec<crate::orchestrator::artifacts::ArtifactCheck>>(&text)
+                .with_context(|| format!("parse verify file {path}"))?
+        }
+        None => Vec::new(),
+    };
     let cfg = AgentConfig {
         max_steps: cmd.max_steps,
         timeout: std::time::Duration::from_secs(cmd.command_timeout),
         max_attempts: cmd.max_attempts,
-        success_predicate: Vec::new(),
+        success_predicate,
     };
 
     println!(
@@ -102,7 +132,7 @@ pub async fn run(cmd: AgentCmd, profile: &str) -> Result<()> {
         RoutingConfig::default(),
         &model,
         &deployments,
-        &cmd.task,
+        &task,
         &work,
         &cfg,
         &denied,
