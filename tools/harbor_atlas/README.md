@@ -3,24 +3,30 @@
 > **Paso a paso completo:** [`RUNBOOK.md`](./RUNBOOK.md) (Docker/WSL → Harbor → ingestión).
 > Este README es la referencia corta; el runbook es el procedimiento operativo.
 
-## Baseline medido (2026-10-04)
+## Baseline medido (2026-10-04) — Terminal-Bench 2.0, 89/89
 
-Primera corrida real de Atlas bajo Harbor, verificada end-to-end en esta máquina (Docker vía
-WSL2, Harbor 0.23.0):
+Primera corrida **completa** de Atlas bajo Harbor, verificada end-to-end en esta máquina
+(Docker vía WSL2, Harbor 0.23.0):
 
-| Harness                         | Agente                    | Modelo                   | Tareas (en curso) | pass_rate | failure kind | fecha      |
-| ------------------------------- | ------------------------- | ------------------------ | ----------------- | --------- | ------------ | ---------- |
-| terminal-bench/terminal-bench-2 | `harbor_atlas:AtlasAgent` | moonshotai/kimi-k3 (NIM) | 0/6               | 0.0%      | `VERIFY`     | 2026-10-04 |
+| Harness                         | Agente                    | Modelo                   | Trials    | pass_rate | errores                                                      | fecha      |
+| ------------------------------- | ------------------------- | ------------------------ | --------- | --------- | ------------------------------------------------------------ | ---------- |
+| terminal-bench/terminal-bench-2 | `harbor_atlas:AtlasAgent` | moonshotai/kimi-k3 (NIM) | **89/89** | **0.000** | 4 excepciones (3× `NonZeroAgentExitCode`, 1× `AgentTimeout`) | 2026-10-04 |
 
-`oracle` (solver de referencia) da mean ≈ 0.88 en el **mismo** harness — así que el harness
-mide bien: el 0.0% es la capacidad actual de Atlas, no un artefacto del andamio. Atlas aún no
-ejecuta comandos de terminal arbitrarios ni verifica artefactos por sí mismo; ese es el
-siguiente salto de capacidad (post-F38).
+Contraste: **`oracle`** (solver de referencia) da **mean ≈ 0.88** en el **mismo** harness →
+el instrumento mide correctamente; **el 0.000 es la capacidad real de Atlas hoy**, no un
+artefacto del andamio. Atlas aún no ejecuta comandos de terminal arbitrarios ni verifica
+artefactos por sí mismo (lo que sí hace `oracle`); ese es el siguiente salto de capacidad.
 
-Pipeline verificado:
+**Gap de observabilidad pendiente:** el `AgentContext` va con tokens/coste `null` — el adapter
+no rellena `populate_context_post_run` (habría que volcar `model_invocations` del journal).
+Por eso el harness no ve el coste de Atlas.
+
+Pipeline verificado (reproducible):
 
 ```
-harbor run … --agent harbor_atlas.atlas_agent:AtlasAgent -o jobs/<id>
+harbor run -d terminal-bench/terminal-bench-2 \
+  --agent harbor_atlas.atlas_agent:AtlasAgent --model moonshotai/kimi-k3 \
+  --mounts '<atlas+env bind>' -o jobs/<id>
 atlas eval import jobs/<id>      # → eval_runs/eval_cases (schema Harbor 0.23: <trial>/result.json)
 atlas eval metrics               # → pass_rate / tokens / $ / failure kinds
 ```

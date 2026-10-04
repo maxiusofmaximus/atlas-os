@@ -557,9 +557,10 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - **Adapter verificado:** `AtlasAgent` corre `mission new --force → plan → execute --coding
   --apply` dentro del contenedor (fix: `name()` `@staticmethod` + retry transitorio).
 - **Binario:** `atlas` ELF Linux compilado en WSL, montado en la imagen.
-- **Primera corrida real:** Terminal-Bench 2, kimi-k3 (NIM) → **pass_rate 0.0% (0/6)**,
-  failure kind `VERIFY`. El harness mide bien (oracle 0.88); el 0.0% es la **capacidad
-  actual** de Atlas (aún no ejecuta comandos de terminal ni verifica artefactos solo).
+- **Primera corrida COMPLETA:** Terminal-Bench 2 (89/89), kimi-k3 (NIM) → **pass_rate 0.000**,
+  4 excepciones (3× `NonZeroAgentExitCode`, 1× `AgentTimeoutError`). El harness mide bien
+  (oracle 0.88); el 0.000 es la **capacidad actual** de Atlas (aún no ejecuta comandos de
+  terminal ni verifica artefactos solo). Gap pendiente: `AgentContext` sin tokens/coste.
 - **Ingestión arreglada (F32.2 real):** `eval/harbor.rs::load_trials` ahora escanea
   `<trial>/result.json` del job dir (schema Harbor 0.23; antes solo leía `trial_results`
   inline del schema viejo). `atlas eval import` + `eval metrics` verificados.

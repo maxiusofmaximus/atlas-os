@@ -201,12 +201,15 @@ atlas eval metrics       # pass rate, tokens/solved, $/solved, failure-kind vect
 - **Baseline (local):** `golden` **6/6** — `schema.migrate_idempotent`,
   `supply.exact_known_passes`, `supply.typosquat_blocks`, `supply.install_script_blocks`,
   `supply.env_access_warns`, `calendar.overlap_half_open`.
-- **External baseline (Harbor):** Terminal-Bench 2.0 / SWE-bench Verified. The adapter
-  (`tools/harbor_atlas/`) drives the **orchestrated** pipeline
-  (`mission new --force → plan → execute`), so the number measures the real harness
-  (routing + cascade + reliability gate + cost guard). Run it under Harbor, then ingest:
-  `atlas eval import jobs/<job-id>`. Metrics surface in `atlas eval metrics` and the HUD
-  `<EvalCard>` (`GET /hud/eval/summary`). A live run needs Harbor + Docker + model creds.
+- **External baseline (Harbor):** Terminal-Bench 2.0. Docker vía WSL2 + Harbor 0.23, adapter
+  `tools/harbor_atlas/` conduciendo `mission new --force → plan → execute --coding --apply`.
+  Runbook verificado en `tools/harbor_atlas/RUNBOOK.md`. Ingesta: `atlas eval import jobs/<id>`.
+  - **Medido (2026-10-04):** Terminal-Bench 2, `AtlasAgent` × `moonshotai/kimi-k3` (NIM) →
+    **89/89 trials, pass_rate 0.000**, 4 excepciones (3× `NonZeroAgentExitCode`, 1× `AgentTimeout`).
+    El solver de referencia `oracle` da **mean ≈ 0.88** en el mismo harness, así que el
+    instrumento mide bien: el 0.000 es la **capacidad actual** de Atlas (aún no ejecuta
+    comandos de terminal ni verifica artefactos por sí mismo). Gap de observabilidad pendiente:
+    el `AgentContext` va sin tokens/coste (`populate_context_post_run` sin rellenar).
 - **CI gate:** `.github/workflows/eval-gate.yml` runs the golden suite with `--strict`
   (non-zero exit on regression) on every engine change.
 
