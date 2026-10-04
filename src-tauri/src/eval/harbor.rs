@@ -31,10 +31,11 @@ const HARNESS: &str = "harbor";
 /// Import a Harbor job (or a single trial) into `eval_runs`/`eval_cases`.
 pub fn import_job(journal: &Journal, path: &Path) -> anyhow::Result<SuiteReport> {
     let job = load_json(path)?;
-    let trials = load_trials(&job);
+    let trials = load_trials(&job, path);
     if trials.is_empty() {
         anyhow::bail!(
-            "no `trial_results` (and not a TrialResult) in {}",
+            "no trials found in {} (expected a TrialResult, a job `result.json` with \
+             `trial_results`, or a job dir containing `<trial>/result.json`)",
             path.display()
         );
     }
@@ -149,10 +150,32 @@ fn load_json(path: &Path) -> anyhow::Result<Value> {
     serde_json::from_str(&text).map_err(|e| anyhow::anyhow!("parse {}: {e}", file.display()))
 }
 
-fn load_trials(job: &Value) -> Vec<Value> {
+fn load_trials(job: &Value, path: &Path) -> Vec<Value> {
+    // 1. Modern Harbor: per-trial `result.json` files under the job dir.
+    if path.is_dir() {
+        let mut trials = Vec::new();
+        if let Ok(entries) = std::fs::read_dir(path) {
+            for entry in entries.flatten() {
+                let trial_file = entry.path().join("result.json");
+                if trial_file.is_file() {
+                    if let Ok(t) = load_json(&trial_file) {
+                        if t.get("task_name").is_some() {
+                            trials.push(t);
+                        }
+                    }
+                }
+            }
+        }
+        if !trials.is_empty() {
+            trials.sort_by_key(|t| str_at(t, &["trial_name"]).unwrap_or_default());
+            return trials;
+        }
+    }
+    // 2. Legacy: inline `trial_results[]` on the job result.
     if let Some(arr) = job.get("trial_results").and_then(Value::as_array) {
         return arr.clone();
     }
+    // 3. A single TrialResult document.
     if job.get("task_name").is_some() {
         return vec![job.clone()];
     }

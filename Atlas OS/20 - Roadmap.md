@@ -550,18 +550,20 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
   → reportado, no resuelto en silencio); `orchestrator/execute.rs::plan_steps` (shard
   round-robin clampeado) + `merge_coding_diffs`. 5 tests. **F37 CERRADA.**
 
-## F32 — Cerrar B: baseline externo (prereqs offline hechos; corrida bloqueada por infra)
+## F32 — Cerrar B: baseline externo (MEDIDO 2026-10-04)
 
-- **Prereqs offline (hechos):** adaptador Harbor conduce el pipeline orquestado
-  (`mission new --force → plan → execute --coding --apply`); schema real de
-  `JobResult`/`TrialResult` documentado (research/56 §5); ingestión `atlas eval import` lista.
-- **Runbook completo:** `tools/harbor_atlas/RUNBOOK.md` (Docker/WSL → Harbor → ingestión →
-  publicación → CI opt-in → troubleshooting).
-- **Bloqueado por infra:** `harbor run` necesita Docker + endpoint alcanzable desde el
-  contenedor + binario `atlas` Linux en la imagen (runbook §0/§3).
-- **Ya verificado SIN Docker:** el harness LLM funciona end-to-end contra un modelo real
-  (NVIDIA NIM / kimi-k3): `route → Diff → validate → repair → apply` a disco (commits
-  `0d5cee7`, `0390f49`). 4 bugs reales de endpoint arreglados en esa prueba.
+- **Setup verificado (Docker vía WSL2):** `wsl --install -d Ubuntu-24.04` + `apt install
+  docker.io` + Compose v2 + `uv tool install harbor` (0.23.0). `oracle` da mean ≈ 0.88.
+- **Adapter verificado:** `AtlasAgent` corre `mission new --force → plan → execute --coding
+  --apply` dentro del contenedor (fix: `name()` `@staticmethod` + retry transitorio).
+- **Binario:** `atlas` ELF Linux compilado en WSL, montado en la imagen.
+- **Primera corrida real:** Terminal-Bench 2, kimi-k3 (NIM) → **pass_rate 0.0% (0/6)**,
+  failure kind `VERIFY`. El harness mide bien (oracle 0.88); el 0.0% es la **capacidad
+  actual** de Atlas (aún no ejecuta comandos de terminal ni verifica artefactos solo).
+- **Ingestión arreglada (F32.2 real):** `eval/harbor.rs::load_trials` ahora escanea
+  `<trial>/result.json` del job dir (schema Harbor 0.23; antes solo leía `trial_results`
+  inline del schema viejo). `atlas eval import` + `eval metrics` verificados.
+- **Runbook:** `tools/harbor_atlas/RUNBOOK.md`.
 
 ## Out of scope v2
 - iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).

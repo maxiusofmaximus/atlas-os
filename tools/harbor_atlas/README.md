@@ -3,6 +3,28 @@
 > **Paso a paso completo:** [`RUNBOOK.md`](./RUNBOOK.md) (Docker/WSL → Harbor → ingestión).
 > Este README es la referencia corta; el runbook es el procedimiento operativo.
 
+## Baseline medido (2026-10-04)
+
+Primera corrida real de Atlas bajo Harbor, verificada end-to-end en esta máquina (Docker vía
+WSL2, Harbor 0.23.0):
+
+| Harness                         | Agente                    | Modelo                   | Tareas (en curso) | pass_rate | failure kind | fecha      |
+| ------------------------------- | ------------------------- | ------------------------ | ----------------- | --------- | ------------ | ---------- |
+| terminal-bench/terminal-bench-2 | `harbor_atlas:AtlasAgent` | moonshotai/kimi-k3 (NIM) | 0/6               | 0.0%      | `VERIFY`     | 2026-10-04 |
+
+`oracle` (solver de referencia) da mean ≈ 0.88 en el **mismo** harness — así que el harness
+mide bien: el 0.0% es la capacidad actual de Atlas, no un artefacto del andamio. Atlas aún no
+ejecuta comandos de terminal arbitrarios ni verifica artefactos por sí mismo; ese es el
+siguiente salto de capacidad (post-F38).
+
+Pipeline verificado:
+
+```
+harbor run … --agent harbor_atlas.atlas_agent:AtlasAgent -o jobs/<id>
+atlas eval import jobs/<id>      # → eval_runs/eval_cases (schema Harbor 0.23: <trial>/result.json)
+atlas eval metrics               # → pass_rate / tokens / $ / failure kinds
+```
+
 Dev-only integration to run **Atlas OS as an agent under [Harbor](https://github.com/harbor-framework/harbor)**
 (Harbor is the official harness for **Terminal-Bench 2.0**; it also drives
 SWE-bench Verified, Aider Polyglot, etc.).
