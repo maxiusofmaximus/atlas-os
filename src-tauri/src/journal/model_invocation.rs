@@ -95,6 +95,15 @@ impl Journal {
     /// orchestrator loop lands.
     pub fn record_model_invocation(&self, row: &ModelInvocationRow) -> anyhow::Result<()> {
         let conn = self.conn.lock();
+        // `model_invocations.model_id` has an FK to `models(id)`. A runtime
+        // endpoint (e.g. a NIM/Groq model) is not necessarily in the curated
+        // seed, so ensure a minimal row exists before recording telemetry.
+        conn.execute(
+            "INSERT OR IGNORE INTO models
+             (id, provider, display_name, tier, context_window, max_output_tokens, capabilities_json)
+             VALUES (?1, ?2, ?1, 'strong', 128000, 16384, '[]')",
+            rusqlite::params![row.model_id, row.provider],
+        )?;
         conn.execute(
             "INSERT OR IGNORE INTO model_invocations
              (id, mission_id, model_id, deployment_id, provider,

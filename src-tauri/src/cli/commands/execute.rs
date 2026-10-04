@@ -26,6 +26,32 @@ use crate::planning::types::Plan;
 const SYSTEM_PROMPT: &str =
     "You are Atlas OS executing one plan step. Reply with the concrete change or action.";
 
+/// Load `.env` from the current dir into the process env once (no dependency:
+/// simple `KEY=VALUE` parser, `#` comments, optional quotes). Existing env vars
+/// win so a shell override is never clobbered.
+fn load_dotenv_once() {
+    use std::sync::Once;
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        let Ok(text) = std::fs::read_to_string(".env") else {
+            return;
+        };
+        for line in text.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            if let Some((k, v)) = line.split_once('=') {
+                let k = k.trim();
+                let v = v.trim().trim_matches('"').trim_matches('\'');
+                if !k.is_empty() && std::env::var_os(k).is_none() {
+                    std::env::set_var(k, v);
+                }
+            }
+        }
+    });
+}
+
 /// Build a `ResearchContext` from explicit `--research-ref` flags (Fase 36). The
 /// operator passes refs (e.g. a past `atlas research query` result) so a coding
 /// Diff carries evidence the EvidenceGate accepts. Empty → behaves as before.
@@ -173,32 +199,68 @@ pub async fn run(cmd: ExecuteCmd, profile: &str) -> Result<()> {
     let plan: Plan = serde_json::from_str(&payload)?;
 
     let registry = crate::orchestrator::Registry::from_bundled_seed()?;
-    let deployments: Vec<Deployment> = registry
+    // Load `.env` (if present) BEFORE resolving the endpoint, so a real run uses
+    // the operator's ATLAS_LLM_* vars. Seed deployments are empty; env is the
+    // runtime backend for an OpenAI-compatible provider (NIM/Cerebras/Groq/...).
+    load_dotenv_once();
+    let mut deployments: Vec<Deployment> = registry
         .deployments
         .values()
         .flatten()
         .map(|d| (**d).clone())
         .collect();
     if deployments.is_empty() {
-        anyhow::bail!("no deployments in the registry seed");
+        deployments = crate::orchestrator::Registry::deployments_from_env();
+    }
+    if deployments.is_empty() {
+        anyhow::bail!(
+            "no deployments: set ATLAS_LLM_BASE_URL + ATLAS_LLM_MODEL + the provider key in .env"
+        );
+    }
+    println!(
+        "execute: deployment={} base={} key_env={}",
+        deployments[0].model_id,
+        deployments[0].api_base,
+        deployments[0].api_key_env.as_deref().unwrap_or("-")
+    );
+    for (i, d) in deployments.iter().enumerate() {
+        eprintln!(
+            "  [deployment {i}] id={} model_id={} weight={}",
+            d.id, d.model_id, d.weight
+        );
     }
 
     let steps: Vec<ExecuteStep> = plan
         .steps
         .iter()
-        .map(|s| ExecuteStep {
-            id: s.id.clone(),
-            model_id: s
+        .map(|s| {
+            let plan_model = s
                 .models
                 .first()
                 .map(|m| m.model_id.clone())
-                .unwrap_or_else(|| plan.model_id.clone()),
-            statement: s.statement.clone(),
+                .unwrap_or_else(|| plan.model_id.clone());
+            // If the plan's model has no deployment (e.g. a curated plan naming
+            // claude-opus-4 while the runtime endpoint is a single NIM model),
+            // route through the deployment we actually have — otherwise the
+            // cascade would exhaust with zero attempts.
+            let model_id = if deployments.iter().any(|d| d.model_id == plan_model) {
+                plan_model
+            } else {
+                deployments[0].model_id.clone()
+            };
+            ExecuteStep {
+                id: s.id.clone(),
+                model_id,
+                statement: s.statement.clone(),
+            }
         })
         .collect();
     if steps.is_empty() {
         println!("plan {} has no steps", plan.plan_id);
         return Ok(());
+    }
+    for s in &steps {
+        eprintln!("  [step {}] model_id={}", s.id, s.model_id);
     }
 
     // Ctrl-C sets the cancellation flag.

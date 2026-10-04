@@ -122,7 +122,7 @@ pub async fn call_diff_with_cascade_and_denied<C: ProviderClient>(
     let request = ChatRequest {
         model: model.to_string(),
         messages: vec![
-            ChatMessage::system(system),
+            ChatMessage::system(system.clone()),
             ChatMessage::user(step_statement),
         ],
         temperature: None,
@@ -131,7 +131,7 @@ pub async fn call_diff_with_cascade_and_denied<C: ProviderClient>(
 
     let outcome = call_with_cascade_and_denied(
         client,
-        routing,
+        routing.clone(),
         model,
         deployments,
         &request,
@@ -140,11 +140,57 @@ pub async fn call_diff_with_cascade_and_denied<C: ProviderClient>(
     )
     .await?;
 
-    let content = &outcome.response.content;
-    let mut diff = parse_diff_json(content, meta)?;
+    let content = outcome.response.content.clone();
+    // Models sometimes answer in prose or omit `files`. One firm re-ask before
+    // giving up: the retry is offline-safe (deterministic mock replies are
+    // consumed in order) and materially improves real-LLM success.
+    let (mut diff, content) = match parse_diff_json(&content, meta.clone()) {
+        Ok(d) => (d, content),
+        Err(first_err) => {
+            let repair_request = ChatRequest {
+                model: model.to_string(),
+                messages: vec![
+                    ChatMessage::system(system),
+                    ChatMessage::user(step_statement),
+                    ChatMessage::assistant(content.clone()),
+                    ChatMessage::user(
+                        "Your reply was not valid diff JSON. Reply with ONLY the JSON object \
+                         (keys: narrative, files[].path, files[].hunks[].{old_start,old_end,new_lines,rationale}). \
+                         No prose, no markdown."
+                            .to_string(),
+                    ),
+                ],
+                temperature: None,
+                max_tokens: None,
+            };
+            let retry = call_with_cascade_and_denied(
+                client,
+                routing,
+                model,
+                deployments,
+                &repair_request,
+                max_attempts,
+                denied,
+            )
+            .await?;
+            let retry_content = retry.response.content.clone();
+            match parse_diff_json(&retry_content, meta.clone()) {
+                Ok(d) => (d, retry_content),
+                Err(second_err) => {
+                    tracing::warn!(
+                        first = %first_err,
+                        second = %second_err,
+                        raw = %retry_content.chars().take(600).collect::<String>(),
+                        "coding model did not produce a usable diff after retry"
+                    );
+                    return Err(StepDiffError::Parse(first_err));
+                }
+            }
+        }
+    };
     let narrative_missing = diff.narrative.trim().is_empty();
     if !research.is_empty() {
-        if let Some(raw) = parse_cited_diff(content) {
+        if let Some(raw) = parse_cited_diff(&content) {
             if diff.narrative.trim().is_empty() && !raw.narrative.trim().is_empty() {
                 diff.narrative = raw.narrative;
             }
@@ -285,11 +331,18 @@ mod tests {
     #[tokio::test]
     async fn non_diff_reply_is_a_parse_error() {
         let deployments = vec![dep("m1", "d1")];
-        let client = Scripted::new(vec![Ok(ChatResponse {
-            model: "m1".into(),
-            content: "Sure! I would add a function.".into(),
-            usage: None,
-        })]);
+        let client = Scripted::new(vec![
+            Ok(ChatResponse {
+                model: "m1".into(),
+                content: "Sure! I would add a function.".into(),
+                usage: None,
+            }),
+            Ok(ChatResponse {
+                model: "m1".into(),
+                content: "Still prose, no JSON here either.".into(),
+                usage: None,
+            }),
+        ]);
         let err = call_diff_with_cascade(
             &client,
             RoutingConfig::default(),

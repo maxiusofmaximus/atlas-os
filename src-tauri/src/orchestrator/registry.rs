@@ -136,6 +136,46 @@ impl Registry {
         Self::from_seed(seed)
     }
 
+    /// Build deployments for an OpenAI-compatible endpoint from environment
+    /// variables (`ATLAS_LLM_BASE_URL`, `ATLAS_LLM_MODEL`, and the provider key
+    /// env). The bundled seed only carries PRICES — the actual endpoint is a
+    /// runtime/deployment concern, so this is where a real run gets its backend.
+    ///
+    /// `api_key_env` is resolved lazily by `HttpProviderClient` at first use, so
+    /// the key never touches this structure. Returns an empty vec when the
+    /// endpoint/model vars are unset (caller then behaves as before).
+    pub fn deployments_from_env() -> Vec<Deployment> {
+        let Ok(base) = std::env::var("ATLAS_LLM_BASE_URL") else {
+            return Vec::new();
+        };
+        let Ok(model) = std::env::var("ATLAS_LLM_MODEL") else {
+            return Vec::new();
+        };
+        if base.trim().is_empty() || model.trim().is_empty() {
+            return Vec::new();
+        }
+        let key_env = if std::env::var("NVIDIA_API_KEY").is_ok() && base.contains("nvidia") {
+            "NVIDIA_API_KEY"
+        } else if std::env::var("CEREBRAS_API_KEY").is_ok() && base.contains("cerebras") {
+            "CEREBRAS_API_KEY"
+        } else if std::env::var("GROQ_API_KEY").is_ok() && base.contains("groq") {
+            "GROQ_API_KEY"
+        } else if std::env::var("OPENAI_API_KEY").is_ok() {
+            "OPENAI_API_KEY"
+        } else if std::env::var("NVIDIA_API_KEY").is_ok() {
+            "NVIDIA_API_KEY"
+        } else if std::env::var("CEREBRAS_API_KEY").is_ok() {
+            "CEREBRAS_API_KEY"
+        } else if std::env::var("GROQ_API_KEY").is_ok() {
+            "GROQ_API_KEY"
+        } else {
+            return Vec::new();
+        };
+        let mut d = Deployment::new(model.trim(), base.trim());
+        d.api_key_env = Some(key_env.to_string());
+        vec![d]
+    }
+
     /// Resolve a possibly-alias lookup to a concrete model id. Returns
     /// `None` when neither the alias nor the literal id is known. The
     /// returned `String` decouples the result from `&self` so callers

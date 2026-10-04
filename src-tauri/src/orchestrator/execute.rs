@@ -610,7 +610,10 @@ mod tests {
     #[tokio::test]
     async fn coding_step_rejects_a_non_diff_reply() {
         let deployments = vec![dep("m1", "d1")];
-        let client = Scripted::new(vec![Ok(ok("just prose, no json here"))]);
+        let client = Scripted::new(vec![
+            Ok(ok("just prose, no json here")),
+            Ok(ok("still prose")),
+        ]);
         let step = ExecuteStep {
             id: "s1".into(),
             model_id: "m1".into(),
