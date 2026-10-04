@@ -262,6 +262,34 @@ export async function fetchEvalSummary(
   return (await res.json()) as EvalSummaryResponse;
 }
 
+// ────────────── RFC 20 Fase 23 (v3.1.2.3) — proactive availability ──────────
+//
+// Mirrors `crate::planning::availability::Availability` + the persisted
+// `ProactivePolicyRow` served by `GET /hud/availability`.
+
+export type Availability = 'RunNow' | 'Blocked' | { WaitUntil: number };
+
+export interface AvailabilityResponse {
+  enabled: boolean;
+  policy: {
+    eta_ms: number;
+    weight_threshold: number;
+    horizon_ms: number;
+    enabled: boolean;
+  };
+  availability: Availability | null;
+  pending_mission: string | null;
+}
+
+export async function fetchAvailability(hudUrl: string): Promise<AvailabilityResponse> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const res = await fetch(`${trimmed}/hud/availability`);
+  if (!res.ok) {
+    throw new Error(`HUD availability failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as AvailabilityResponse;
+}
+
 function connectWs(target: string) {
   let ws: WebSocket;
   try {

@@ -22,6 +22,7 @@
     type SwarmMessagePayload,
   } from '$stores/hud';
   import AutoresearchCard from '$lib/components/AutoresearchCard.svelte';
+  import AvailabilityCard from '$lib/components/AvailabilityCard.svelte';
   import EvalCard from '$lib/components/EvalCard.svelte';
   import SwarmConsole from '$lib/components/SwarmConsole.svelte';
   import JournalObserver from '$lib/components/JournalObserver.svelte';
@@ -392,6 +393,16 @@
       agents={swarmAgents}
       messages={swarmMessages}
     />
+  </section>
+
+  <section class="proactive">
+    <h2>Proactive turn</h2>
+    <p class="hint">
+      RFC 20 Fase 23. Operator availability from the calendar busy windows + the mission backlog (<code
+        >atlas calendar proactive</code
+      >, <code>GET /hud/availability</code>).
+    </p>
+    <AvailabilityCard hudUrl={data.hudUrl ?? null} />
   </section>
 
   <section class="eval">

@@ -46,6 +46,11 @@ pub fn golden_suite() -> Vec<EvalTask> {
             category: "SYS",
             run: planning_availability_respects_busy,
         },
+        EvalTask {
+            id: "planning.proactive_trigger",
+            category: "SYS",
+            run: planning_proactive_trigger,
+        },
     ]
 }
 
@@ -196,6 +201,44 @@ fn planning_availability_respects_busy() -> TaskResult {
     TaskResult::assert(
         free == Availability::RunNow && waiting == Availability::WaitUntil(1_500_000),
         format!("free={free:?} waiting={waiting:?}"),
+    )
+}
+
+fn planning_proactive_trigger() -> TaskResult {
+    use crate::planning::availability::Availability;
+    use crate::supervisor::runner::{tick, TickContext};
+    use crate::supervisor::types::{
+        BudgetCaps, ExecutionMode, SupervisorAction, SupervisorEvent, SupervisorState,
+    };
+
+    let mut ctx = TickContext::new(ExecutionMode::HumanInLoop);
+    let state = SupervisorState::new(BudgetCaps::DEFAULT, ExecutionMode::HumanInLoop);
+    let mission = uuid::Uuid::new_v4();
+
+    let run = tick(
+        &mut ctx,
+        state.clone(),
+        SupervisorEvent::ProactiveCheck {
+            availability: Availability::RunNow,
+            pending_mission: Some(mission),
+        },
+    );
+    let wait = tick(
+        &mut ctx,
+        state,
+        SupervisorEvent::ProactiveCheck {
+            availability: Availability::WaitUntil(1),
+            pending_mission: Some(mission),
+        },
+    );
+
+    let started = matches!(
+        run.actions.as_slice(),
+        [SupervisorAction::EnqueueProactiveTurn { mission_id }] if *mission_id == mission
+    );
+    TaskResult::assert(
+        started && wait.actions.is_empty(),
+        format!("run={:?} wait={:?}", run.actions, wait.actions),
     )
 }
 

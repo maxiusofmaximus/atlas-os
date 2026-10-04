@@ -406,7 +406,7 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
   `cargo test --lib` + golden `--strict`); flag `atlas eval run --strict`; baseline
   público en el README. **Fase 22 CERRADA.**
 
-## Fase 23 — Proactive Turn Engine (v3.1.2) (plan: research/52)
+## Fase 23 — Proactive Turn Engine (v3.1.2) (COMPLETA, sub-fases v3.1.2.0 → v3.1.2.3; plan: research/52)
 
 - **Decisión 2026-10-03:** retomar **v3.1.2** (el único ítem de producto bloqueado),
   ahora **medible** con la Fase 22 EVAL. Motor de disponibilidad pura sobre las M18
@@ -423,7 +423,9 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
   backlog `next_pending_mission`, host caller `supervisor/host.rs`
   (`proactive_check`), CLI `atlas calendar policy|proactive`, HUD
   `GET /hud/availability`. 5 tests. (Card Svelte diferida.)
-- **Pendiente:** v3.1.2.3 (métricas de turnos proactivos en EVAL + card HUD).
+- **v3.1.2.3 COMPLETA:** golden task `planning.proactive_trigger` (cobertura en el
+  gate EVAL) + card HUD `<AvailabilityCard>` (`fetchAvailability`). **Fase 23
+  CERRADA.** El único ítem de producto que quedaba bloqueado (v3.1.2) ya no lo está.
 
 - **v3.1.2 (Planning proactivo) queda condicionado a EVAL:** sin instrumento no se
   puede medir si los turnos proactivos ayudan o estorban.

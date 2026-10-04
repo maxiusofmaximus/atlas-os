@@ -1,6 +1,6 @@
 # 52 — Phase 23: Proactive Turn Engine (v3.1.2)
 
-- **Estado:** plan aprobado; v3.1.2.0–v3.1.2.2 **COMPLETAS** (falta v3.1.2.3).
+- **Estado:** **COMPLETA** (v3.1.2.0–v3.1.2.3).
 - **Fecha:** 2026-10-03.
 - **Motivación:** cerrar el único ítem de producto bloqueado del Roadmap v3 — el
   "turno proactivo" que `RFC 28 §G.4 item 8` asumía (`Planning::next_free_slot`)
@@ -94,7 +94,12 @@ busy* bloquea; el *soft busy* 0.5 no), `horizon_ms = 24 h`.
     [--enable|--disable]` y `atlas calendar proactive`.
   - HUD `GET /hud/availability` (política + disponibilidad + misión pendiente).
   - 5 tests (journal ×2, host ×2, handler HUD). Card Svelte diferida.
-- **v3.1.2.3 — Medición** (métricas de turnos proactivos en EVAL).
+- **v3.1.2.3 — Medición + card** — **COMPLETA**:
+  - Golden task `planning.proactive_trigger` (determinista, offline): fija que
+    `RunNow + backlog → EnqueueProactiveTurn` y `WaitUntil → none` (cobertura en
+    el gate EVAL).
+  - Card HUD `<AvailabilityCard>` + `fetchAvailability` (`$stores/hud`),
+    compuesta en `+page.svelte`.
 
 ## 4. KPI
 
