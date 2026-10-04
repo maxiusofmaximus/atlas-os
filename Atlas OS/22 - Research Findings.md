@@ -708,3 +708,19 @@ rechaza.** Motivos concretos de la API del writer de `icalendar`:
   `calendar-ics`; el ahorro es marginal y la reescritura es más código con
   propiedades crudas. Se mantiene el statu quo: `ics` = WRITE, `icalendar` = READ.
   Ambos son RFC 5545; la duplicación es de emisor/parser, no de responsabilidad.
+
+
+## Anexo — Dependencias nuevas (Fase 27, RFC 63)
+
+- **`reqwest` + feature `blocking`** (RFC 63 §4 `web.fetch`/`web.search`). Justificación:
+  la crate ya está en el árbol con `json`/`stream`/`rustls-tls` (RFC 25 §3.8, cliente de
+  proveedores). Habilitar `blocking` **no añade una crate nueva**: expone un
+  `reqwest::blocking::Client` sobre el mismo runtime, necesario porque el trait `Tool`
+  es síncrono (`fn execute`) y el registry no puede asumir un runtime tokio activo.
+  Alternativa descartada: envolver cada tool async con `block_f_on`/`Runtime::new` dentro
+  del tool (más frágil: panics si ya hay un reactor activo). No se bundlea nada: los
+  tools de red son opt-in (`ToolRegistry::with_web_tools`) y sin backend configurado
+  (`ATLAS_SEARCH_URL`) devuelven un error de tool claro en vez de panic.
+- **Sin crates nuevas de parsing de diff.** `code.apply_diff` implementa el parser de
+  unified-diff en Rust puro (`orchestrator/tools/code.rs`), para funcionar en el sandbox
+  Linux sin depender del binario `git`.
