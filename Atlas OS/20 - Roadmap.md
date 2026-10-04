@@ -566,5 +566,17 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
   inline del schema viejo). `atlas eval import` + `eval metrics` verificados.
 - **Runbook:** `tools/harbor_atlas/RUNBOOK.md`.
 
+## F39 — Terminal agent loop (COMPLETA; plan: research/60)
+
+- **Contexto:** baseline Atlas en Terminal-Bench 2 = **0.000** con `execute --coding` (edita
+  ficheros pero **no ejecuta comandos**); `oracle` (que sí) = 0.88. El gap era ese.
+- **v39.0 COMPLETA:** `orchestrator/agent.rs` — bucle agéntico con herramienta `run_command`:
+  el modelo emite `{"tool":"run_command","command":"…"}` por turno, Atlas ejecuta en el
+  workspace, devuelve stdout/stderr, repite hasta `{"done":true}`. `parse_action` puro +
+  `run_command` (timeout/kill) + `run_agent` genérico (mockeable). CLI `atlas agent <task>`.
+  7 tests. **Verificado contra Groq (`gpt-oss-120b`)**: creó `greeting.txt`, vio que `cat`
+  fallaba en Windows y se autocorrigió con `type`, verificó → `done`. **F39 CERRADA.**
+- **Siguiente:** re-correr Terminal-Bench con `--agent` (F38) para medir el delta vs 0.000.
+
 ## Out of scope v2
 - iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).

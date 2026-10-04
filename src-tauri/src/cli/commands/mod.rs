@@ -1,6 +1,7 @@
 // Atlas OS — CLI dispatch for subcommands.
 // Path: `src-tauri/src/cli/bin/opencode.rs` uses this `commands/` dir.
 
+pub mod agent;
 pub mod audit;
 pub mod calendar;
 pub mod eval;
@@ -31,6 +32,7 @@ pub mod swarm;
 pub mod toast;
 pub mod validate;
 
+pub use agent::AgentCmd;
 pub use audit::AuditCmd;
 pub use calendar::CalendarCmd;
 pub use eval::EvalCmd;
@@ -79,6 +81,7 @@ pub async fn dispatch(cmd: Commands, profile: &str) -> Result<()> {
         Commands::Mobile(c) => mobile::run(c, profile).await,
         Commands::Exec(c) => exec::run(c, profile).await,
         Commands::Execute(c) => execute::run(c, profile).await,
+        Commands::Agent(c) => agent::run(c, profile).await,
         Commands::Hud(c) => hud::run(c, profile).await,
         Commands::Mcp(c) => mcp::run(c, profile).await,
         Commands::Skill(c) => skill::run(c, profile).await,

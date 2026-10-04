@@ -16,6 +16,7 @@
 // `model_swaps`) keep the original values intact for the audit trail.
 
 pub mod affinity;
+pub mod agent;
 pub mod aggregation;
 pub mod backpressure;
 pub mod cache_control;
@@ -41,6 +42,10 @@ pub mod verify;
 pub mod wire;
 
 pub use affinity::{AffinityIndex, AffinityRow};
+pub use agent::{
+    parse_action, run_agent, run_agent_real, run_command, AgentAction, AgentConfig, AgentOutcome,
+    CommandResult, AGENT_SYSTEM_PROMPT,
+};
 pub use aggregation::{
     AggregationContext, AggregationError, AggregationMode, AggregationModeSnapshot, Aggregator,
     FusedResponse, ReflectionEpisodeOut, StopCondition,

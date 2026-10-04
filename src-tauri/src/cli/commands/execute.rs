@@ -118,7 +118,7 @@ fn is_textish(name: &str) -> bool {
 /// Load `.env` from the current dir into the process env once (no dependency:
 /// simple `KEY=VALUE` parser, `#` comments, optional quotes). Existing env vars
 /// win so a shell override is never clobbered.
-fn load_dotenv_once() {
+pub(crate) fn load_dotenv_once() {
     use std::sync::Once;
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
