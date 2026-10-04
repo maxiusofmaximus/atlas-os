@@ -56,6 +56,11 @@ pub fn golden_suite() -> Vec<EvalTask> {
             category: "SYS",
             run: orchestrator_reliability_gate,
         },
+        EvalTask {
+            id: "orchestrator.request_codec",
+            category: "SYS",
+            run: orchestrator_request_codec,
+        },
     ]
 }
 
@@ -274,6 +279,38 @@ fn orchestrator_reliability_gate() -> TaskResult {
             && thin == GateDecision::Allow
             && unknown == GateDecision::Allow,
         format!("bad={bad:?} thin={thin:?} unknown={unknown:?}"),
+    )
+}
+
+fn orchestrator_request_codec() -> TaskResult {
+    use crate::orchestrator::client::{
+        build_chat_body, parse_chat_response, ChatMessage, ChatRequest,
+    };
+
+    let request = ChatRequest {
+        model: "m".into(),
+        messages: vec![ChatMessage::user("hi")],
+        temperature: Some(0.2),
+        max_tokens: Some(64),
+    };
+    let body = build_chat_body(&request);
+    let body_ok =
+        body.get("model").and_then(|m| m.as_str()) == Some("m") && body.get("messages").is_some();
+
+    let canned = serde_json::json!({
+        "model": "m",
+        "choices": [{ "message": { "content": "hello" } }],
+        "usage": { "prompt_tokens": 3, "completion_tokens": 1 }
+    });
+    let parsed = parse_chat_response(&canned);
+    let parse_ok = matches!(
+        &parsed,
+        Ok(r) if r.content == "hello" && r.usage.map(|u| u.prompt_tokens) == Some(3)
+    );
+
+    TaskResult::assert(
+        body_ok && parse_ok,
+        format!("body_ok={body_ok} parsed={parsed:?}"),
     )
 }
 

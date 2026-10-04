@@ -21,6 +21,7 @@ pub mod backpressure;
 pub mod cache_control;
 pub mod cascade;
 pub mod classifier;
+pub mod client;
 pub mod cooldown;
 pub mod cost_guard;
 pub mod data_parts;
@@ -51,6 +52,10 @@ pub use classifier::{
     EmbeddingClassifier, LexicalClassifier, LogisticRegressionClassifier, McpServerCatalog,
     McpToolFilter, NoMcpCatalog, RouterId, RouterKind, StaticMcpCatalog, TaskType,
     TaskTypeClassifier, TaskVerdict,
+};
+pub use client::{
+    build_chat_body, chat_endpoint, parse_chat_response, ChatMessage, ChatRequest, ChatResponse,
+    ClientError, HttpProviderClient, ProviderClient, Usage,
 };
 pub use cooldown::{CooldownConfig, CooldownOrigin, CooldownOutcome, RetryAfterSource};
 pub use cost_guard::{
