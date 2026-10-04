@@ -494,7 +494,11 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
   `validation::runner::run` + (en Fail/Critical) `repair::runner::run`, alimentando el
   supervisor (`ValidationStarted` → `Passed`/`Failed`/`Critical` → `RepairAttempted`).
   3 tests. Los motores son puros → ciclo verificable offline.
-- **Pendiente:** v26.3 (CLI/HUD + cierre).
+- **v26.3 COMPLETA:** `orchestrator/execute.rs::execute_coding_step` (composición pura v26.1 +
+  v26.2: routed `Diff` → Validation → Repair) + `atlas execute --coding` (persiste
+  `diff`/`report`/`repair` y reporta por step: modelo, ficheros, validación, repair, coste).
+  2 tests. **Fase 26 CERRADA** — el path LLM edita código y se auto-valida; B mediría el
+  harness real, no un chat.
 
 ## Out of scope v2
 - iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).

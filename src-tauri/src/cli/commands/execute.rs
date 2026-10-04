@@ -15,7 +15,9 @@ use uuid::Uuid;
 use crate::core::bus::{BusEvent, BusEventKind};
 use crate::journal::{Journal, ModelInvocationRow};
 use crate::orchestrator::client::HttpProviderClient;
-use crate::orchestrator::execute::{execute_steps, ExecuteConfig, ExecuteStep, ModelPrice};
+use crate::orchestrator::execute::{
+    execute_coding_step, execute_steps, ExecuteConfig, ExecuteStep, ModelPrice,
+};
 use crate::orchestrator::provider::Deployment;
 use crate::orchestrator::routing::RoutingConfig;
 use crate::planning::types::Plan;
@@ -30,6 +32,11 @@ pub struct ExecuteCmd {
     /// Max cascade attempts per step.
     #[arg(long, default_value_t = 5)]
     pub max_attempts: u8,
+    /// Drive each step through the LLM-coding bridge (structured Diff →
+    /// Validation → Repair) instead of the plain chat loop. Persists the diff,
+    /// the validation report and any repair (Fase 26).
+    #[arg(long, default_value_t = false)]
+    pub coding: bool,
 }
 
 pub async fn run(cmd: ExecuteCmd, profile: &str) -> Result<()> {
@@ -97,6 +104,44 @@ pub async fn run(cmd: ExecuteCmd, profile: &str) -> Result<()> {
             output_per_1m: d.output_cost_per_1m_tokens,
         })
     };
+
+    if cmd.coding {
+        let agent_id = Uuid::new_v4();
+        let mut ok = 0usize;
+        for step in &steps {
+            let out = execute_coding_step(
+                &client,
+                RoutingConfig::default(),
+                step,
+                &deployments,
+                mission_id,
+                plan.plan_id,
+                agent_id,
+                cmd.max_attempts,
+                &price_of,
+            )
+            .await
+            .with_context(|| format!("coding step `{}` failed", step.id))?;
+            journal.save_diff(&out.diff)?;
+            journal.save_report(&out.report)?;
+            if let Some(repair) = &out.repair {
+                journal.save_repair(repair)?;
+            }
+            println!(
+                "  step {} -> {} diff={} files={} validation={:?} repair={:?} ${:.6}",
+                step.id,
+                out.deployment_id,
+                out.diff.diff_id,
+                out.diff.files.len(),
+                out.report.outcome,
+                out.repair.as_ref().map(|r| r.outcome),
+                out.cost_usd,
+            );
+            ok += 1;
+        }
+        println!("execute --coding mission={mission_id} steps_ok={ok}");
+        return Ok(());
+    }
 
     let report = execute_steps(
         &client,

@@ -71,7 +71,10 @@ pub use cost_guard::{
 };
 pub use data_parts::{DataPart, DataPartBuffer};
 pub use error::{ResetKind, SpendLimitError};
-pub use execute::{execute_steps, ExecuteConfig, ExecuteReport, ExecuteStep, StepOutcome};
+pub use execute::{
+    execute_coding_step, execute_steps, CodingStepOutcome, ExecuteConfig, ExecuteReport,
+    ExecuteStep, StepOutcome,
+};
 pub use idempotency::RequestFrame;
 pub use parse_error::ParseError;
 pub use provider::{

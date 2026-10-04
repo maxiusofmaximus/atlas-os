@@ -21,6 +21,13 @@ use crate::supervisor::types::{
     SupervisorState,
 };
 
+use crate::coding::llm::DiffMeta;
+use crate::coding::types::Diff;
+use crate::orchestrator::code::{call_diff_with_cascade, StepDiffError};
+use crate::orchestrator::verify::{verify_diff, VerifyConfig};
+use crate::repair::types::RepairReport;
+use crate::validation::types::ValidationReport;
+
 /// Price for a model, per 1M tokens.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ModelPrice {
@@ -197,6 +204,94 @@ pub async fn execute_steps<C: ProviderClient, P: Fn(&str) -> Option<ModelPrice>>
         phase: state.phase,
         elapsed_ms: started.elapsed().as_millis() as i64,
     }
+}
+
+/// A code step driven end-to-end through the LLM-coding bridge: the routed
+/// model's `Diff`, the `ValidationReport` it earned, and the `RepairReport` (if
+/// validation did not pass).
+#[derive(Clone, Debug)]
+pub struct CodingStepOutcome {
+    pub step_id: String,
+    pub model_id: String,
+    pub deployment_id: String,
+    pub attempts: u8,
+    pub usage: Option<Usage>,
+    pub cost_usd: f64,
+    pub latency_ms: i64,
+    pub diff: Diff,
+    pub report: ValidationReport,
+    pub repair: Option<RepairReport>,
+}
+
+/// Drive ONE code step through the LLM-coding bridge (v26.1 + v26.2): ask the
+/// routed model for a structured `Diff` and run it through the pure
+/// Validation/Repair engines under a mission supervisor. Returns the diff and
+/// reports so the caller persists + renders them (the orchestrator stays free
+/// of the Journal).
+#[allow(clippy::too_many_arguments)]
+pub async fn execute_coding_step<C: ProviderClient, P: Fn(&str) -> Option<ModelPrice>>(
+    client: &C,
+    routing: RoutingConfig,
+    step: &ExecuteStep,
+    deployments: &[Deployment],
+    mission_id: Uuid,
+    plan_id: Uuid,
+    agent_id: Uuid,
+    max_attempts: u8,
+    price_of: P,
+) -> Result<CodingStepOutcome, StepDiffError> {
+    let started = std::time::Instant::now();
+
+    let meta = DiffMeta {
+        mission_id,
+        plan_id,
+        step_id: step.id.clone(),
+        agent_id,
+        model_id: step.model_id.clone(),
+    };
+    let routed = call_diff_with_cascade(
+        client,
+        routing,
+        &step.model_id,
+        deployments,
+        &step.statement,
+        meta,
+        max_attempts,
+    )
+    .await?;
+
+    let mut ctx = TickContext::new(ExecutionMode::HumanInLoop);
+    let state = SupervisorState::new(BudgetCaps::DEFAULT, ExecutionMode::HumanInLoop);
+    let state = tick(
+        &mut ctx,
+        state,
+        SupervisorEvent::MissionStarted { mission_id },
+    )
+    .state;
+    let state = tick(&mut ctx, state, SupervisorEvent::PlanGenerated { plan_id }).state;
+    let (_state, verify) = verify_diff(
+        state,
+        &mut ctx,
+        &routed.diff,
+        &VerifyConfig {
+            model_id: step.model_id.clone(),
+            ..VerifyConfig::default()
+        },
+    );
+
+    let usage = routed.usage;
+    Ok(CodingStepOutcome {
+        step_id: step.id.clone(),
+        model_id: step.model_id.clone(),
+        deployment_id: routed.deployment_id,
+        attempts: routed.attempts,
+        usage,
+        cost_usd: cost_of(usage, price_of(&step.model_id)),
+        latency_ms: started.elapsed().as_millis() as i64,
+        diff: routed.diff,
+        report: verify.report,
+        repair: verify.repair,
+    })
 }
 
 #[cfg(test)]
@@ -414,5 +509,66 @@ mod tests {
             ),
             0.0
         );
+    }
+
+    #[tokio::test]
+    async fn coding_step_parses_a_diff_and_verifies_it() {
+        let deployments = vec![dep("m1", "d1")];
+        let client = Scripted::new(vec![Ok(ChatResponse {
+            model: "m1".into(),
+            content: r#"{"narrative":"adds add()","files":[{"path":"src/lib.rs","hunks":[{"old_start":0,"old_end":0,"new_lines":["pub fn add(a: u32, b: u32) -> u32 { a + b }"],"rationale":"r"}]}]}"#.into(),
+            usage: None,
+        })]);
+        let step = ExecuteStep {
+            id: "s1".into(),
+            model_id: "m1".into(),
+            statement: "add add()".into(),
+        };
+        let out = execute_coding_step(
+            &client,
+            RoutingConfig::default(),
+            &step,
+            &deployments,
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+            5,
+            no_price,
+        )
+        .await
+        .expect("diff parses");
+        assert_eq!(out.diff.files[0].path, "src/lib.rs");
+        assert_eq!(out.deployment_id, "d1");
+        // Repair runs iff the diff did not earn a clean pass.
+        assert_eq!(
+            out.report.is_pass(),
+            out.repair.is_none(),
+            "a repair must be attempted exactly when validation did not pass"
+        );
+    }
+
+    #[tokio::test]
+    async fn coding_step_rejects_a_non_diff_reply() {
+        let deployments = vec![dep("m1", "d1")];
+        let client = Scripted::new(vec![Ok(ok("just prose, no json here"))]);
+        let step = ExecuteStep {
+            id: "s1".into(),
+            model_id: "m1".into(),
+            statement: "add add()".into(),
+        };
+        let err = execute_coding_step(
+            &client,
+            RoutingConfig::default(),
+            &step,
+            &deployments,
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+            5,
+            no_price,
+        )
+        .await
+        .unwrap_err();
+        assert!(matches!(err, StepDiffError::Parse(_)), "got {err:?}");
     }
 }
