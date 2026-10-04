@@ -102,7 +102,11 @@ pub async fn run(cmd: AgentCmd, profile: &str) -> Result<()> {
         _ => Vec::new(),
     };
 
-    let work = std::path::PathBuf::from(&cmd.root);
+    // RFC 63 §5: ground execution and verification on the SAME absolute root.
+    // A relative `--root` (e.g. ".") breaks `verify_artifacts`' `starts_with`
+    // check and lets the model's cwd drift from the verifier's — canonicalize.
+    let work =
+        std::fs::canonicalize(&cmd.root).with_context(|| format!("resolve --root {}", cmd.root))?;
     let success_predicate = match &cmd.verify {
         Some(path) => {
             let text = std::fs::read_to_string(path)

@@ -231,6 +231,21 @@ mod tests {
     }
 
     #[test]
+    fn relative_dot_is_rejected_as_a_root() {
+        // Regression (RFC 63 §5): a `.` root makes `safe_join` treat the joined
+        // path as escaping root — the host MUST canonicalize `--root` first.
+        // This pins the contract so the CLI fix is not silently reverted.
+        let v = verify_artifacts(
+            std::path::Path::new("."),
+            &[ArtifactCheck::FileExists {
+                path: "out.txt".into(),
+            }],
+            &LocalSandbox,
+        );
+        assert!(!v.allowed, "a relative root must not silently pass");
+    }
+
+    #[test]
     fn missing_file_blocks() {
         let d = tempfile::TempDir::new().unwrap();
         let v = verify_artifacts(
