@@ -211,6 +211,21 @@ impl Journal {
         let n = conn.execute("DELETE FROM eval_runs WHERE id = ?1", [id])?;
         Ok(n == 1)
     }
+
+    /// Distinct model ids that have at least one eval run (for the reliability
+    /// map / HUD). Ordered for stable output.
+    pub fn eval_models(&self) -> anyhow::Result<Vec<String>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT DISTINCT model FROM eval_runs WHERE model IS NOT NULL ORDER BY model ASC",
+        )?;
+        let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+        let mut out = Vec::new();
+        for r in rows {
+            out.push(r?);
+        }
+        Ok(out)
+    }
 }
 
 fn run_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<EvalRunRow> {

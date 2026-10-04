@@ -103,7 +103,8 @@ pub async fn serve(state: Arc<AppState>, shutdown: CancellationToken) {
         .route(
             "/hud/availability",
             get(super::availability::get_availability),
-        );
+        )
+        .route("/hud/reliability", get(super::reliability::get_reliability));
 
     // Phase 1.5c §C item 7 — graph read endpoint (RFC 28). Only
     // mounted when the optional `dag_mode` feature is enabled: the

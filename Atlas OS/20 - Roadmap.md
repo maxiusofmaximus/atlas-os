@@ -437,7 +437,7 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - **verificado 2026-10-03:** v3.1.0 ICS WRITE **ya implementado** (`calendar/ics_writer.rs` + `ics_route.rs` + ruta HUD; 42 tests `--features calendar-ics`); gap real = Graph READ (stubs), Planning wiring y CLI.
 - **v3.1.0 token opaco §G.2 COMPLETO:** `calendar/token.rs` (base64url 16 bytes vía `Uuid`, persistido en `<root>/calendar_ics_token.txt`, ruta 401 si falta/erróneo); `atlas calendar feed` incluye `?token=`. **v3.1.0 cerrado.**
 
-## Fase 24 — Model reliability → routing (EVAL-informed routing) (plan: research/53)
+## Fase 24 — Model reliability → routing (EVAL-informed routing) (COMPLETA, sub-fases v24.0 → v24.2; plan: research/53)
 
 - **Decisión 2026-10-03:** cerrar el bucle **EVAL → routing**. `eval::metrics::model_reliability`
   existe desde la Fase 22 pero nadie lo consume; el router elige por latencia/coste/uso,
@@ -449,7 +449,10 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - **v24.1 COMPLETA:** host glue `reliabilities_from_journal` (poblado desde EVAL) +
   `gate_refs`/`gate_refs_with_denied` (forma del closure `healthy_for`, **fail-safe**:
   si el gate dejaría 0 candidatos, devuelve el set original). 3 tests.
-- **Pendiente:** v24.2 (política persistida + CLI + HUD).
+- **v24.2 COMPLETA:** política persistida **M38 (v37)** `reliability_gate` (opt-in,
+  default off) + `Journal::eval_models`; CLI `atlas models reliability-gate
+  [--min-samples] [--min-pass-rate] [--allow-unknown|--strict] [--enable|--disable]`;
+  HUD `GET /hud/reliability`. 2 tests. **Fase 24 CERRADA.**
 - **v3.1.3 CLI surface COMPLETA:** `atlas calendar feed` + `atlas calendar busy list/count/add/rm` (envoltorios `Journal::busy_window_*` en `journal/calendar_ops.rs`).
 - **v3.1.1 Graph READ COMPLETA (verificada end-to-end):** OAuth auth-code + PKCE con loopback (`calendar/auth.rs`), `me/calendarView` → `graph` busy windows (`calendar/graph_reader.rs`), CLI `atlas calendar login/sync/status` (`calendar-graph`). Smoke real: 2 eventos persistidos; 1125 tests lib verdes. App Azure `client_id=a271f4c7-…`, authority `common`, `Calendars.Read` consentido.
 - **v3.1.4 ICS subscription READ COMPLETA:** `atlas calendar sync-ics <url>` (`calendar/ics_reader.rs`, feature `calendar-ics`) con parser `icalendar 0.17` (write-only `ics` descartado para leer; decisión en `22 §15`); busy windows `source=ics_local`. 3 tests + smoke con ICS público (317 windows).

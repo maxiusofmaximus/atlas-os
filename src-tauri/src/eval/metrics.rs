@@ -41,7 +41,7 @@ pub struct GroupSummary {
 }
 
 /// A model's historical reliability, for the orchestrator feedback loop.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Reliability {
     pub model: String,
     pub n: i64,

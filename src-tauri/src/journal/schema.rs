@@ -14,7 +14,7 @@ use rusqlite::Connection;
 /// log and must never be renumbered. When adding M(N+1): bump this const
 /// AND change the final migration's `params![N, …]` to
 /// `params![CURRENT_SCHEMA_VERSION, …]` (same value).
-pub const CURRENT_SCHEMA_VERSION: i64 = 36;
+pub const CURRENT_SCHEMA_VERSION: i64 = 37;
 
 pub fn migrate(conn: &Connection) -> Result<()> {
     // M0 — Schema versioning.
@@ -1731,6 +1731,29 @@ pub fn migrate(conn: &Connection) -> Result<()> {
                 horizon_ms       INTEGER NOT NULL,
                 enabled          INTEGER NOT NULL DEFAULT 1,
                 updated_at       INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+            );",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![36, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
+    // M38 (schema v37) — Model reliability gate policy (RFC 20 Fase 24 v24.2).
+    //   Single-row (`id = 1`) per profile: the operator's `ReliabilityGate` for
+    //   EVAL-informed routing (`orchestrator::reliability_gate`). `min_samples`
+    //   is the noise guard (act only on meaningful history), `min_pass_rate`
+    //   the drop threshold, `allow_unknown` whether models with no eval history
+    //   pass, `enabled` the opt-in switch (default OFF). Created unconditionally
+    //   (same rule as M18).
+    if current < 37 {
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS reliability_gate (
+                id            INTEGER PRIMARY KEY CHECK (id = 1),
+                min_samples   INTEGER NOT NULL,
+                min_pass_rate REAL NOT NULL,
+                allow_unknown INTEGER NOT NULL DEFAULT 1,
+                enabled       INTEGER NOT NULL DEFAULT 0,
+                updated_at    INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
             );",
         )?;
         conn.execute(

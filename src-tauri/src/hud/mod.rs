@@ -12,6 +12,7 @@ pub mod export;
 #[cfg(feature = "dag_mode")]
 pub mod graph;
 pub mod observer;
+pub mod reliability;
 pub mod remote_status;
 pub mod server;
 pub mod tail;

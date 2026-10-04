@@ -21,6 +21,7 @@ pub mod model_resets_ops;
 
 pub mod monitor_cost;
 pub mod proactive;
+pub mod reliability_policy;
 pub mod research;
 pub mod schema;
 pub mod search;
@@ -44,6 +45,8 @@ pub use eval_runs::{EvalCaseInput, EvalCaseRow, EvalRunRow, EvalRunStart, EvalTo
 pub use model_resets::ModelResetRow;
 
 pub use proactive::ProactivePolicyRow;
+
+pub use reliability_policy::ReliabilityGateRow;
 
 pub use research::{ResearchConsensusRow, ResearchRunRow, ResearchSourceRow};
 

@@ -28,12 +28,98 @@ pub enum ModelsSub {
         #[arg(long)]
         list: bool,
     },
+    /// Show or set the EVAL-informed routing reliability gate (RFC 20 Fase 24 v24.2).
+    ReliabilityGate {
+        #[arg(long)]
+        min_samples: Option<i64>,
+        #[arg(long)]
+        min_pass_rate: Option<f64>,
+        /// Allow models with no eval history (default).
+        #[arg(long)]
+        allow_unknown: bool,
+        /// Deny models with no eval history (overrides `--allow-unknown`).
+        #[arg(long)]
+        strict: bool,
+        #[arg(long)]
+        enable: bool,
+        #[arg(long)]
+        disable: bool,
+    },
 }
 
 pub async fn run(cmd: ModelsCmd, profile: &str) -> Result<()> {
     match cmd.sub {
         ModelsSub::Refresh { window, list } => refresh(window, list, profile).await,
+        ModelsSub::ReliabilityGate {
+            min_samples,
+            min_pass_rate,
+            allow_unknown,
+            strict,
+            enable,
+            disable,
+        } => reliability_gate_cmd(
+            profile,
+            min_samples,
+            min_pass_rate,
+            allow_unknown,
+            strict,
+            enable,
+            disable,
+        ),
     }
+}
+
+fn reliability_gate_cmd(
+    profile: &str,
+    min_samples: Option<i64>,
+    min_pass_rate: Option<f64>,
+    allow_unknown: bool,
+    strict: bool,
+    enable: bool,
+    disable: bool,
+) -> Result<()> {
+    use crate::journal::ReliabilityGateRow;
+
+    let pid = crate::profiles::ProfileId::new(profile);
+    let root = crate::profiles::resolve_root(&pid)?;
+    let journal = crate::journal::Journal::open(&root)?;
+
+    let mut policy = journal
+        .load_reliability_gate()?
+        .unwrap_or_else(ReliabilityGateRow::defaults);
+    let writing = min_samples.is_some()
+        || min_pass_rate.is_some()
+        || allow_unknown
+        || strict
+        || enable
+        || disable;
+    if writing {
+        if let Some(v) = min_samples {
+            policy.min_samples = v.max(0);
+        }
+        if let Some(v) = min_pass_rate {
+            policy.min_pass_rate = v.clamp(0.0, 1.0);
+        }
+        if allow_unknown {
+            policy.allow_unknown = true;
+        }
+        if strict {
+            policy.allow_unknown = false;
+        }
+        if enable {
+            policy.enabled = true;
+        }
+        if disable {
+            policy.enabled = false;
+        }
+        journal.save_reliability_gate(&policy)?;
+        println!("reliability gate updated");
+    }
+    println!(
+        "reliability gate: enabled={} min_samples={} min_pass_rate={:.2} allow_unknown={}",
+        policy.enabled, policy.min_samples, policy.min_pass_rate, policy.allow_unknown
+    );
+    Ok(())
 }
 
 async fn refresh(window: u32, list: bool, profile: &str) -> Result<()> {
