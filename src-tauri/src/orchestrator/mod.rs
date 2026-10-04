@@ -27,6 +27,7 @@ pub mod cooldown;
 pub mod cost_guard;
 pub mod data_parts;
 pub mod error;
+pub mod execute;
 pub mod idempotency;
 pub mod parse_error;
 pub mod provider;
@@ -67,6 +68,7 @@ pub use cost_guard::{
 };
 pub use data_parts::{DataPart, DataPartBuffer};
 pub use error::{ResetKind, SpendLimitError};
+pub use execute::{execute_steps, ExecuteConfig, ExecuteReport, ExecuteStep, StepOutcome};
 pub use idempotency::RequestFrame;
 pub use parse_error::ParseError;
 pub use provider::{

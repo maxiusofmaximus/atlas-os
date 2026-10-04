@@ -1,6 +1,6 @@
 # 54 — Phase 25: Orchestrator execution loop (v25)
 
-- **Estado:** plan aprobado; v25.0–v25.1 **COMPLETAS** (v25.2–v25.3 pendientes).
+- **Estado:** plan aprobado; v25.0–v25.2 **COMPLETAS** (v25.3 pendiente).
 - **Fecha:** 2026-10-03.
 - **Decisión:** hacer **A antes que B** (research/53 §… y conversación 2026-10-03). B (Harbor)
   mide el *harness*; un harness que no enruta produce un artefacto del "Scaffold Effect"
@@ -40,9 +40,18 @@ provider client → cost guard`, journaled, cancelable, con budgets. **No** swar
   400/413/422 con contexto→ContextWindowOverflow, con "content/policy"→ContentPolicyRefusal).
 - 4 tests con mock (primario OK; 429→fallback a otro modelo; agotamiento; `mode_of`).
 
-### v25.2 — Loop integration
-- `atlas execute <mission_id>` (o extender `run`): integra supervisor (`tick`) + routing +
-  client + cost guard + budgets + journal/bus; un pase controlado, cancelable.
+### v25.2 — Loop integration — **COMPLETA**
+- `orchestrator/execute.rs`: `execute_steps(client, deployments, routing, mission_id,
+  plan_id, steps, system_prompt, cfg, cancel)`. Por cada paso: rutea vía
+  `call_with_cascade`, alimenta el supervisor (`ToolCall` → sube el `BudgetTally` y puede
+  disparar `HaltSession`), respeta `cancel` (`AtomicBool`) y los `BudgetCaps`, y registra
+  el `StepOutcome`. Devuelve `ExecuteReport` (nunca panickea).
+- CLI **`atlas execute <mission_id> [--max-attempts N]`**: carga el Plan, aplana
+  `Registry.deployments`, proyecta los `plan.steps` a `ExecuteStep` y corre el loop con
+  `HttpProviderClient`.
+- 4 tests con mock (todos OK; cancelación; budget cap; fallo de paso).
+- **Diferido a v25.3:** escritura de `model_invocations` + eventos de bus + wiring de
+  señal de cancelación + cost guard con precios (hoy `cost_usd = 0.0`).
 
 ### v25.3 — Observabilidad
 - Telemetría por run (modelo elegido, tokens, coste, fallbacks) → HUD.
