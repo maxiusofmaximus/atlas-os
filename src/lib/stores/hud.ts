@@ -1334,3 +1334,100 @@ export async function fetchWorktrees(hudUrl: string, repo?: string): Promise<Wor
   }
   return (await res.json()) as WorktreesResponse;
 }
+
+// ═══════════════ RFC 65 §9 — Demos over diffs (DemoPane) ═══════════════
+//
+// Mirrors `hud/demos.rs` (`GET /hud/demos`): the artefacts produced by agent
+// runs. The full Loom-style TTS video (RFC 24 §9) is not implemented; this is
+// the persisted subset (screenshots / files / preview URLs).
+
+export interface DemoArtifact {
+  id: string;
+  run_id: string;
+  kind: string;
+  path: string | null;
+  sha256: string | null;
+  verified: boolean;
+  preview_url: string | null;
+}
+
+export interface DemosResponse {
+  artifacts: DemoArtifact[];
+  count: number;
+}
+
+export async function fetchDemos(hudUrl: string, last?: number): Promise<DemosResponse> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const query = last ? `?last=${encodeURIComponent(last)}` : '';
+  const res = await fetch(`${trimmed}/hud/demos${query}`);
+  if (!res.ok) {
+    throw new Error(`HUD demos failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as DemosResponse;
+}
+
+// ═══════════════ RFC 65 §10 — Skill + MCP rail ═══════════════
+//
+// Skills from `/tail/skills` (SkillRow); MCP servers from `GET /hud/mcp`
+// (`.opencode/mcp.json`). Atlas's own hot-swap MCP runtime (RFC 07 / RFC 24 §8)
+// is not implemented — this is the read side of the catalog.
+
+export interface SkillCatalogRow {
+  skill_id: string;
+  version: string;
+  engine: string;
+  priority: number;
+  domain: string | null;
+  language: string | null;
+  framework: string | null;
+  confidence: number;
+  auto_generated: boolean;
+  verified: boolean;
+  requires_sandbox: boolean;
+  generated_at: string;
+}
+
+export interface McpServer {
+  name: string;
+  type: string | null;
+  enabled: boolean;
+  command: unknown;
+}
+
+export interface McpCatalog {
+  repo: string;
+  ok: boolean;
+  reason: string | null;
+  path?: string;
+  servers: McpServer[];
+}
+
+export async function fetchMcp(hudUrl: string, repo?: string): Promise<McpCatalog> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const query = repo ? `?repo=${encodeURIComponent(repo)}` : '';
+  const res = await fetch(`${trimmed}/hud/mcp${query}`);
+  if (!res.ok) {
+    throw new Error(`HUD mcp failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as McpCatalog;
+}
+
+// ═══════════════ RFC 65 §11 / RFC 24 §16 — remote access status ═══════════════
+
+export interface RemoteAccessStatus {
+  local_only: boolean;
+  token_configured: boolean;
+  oidc_configured: boolean;
+  oidc_issuer: string | null;
+  hud_port: number | null;
+  latency_target_ms: number;
+}
+
+export async function fetchRemoteStatus(hudUrl: string): Promise<RemoteAccessStatus> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const res = await fetch(`${trimmed}/remote/status`);
+  if (!res.ok) {
+    throw new Error(`HUD remote status failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as RemoteAccessStatus;
+}

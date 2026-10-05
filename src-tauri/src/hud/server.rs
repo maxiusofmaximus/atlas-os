@@ -110,6 +110,8 @@ pub async fn serve(state: Arc<AppState>, shutdown: CancellationToken) {
         .route("/hud/health", get(super::health::get_health))
         .route("/hud/audit", get(super::audit::get_audit))
         .route("/hud/worktrees", get(super::worktrees::get_worktrees))
+        .route("/hud/demos", get(super::demos::get_demos))
+        .route("/hud/mcp", get(super::mcp::get_mcp))
         .route(
             "/hud/availability",
             get(super::availability::get_availability),

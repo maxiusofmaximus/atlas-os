@@ -26,6 +26,9 @@ import {
   fetchAudit,
   fetchPayload,
   fetchWorktrees,
+  fetchDemos,
+  fetchMcp,
+  fetchRemoteStatus,
   type TailKind,
 } from './hud';
 
@@ -1212,5 +1215,61 @@ describe('RFC 65 — payload + worktrees fetch', () => {
   it('throws on a non-OK worktrees status', async () => {
     fetchMock.mockResolvedValueOnce({ ok: false, status: 500, statusText: 'ERR' });
     await expect(fetchWorktrees('http://x/')).rejects.toThrow();
+  });
+});
+
+describe('RFC 65 — demos, mcp + remote status fetch', () => {
+  const fetchMock = vi.fn();
+  const ok = (body: unknown) => ({ ok: true, status: 200, json: async () => body });
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('requests /hud/demos with ?last=N and parses artifacts', async () => {
+    fetchMock.mockResolvedValueOnce(
+      ok({
+        artifacts: [{ id: 'a1', run_id: 'r1', kind: 'screenshot', preview_url: 'http://x' }],
+        count: 1,
+      }),
+    );
+    const res = await fetchDemos('http://h:1', 50);
+    expect(fetchMock).toHaveBeenCalledWith('http://h:1/hud/demos?last=50');
+    expect(res.artifacts[0]?.kind).toBe('screenshot');
+  });
+
+  it('requests /hud/mcp with an optional repo query', async () => {
+    fetchMock.mockResolvedValueOnce(
+      ok({ repo: '/r', ok: true, reason: null, servers: [{ name: 'context7', enabled: true }] }),
+    );
+    const res = await fetchMcp('http://h:1', '/r');
+    expect(fetchMock).toHaveBeenCalledWith('http://h:1/hud/mcp?repo=%2Fr');
+    expect(res.servers[0]?.name).toBe('context7');
+  });
+
+  it('requests /remote/status and parses the snapshot', async () => {
+    fetchMock.mockResolvedValueOnce(
+      ok({
+        local_only: true,
+        token_configured: false,
+        oidc_configured: false,
+        oidc_issuer: null,
+        hud_port: 1420,
+        latency_target_ms: 200,
+      }),
+    );
+    const res = await fetchRemoteStatus('http://h:1/');
+    expect(fetchMock).toHaveBeenCalledWith('http://h:1/remote/status');
+    expect(res.local_only).toBe(true);
+    expect(res.hud_port).toBe(1420);
+  });
+
+  it('throws on a non-OK remote status', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 401, statusText: 'UNAUTH' });
+    await expect(fetchRemoteStatus('http://x/')).rejects.toThrow();
   });
 });

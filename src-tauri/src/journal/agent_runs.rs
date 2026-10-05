@@ -346,6 +346,29 @@ impl Journal {
         })?;
         Ok(rows.collect::<Result<Vec<_>, _>>()?)
     }
+
+    /// RFC 65 §9 — newest-N artifacts across ALL runs (Demos over diffs). The
+    /// `artifacts` table has no timestamp, so insertion order (`rowid`) is the
+    /// recency order. Read-only.
+    pub fn artifact_tail(&self, last: i64) -> anyhow::Result<Vec<ArtifactRow>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT id, run_id, kind, path, sha256, verified, evidence_json
+             FROM artifacts ORDER BY rowid DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![last.max(0)], |r| {
+            Ok(ArtifactRow {
+                id: r.get(0)?,
+                run_id: r.get(1)?,
+                kind: r.get(2)?,
+                path: r.get(3)?,
+                sha256: r.get(4)?,
+                verified: r.get::<_, i64>(5)? != 0,
+                evidence_json: r.get(6)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    }
 }
 
 #[cfg(test)]

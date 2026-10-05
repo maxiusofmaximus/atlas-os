@@ -20,6 +20,8 @@
     type DiffAnnotation,
     type ExportPostingResponse,
     type SwarmMessagePayload,
+    fetchRemoteStatus,
+    type RemoteAccessStatus,
   } from '$stores/hud';
   import AutoresearchCard from '$lib/components/AutoresearchCard.svelte';
   import AgentCard from '$lib/components/AgentCard.svelte';
@@ -33,6 +35,8 @@
   import OutlineView from '$lib/components/OutlineView.svelte';
   import TimelineView from '$lib/components/TimelineView.svelte';
   import WorktreesView from '$lib/components/WorktreesView.svelte';
+  import DemoPane from '$lib/components/DemoPane.svelte';
+  import SkillMcpRail from '$lib/components/SkillMcpRail.svelte';
   import ViewSwitcher from '$lib/components/ViewSwitcher.svelte';
   import { activeView, type ViewId } from '$stores/views';
   import AvailabilityCard from '$lib/components/AvailabilityCard.svelte';
@@ -268,9 +272,15 @@
     tails = Object.fromEntries(entries) as Record<string, TailBox>;
   }
 
+  // ─── RFC 65 §11 / RFC 24 §16 — remote access status (OIDC/bearer) ───
+  let remote: RemoteAccessStatus | null = $state(null);
+
   onMount(() => {
     if (data.hudUrl) {
       hud.connect(data.hudUrl);
+      void fetchRemoteStatus(data.hudUrl)
+        .then((r) => (remote = r))
+        .catch(() => (remote = null));
     }
     void refreshAll();
     pollTimer = setInterval(() => void refreshAll(), 5000);
@@ -345,6 +355,17 @@
   <header>
     <h1>Atlas OS</h1>
     <span class="version">v{import.meta.env.VITE_OC_VERSION ?? '0.1.0'}</span>
+    {#if remote}
+      <span
+        class="remote"
+        data-state={remote.local_only ? 'local' : 'remote'}
+        title={remote.oidc_issuer ?? 'no OIDC issuer configured'}
+      >
+        {remote.local_only ? 'local-only' : 'remote'}
+        {#if remote.oidc_configured}· OIDC{/if}
+        {#if remote.token_configured}· bearer{/if}
+      </span>
+    {/if}
   </header>
 
   <ViewSwitcher available={availableViews} />
@@ -366,6 +387,7 @@
         <code>agent_step</code> event (<code>atlas agent "&lt;task&gt;" --verify</code>).
       </p>
       <AgentCard hudUrl={data.hudUrl ?? null} />
+      <DemoPane hudUrl={data.hudUrl ?? null} />
     </section>
   {:else if $activeView === 'kanban'}
     <section class="kanban">
@@ -469,6 +491,16 @@
         URL:
         <code>{$hud.url || data.hudUrl || 'waiting…'}</code>
       </p>
+    </section>
+
+    <section class="skill-mcp">
+      <h2>Skill &amp; MCP rail</h2>
+      <p class="hint">
+        RFC 65 §10 / RFC 24 §8. Skills from <code>/tail/skills</code> and MCP servers from
+        <code>GET /hud/mcp</code> (<code>.opencode/mcp.json</code>). Hot-swap activation is not
+        wired in this build — drag only stages a selection.
+      </p>
+      <SkillMcpRail hudUrl={data.hudUrl ?? null} />
     </section>
 
     <section class="audit-export">
@@ -1131,5 +1163,53 @@
   .drawer-form button:disabled {
     opacity: 0.55;
     cursor: not-allowed;
+  }
+  .remote {
+    font-size: 0.72rem;
+    border-radius: 999px;
+    padding: 0.05rem 0.5rem;
+    border: 1px solid #30363d;
+    color: #8b949e;
+    font-family: 'Fira Code', monospace;
+  }
+  .remote[data-state='remote'] {
+    color: #58a6ff;
+    border-color: #58a6ff;
+  }
+  .skill-mcp {
+    margin-top: 1rem;
+  }
+  .skill-mcp h2 {
+    font-size: 1rem;
+    margin: 0 0 0.25rem 0;
+  }
+  .skill-mcp .hint {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.85rem;
+    color: #8b949e;
+  }
+
+  /* RFC 65 §11 / RFC 24 §16 — responsive (mobile review). */
+  @media (max-width: 720px) {
+    main {
+      padding: 0.9rem;
+    }
+    header {
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    section {
+      padding: 0.75rem 0.85rem;
+    }
+    .tails-grid {
+      grid-template-columns: 1fr;
+    }
+    .journal li {
+      grid-template-columns: 1fr;
+    }
+    .drawer {
+      width: 100vw;
+      max-width: 100vw;
+    }
   }
 </style>
