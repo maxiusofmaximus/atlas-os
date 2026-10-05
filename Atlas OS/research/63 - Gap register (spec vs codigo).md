@@ -28,7 +28,7 @@ Esto confirma la tesis del registro: **los checklists verdes ≠ entorno usable.
 | # | Hueco | Evidencia | Bloqueo | Acción |
 |---|---|---|---|---|
 | **A1** | **Capacidad agéntica ≈ 0**: el agente no resuelve tareas reales | `research/61 §3/§8bis` (Terminal-Bench 2 `pass_rate` 0.000 con modelos de nube; **>0** con Qwen 125B local) | **Modelo** (el harness mide bien: oracle 0.88) | Correr el harness con un modelo de frontera y subir el baseline (RFC 63 §9/§13) |
-| **A2** | **No hay forma segura de configurar un modelo/clave** en el producto: las claves se leen **solo de env vars** | `orchestrator/provider.rs:435-438` (*"encrypting at-rest is a Phase 3 concern (RFC 25 §6 OS keychain)"*); `keyring` declarado en `Cargo.toml` con **0 usos**; no existe `atlas secrets` (RFC 25 §3.9) | Especificado, **no implementado** | `atlas secrets set\|get\|list\|delete` sobre `keyring-rs` (servicio `OpenCodeOS`) + resolución de key con fallback a env. **Camino crítico** |
+| **A2** | **Configuración de una clave/modelo** (antes: solo env vars) | `secrets/` + `atlas secrets set\|get\|list\|delete` + `orchestrator::client::resolve_api_key` (env → keychain); backend nativo por SO en `Cargo.toml` | ✅ **Implementado (2026-10)** | Hecho (roundtrip verificado con `tools/secrets-smoke.ps1`). Opcional a futuro: input en el HUD |
 | **A3** | **Sin gateway multicanal** (steer desde Telegram/Slack/…); el operador solo abre el HUD web | RFC 29 §3.B | Faltan crates (`teloxide`/`serenity`/`slack-morphism`) + tokens de bot → **decisión de operador** | Diferido hasta decisión |
 | **A4** | **Sin user modeling** (el sistema no distingue "qué sabe el usuario") | RFC 29 §3.C | Tabla `user_profile` (M20+) no existe | Implementable (SQLite + consulta en RFC 23) |
 | **A5** | **Bundled skills catalog ausente** (Genspark trae 80+; Atlas obliga a instalar) | RFC 29 §3.D | `bundled-skills` existe como feature pero sin catálogo curado de ~30 skills | Implementable |
@@ -79,8 +79,8 @@ Motores (32 módulos): orchestrator completo (routing/cascade/MoA/cost/backpress
 ## E. Plan para terminar (ordenado; sin re-loop)
 
 **Camino crítico (desbloquea "entorno de desarrollo usable"):**
-1. **A2 — Claves/secretos seguros** (keychain) + resolución de key con fallback env. → permite enchufar **tu modelo**.
-2. **A1 — Correr el harness con un modelo real** y subir el baseline (RFC 63 §9 → §13). Requiere un endpoint OpenAI-compatible.
+1. ✅ **A2 — Claves/secretos seguros** (keychain) + resolución de key con fallback env. **Implementado (2026-10).**
+2. **A1 — Correr el harness con un modelo real** y subir el baseline (RFC 63 §9 → §13). Requiere un endpoint OpenAI-compatible; la key ya se puede guardar con `atlas secrets set`, así que el bloqueo ahora es **elegir/levantar el modelo**, no Atlas.
 3. **B — Decidir el default build** (activar `fastembed` + `dag_mode`/`codebase-graph`, o dejarlo documentado).
 
 **Ampliación de producto (tras el camino crítico):**

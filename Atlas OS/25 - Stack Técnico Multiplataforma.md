@@ -236,7 +236,9 @@ Config:
   profile   new <name>
   profile   switch <name>
   config    get / set / edit
-  secrets   set <key>             stored in OS keychain.
+  secrets   set <slot>            stored in OS keychain (value via stdin).
+  secrets   get <slot> [--show]   masked preview, or the raw value.
+  secrets   list / delete <slot>  enumerate / remove (names, never values).
 
 Sandbox:
   sandbox   exec <cmd> [...]     Run inside sandboxProfile.
@@ -248,13 +250,13 @@ Sandbox:
 
 ### 3.10 OS keychain (secretos)
 
-Usar `keyring-rs` (https://crates.io/crates/keyring):
+**Status: ✅ implementado (2026-10).** `src-tauri/src/secrets/` envuelve `keyring-rs` 3.6.3; el backend nativo se selecciona por SO en las secciones `[target...]` de `Cargo.toml` (sin él `keyring` cae a un store `mock` no persistente). CLI: `atlas secrets set|get|list|delete <slot>` (RFC 08). El Orchestrator resuelve la clave **env var primero y luego el keychain** (`orchestrator::client::resolve_api_key`), así los setups por entorno siguen funcionando. `list` usa un índice de nombres (`<profile>/secrets.index.json`) porque el keychain no enumera.
 
 - Windows → Credential Manager.
 - macOS → Keychain.
 - Linux → Secret Service (GNOME Keyring / KWallet).
 
-Nunca escribir claves a `.env`, dotfile plaintext, ni `journal.db`. La entrada en keychain es `(service="OpenCodeOS", account="<provider>")`. Si el usuario prefiere dotenv, se soporta pero se advierte.
+Nunca escribir claves a `.env`, dotfile plaintext, ni `journal.db`. La entrada en keychain es `(service="OpenCodeOS", account="<slot>")` — el `slot` es, por convención, el nombre del `api_key_env` del deployment (p. ej. `OPENAI_API_KEY`). Si el usuario prefiere dotenv, se soporta pero se advierte.
 
 ### 3.11 Self-update
 

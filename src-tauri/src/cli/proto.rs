@@ -12,8 +12,8 @@ use super::commands::ToastCmd;
 use super::commands::{
     AgentCmd, AuditCmd, BrowserCmd, CalendarCmd, DomainCmd, EvalCmd, ExecCmd, ExecuteCmd, ForkCmd,
     HudCmd, JournalCmd, LearnCmd, McpCmd, MissionCmd, MobileCmd, ModelsCmd, MonitorCmd, PlanCmd,
-    ProfileCmd, RemoteCmd, ResumeCmd, RunCmd, SecurityCmd, SisterCmd, SkillCmd, SteerCmd,
-    SwapModelCmd, SwarmCmd, ValidateCmd,
+    ProfileCmd, RemoteCmd, ResumeCmd, RunCmd, SecretsCmd, SecurityCmd, SisterCmd, SkillCmd,
+    SteerCmd, SwapModelCmd, SwarmCmd, ValidateCmd,
 };
 #[derive(Parser, Debug)]
 #[command(name = "atlas", version, propagate_version = true)]
@@ -95,6 +95,8 @@ pub enum Commands {
     Sister(SisterCmd),
     /// Security supply-chain install gate (RFC 18 §4).
     Security(SecurityCmd),
+    /// Secrets in the OS keychain — set/get/list/delete provider API keys (RFC 25 §3.10).
+    Secrets(SecretsCmd),
     /// Static analysis via external Semgrep/CodeQL (lateral, never bundled) — --semgrep/--codeql (RFC 20 Fase 12.0).
     Validate(ValidateCmd),
     /// Swarm role presets — list and spawn (RFC 05 Phase 4.1).

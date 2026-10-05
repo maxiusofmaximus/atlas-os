@@ -38,6 +38,7 @@ pub mod remote;
 pub mod remote_auth;
 pub mod repair;
 pub mod research;
+pub mod secrets;
 pub mod security;
 pub mod sister;
 pub mod skills;

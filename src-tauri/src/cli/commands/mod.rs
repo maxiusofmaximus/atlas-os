@@ -24,6 +24,7 @@ pub mod remote;
 pub mod research;
 pub mod resume;
 pub mod run;
+pub mod secrets;
 pub mod security;
 #[cfg(feature = "hud")]
 pub mod serve;
@@ -59,6 +60,7 @@ pub use remote::RemoteCmd;
 pub use research::ResearchCmd;
 pub use resume::ResumeCmd;
 pub use run::RunCmd;
+pub use secrets::SecretsCmd;
 pub use security::SecurityCmd;
 #[cfg(feature = "hud")]
 pub use serve::ServeCmd;
@@ -98,6 +100,7 @@ pub async fn dispatch(cmd: Commands, profile: &str) -> Result<()> {
         Commands::Skill(c) => skill::run(c, profile).await,
         Commands::Domain(c) => domain::run(c, profile).await,
         Commands::Security(c) => security::run(c, profile).await,
+        Commands::Secrets(c) => secrets::run(c, profile).await,
         Commands::Sister(c) => sister::run(c, profile).await,
         Commands::Swarm(c) => swarm::run(c, profile).await,
         Commands::Profile(c) => profile::run(c, profile).await,

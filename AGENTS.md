@@ -128,6 +128,7 @@ cargo run --manifest-path src-tauri/Cargo.toml --bin atlas -- hud
 cargo run --manifest-path src-tauri/Cargo.toml --bin atlas -- profile list
 cargo run --manifest-path src-tauri/Cargo.toml --bin atlas -- audit -n 10
 cargo run --manifest-path src-tauri/Cargo.toml --bin atlas -- journal -n 10
+cargo run --manifest-path src-tauri/Cargo.toml --bin atlas -- secrets list
 ```
 
 ## 4. Critical conventions

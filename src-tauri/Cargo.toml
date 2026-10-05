@@ -225,7 +225,9 @@ notify-debouncer-full = "0.4"
 # Test + marketplace git-based temp clone dirs (12.1) — every target.
 tempfile = "3"
 
-# OS keychain
+# OS keychain (RFC 25 §3.10). The native backend is selected per-OS in the
+# target sections below; with no backend feature keyring silently falls back
+# to its `mock` store (no persistence), so those entries are required.
 keyring = "3"
 
 # Misc
@@ -286,6 +288,13 @@ ring = { version = "0.17", optional = true }
 # tracing and is unit-testable without WinRT.
 [target.'cfg(windows)'.dependencies]
 winrt-toast-reborn = { version = "0.3.8", optional = true }
+keyring = { version = "3", features = ["windows-native"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3", features = ["apple-native"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3", features = ["sync-secret-service", "crypto-rust"] }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

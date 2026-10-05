@@ -159,6 +159,25 @@ impl Default for HttpProviderClient {
     }
 }
 
+/// Resolve a deployment's API key. Env var first (unchanged behaviour), then
+/// the OS keychain (account = the slot name) — RFC 25 §3.10 / RFC 18. This is
+/// what lets `atlas secrets set <slot>` drive a deployment without exporting
+/// the key into the process environment.
+fn resolve_api_key(slot: &str) -> ClientResult<String> {
+    if let Ok(value) = std::env::var(slot) {
+        if !value.trim().is_empty() {
+            return Ok(value);
+        }
+    }
+    match crate::secrets::get(slot) {
+        Ok(Some(value)) if !value.trim().is_empty() => Ok(value),
+        Ok(_) => Err(ClientError::MissingApiKey(slot.to_string())),
+        Err(e) => Err(ClientError::Http(format!(
+            "keychain lookup for `{slot}` failed: {e}"
+        ))),
+    }
+}
+
 impl ProviderClient for HttpProviderClient {
     async fn chat(
         &self,
@@ -170,8 +189,7 @@ impl ProviderClient for HttpProviderClient {
             .post(chat_endpoint(&deployment.api_base))
             .json(&build_chat_body(request));
         if let Some(env_var) = &deployment.api_key_env {
-            let key =
-                std::env::var(env_var).map_err(|_| ClientError::MissingApiKey(env_var.clone()))?;
+            let key = resolve_api_key(env_var)?;
             if !key.trim().is_empty() {
                 builder = builder.bearer_auth(key);
             }
