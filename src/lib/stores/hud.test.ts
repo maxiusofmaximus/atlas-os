@@ -24,6 +24,8 @@ import {
   fetchHealth,
   projectLatestHeartbeat,
   fetchAudit,
+  fetchPayload,
+  fetchWorktrees,
   type TailKind,
 } from './hud';
 
@@ -1160,5 +1162,49 @@ describe('RFC 65 — health + audit fetch', () => {
         evt('agent_heartbeat', '2026-01-01T00:00:03Z'),
       ]),
     ).toBe('2026-01-01T00:00:03Z');
+  });
+});
+
+describe('RFC 65 — payload + worktrees fetch', () => {
+  const fetchMock = vi.fn();
+  const okText = (body: string) => ({ ok: true, status: 200, text: async () => body });
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('parses a JSON payload body from /payload/:kind/:id', async () => {
+    const body = JSON.stringify({ roadmap: [{ id: 'm1', label: 'first' }] });
+    fetchMock.mockResolvedValueOnce(okText(body));
+    const raw = (await fetchPayload('http://h:1/', 'plan', 'p1')) as {
+      roadmap: Array<{ id: string }>;
+    };
+    expect(fetchMock).toHaveBeenCalledWith('http://h:1/payload/plan/p1');
+    expect(raw.roadmap[0]?.id).toBe('m1');
+  });
+
+  it('returns the raw text when the payload is not JSON', async () => {
+    fetchMock.mockResolvedValueOnce(okText('not json'));
+    expect(await fetchPayload('http://h:1', 'plan', 'p1')).toBe('not json');
+  });
+
+  it('requests /hud/worktrees with an optional repo query', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ repo: '/r', ok: true, reason: null, entries: [] }),
+    });
+    const res = await fetchWorktrees('http://h:1', '/r');
+    expect(fetchMock).toHaveBeenCalledWith('http://h:1/hud/worktrees?repo=%2Fr');
+    expect(res.ok).toBe(true);
+  });
+
+  it('throws on a non-OK worktrees status', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 500, statusText: 'ERR' });
+    await expect(fetchWorktrees('http://x/')).rejects.toThrow();
   });
 });

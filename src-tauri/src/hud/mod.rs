@@ -20,6 +20,7 @@ pub mod reliability;
 pub mod remote_status;
 pub mod server;
 pub mod tail;
+pub mod worktrees;
 pub mod ws;
 
 pub use server::serve;

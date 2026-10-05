@@ -17,7 +17,10 @@ export type ViewId =
   | 'cost'
   | 'health'
   | 'audit'
-  | 'canvas';
+  | 'canvas'
+  | 'outline'
+  | 'timeline'
+  | 'worktrees';
 
 export interface ViewDef {
   id: ViewId;
@@ -37,6 +40,9 @@ export const VIEWS: readonly ViewDef[] = [
   { id: 'health', label: 'Health KPIs', key: 'h', fase: 'P1' },
   { id: 'audit', label: 'Audit', key: 'u', fase: 'P1' },
   { id: 'canvas', label: 'Canvas', key: 'g', fase: 'P2' },
+  { id: 'outline', label: 'Outline', key: 'l', fase: 'P2' },
+  { id: 'timeline', label: 'Timeline', key: 't', fase: 'P2' },
+  { id: 'worktrees', label: 'Worktrees', key: 'w', fase: 'P2' },
 ];
 
 const initial: ViewId = 'overview';
@@ -48,11 +54,13 @@ export const activeView: Readable<ViewId> & {
 } = {
   subscribe,
   set,
-  /** Move to the next/previous implemented view (P0+P1, so hotkeys land on
-   *  something real). Future-fase views are reachable from the switcher. */
+  /** Move to the next/previous implemented view (P0+P1+P2). Every catalog
+   *  view is implemented, so the cycle covers them all. */
   cycle(dir: 1 | -1 = 1) {
     update((current) => {
-      const done = VIEWS.filter((v) => v.fase === 'P0' || v.fase === 'P1').map((v) => v.id);
+      const done = VIEWS.filter(
+        (v) => v.fase === 'P0' || v.fase === 'P1' || v.fase === 'P2',
+      ).map((v) => v.id);
       const i = done.indexOf(current);
       const next = (i + dir + done.length) % done.length;
       return done[next] ?? current;

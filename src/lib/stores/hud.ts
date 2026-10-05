@@ -1272,3 +1272,65 @@ export async function fetchAudit(hudUrl: string, last?: number): Promise<AuditRe
   }
   return (await res.json()) as AuditResponse;
 }
+
+// ═══════════════ RFC 65 §3 — payload drill-down (Outline) ═══════════════
+//
+// `GET /payload/:kind/:id` returns the raw artefact payload as a JSON body.
+// Used by OutlineView to read a plan's `roadmap` milestones.
+
+export interface PlanMilestone {
+  id: string;
+  label: string;
+  objectives?: string[];
+  depends_on?: string[];
+}
+
+export interface PlanPayload {
+  id?: string;
+  mission_id?: string;
+  roadmap?: PlanMilestone[];
+}
+
+export async function fetchPayload(hudUrl: string, kind: string, id: string): Promise<unknown> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const res = await fetch(
+    `${trimmed}/payload/${encodeURIComponent(kind)}/${encodeURIComponent(id)}`,
+  );
+  if (!res.ok) {
+    throw new Error(`HUD payload ${kind} failed: ${res.status} ${res.statusText}`);
+  }
+  const text = await res.text();
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return text;
+  }
+}
+
+// ═══════════════ RFC 65 §3 — Worktrees (WorktreesView) ═══════════════
+//
+// Mirrors `hud/worktrees.rs` (`GET /hud/worktrees`): the git worktrees of a
+// repo, or `ok:false` + reason when git is missing / the path is not a repo.
+
+export interface WorktreeEntry {
+  path: string;
+  branch: string | null;
+  detached: boolean;
+}
+
+export interface WorktreesResponse {
+  repo: string;
+  ok: boolean;
+  reason: string | null;
+  entries: WorktreeEntry[];
+}
+
+export async function fetchWorktrees(hudUrl: string, repo?: string): Promise<WorktreesResponse> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const query = repo ? `?repo=${encodeURIComponent(repo)}` : '';
+  const res = await fetch(`${trimmed}/hud/worktrees${query}`);
+  if (!res.ok) {
+    throw new Error(`HUD worktrees failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as WorktreesResponse;
+}

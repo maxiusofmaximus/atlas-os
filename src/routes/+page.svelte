@@ -29,6 +29,10 @@
   import CostDashboard from '$lib/components/CostDashboard.svelte';
   import HealthKPIs from '$lib/components/HealthKPIs.svelte';
   import AuditTimeline from '$lib/components/AuditTimeline.svelte';
+  import CanvasView from '$lib/components/CanvasView.svelte';
+  import OutlineView from '$lib/components/OutlineView.svelte';
+  import TimelineView from '$lib/components/TimelineView.svelte';
+  import WorktreesView from '$lib/components/WorktreesView.svelte';
   import ViewSwitcher from '$lib/components/ViewSwitcher.svelte';
   import { activeView, type ViewId } from '$stores/views';
   import AvailabilityCard from '$lib/components/AvailabilityCard.svelte';
@@ -310,6 +314,10 @@
     'cost',
     'health',
     'audit',
+    'canvas',
+    'outline',
+    'timeline',
+    'worktrees',
   ];
   let paletteOpen = $state(false);
 
@@ -408,6 +416,45 @@
         claimed here.
       </p>
       <AuditTimeline hudUrl={data.hudUrl ?? null} />
+    </section>
+  {:else if $activeView === 'canvas'}
+    <section class="canvas-view">
+      <h2>Canvas</h2>
+      <p class="hint">
+        RFC 65 §3 / RFC 28 §C. Persisted mission graph (<code>GET /graph/:id</code>, M15) rendered
+        by <code>GraphView</code>; pick a mission to inspect its nodes and DFA edges.
+      </p>
+      <CanvasView hudUrl={data.hudUrl ?? null} />
+    </section>
+  {:else if $activeView === 'outline'}
+    <section class="outline-view">
+      <h2>Outline</h2>
+      <p class="hint">
+        RFC 65 §3. A plan's roadmap milestones in order with their dependencies (<code
+          >/tail/plans</code
+        >
+        + <code>/payload/plan/:id</code>).
+      </p>
+      <OutlineView hudUrl={data.hudUrl ?? null} />
+    </section>
+  {:else if $activeView === 'timeline'}
+    <section class="timeline-view-page">
+      <h2>Timeline</h2>
+      <p class="hint">
+        RFC 65 §3. Chronological strip of the <code>journal_events</code> stream (<code
+          >GET /hud/journal</code
+        >).
+      </p>
+      <TimelineView hudUrl={data.hudUrl ?? null} />
+    </section>
+  {:else if $activeView === 'worktrees'}
+    <section class="worktrees-view-page">
+      <h2>Worktrees</h2>
+      <p class="hint">
+        RFC 65 §3 / RFC 05 §4. Git worktrees of a repository (<code>GET /hud/worktrees</code>);
+        fail-safe when git is missing or the path is not a repo.
+      </p>
+      <WorktreesView hudUrl={data.hudUrl ?? null} />
     </section>
   {:else}
     <section class="hud-health">
