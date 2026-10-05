@@ -58,9 +58,9 @@ export const activeView: Readable<ViewId> & {
    *  view is implemented, so the cycle covers them all. */
   cycle(dir: 1 | -1 = 1) {
     update((current) => {
-      const done = VIEWS.filter(
-        (v) => v.fase === 'P0' || v.fase === 'P1' || v.fase === 'P2',
-      ).map((v) => v.id);
+      const done = VIEWS.filter((v) => v.fase === 'P0' || v.fase === 'P1' || v.fase === 'P2').map(
+        (v) => v.id,
+      );
       const i = done.indexOf(current);
       const next = (i + dir + done.length) % done.length;
       return done[next] ?? current;

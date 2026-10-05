@@ -49,9 +49,11 @@
   {#if error}
     <p class="error">Error: {error}</p>
   {:else if selected}
-    <GraphView hudUrl={hudUrl} missionId={selected} />
+    <GraphView {hudUrl} missionId={selected} />
   {:else}
-    <p class="empty">No mission selected. Create one with <code>atlas mission new "&lt;prompt&gt;"</code>.</p>
+    <p class="empty">
+      No mission selected. Create one with <code>atlas mission new "&lt;prompt&gt;"</code>.
+    </p>
   {/if}
 </section>
 

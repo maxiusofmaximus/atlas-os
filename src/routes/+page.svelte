@@ -400,8 +400,8 @@
     <section class="health-view">
       <h2>Health KPIs</h2>
       <p class="hint">
-        RFC 65 §3. Agent-session telemetry (<code>agent_session_events</code>), capability run states
-        (<code>agent_runs</code>) and swarm-registry states (<code>swarm_agents</code>) via
+        RFC 65 §3. Agent-session telemetry (<code>agent_session_events</code>), capability run
+        states (<code>agent_runs</code>) and swarm-registry states (<code>swarm_agents</code>) via
         <code>GET /hud/health</code>; supervisor heartbeat liveness from the live
         <code>agent_heartbeat</code> bus event.
       </p>

@@ -1083,7 +1083,13 @@ describe('RFC 65 — cost fetch', () => {
       cumulative_usd: 1.5,
       pressure: { level: 'ok', warn_usd: 5, crit_usd: 20 },
       pending_resets: [
-        { provider: 'p1', model: 'm1', status_code: 429, error_type: 'rate_limit', resets_at_ms: 1 },
+        {
+          provider: 'p1',
+          model: 'm1',
+          status_code: 429,
+          error_type: 'rate_limit',
+          resets_at_ms: 1,
+        },
       ],
     };
     fetchMock.mockResolvedValueOnce(ok(body));

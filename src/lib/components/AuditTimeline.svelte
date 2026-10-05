@@ -58,8 +58,8 @@
   {:else if data.rows.length === 0}
     <p class="empty">
       No audit entries yet. The append-only <code>audit_log</code> chain has no writer in the current
-      build; rows appear here once one lands. Hash-chain verification (RFC 24 §10) is not
-      implemented, so this view does not claim integrity.
+      build; rows appear here once one lands. Hash-chain verification (RFC 24 §10) is not implemented,
+      so this view does not claim integrity.
     </p>
   {:else}
     <ol class="timeline">
