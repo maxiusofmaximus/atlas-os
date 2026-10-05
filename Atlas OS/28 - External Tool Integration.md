@@ -1,7 +1,7 @@
 # RFC 28 — External Tool Integration
 
 **Author:** opencode architect agent · **Date:** 2026-07-25
-**Status:** Phase 1.5 — §D ✅ (`db25379`), §A ✅ (`853da30`), §C ✅ (`cddcbc2`), §B planned (Phase 1.5d). Draft for orchestrator review.
+**Status:** Phase 1.5 — §A ✅ (`853da30`), §B ✅ (`7f8215e`-`4b4924e`), §C ✅ (`cddcbc2`), §D ✅ (`db25379`), §E ✅ items 1-8 (items 9-10 post-MVP), §F ✅ 9/9, §G ✅ 10/10, §H ✅ 13/13; §I lateral (operator guide `docs/terminal-browser-integration.md`).
 **Supersedes:** none · **Superseded by:** —
 **Depends on:** RFC 02 (Journal), RFC 03 (Memory), RFC 04 (Orchestrator), RFC 06/23 (Skills), RFC 12 (Planning), RFC 14 (Validation), RFC 15 (Repair), RFC 16 (Learning), RFC 19 (Execution Supervisor), RFC 22 (Research Findings), RFC 24 (HUD), RFC 25 (Stack), RFC 27 (Orchestration Fundamentals)
 
@@ -401,7 +401,7 @@ Ninguno en MVP. Posible futuro: badge "firecrawl connected" en HUD settings pane
 
 ## §F — Windows Toast Notifications (Phase 1.5f)
 
-**Status: ✅ items 1-8 implementados, commit `d6e6e23`.** Item 9 (smoke script `tools/toast-smoke.ps1`) post-MVP. Item 10 (docs README troubleshooting AUMID) post-MVP.
+**Status: ✅ 9/9 implementados** (items 1-8 `d6e6e23`; item 9 `tools/toast-smoke.ps1` + `docs/toast-integration.md`, verified against a `--features toast` build).
 
 Atlas OS corre como shell desktop (Tauri 2) pero también como headless CLI/ACP server. Cuando el proceso está ocioso o el webview está minimizado, las notificaciones nativas del SO son el canal correcto para señales asíncronas: reset-window de modelo, fin de turn largo, fallo crítico, calendar reminder. Esta sección define cómo Atlas OS configura AUMID + Start Menu shortcut y dispara Toasts via `winrt-toast-reborn`, persiste historial en SQLite, y responde a activaciones (deep-link al HUD).
 
@@ -511,8 +511,8 @@ Cada `fire_toast` escribe en `toast_history` (tabla append-only, sin cleanup) pa
 - [x] **Item 5**: `src/toast/scheduler.rs::ToastDriver` — tokio spawn task, 5-s idle poll, dispatch via `tokio::task::spawn_blocking` (WinRT `ToastManager` no-Send), persist outcome back. 3 tests (non-Windows): fires-one, drains-backlog, handle-is-some.
 - [x] **Item 6**: `toast_history` dedupe ledger implemented in `ToastQueue::append_history`. Each `mark_*` call writes an audit row. 1 test (`history_is_appended_per_outcome`) verifies two outcomes produce two rows.
 - [x] **Item 7**: `AppState::bootstrap()` integration — calls `register_aumid()` (warnings on failure, non-fatal), spawns `ToastDriver` with shared `Arc<Mutex<Journal>>`. `Journal::toast_*` thin wrappers added. `Inner.toast_driver` owns the handle for shutdown.
-- [x] **Item 8** (renamed): `src/cli/commands/toast.rs` — `opencode toast queue|list|cancel` clap subcommand + dispatch wiring. 7 clap parsing tests. README troubleshooting (`docs/toast-integration.md`) deferred to post-MVP.
-- [ ] **Item 9**: `tools/toast-smoke.ps1` smoke script — deferred to post-MVP.
+- [x] **Item 8** (renamed): `src/cli/commands/toast.rs` — `opencode toast queue|list|cancel` clap subcommand + dispatch wiring. 7 clap parsing tests. Operator guide written: `docs/toast-integration.md` (AUMID troubleshooting + CLI contract).
+- [x] **Item 9**: `tools/toast-smoke.ps1` smoke script — verifies the queue surface end-to-end (feature-gate probe → enqueue → list → idempotent cancel) against a `--features toast` build. Feature OFF ⇒ SKIP. Operator guide: `docs/toast-integration.md`.
 
 **Commit: `d6e6e23`** — `feat(rfc-28): Section F items 1-8 — Toast notifications queue + driver + CLI subcommand`. 16 files changed, 1721 insertions. Tests default 270, +toast 301. `cargo fmt --check` + `cargo clippy -- -D warnings` + `cargo clippy --features toast -- -D warnings`: todos limpios. `cargo check --features "firecrawl,toast" --lib`: clean (combo verify).
 
@@ -534,7 +534,7 @@ Cada `fire_toast` escribe en `toast_history` (tabla append-only, sin cleanup) pa
 
 ## §G — Windows Calendar Integration (Phase 1.5g)
 
-**Status: ⏳ documentado, implementación pendiente (post-Toast §F).**
+**Status: ✅ 10/10 implementados** (items 1-4 `8d26528`; items 5-8 vía Roadmap v3 / Phase 23; items 9-10 `docs/calendar-integration.md` + `tools/calendar-smoke.ps1`).
 
 Atlas OS planifica (RFC 12 Planning) runs de validación, retrospectives (RFC 16) y schedules de `autoresearch` cadencia. Hoy estas viven en el `journal` SQLite sin affordance para el usuario que quiere verlas en su calendario nativo (Outlook, Apple Calendar, Google Calendar). §G define dos direcciones con un único stack: **WRITE** (Atlas OS publica eventos via `.ics` feed servido desde el HUD axum server) y **READ** (Atlas OS consume el Microsoft Graph `/me/calendarView` endpoint para leer eventos del usuario e inyectarlos como contexto al Planning engine).
 
@@ -662,16 +662,16 @@ pub fn next_free_slot(&self, turn_eta: Duration) -> Option<(chrono::DateTime<Utc
 
 ### G.6 Checklist
 
-- [ ] **Item 1**: `Cargo.toml` feature flag `calendar` + deps `ics 0.5`, `graph-rs-sdk 3.0.1`.
-- [ ] **Item 2**: M18 migration `calendar_busy_windows` + `calendar_auth` (schema 17→18).
-- [ ] **Item 3**: `calendar/ics_writer.rs` — `CalendarWriter::from_journal()`. 6 tests min (incluye RRULE) + 1 para cada `MissionStatus → iCal STATUS` mapping.
-- [ ] **Item 4**: `calendar/ics_route.rs` — axum handler + token filter. 3 tests (token válido, inválido, expirado).
-- [ ] **Item 5**: `calendar/graph_reader.rs` — `CalendarReader::poll()` + Graph event parse. 4 tests (mock Graph response).
-- [ ] **Item 6**: `calendar/auth.rs` — interactive auth wry popup + refresh token encrypted en SQLite. 3 tests.
-- [ ] **Item 7**: `AppState::new()` integration — spawn Graph poller 60s. `AppState.context_busy_windows` poblado.
-- [ ] **Item 8**: `Planning::next_free_slot()` —Consulta `context_busy_windows` antes de encolar turn proactivo. Integration test.
-- [ ] **Item 9**: `docs/calendar-integration.md` — README: cómo subscribir webcal, cómo autorizar Graph login.
-- [ ] **Item 10**: `tools/calendar-smoke.ps1` — dispara servidor, fetch `/atlas-calendar.ics`, valida RFC 5545 estructura con `icalendar` Python lib o `vevent` crate.
+- [x] **Item 1**: `Cargo.toml` features `calendar-ics` / `calendar-graph` + umbrella `calendar` (deps `ics 0.5`, `icalendar 0.17`, `graph-rs-sdk`, `aes-gcm`, `ring`).
+- [x] **Item 2**: M18 migration `calendar_busy_windows` + `calendar_auth` (schema 17→18).
+- [x] **Item 3**: `calendar/ics_writer.rs` — `CalendarWriter::from_journal()` (RRULE + `MissionStatus → iCal STATUS` mapping; tests in-module).
+- [x] **Item 4**: `calendar/ics_route.rs` — axum handler + token filter (valid / missing / wrong token tests).
+- [x] **Item 5**: `calendar/graph_reader.rs` — `CalendarReader::poll()` + Graph event parse.
+- [x] **Item 6**: `calendar/auth.rs` — auth + refresh token AES-256-GCM encrypted in SQLite. **Deviation:** OAuth **device-code** flow (not the wry popup the RFC sketched) — no embedded browser, cross-platform, single-binary-safe.
+- [x] **Item 7**: `AppState` integration — `CalendarPoller` (60 s; `ATLAS_CALENDAR_POLL_SECS`) fills `AppState.context_availability` (renamed from the sketched `context_busy_windows`).
+- [x] **Item 8**: `planning/availability.rs::next_free_slot()` + `availability_now()` consulted before enqueuing a proactive turn (Phase 23 v3.1.2; golden task `planning.availability`).
+- [x] **Item 9**: `docs/calendar-integration.md` — subscribe `webcal://`, authorize Graph, ad-hoc/durable `.ics`, availability/policy, troubleshooting.
+- [x] **Item 10**: `tools/calendar-smoke.ps1` — feature-gate probe + token format + idempotent feed URL; `-Live` fetches `/atlas-calendar.ics` from a running HUD and validates the RFC 5545 skeleton + 401 on a wrong token (the HUD server is owned by the desktop process, so the script attaches rather than spawns).
 
 ### G.7 Riesgos
 
@@ -692,7 +692,7 @@ pub fn next_free_slot(&self, turn_eta: Duration) -> Option<(chrono::DateTime<Utc
 
 ## §H — Model API Reset-Window Notifications (Phase 1.5h)
 
-**Status: ⏳ documentado, implementación pendiente (post-Calendar §G).**
+**Status: ✅ 13/13 implementados** (items 1-11 M19 + `SpendLimitError`/`ResetKind`/`parse_omniroute`/`RetryPolicy`/`handle_spend_limit_error`/`cards.rs`/`SpendLimitErrorCard.svelte`/`ModelReadyCard.svelte`/`Profile` bail-out; items 12-13 `docs/reset-window-notifications.md` + `tools/reset-window-smoke.ps1`).
 
 Atlas OS usa models LLM via upstream providers o vía OmniRoute gateway (§3.8 RFC 25). Cuando un model hittea un rate limit (429) o un spend cap (402/403), los providers devuelven headers/timestamps indicando cuándo el model se resetea y puede volver a usarse. Ningún AI coding tool comercial (Cline, Cursor, Aider, Copilot) **proactivamente notifica** al usuario cuando el model vuelve a estar disponible — el usuario debe reintentar manualmente. Atlas OS capturar `reset_at` desde la respuesta de error, persiste hasta llegada la hora, y dispara una Toast notification `kind='model_ready'` cuando el reset cumple. Esta es una feature diferencial frente a la competencia.
 
@@ -823,8 +823,8 @@ Para 429s sin SpendLimitError (rate-limit transitorio), el `Orchestrator` retry-
 - [x] **Item 9**: HUD card pipeline — `hud/cards.rs` con `SpendLimitErrorCardPayload` + `ModelReadyCardPayload` serialisers; `hud.ts` tipos espejo; 5 tests Rust + `hud.test.ts` contratos.
 - [x] **Item 10**: `profiles/mod.rs` `Profile` struct + `profile.toml` reader/writer; campos `bail_out_threshold_secs` (default 60) + `backup_profile_id: Option<String>`. 2 tests (roundtrip + default fallback).
 - [x] **Item 11**: RFC 24 §3.3 addendum + RFC 04 §9 addendum + RFC 06 placeholder (RFC 06 no existe aún; `Profile` struct establece la base para futura RFC).
-- [ ] **Item 12**: `docs/reset-window-notifications.md` — README: cómo configuraar OmniRoute, cómo customizaar thresholds, troubleshooting.
-- [ ] **Item 13**: `tools/reset-window-smoke.ps1` — mock provider response con `Retry-After: 5`, valida Toast `model_ready` disparado + dedupe.
+- [x] **Item 12**: `docs/reset-window-notifications.md` — operator guide: OmniRoute envelope, thresholds/policy, card anatomy, troubleshooting.
+- [x] **Item 13**: `tools/reset-window-smoke.ps1` — verifies the M19 schema + `spend_limit_observed` journal kind + optional Toast-feature binary signature (it cannot synthesise a real 429 without provider credentials; the parser/dispatch behaviour is covered by the Rust unit tests).
 
 ### H.8 Riesgos
 
