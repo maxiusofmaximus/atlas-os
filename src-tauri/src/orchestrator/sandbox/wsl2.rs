@@ -94,26 +94,21 @@ impl Sandbox for Wsl2Sandbox {
                 stderr: "wsl2 sandbox is only available on Windows".into(),
             };
         }
-        // Run the wsl bridge as the "shell"; `command` becomes its args. We
-        // reuse `run_command`'s timeout/exit plumbing by shelling the bridge
-        // through the host shell is not needed — spawn `wsl` directly instead.
+        // Run the wsl bridge as the "shell"; the Linux `cd` is inside the
+        // `bash -lc` script, so the host process must NOT set `current_dir` to a
+        // Linux path (Windows rejects it: os error 267). It inherits the parent
+        // Windows cwd, which is always valid.
         let argv = self.wsl_argv(cwd, command);
-        run_external("wsl", &argv, command, cwd, timeout)
+        run_external("wsl", &argv, command, timeout)
     }
 }
 
 /// Spawn `program argv...`, capturing output with the same bounded-wait shape as
-/// `run_command` (never panics; timeout → exit 124).
-fn run_external(
-    program: &str,
-    argv: &[String],
-    label: &str,
-    cwd: &Path,
-    timeout: Duration,
-) -> CommandResult {
+/// `run_command` (never panics; timeout → exit 124). `current_dir` is inherited
+/// from the parent (safe on Windows, where the caller may pass a Linux path).
+fn run_external(program: &str, argv: &[String], label: &str, timeout: Duration) -> CommandResult {
     let child = std::process::Command::new(program)
         .args(argv)
-        .current_dir(cwd)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
@@ -192,5 +187,26 @@ mod tests {
     #[test]
     fn shell_quote_escapes_single_quotes() {
         assert_eq!(shell_quote("a'b"), "'a'\\''b'");
+    }
+
+    /// Live bridge check: only meaningful on a Windows host with WSL. Ignored by
+    /// default (CI has no WSL); run with `cargo test -- --ignored`.
+    #[test]
+    #[ignore]
+    fn wsl2_executes_in_a_distro() {
+        if !wsl2_available() {
+            eprintln!("skipping: wsl2 not available");
+            return;
+        }
+        let sb = Wsl2Sandbox::from_env();
+        assert_eq!(sb.kind(), "wsl2");
+        let r = sb.exec(
+            Path::new("/tmp"),
+            "echo from-wsl && uname -s",
+            Duration::from_secs(60),
+        );
+        assert_eq!(r.exit_code, 0, "stderr: {}", r.stderr);
+        assert!(r.stdout.contains("from-wsl"));
+        assert!(r.stdout.contains("Linux"));
     }
 }
