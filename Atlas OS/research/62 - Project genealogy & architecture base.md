@@ -47,6 +47,16 @@ Son los "para igualar o superar". Atlas se posiciona contra ellos, no los copia.
 
 > **Diferenciación de posicionamiento:** Vida y Abacus ya ocupan comercialmente el término "AI Agent OS" (y Vida es además OpenClaw-compatible). Atlas OS debe defender su diferencial declarado: **local-first, single-binary, Journal auditable y seguro** — no multi-canal cloud ni reseller.
 
+### Agentes always-on con "cloud computer" (2026)
+
+| Producto | Qué es | Relevancia para Atlas |
+|---|---|---|
+| **Dots** (OpenAI, Sep 29 2026, DevDay) ★ | Agentes **always-on** con **computer + browser propios en cloud**, GPT-6 Astra, 4.000+ apps (Slack/Teams/SMS/voz), **Custom Rules + auto-review**, "specialist dots" con identidad/credenciales propias, equipos de dots. Pro/Business Premium/Enterprise (no EEA/CH/UK). | Referente #1 del **"AI employee persistente"** (brecha A de RFC 29) y del par **rules + auto-review** (RFC 18/63: evidence-gated + approvals). |
+| **Grok Bot** (xAI / SpaceXAI, beta Ago 11 2026) | Agentes always-on con **computer propio en cloud** (filesystem/terminal/apps), Grok 4.6; sign-in en apps, jobs multi-paso 24/7, mensajería tipo colega, **bots se mensajean entre sí**, mismos **MCP/plugins/skills** que Cursor, **agente revisor** allow/block/escalate. SuperGrok/Cursor. | Referente de **swarm de agentes con computer compartido** + review agent (RFC 05/19) y del ecosistema MCP/skills. |
+| **Meta Muse** · **Google Gemini Spark** · **Instinct** | Misma categoría (agente personal always-on). | Panorama competitivo. |
+
+**Sub-productos xAI:** `Grok Build` (CLI coding agent, **open-source Apache-2.0**) y `grok-4.20-multi-agent` (research en vivo con 4/16 agentes) → providers/patrón para RFC 04.
+
 ---
 
 ## Capa 1c — Catálogo extendido de referentes objetivo (130+)

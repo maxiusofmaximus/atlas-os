@@ -1,0 +1,16 @@
+{
+  "_comment": "RFC 63 §10 capability baseline (ratchet anchor). Updated only when a run improves. Terminal-Bench 2 measured externally (Docker/Harbor) and ingested via `atlas eval import`.",
+  "terminal_bench_2": {
+    "agent": "AtlasAgent",
+    "model": "moonshotai/kimi-k3",
+    "trials": 89,
+    "pass_rate": 0.0,
+    "oracle_pass_rate": 0.88,
+    "measured_at": "2026-10-04"
+  },
+  "f38_agent_mode": {
+    "pass": 0,
+    "total": 11,
+    "measured_at": "2026-10-04"
+  }
+}

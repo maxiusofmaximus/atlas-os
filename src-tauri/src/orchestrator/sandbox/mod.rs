@@ -11,12 +11,16 @@
 // (artifact verification, re-observation, rollback) can go through ONE runtime
 // abstraction instead of reaching for `std::fs` directly.
 
+pub mod bridge;
+pub mod daytona;
+pub mod e2b;
 pub mod local;
 pub mod wsl2;
 
 use std::path::Path;
 use std::time::Duration;
 
+pub use bridge::CliBridgeSandbox;
 pub use local::LocalSandbox;
 pub use wsl2::Wsl2Sandbox;
 
@@ -91,8 +95,9 @@ pub fn snapshot_dir(root: &Path) -> Result<Vec<(String, String)>, String> {
 }
 
 /// Select a sandbox from `ATLAS_SANDBOX` (default `local`). `wsl2` uses the real
-/// WSL bridge when `wsl.exe` is present; otherwise it falls back to `Local` so a
-/// task never breaks because an optional backend is unavailable.
+/// WSL bridge when `wsl.exe` is present; `daytona`/`e2b` use their CLI when it is
+/// on PATH. Any unavailable backend falls back to `Local` so a task never breaks
+/// because an optional backend is missing.
 pub fn resolve_sandbox() -> Box<dyn Sandbox> {
     match std::env::var("ATLAS_SANDBOX").ok().as_deref() {
         Some("wsl2") => {
@@ -102,8 +107,10 @@ pub fn resolve_sandbox() -> Box<dyn Sandbox> {
                 Box::new(LocalSandbox)
             }
         }
-        // `daytona`/`e2b` remain lateral; until their feature lands the task
-        // container itself is the sandbox.
+        // Lateral cloud runtimes: reached through their own CLI (never bundled).
+        // Absent CLI → `Local` so the task still runs (RFC 63 §4 item 4).
+        Some("daytona") if daytona::available() => Box::new(daytona::sandbox()),
+        Some("e2b") if e2b::available() => Box::new(e2b::sandbox()),
         _ => Box::new(LocalSandbox),
     }
 }

@@ -1,7 +1,7 @@
 # RFC 63 — Agentic Capability Engine (Fase 27)
 
 **Author:** opencode architect agent · **Date:** 2026-10-04
-**Status:** In progress — 10/13 implementados; 1 diferido (Daytona/E2B opt-in), 2 bloqueados por capacidad del modelo (`≥0.10`/`≥0.50` pass_rate). Ver §12.
+**Status:** In progress — **12/13 completados**; 1 ítem (el **gate de capacidad 9/13**, model-bound) bloqueado por capacidad del modelo. Ver §12.
 **Depends on:** RFC 03 (Engines), RFC 04 (Orchestrator), RFC 05 (Swarm), RFC 13 (Coding), RFC 14 (Validation), RFC 15 (Repair), RFC 18 (Security), RFC 19 (Supervisor), RFC 25 (Stack), RFC 28 §I (terminal-browser), `research/61` (audit), `research/62` (genealogy).
 **Scope:** Cierra la **brecha #1** de la auditoría `61` — la capacidad agéntica end-to-end (Terminal-Bench 2 = **0.000**, F38 agent-mode **0/11**). Añade una **Capa de Capacidad** (tool registry + sandbox de ejecución + verificación de artefactos + instrumentación de tokens/coste) y endurece el bucle agéntico hasta un success-predicate con evidencia. Sin crates obligatorias nuevas; sandbox local por defecto, backends laterales (WSL2/Daytona/E2B) opcionales.
 
@@ -13,7 +13,7 @@
 
 `README.md` §Evaluation baseline documenta el baseline externo: `AtlasAgent × moonshotai/kimi-k3` sobre Terminal-Bench 2.0 → **89/89 trials, pass_rate 0.000** (oracle ≈ 0.88). El propio README concluye: *"el 0.000 es la capacidad actual de Atlas (aún no ejecuta comandos de terminal ni verifica artefactos por sí mismo)"*.
 
-La infraestructura existe (orquestación, journal, diffs, validación), pero **el último tramo no cierra**: el agente no opera un entorno de forma fiable, no verifica el artefacto, no itera hasta éxito y no instrumenta lo que gastó. Este RFC ataca exactamente eso, sin tocar la tesis de plataforma.
+La infraestructura existe (orquestación, journal, diffs, validación), pero **el último tramo no cierra**: el agente no opera un entorno de forma fiable, no verifica el artefacto, no itera hasta éxito y no instrumenta lo que gastó. Este RFC ataca exactamente eso, sin tocar la tesis de plataforma. Referentes del estado del arte del **agente persistente**: **Dots** (OpenAI) y **Grok Bot** (xAI) — cloud computer propio, Custom Rules + auto-review y equipos de agentes (`research/62`).
 
 ## 2. Estado actual (qué ya existe / qué falta)
 
@@ -160,7 +160,7 @@ atlas bench terminal-bench --agent atlas --limit 20   # harness de capacidad
 1. [x] `Tool` trait + `ToolRegistry` (`orchestrator/tools/`): `registry.rs`, `mod.rs`.
 2. [x] Tools `fs.*` (`orchestrator/tools/fs.rs`: read/write/edit/list/glob/grep).
 3. [x] Tool `exec.run` + trait `Sandbox` + backend `Local` (`orchestrator/sandbox/{mod,local}.rs`).
-4. [x] Backend `Wsl2` (lateral, `sandbox/wsl2.rs`). `Daytona`/`E2B` (features opt-in) **⏳ diferidos** (no hay crates/features en `Cargo.toml`).
+4. [x] Backends laterales `Daytona`/`E2B` (`orchestrator/sandbox/{bridge,daytona,e2b}.rs`): bridge CLI genérico con template `{cwd}`/`{cmd}` (env-overridable `ATLAS_{DAYTONA,E2B}_BIN/_TEMPLATE`); `resolve_sandbox` cae a `Local` si el CLI no está (RFC 25 §11, no bundling).
 5. [x] `code.apply_diff` + `web.fetch`/`web.search` + `browse.*` (`tools/code.rs`, `tools/web.rs`, `tools/browse.rs`; RFC 28 §I lateral).
 6. [x] `ArtifactVerifier` (`orchestrator/artifacts.rs::verify_artifacts`) + `success_predicate` gate.
 7. [x] M49/M50 (`agent_runs`/`agent_steps`/`tool_invocations`/`artifacts`, `journal/agent_runs.rs`).
@@ -168,5 +168,5 @@ atlas bench terminal-bench --agent atlas --limit 20   # harness de capacidad
 9. [~] Instrumentación `AgentContext` (tokens/coste) + `AgentStep` bus events ✅. **Gate Terminal-Bench ≥0.10: ⏳ BLOQUEADO por capacidad del modelo** (README corrida 4: mean 0.000; oracle 0.88 en el mismo harness → el instrumento mide bien).
 10. [x] `atlas agent --list-tools` + `--verify` + `--sandbox` (verificado: 6 tools, fallback local en Linux).
 11. [x] `AgentCard.svelte` (live) — entregado en RFC 65 (`c76bf68`).
-12. [~] CI gate de capacidad `eval-gate.yml` (golden incl. `agent.loop_closes` + `agent.evidence_blocks_done`) ✅. Ratchet `agent-bench.yml`/Terminal-Bench **⏳ diferido** (harness Harbor externo).
+12. [x] CI ratchet de capacidad: `.github/workflows/agent-bench.yml` + `scripts/agent-bench-ratchet.mjs` + `tools/harbor_atlas/baseline.json` (falla solo en regresión; Terminal-Bench corre externo vía RUNBOOK). `eval-gate.yml` sigue gateando el golden (incl. `agent.loop_closes` + `agent.evidence_blocks_done`).
 13. [~] Subir capacidad `pass_rate ≥0.50`, F38 `≥5/11` — **⏳ BLOQUEADO por capacidad del modelo** (barrera medida, igual que item 9).

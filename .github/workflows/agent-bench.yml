@@ -1,0 +1,35 @@
+name: agent-bench
+
+# RFC 63 §10 (item 12) — capability ratchet. Terminal-Bench 2 cannot run on a
+# stock GitHub runner (needs Docker + Harbor; see tools/harbor_atlas/RUNBOOK.md),
+# so this workflow is dispatch/scheduled and compares a report you produce
+# locally (ingested via `atlas eval import`) against the committed baseline.
+# It fails ONLY on regression (ratchet — no fixed threshold at the start).
+
+on:
+  workflow_dispatch:
+    inputs:
+      report:
+        description: 'Path (in-repo) to a Harbor/Terminal-Bench report JSON; empty = no-op'
+        required: false
+        default: ''
+  schedule:
+    - cron: '0 6 * * 1'
+
+concurrency:
+  group: agent-bench-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ratchet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: capability ratchet
+        run: node scripts/agent-bench-ratchet.mjs tools/harbor_atlas/baseline.json "${{ github.event.inputs.report }}"
+      - name: notice
+        run: |
+          echo "::notice title=agent-bench::Terminal-Bench runs externally (Docker/Harbor, see tools/harbor_atlas/RUNBOOK.md); this job enforces the committed ratchet."
