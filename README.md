@@ -205,11 +205,11 @@ atlas eval metrics       # pass rate, tokens/solved, $/solved, failure-kind vect
   `tools/harbor_atlas/`. Runbook verificado en `tools/harbor_atlas/RUNBOOK.md`.
   Ingesta: `atlas eval import jobs/<id>`.
 
-  | #   | Fecha      | Agente × modelo                                                     | Modo       | Trials | pass_rate         | coste  |
-  | --- | ---------- | ------------------------------------------------------------------- | ---------- | ------ | ----------------- | ------ |
-  | 1   | 2026-10-04 | `AtlasAgent` × `kimi-k3` (NIM, nube)                                | `--coding` | 89/89  | **0.000**         | API    |
-  | 2   | 2026-10-04 | `AtlasAgent` × `gpt-oss-120b` (Groq, nube)                          | `--agent`  | 11/11  | **0.000**         | API    |
-  | 3   | 2026-10-04 | `AtlasAgent` × `qwen3.8-flash-next-iq2_xs` (125B **local**, Strata) | `--agent`  | 89/89  | **>0** (2 tareas) | **$0** |
+  | #   | Fecha      | Agente × modelo                                                            | Modo       | Trials | pass_rate         | coste  |
+  | --- | ---------- | -------------------------------------------------------------------------- | ---------- | ------ | ----------------- | ------ |
+  | 1   | 2026-10-04 | `AtlasAgent` × `kimi-k3` (NIM, nube)                                       | `--coding` | 89/89  | **0.000**         | API    |
+  | 2   | 2026-10-04 | `AtlasAgent` × `gpt-oss-120b` (Groq, nube)                                 | `--agent`  | 11/11  | **0.000**         | API    |
+  | 3   | 2026-10-04 | `AtlasAgent` × `qwen3.8-flash-next-iq2_xs` (125B **local**, Strata)        | `--agent`  | 89/89  | **>0** (2 tareas) | **$0** |
   | 4   | 2026-10-04 | `AtlasAgent` × `qwen3.8-flash-next-iq2_xs` (125B local, **RFC 63 rework**) | `--agent`  | 14     | **0.000**         | **$0** |
   - **Control:** el solver de referencia `oracle` da **mean ≈ 0.88** en el mismo harness →
     el instrumento mide bien; los ceros eran capacidad, no artefacto del andamio.
@@ -221,12 +221,12 @@ atlas eval metrics       # pass rate, tokens/solved, $/solved, failure-kind vect
     Strata en `127.0.0.1:8080`, expuesta a los contenedores de Harbor por relay WSL).
   - **Corrida 4** (RFC 63 §7 rework: loop sobre `ToolRegistry`, fs/code/web/exec, evidencia
     gate, M49/M50, AgentCard): **14 trials (8 duras + 6 medias), mean 0.000, $0**. El
-    *mecanismo* funciona — el agente corre tools, crea artefactos, persiste steps/tokens y
+    _mecanismo_ funciona — el agente corre tools, crea artefactos, persiste steps/tokens y
     emite el bus (verificado: `circuit-fibsqrt` creó `sim.c` y pasó `test_gates_file_exists`
-    + `test_gates_file_size`; 1 trial por `AgentTimeoutError`) — pero el pass_rate **no sube**
-    en este modelo: los artefactos quedan incompletos (`/app/polyglot` ausente, nginx
-    config ausente) o el cómputo es incorrecto. La barrera sigue siendo **capacidad del
-    modelo** (IQ2_XS de 125B) + **latencia** (timeouts a ~70 tok/s), no el loop.
+    - `test_gates_file_size`; 1 trial por `AgentTimeoutError`) — pero el pass_rate **no sube**
+      en este modelo: los artefactos quedan incompletos (`/app/polyglot` ausente, nginx
+      config ausente) o el cómputo es incorrecto. La barrera sigue siendo **capacidad del
+      modelo** (IQ2_XS de 125B) + **latencia** (timeouts a ~70 tok/s), no el loop.
   - **Lectura:** la barrera no era Atlas ni la infra, era el **modelo**. Detalle y causas
     raíz (GLIBC del binario, aislamiento del CLI de Tauri, relay de red) en `research/61`.
   - **Gap de observabilidad pendiente:** el modelo externo (Harbor) no reobserva los tokens;

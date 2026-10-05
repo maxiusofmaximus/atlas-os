@@ -40,7 +40,10 @@
 
   function tailStepsForRun(rows: AgentStepPayload[], id: string | null): AgentStepPayload[] {
     if (!id) return [];
-    return rows.filter((r) => r.run_id === id).slice().reverse();
+    return rows
+      .filter((r) => r.run_id === id)
+      .slice()
+      .reverse();
   }
 
   async function refreshTail(): Promise<void> {
