@@ -35,6 +35,8 @@ pub enum StageKind {
     SecurityScan,
     LayerBoundary,
     Iac,
+    /// RFC 64 §8 — domain-pack validation checks (pack-declared commands).
+    Domain,
     EvidenceGate,
 }
 
@@ -50,6 +52,7 @@ impl StageKind {
             StageKind::SecurityScan => "security_scan",
             StageKind::LayerBoundary => "layer_boundary",
             StageKind::Iac => "iac",
+            StageKind::Domain => "domain",
             StageKind::EvidenceGate => "evidence_gate",
         }
     }
@@ -66,6 +69,7 @@ impl StageKind {
             StageKind::SecurityScan,
             StageKind::LayerBoundary,
             StageKind::Iac,
+            StageKind::Domain,
             StageKind::EvidenceGate,
         ]
     }

@@ -25,3 +25,8 @@ types = ["step", "stl", "render.png", "drawing.pdf"]
 [policy]
 sensitive = ["exec.run", "fs.write.*"]
 sandbox = "container"
+
+# RFC 64 §8 — the Domain validation stage runs these commands. Empty by
+# default (the stage is Skipped); add e.g. `openscad --check model.scad`.
+[validation]
+commands = []

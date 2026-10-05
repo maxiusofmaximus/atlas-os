@@ -4,6 +4,7 @@
 // together; each stage is independently unit-tested.
 
 pub mod dead_code;
+pub mod domain;
 pub mod e2e;
 pub mod evidence_gate;
 pub mod iac;

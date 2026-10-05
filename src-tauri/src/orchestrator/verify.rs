@@ -68,6 +68,7 @@ pub fn verify_diff(
         mode: cfg.mode,
         previous_critical_failure: cfg.previous_critical_failure,
         model_id: cfg.model_id.clone(),
+        domain_commands: crate::domain::commands_for_diff(diff),
     });
 
     let mut actions: Vec<SupervisorAction> = Vec::new();

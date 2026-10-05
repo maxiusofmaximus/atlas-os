@@ -18,7 +18,7 @@ use uuid::Uuid;
 
 use crate::coding::types::Diff;
 use crate::validation::stages::{
-    dead_code::DeadCode, e2e::E2e, evidence_gate::EvidenceGate, iac::Iac,
+    dead_code::DeadCode, domain::DomainStage, e2e::E2e, evidence_gate::EvidenceGate, iac::Iac,
     layer_boundary::LayerBoundary, lint_format::LintFormat, security_scan::SecurityScan,
     supply_chain::SupplyChain, type_check::TypeCheck, unit_tests::UnitTests, Stage, StageContext,
 };
@@ -38,6 +38,9 @@ pub struct ValidationInput<'a> {
     /// twice in a row, `outcome` becomes `Critical`.
     pub previous_critical_failure: Option<StageKind>,
     pub model_id: String,
+    /// RFC 64 §8 — domain-pack check commands; empty → the `Domain` stage is
+    /// `Skipped` (no domain pack active).
+    pub domain_commands: Vec<String>,
 }
 
 impl<'a> ValidationInput<'a> {
@@ -49,11 +52,18 @@ impl<'a> ValidationInput<'a> {
             mode: ValidationMode::Strict,
             previous_critical_failure: None,
             model_id: "heuristic-v0".into(),
+            domain_commands: Vec::new(),
         }
     }
 
     pub fn with_mode(mut self, mode: ValidationMode) -> Self {
         self.mode = mode;
+        self
+    }
+
+    /// RFC 64 §8 — attach the active domain pack's validation commands.
+    pub fn with_domain_commands(mut self, commands: Vec<String>) -> Self {
+        self.domain_commands = commands;
         self
     }
 
@@ -93,6 +103,7 @@ pub fn run(input: &ValidationInput) -> ValidationReport {
         Box::new(SecurityScan),
         Box::new(LayerBoundary),
         Box::new(Iac),
+        Box::new(DomainStage::new(input.domain_commands.clone())),
         Box::new(EvidenceGate),
     ];
 
@@ -232,11 +243,41 @@ mod tests {
             Box::new(SecurityScan),
             Box::new(LayerBoundary),
             Box::new(Iac),
+            Box::new(DomainStage::new(vec![])),
             Box::new(EvidenceGate),
         ];
         for (s, k) in stages.iter().zip(StageKind::pipeline_order().iter()) {
             assert_eq!(s.kind(), *k, "cascade order must match RFC 14 §1");
         }
+    }
+
+    #[test]
+    fn domain_stage_runs_declared_commands() {
+        // RFC 64 §8 — when a pack's commands are attached, the Domain stage
+        // executes them; a failing command blocks (Fail) like any stage.
+        let mut d = diff_with(
+            vec!["fn add(a: u32, b: u32) -> u32 { a + b }".into()],
+            "src/lib.rs",
+        );
+        d.narrative = "adds pure add() helper, covered by unit test".into();
+        d.research_refs = vec![Uuid::new_v4()];
+
+        let ok = run(&ValidationInput::new(&d).with_domain_commands(vec!["echo ok".into()]));
+        let dom = ok
+            .stages
+            .iter()
+            .find(|s| s.stage == StageKind::Domain)
+            .expect("domain stage present");
+        assert_eq!(dom.status, StageStatus::Pass);
+
+        let bad = run(&ValidationInput::new(&d).with_domain_commands(vec!["exit 1".into()]));
+        assert_eq!(bad.outcome, ValidationOutcome::Fail);
+        let dom = bad
+            .stages
+            .iter()
+            .find(|s| s.stage == StageKind::Domain)
+            .expect("domain stage present");
+        assert_eq!(dom.status, StageStatus::Fail);
     }
 
     #[test]

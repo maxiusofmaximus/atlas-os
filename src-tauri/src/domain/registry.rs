@@ -83,8 +83,9 @@ impl DomainRegistry {
     }
 
     /// Capability Resolver (RFC 02): pick the pack whose `detect` signals best
-    /// match the Project Map signals. Case-insensitive substring either way;
-    /// highest match count wins, `None` when nothing matches.
+    /// match the Project Map signals. A `*.ext` token matches by suffix;
+    /// other tokens match by case-insensitive substring either way. Highest
+    /// match count wins, `None` when nothing matches.
     pub fn resolve_pack(&self, signals: &[String]) -> Option<&DomainPack> {
         let lowered: Vec<String> = signals.iter().map(|s| s.to_lowercase()).collect();
         let mut best: Option<(&DomainPack, usize)> = None;
@@ -93,12 +94,7 @@ impl DomainRegistry {
                 .domain
                 .detect
                 .iter()
-                .filter(|d| {
-                    let d = d.to_lowercase();
-                    lowered
-                        .iter()
-                        .any(|s| s.contains(&d) || d.contains(s.as_str()))
-                })
+                .filter(|d| lowered.iter().any(|s| signal_matches(d, s)))
                 .count();
             if score > 0 && best.is_none_or(|(_, b)| score > b) {
                 best = Some((pack, score));
@@ -106,6 +102,16 @@ impl DomainRegistry {
         }
         best.map(|(p, _)| p)
     }
+}
+
+/// Does a `detect` token match a Project Map `signal` (a lowercased path)?
+/// `*.ext` is a suffix match; anything else is a substring match either way.
+fn signal_matches(detect: &str, signal_lower: &str) -> bool {
+    let d = detect.to_lowercase();
+    if let Some(suffix) = d.strip_prefix('*') {
+        return signal_lower.ends_with(suffix);
+    }
+    signal_lower.contains(&d) || d.contains(signal_lower)
 }
 
 #[cfg(test)]
@@ -138,6 +144,11 @@ mod tests {
         assert_eq!(cad.domain.id, "cad");
         let mobile = reg.resolve_pack(&["Cargo.toml".to_string(), "*.rs".to_string()]);
         assert_eq!(mobile.map(|p| p.domain.id.as_str()), Some("coding"));
+        // A real file path matches a `*.ext` detect token by suffix.
+        let by_path = reg
+            .resolve_pack(&["src/model.step".to_string()])
+            .expect("cad by extension");
+        assert_eq!(by_path.domain.id, "cad");
         assert!(reg
             .resolve_pack(&["totally-unknown-signal".to_string()])
             .is_none());

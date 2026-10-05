@@ -34,6 +34,9 @@ pub struct DomainPack {
     pub artifacts: ArtifactTypes,
     #[serde(default)]
     pub policy: DomainPolicy,
+    /// RFC 64 §8 — executable check commands the `Domain` validation stage runs.
+    #[serde(default)]
+    pub validation: DomainValidation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
@@ -117,6 +120,15 @@ impl Default for DomainPolicy {
     }
 }
 
+/// RFC 64 §8 — the executable form of the domain's validation. `engines.
+/// validation` are display labels; `commands` are what the `Domain` stage
+/// actually runs (empty → the stage is `Skipped`, never a fake pass).
+#[derive(Clone, Debug, Default, PartialEq, Deserialize)]
+pub struct DomainValidation {
+    #[serde(default)]
+    pub commands: Vec<String>,
+}
+
 /// Validate a domain id: `[a-z0-9-_]`, 2..=64 chars, must start with `[a-z]`.
 pub fn validate_id(id: &str) -> Result<()> {
     if id.len() < 2 || id.len() > 64 {
@@ -187,6 +199,9 @@ types = ["step", "stl", "render.png"]
 [policy]
 sensitive = ["exec.run", "fs.write.*"]
 sandbox = "container"
+
+[validation]
+commands = ["openscad --check model.scad"]
 "#;
 
     #[test]
@@ -205,6 +220,7 @@ sandbox = "container"
         assert_eq!(p.tools.lateral.open, vec!["freecad", "openscad"]);
         assert_eq!(p.artifacts.types, vec!["step", "stl", "render.png"]);
         assert_eq!(p.policy.sandbox, "container");
+        assert_eq!(p.validation.commands, vec!["openscad --check model.scad"]);
     }
 
     #[test]
@@ -214,6 +230,7 @@ sandbox = "container"
         assert_eq!(p.policy.sandbox, "local");
         assert!(p.tools.lateral.open.is_empty());
         assert_eq!(p.domain.version, "0.1.0");
+        assert!(p.validation.commands.is_empty());
     }
 
     #[test]
