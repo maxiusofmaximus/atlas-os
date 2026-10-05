@@ -50,6 +50,8 @@ impl ToolRegistry {
         let mut r = Self::with_core_tools();
         r.register(Box::new(super::web::WebFetchTool));
         r.register(Box::new(super::web::WebSearchTool));
+        r.register(Box::new(super::browse::BrowseOpenTool));
+        r.register(Box::new(super::browse::BrowseSnapshotTool));
         r
     }
 
@@ -148,8 +150,9 @@ mod tests {
     fn web_registry_adds_the_network_tools() {
         let r = ToolRegistry::with_web_tools();
         let names = r.names();
-        assert!(names.contains(&"web.fetch"));
-        assert!(names.contains(&"web.search"));
+        for t in ["web.fetch", "web.search", "browse.open", "browse.snapshot"] {
+            assert!(names.contains(&t), "missing {t}");
+        }
     }
 
     #[test]

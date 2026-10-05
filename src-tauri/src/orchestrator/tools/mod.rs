@@ -7,6 +7,7 @@
 // through the registry, never directly, so permissions and instrumentation are
 // enforced in one place.
 
+pub mod browse;
 pub mod code;
 pub mod exec;
 pub mod fs;
@@ -15,6 +16,7 @@ pub mod web;
 
 use serde::{Deserialize, Serialize};
 
+pub use browse::{BrowseOpenTool, BrowseSnapshotTool};
 pub use code::CodeApplyDiffTool;
 pub use exec::ExecRunTool;
 pub use fs::{FsEditTool, FsListTool, FsReadTool, FsWriteTool};
