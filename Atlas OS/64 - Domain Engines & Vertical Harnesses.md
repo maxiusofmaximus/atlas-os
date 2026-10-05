@@ -1,7 +1,7 @@
 # RFC 64 — Domain Engines & Vertical Harnesses (Fase 28)
 
 **Author:** opencode architect agent · **Date:** 2026-10-04
-**Status:** In progress — 8/11 core implementado (items 1-6, 9, 11). Pendiente: packs `mobile`/`gis`/`media-gen`, stages de validación de dominio, docs por pack.
+**Status:** In progress — 10/11 implementado. Solo pendiente item 8 (stages de validación de dominio wiring; geometry/units/export declarados en los manifiestos).
 **Depends on:** RFC 02 (Kernel / Capability Resolver), RFC 03 (Engines), RFC 06 (Skills), RFC 07 (MCP), RFC 11 (Context / Project Map), RFC 13 (Coding), RFC 14 (Validation), RFC 18 (Security), RFC 25 (Stack), RFC 28 §I (integración lateral de tools), `research/62` (genealogía).
 **Scope:** Formaliza lo que la investigación `62` mostró repetirse en el estado del arte — **un engine vertical por dominio** (Cave Engine, Stove 3D, Zoo/CadQuery, MecAgent, mr-mak, artemis) — **sin** inflar el core. Los motores base siguen genéricos; cada dominio se aporta como **Domain Pack declarativo** (Skills + MCP + validation stages + artifact types + model policy) y como **integración lateral** de herramientas externas (jamás bundling, RFC 25 §11).
 
@@ -141,8 +141,8 @@ CREATE TABLE IF NOT EXISTS domain_runs (
 4. [x] M51 (`domain_packs`/`domain_runs`, schema v40 + `journal/domain.rs`).
 5. [x] CLI `atlas domain list/use/install/open/probe/guide` (verificado por smoke).
 6. [x] Packs iniciales `coding`, `cad`, `game`, `creative-media` (embebidos).
-7. ⏳ Packs `mobile` (artemis) + `gis` (OpenCADStudio) + `media-gen`.
+7. [x] Packs `mobile` (artemis) + `gis` (OpenCADStudio) + `media-gen` (7 seed packs embebidos).
 8. ⏳ Stages de validación de dominio (geometry/units/export) — declarados en el manifiesto; wiring pendiente.
 9. [x] Firma obligatoria de packs (RFC 18 §6): `install` exige `--sha256`; mismatch rechazado (verificado).
-10. ⏳ Docs operador por pack (`docs/domain-<id>.md`).
+10. [x] Docs operador por pack (`docs/domain-<id>.md`, 7 guías).
 11. [x] Cross-refs RFC 02/03/06/07/26/28 (RFC 26 actualizado).
