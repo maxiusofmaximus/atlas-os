@@ -26,4 +26,4 @@ pub mod tail;
 pub mod worktrees;
 pub mod ws;
 
-pub use server::serve;
+pub use server::{serve, serve_on};

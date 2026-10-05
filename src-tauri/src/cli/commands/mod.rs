@@ -25,6 +25,8 @@ pub mod research;
 pub mod resume;
 pub mod run;
 pub mod security;
+#[cfg(feature = "hud")]
+pub mod serve;
 pub mod sister;
 pub mod skill;
 pub mod steer;
@@ -58,6 +60,8 @@ pub use research::ResearchCmd;
 pub use resume::ResumeCmd;
 pub use run::RunCmd;
 pub use security::SecurityCmd;
+#[cfg(feature = "hud")]
+pub use serve::ServeCmd;
 pub use sister::SisterCmd;
 pub use skill::SkillCmd;
 pub use steer::SteerCmd;
@@ -88,6 +92,8 @@ pub async fn dispatch(cmd: Commands, profile: &str) -> Result<()> {
         Commands::Execute(c) => execute::run(c, profile).await,
         Commands::Agent(c) => agent::run(c, profile).await,
         Commands::Hud(c) => hud::run(c, profile).await,
+        #[cfg(feature = "hud")]
+        Commands::Serve(c) => serve::run(c, profile).await,
         Commands::Mcp(c) => mcp::run(c, profile).await,
         Commands::Skill(c) => skill::run(c, profile).await,
         Commands::Domain(c) => domain::run(c, profile).await,

@@ -108,3 +108,15 @@ atlas mcp remove context7
 ```
 
 En Windows los shims `npx`/`pnpm` (`.cmd`) se enrutan por `cmd /C` (CreateProcess no ejecuta `.cmd` directo). Sandbox/supply-chain/ToolRegistry bridge: Fase 29.1+.
+
+## 9. Familia `atlas serve` (daemon headless, RFC 29 §3.A)
+
+Arranca el Kernel Bus + HUD axum server **sin webview**, para que el runtime sobreviva al cierre del desktop (postura "AI Employee"). Bind loopback por defecto; expón sólo tras túnel autenticado (SSH / Tailscale / Cloudflare).
+
+```bash
+atlas serve                              # 127.0.0.1:<puerto efímero>
+atlas serve --host 127.0.0.1 --port 8787
+atlas hud                                # imprime la URL del daemon activo
+```
+
+Requiere la feature `hud` (default on). Un bind no-loopback imprime un aviso (RFC 18) y exige el bearer remoto (`atlas hud --rotate-token`).

@@ -99,7 +99,7 @@ La infraestructura de órquestes es de las más completas del mercado OSS, pero 
 Real implementado: 8 cards (Autoresearch, Availability, Eval, GraphView, JournalObserver, ModelReady, SpendLimitError, SwarmConsole) + 11 "tail boxes". **No existen** las 8 views prometidas (Kanban/Canvas/Outline/Timeline/Cost&Res/Health KPIs/Audit/Worktrees), ni la approvals queue UI, ni las agent cards de 15+ campos, ni un editor de texto. Frente a Cursor/Windsurf/Hermes, la capa de producto está a años-luz.
 
 **C. Persistencia cloud / multi-canal ausente.**
-El sistema muere al cerrar el desktop Tauri. No hay "AI employee" 24/7 ni canales (WhatsApp/Slack/Teams…). Es exactamente la brecha que `29` reconoce (§3.A/B).
+**Actualizado:** el runtime ya no muere con el desktop — `atlas serve` (Fase 30.0, RFC 29 §3.A) es un daemon headless (Kernel Bus + HUD axum sin webview, bind configurable). Sigue pendiente el gateway multicanal (§3.B) y el user modeling (§3.C). Antes: el sistema moría al cerrar el desktop Tauri. No hay "AI employee" 24/7 ni canales (WhatsApp/Slack/Teams…). Es exactamente la brecha que `29` reconoce (§3.A/B).
 
 ---
 

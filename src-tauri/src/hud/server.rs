@@ -18,7 +18,23 @@ use crate::core::state::AppState;
 /// joins cleanly and the SQLite WAL flushes before the process exits.
 pub async fn serve(state: Arc<AppState>, shutdown: CancellationToken) {
     // Bind to a kernel-supplied ephemeral port so collisions are impossible.
-    let listener = match tokio::net::TcpListener::bind("127.0.0.1:0").await {
+    serve_on(
+        state,
+        std::net::SocketAddr::from(([127, 0, 0, 1], 0)),
+        shutdown,
+    )
+    .await
+}
+
+/// Serve the HUD on an explicit bind address. `atlas serve` uses this to
+/// host a headless daemon on a chosen host:port (RFC 29 §3.A); the
+/// desktop path keeps the ephemeral loopback bind through `serve`.
+pub async fn serve_on(
+    state: Arc<AppState>,
+    bind: std::net::SocketAddr,
+    shutdown: CancellationToken,
+) {
+    let listener = match tokio::net::TcpListener::bind(bind).await {
         Ok(l) => l,
         Err(err) => {
             tracing::error!(error = %err, "HUD: failed to bind; HUD unreachable");

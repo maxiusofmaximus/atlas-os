@@ -53,8 +53,14 @@ struct Inner {
 }
 
 impl AppState {
+    /// Bootstrap the default profile (the desktop app and most CLI verbs).
     pub fn bootstrap() -> anyhow::Result<Self> {
-        let profile_id = ProfileId::default();
+        Self::bootstrap_for(ProfileId::default())
+    }
+
+    /// Bootstrap a named profile. Used by `atlas serve` so a headless
+    /// daemon can host any profile the operator selects (RFC 29 §3.A).
+    pub fn bootstrap_for(profile_id: ProfileId) -> anyhow::Result<Self> {
         let profile_root = profiles::resolve_root(&profile_id)?;
         let journal = Journal::open(&profile_root)?;
         let journal = Arc::new(Mutex::new(journal));

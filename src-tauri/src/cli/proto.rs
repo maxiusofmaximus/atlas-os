@@ -5,6 +5,8 @@
 use clap::{Parser, Subcommand};
 
 use super::commands::ResearchCmd;
+#[cfg(feature = "hud")]
+use super::commands::ServeCmd;
 #[cfg(feature = "toast")]
 use super::commands::ToastCmd;
 use super::commands::{
@@ -78,7 +80,11 @@ pub enum Commands {
     Eval(EvalCmd),
     /// HUD server control.
     Hud(HudCmd),
-    /// List/refresh MCP servers (RFC 07).
+    /// Headless HUD daemon — Kernel Bus + axum server without the webview,
+    /// so the runtime survives closing the desktop (RFC 29 §3.A).
+    #[cfg(feature = "hud")]
+    Serve(ServeCmd),
+    /// List/add/remove/probe/call MCP servers (RFC 07).
     Mcp(McpCmd),
     /// Skill management (RFC 06).
     Skill(SkillCmd),

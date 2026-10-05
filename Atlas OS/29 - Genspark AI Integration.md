@@ -117,7 +117,7 @@ Las 6 brechas concretas que el audit identifica. Cada una está entrada como `(p
 ### §3.A — Cloud persistence "AI Employee" runtime **(P0, L, Kernel)**
 
 **Patrón:** §2.1 AI Employee.
-**Status:** RFC 25 §3.2 — axum WS server sobrevive webview crashes, pero el proceso Rust muere cuando Tauri desktop se cierra. No hay modo `opencode serve` que viva en un VPS headless.
+**Status:** ✅ **Implementado (Fase 30.0)** — `atlas serve [--host] [--port]` (`cli/commands/serve.rs`) arranca el Kernel Bus + HUD axum server como daemon headless, **sin webview**: sobrevive al cierre del desktop. Reusa `hud::serve_on` (bind configurable) + `AppState::bootstrap_for(profile)`; `--port 0` efímero, publica `hud_port.txt` + `HudServed`. Bind no-loopback avisa del riesgo (RFC 18) y exige túnel autenticado. Verificado: `/health` 200, `/tail/missions` 200, `/remote/status` `local_only:true`. Base para §3.B (multicanal). Antes: RFC 25 §3.2 (axum sobrevivía webview crashes, pero el proceso moría con el desktop).
 
 **Propuesta:** Añadir `opencode serve` (sub-comando CLI RFC 08) que arranque el Kernel Bus + HUD WS server como daemon, sin webview. El operador desde su desktop/mobile se conecta via SSH tunnel o Tailscale al servidor. Esto extiende el principio §2.3 de RFC 27 (remote attach) al extremo lógico: el runtime es cloud-first, no desktop-first. Reutiliza la técnica de Hermes ("VPS de 5$") sin su adopción obligatoria — desktop-only sigue siendo válido como `opencode desktop`.
 
