@@ -112,6 +112,7 @@ pub async fn serve(state: Arc<AppState>, shutdown: CancellationToken) {
         .route("/hud/worktrees", get(super::worktrees::get_worktrees))
         .route("/hud/demos", get(super::demos::get_demos))
         .route("/hud/mcp", get(super::mcp::get_mcp))
+        .route("/hud/skills/:id/activate", post(super::skills::activate))
         .route(
             "/hud/availability",
             get(super::availability::get_availability),

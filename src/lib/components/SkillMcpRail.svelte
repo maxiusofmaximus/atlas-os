@@ -10,6 +10,7 @@
   import {
     fetchTail,
     fetchMcp,
+    postActivateSkill,
     type SkillCatalogRow,
     type McpCatalog,
     type McpServer,
@@ -28,6 +29,7 @@
   let error = $state<string | null>(null);
   let staged = $state<Staged>(null);
   let dragOver = $state(false);
+  let activation = $state<string | null>(null);
 
   async function refresh(): Promise<void> {
     if (!hudUrl) return;
@@ -49,7 +51,7 @@
     if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy';
   }
 
-  function onDrop(e: DragEvent): void {
+  async function onDrop(e: DragEvent): Promise<void> {
     e.preventDefault();
     dragOver = false;
     const raw = e.dataTransfer?.getData('text/plain') ?? '';
@@ -57,7 +59,17 @@
     if (idx <= 0) return;
     const kind = raw.slice(0, idx);
     const name = raw.slice(idx + 1);
-    if ((kind === 'skill' || kind === 'mcp') && name) staged = { kind, name };
+    if ((kind !== 'skill' && kind !== 'mcp') || !name) return;
+    staged = { kind, name };
+    activation = null;
+    if (kind === 'skill' && hudUrl) {
+      try {
+        const ack = await postActivateSkill(hudUrl, name);
+        activation = `Activated ${ack.skill_id} (scope ${ack.agent_id}).`;
+      } catch (err) {
+        activation = `Activation failed: ${err instanceof Error ? err.message : String(err)}`;
+      }
+    }
   }
 
   function mcpServers(): McpServer[] {
@@ -134,7 +146,7 @@
         dragOver = true;
       }}
       ondragleave={() => (dragOver = false)}
-      ondrop={onDrop}
+      ondrop={(e) => void onDrop(e)}
     >
       {#if staged}
         Staged <strong>{staged.kind}</strong> · <code>{staged.name}</code>
@@ -142,11 +154,14 @@
       {:else}
         ＋ drag a skill or MCP server here to stage it
       {/if}
+      {#if activation}
+        <p class="activate-msg" role="status">{activation}</p>
+      {/if}
     </div>
 
     <p class="note">
-      Hot-swap activation (RFC 24 §8: validate → snapshot → <code>skill.activated</code>) is not
-      wired in this build — a drop stages a selection only and mutates no agent.
+      Skill drops activate via <code>POST /hud/skills/:id/activate</code> (publishes
+      <code>SkillActivated</code> on the Kernel Bus). MCP drops stage a selection only.
     </p>
   {/if}
 </section>
@@ -268,6 +283,11 @@
   .clear {
     margin-left: 0.4rem;
     font-size: 0.66rem;
+  }
+  .activate-msg {
+    margin: 0.4rem 0 0 0;
+    font-size: 0.7rem;
+    color: #56d364;
   }
   .note {
     margin: 0;

@@ -1412,6 +1412,31 @@ export async function fetchMcp(hudUrl: string, repo?: string): Promise<McpCatalo
   return (await res.json()) as McpCatalog;
 }
 
+export interface SkillActivateAck {
+  skill_id: string;
+  agent_id: string;
+}
+
+/** RFC 65 §10 / RFC 24 §8 — activate a skill (publishes `SkillActivated`). */
+export async function postActivateSkill(
+  hudUrl: string,
+  skillId: string,
+  agentId?: string,
+): Promise<SkillActivateAck> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const payload: Record<string, unknown> = {};
+  if (agentId != null && agentId.trim() !== '') payload.agent_id = agentId.trim();
+  const res = await fetch(`${trimmed}/hud/skills/${encodeURIComponent(skillId)}/activate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(`HUD skill activate failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as SkillActivateAck;
+}
+
 // ═══════════════ RFC 65 §11 / RFC 24 §16 — remote access status ═══════════════
 
 export interface RemoteAccessStatus {

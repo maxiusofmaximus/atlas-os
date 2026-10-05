@@ -1,7 +1,7 @@
 # RFC 65 — HUD Mission Control v2 (producto)
 
 **Author:** opencode architect agent · **Date:** 2026-10-04
-**Status:** In progress — 12 de los 12 items implementados (P0/P1/P2 completos; P3 MVP: DemoPane artefact-based, SkillMcpRail read+stage, responsive + remote status). Diferido: video TTS/Loom, activación hot-swap de skills/MCP, e2e Playwright, audit móvil completo.
+**Status:** In progress — 12 de los 12 items implementados (P0/P1/P2 completos; P3: DemoPane artefact-based, SkillMcpRail read + **activación de skills cableada**, responsive + remote status). Diferido: video TTS/Loom, activación hot-swap de MCP, e2e Playwright, audit móvil completo.
 **Depends on:** RFC 17 (UI base), RFC 19 (Supervisor), RFC 24 (HUD Mission Control — spec), RFC 25 (Stack), RFC 04 §9 (frontends), RFC 05 (Swarm), RFC 14 (Validation), RFC 63 (Agentic Capability — `AgentCard`).
 **Scope:** Cierra la **brecha B** de la auditoría `61`: la HUD real implementada es un **panel de debug** (8 cards + "tail boxes"), no el Mission Control especificado en RFC 24 (8 views + approvals queue + agent cards). Este RFC es el **plan de implementación** del producto descrito por RFC 24 — no añade motores; aterriza la UI.
 
@@ -91,6 +91,6 @@ Cada fase es un `ViewSwitcher` que enciende una view sin romper las demás.
 7. [x] `HealthKPIs.svelte` + `AuditTimeline.svelte` (`GET /hud/health`, `GET /hud/audit`).
 8. [x] `CanvasView` (GraphView) + `OutlineView` + `TimelineView` + `WorktreesView` — **P2**.
 9. [x] `DemoPane.svelte` + `GET /hud/demos` (artefact-based: screenshot/file/preview URL) — **P3 MVP**. TTS/Loom video (RFC 24 §9) diferido.
-10. [x] `SkillMcpRail.svelte` (catálogo `/tail/skills` + MCP `GET /hud/mcp` + drag-to-stage). Activación hot-swap (RFC 24 §8) no cableada.
+10. [x] `SkillMcpRail.svelte` + **activación real de skills**: drop → `POST /hud/skills/:id/activate` (`hud/skills.rs` publica `SkillActivated` en el Kernel Bus; 3 tests + svelte-check verde). MCP sigue read-only (stage).
 11. [x] Responsive (`@media` ≤720px) + badge de acceso remoto (`GET /remote/status`; OIDC backend ya en `remote_auth/`). Audit completo de dispositivos diferido.
 12. [x] Tests: vitest por componente (estructural, idiom del repo) + contrato de tipos store. E2E Playwright diferido (§8 lo marca opcional).

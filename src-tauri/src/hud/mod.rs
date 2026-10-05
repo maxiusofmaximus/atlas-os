@@ -21,6 +21,7 @@ pub mod observer;
 pub mod reliability;
 pub mod remote_status;
 pub mod server;
+pub mod skills;
 pub mod tail;
 pub mod worktrees;
 pub mod ws;
