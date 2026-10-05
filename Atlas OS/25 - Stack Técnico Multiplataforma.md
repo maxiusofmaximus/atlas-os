@@ -492,3 +492,18 @@ AionUI sirve como referencia sólida de UX de config (perfiles, modelo override 
 - Depends on: todos los demás RFCs (Rust core es el substrato).
 - Cubre explicitamente el pedido del usuario: stack Tauri 2 + Rust + SQLite/vec + LSP + Docker/Podman sandbox + CLI Rust cross-platform.
 - Decisión registrada el 2026-07-13. Tomada tras evaluar Electron, Flutter, Qt, CEF. Justificada en §1, §11.
+
+---
+
+## 15. Anexo — Toolchain de dominio y tools laterales (RFC 64, research/62)
+
+`research/62` cataloga ~425 proyectos objetivo y el **toolchain real del operador**. Todo lo de dominio entra **lateral** (proceso externo, jamás bundling — invariante §11 intacto; patrón 8.5 RustDesk / artemis / terminal-browser). No son crates: son binarios detectados por `probe` y usados por shell-out.
+
+- **Creativo / 3D / DCC:** Blender (+MCP), Stove 3D, Superhive, Quixel Mixer, ReShade; assets Poly Haven, Poly Pizza, ambientCG, Kenney, freepbr, Poliigon, ShareTextures, Sketchfab, CGTrader; IA 3D Meshy, Tripo, Kaedim, 3D AI Studio, TRELLIS.2, Hunyuan3D.
+- **Game:** Cave Engine, Godot, Bevy, Unity (+Asset Store/UGS/Bolt), Unreal, MetaHuman, Spine, PicoBerry.
+- **CAD / GIS:** FreeCAD, OpenSCAD, CadQuery, Zoo (KCL), MecAgent, **OpenCADStudio**, QGIS.
+- **Media-gen:** Higgsfield, Flova, fal.ai, Replicate, Runway, Luma, Pika, Suno, Mureka, Fish Audio, Midjourney, Freepik.
+- **Mobile:** artemis (RFC 38), MaxAppsHub (RFC 41), terminal-browser (RFC 28 §I).
+- **Providers IA (RFC 04):** NVIDIA NIM, Groq, Cerebras, OpenRouter, SambaNova, Mistral, GLM/Zhipu, MiniMax, DeepSeek, Qwen, Kimi/Moonshot, Cohere, GooseAI; locales Ollama, LM Studio, llama.cpp, vLLM, SGLang; gateways/routers LiteLLM, Portkey, Helicone; evals llm-stats, Artificial Analysis, arena.ai.
+
+Ver RFC 64 (Domain Packs) y `docs/domain-*.md` (guías por dominio).

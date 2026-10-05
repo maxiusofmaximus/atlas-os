@@ -1,7 +1,7 @@
 # RFC 65 — HUD Mission Control v2 (producto)
 
 **Author:** opencode architect agent · **Date:** 2026-10-04
-**Status:** Proposed — 0 de los 12 items implementados.
+**Status:** In progress — 5 de los 12 items implementados (P0: ViewSwitcher, AgentCard, Kanban, ApprovalQueue, CommandPalette; commit `c76bf68`).
 **Depends on:** RFC 17 (UI base), RFC 19 (Supervisor), RFC 24 (HUD Mission Control — spec), RFC 25 (Stack), RFC 04 §9 (frontends), RFC 05 (Swarm), RFC 14 (Validation), RFC 63 (Agentic Capability — `AgentCard`).
 **Scope:** Cierra la **brecha B** de la auditoría `61`: la HUD real implementada es un **panel de debug** (8 cards + "tail boxes"), no el Mission Control especificado en RFC 24 (8 views + approvals queue + agent cards). Este RFC es el **plan de implementación** del producto descrito por RFC 24 — no añade motores; aterriza la UI.
 
@@ -82,11 +82,11 @@ Cada fase es un `ViewSwitcher` que enciende una view sin romper las demás.
 
 ## 10. Checklist
 
-1. ⏳ Design tokens + `ViewSwitcher` + routing de views.
-2. ⏳ `AgentCard.svelte` (consume RFC 63) + tipos WS.
-3. ⏳ `KanbanBoard.svelte` (missions/plans/diffs) — **P0**.
-4. ⏳ `ApprovalQueue.svelte` + endpoints approve/deny batch/scope.
-5. ⏳ `CommandPalette.svelte` + hotkeys `:`.
+1. [x] Design tokens + `ViewSwitcher` + routing de views.
+2. [x] `AgentCard.svelte` (consume RFC 63) + tipos WS.
+3. [x] `KanbanBoard.svelte` (missions/plans/diffs) — **P0**.
+4. [x] `ApprovalQueue.svelte` + endpoints approve/deny batch/scope.
+5. [x] `CommandPalette.svelte` + hotkeys `:`.
 6. ⏳ `CostDashboard.svelte` + `GET /hud/cost` — **P1**.
 7. ⏳ `HealthKPIs.svelte` + `AuditTimeline.svelte`.
 8. ⏳ `CanvasView` (GraphView) + `OutlineView` + `TimelineView` + `WorktreesView` — **P2**.

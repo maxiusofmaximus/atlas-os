@@ -9,7 +9,9 @@
 
 ## 1. Contexto y motivación
 
-`research/62` documenta ~425 proyectos objetivo. Un patrón se repite: los productos que "se sienten como un senior" suelen ser **verticales** — CAD (MecAgent, Zoo, CadQuery), game (Cave Engine, Godot, Unity), 3D/asset (Stove, Blender), mobile (artemis), creativo-media (Higgsfield, Flova, mr-mak). Atlas no debe empaquetar cada vertical: debe **ofrecer un contrato** para que un dominio se conecte como un pack, reutilizando los motores existentes.
+`research/62` documenta ~425 proyectos objetivo. Un patrón se repite: los productos que "se sienten como un senior" suelen ser **verticales** — CAD (MecAgent, Zoo, CadQuery), game (Cave Engine, Godot, Unity), 3D/asset (**Mixar** — fork de Blender 5.2 con agente integrado, Stove), mobile (artemis), creativo-media (Higgsfield, Flova, mr-mak). Atlas no debe empaquetar cada vertical: debe **ofrecer un contrato** para que un dominio se conecte como un pack, reutilizando los motores existentes.
+
+> **Referente directo:** `Mixar-AI/mixar-app` es exactamente este patrón materializado — un DCC (Blender) con un agente ("Mixie") que opera la herramienta por lenguaje natural, con BYOK. Valida el diseño de Domain Pack + tools laterales de este RFC.
 
 Esta es la evolución natural de la tesis "plataforma para agentes" (RFC 00): el core no crece en features de dominio; crece en **mecanismos de composición**.
 
@@ -57,7 +59,7 @@ El **Capability Resolver** (RFC 02) + el **Project Map** (RFC 11) detectan el do
 | `cad` | Mecánico / paramétrico | CadQuery / OpenSCAD / KCL | FreeCAD, OpenSCAD, Zoo, MecAgent |
 | `gis` | Civil / topografía | scripting + validación geométrica | **OpenCADStudio**, QGIS |
 | `game` | Videojuegos | Godot/Bevy (scripting), validation de assets | Cave Engine, Unity, Unreal, Godot, Bevy |
-| `creative-media` | 3D/asset/render | Blender MCP, img2threejs | Blender, Stove 3D, Poly Haven/Poly Pizza |
+| `creative-media` | 3D/asset/render | Blender MCP, img2threejs | Blender, **Mixar** (agente-en-Blender, GPL-3.0), Stove 3D, Poly Haven/Poly Pizza |
 | `media-gen` | Video/imagen/audio | facade a providers | Higgsfield, Flova, fal.ai, Runway, Suno |
 | `mobile` | Android (RFC 38) | artemis (lateral) | artemis, MaxAppsHub (RFC 41) |
 | `data` | ETL/analítica | SQL/Python, dbt-like stages | drawDB, Neon, Turso |

@@ -117,3 +117,22 @@ Todo eso pasa por un filter chain obligatorio.
 ## 13. Telemetría de seguridad
 
 Dashboard con: top call attempts, CPU/RAM anomalies, blocked actions, MCP sanc-cli violations, reputation changes de proveedores.
+
+---
+
+## 14. Anexo — SensitiveActions de dominio, tools laterales y sandbox real (RFC 63/64, research/62)
+
+Ampliación de §2 con las superficies introducidas por los RFC 63/64.
+
+| Acción | Default | Override por |
+|---|---|---|
+| `agent.exec` (shell del bucle agéntico RFC 63) | Confirm (sandbox) | — |
+| `browse.open` (terminal-browser, RFC 28 §I) | Confirm | usuario |
+| `domain.tool.open` (herramientas laterales de dominio: CAD/game/DCC) | Confirm | usuario |
+| `sandbox.daytona`/`e2b` (ejecución remota lateral) | Forbidden | usuario scope |
+| Instalar Domain Pack sin firma (RFC 64) | Forbidden | — |
+| `web.fetch`/`web.search` (firecrawl/Decodo) | Confirm | — |
+
+**Backends de sandbox reales (RFC 63):** `Local` (default, allowlist de red) · `Wsl2` · `Daytona`/`E2B` (laterales, proceso externo, jamás bundling). Los Domain Packs que ejecutan código nativo (CAD/game) fuerzan `SandboxLevel::container` (RFC 64 §6).
+
+**Prompt-injection:** las tools de dominio (web/browse/scrape) amplían la superficie de §10; todo texto devuelto por una tool se trata como no confiable y pasa por el filtro anti-injection antes de entrar al context.

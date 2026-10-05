@@ -333,3 +333,18 @@ Single-binary safety (RFC 25 §11): el ACP frontend no añade subprocess externo
 
 **Sub-pases deferrables (Future Work anotados, no en Phase 2):** G4 streaming partial aggregation, G6 circuit-breaker half-open state, G7 provider-level health HUD, G9 vision/multimodal routing capability mask, G10 Ollama `supports_tools` CSV, G13 HUD approval card aggregation, G15 `opencode calibrate-classifier` CLI, G16 offline eval harness `atlas eval`, G19 MCP tool-capability-aware routing (`pre_filter` skeleton + `McpServerCatalog` trait en 2.3, integración con `rmcp` real registry deferred a 2.5+), G20 response cache separado de prompt cache provider, AN-2.3-a linfa MLP feed-forward (deferral — `linfa` no lo tiene, scratch impl deferred a Phase 2.5+).
 
+---
+
+## Apéndice — Catálogo de providers y routers (research/62)
+
+`research/62` Capa 1c/1e fija el universo de providers que el Registry (§1) debe cubrir. El default build ya soporta HTTP OpenAI-compatible (RFC 25 §3.8); este apéndice es el objetivo de cobertura.
+
+- **Cloud comerciales:** OpenAI, Anthropic, Google (Gemini), xAI (Grok), Mistral, Cohere, AI21.
+- **Cloud CN / open-weight:** Zhipu **GLM**, **MiniMax**, **DeepSeek**, Alibaba **Qwen**, Moonshot **Kimi**, ByteDance **Seed/Doubao**.
+- **Free-tier / inference:** **NVIDIA NIM**, **Groq**, **Cerebras**, **SambaNova**, Cloudflare Workers AI, GitHub Models, HuggingFace Inference, OpenRouter.
+- **Locales:** Ollama, LM Studio, llama.cpp, vLLM, SGLang.
+- **Gateways/routers (patrón):** LiteLLM, OpenRouter, Portkey, Helicone, ZenMux.
+- **Evals/leaderboards:** llm-stats, Artificial Analysis, arena.ai, BridgeBench.
+
+El routing (`orchestrator/routing.rs`) prioriza por tier/coste/capability; los free-tier de la lista alimentan el modo `free-only` (§6). Cross-ref: RFC 26 (`providers`), RFC 25 §15.
+

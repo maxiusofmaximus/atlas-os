@@ -960,6 +960,81 @@ Para 429s sin SpendLimitError (rate-limit transitorio), el `Orchestrator` retry-
 
 ---
 
+## §I — terminal-browser: browser real embebido en el pane del terminal
+
+**Status: ⏳ documentado, integración lateral (no bundling). Guía operador: `docs/terminal-browser-integration.md`.**
+
+[`zenbu-labs/terminal-browser`](https://github.com/zenbu-labs/terminal-browser) (MIT) es un navegador real — Chromium vía el offscreen-rendering API de Electron — dibujado **dentro del terminal** mediante el [kitty graphics protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/). Envía sólo los parches de píxeles que cambian por frame, lee eventos de teclado/ratón/trackpad (con un helper Swift de input a nivel de OS en macOS) y los reinyecta sintéticos a Chromium. Da al agente y al operador una **superficie web viva en la misma pestaña/pane** donde corre `atlas`, sin abrir un navegador externo. Esta sección especifica la integración **lateral** (proceso externo, jamás bundleado) y delega la receta de instalación a la guía de operador.
+
+### Source items
+
+- **`zenbu-labs/terminal-browser`** (<https://github.com/zenbu-labs/terminal-browser>), MIT — binario + CLI `terminal-browser`. UI externa en un motor gráfico Rust con un React custom renderer que dibuja chrome + contenido al mismo canvas compartido.
+- **`terminal-browser.sh`** — instalador upstream: `curl -fsSL https://terminal-browser.sh/install | bash` o `brew install terminal-browser`; upgrade con `terminal-browser upgrade`.
+- **`terminal-browser action`** — CLI **agent-browser-compatible** para interactuar con browsers abiertos. Es el punto de entrada para que un agente (Atlas OS incluido) maneje la pestaña abierta.
+- **claude-code-plugin** (<https://github.com/zenbu-labs/terminal-browser/tree/main/claude-code-plugin>) — plugin experimental (marketplace `zenbu-labs/terminal-browser`) que expone `/browser` y una API `Browser.open/close` para otros plugins. Es **referencia de patrón** del contrato "agente abre/cierra la superficie web", no una dependencia.
+- **`pixel`** (<https://github.com/zenbu-labs/terminal-browser/tree/main/pixel>) — librería JS extraída de terminal-browser para construir apps gráficas en el terminal.
+- **`herdr-plugin`** + **`skill/`** — plugin para el terminal `herdr` (auditado en RFC 27) y skill de agente empacada en el propio repo. Referencia, no dependencia.
+
+### Por qué integración lateral (no bundling)
+
+terminal-browser arrastra un runtime Electron/Chromium completo y (en macOS) un helper Swift de captura de input del OS. Eso **viola RFC 25 §11** (binario único 30–45 MB; sin Electron, sin DLLs). Por tanto se adopta el **patrón lateral 8.5** (proceso externo, ya usado para RustDesk en `research/28 - conductor & alt surfaces.md` y para `google/artemis` en RFC 38): Atlas OS **no** añade crates, **no** añade feature flags, **no** añade migraciones. La integración vive en (1) una guía operador en `docs/` y (2) un shell-out opcional desde el CLI/Skills que sólo se activa si `terminal-browser` está en `PATH`. Cero impacto en el default build.
+
+### Objetivos
+
+1. Documentar la receta de operador (install, terminales soportados, uso, SSH, Windows/WSL, troubleshooting) en `docs/terminal-browser-integration.md` (patrón §B item 7).
+2. Añadir detección de capacidad en el CLI: `atlas browser probe` reporta si `terminal-browser` está en `PATH` y si el `$TERM`/terminal declara kitty graphics protocol. Comando de sólo lectura (no lanza el browser).
+3. Shell-out `atlas browser open <url> [--split right]` que delega en `terminal-browser open <url>`. Fail-safe: sin el binario responde con instrucciones de install — nunca un no-op silencioso (misma disciplina que §B `/atlas fix`).
+4. Skill bundled `browser-pane` (opt-in) que enseña al Planner a abrir artifacts HTML (planes de RFC 12, reportes de Validation RFC 14, diffs) en un split pane al lado del agente vía `terminal-browser open`.
+5. (Fase 2) Puente de capability web: envolver `terminal-browser action` en un wrapper Rust tipado (`BrowserAction { navigate, click, type, snapshot }`) para que el Orchestrator use la web como una tool. Decisión post-MVP tras medir el contrato real de `agent-browser`.
+6. (Fase 2) Alineación con §B: si una sesión ACP/pane está activa, emitir `artifact.preview.opened` en el Journal para que el HUD muestre qué artifact se está previsualizando.
+
+### Contrato de integración (plan, no implementación)
+
+- **Detección**: `command -v terminal-browser` (WSL/Unix) — cacheada por sesión.
+- **Terminal capability**: heurística por `$TERM`/`$TERM_PROGRAM` (`ghostty`, `xterm-kitty`, `cmux`, …) + `$KITTY_WINDOW_ID`/`$GHOSTTY_RESOURCES_DIR`. NUNCA se afirma soporte sin señal (honestidad RFC 28 §Riesgos 6): sin señal → aviso "terminal no verificado para kitty graphics protocol".
+- **Apertura**: spawn del proceso `terminal-browser` (detached) con el URL; nunca bloquea el loop del supervisor.
+- **Cierre / listado**: `terminal-browser ls` para enumerar; cierre vía el propio CLI.
+- **Errores**: `enum BrowserIntegrationError { NotInstalled, TerminalUnsupported, SpawnFailed }`, cada variante con remediación textual.
+
+### Comandos CLI nuevos (plan)
+
+```bash
+atlas browser probe                       # ¿instalado? ¿el terminal soporta kitty graphics?
+atlas browser open https://example.com    # delega en `terminal-browser open`
+atlas browser open ./plan.html --split right
+atlas browser ls                          # delega en `terminal-browser ls`
+# Sin el binario en PATH => mensaje de install, exit != 0 (no silent no-op)
+```
+
+### Seguridad (RFC 18)
+
+- terminal-browser **ejecuta un motor Chromium completo** accesible al agente: nueva superficie de ataque. Por defecto **opt-in** y **fuera** del sandbox de skills firmadas.
+- El agente que usa `action` obtiene **capacidad de red/deep-links**: clasificarlo como `SensitiveAction` y exigir confirmación en modos `HUMAN_IN_LOOP`/`AUTOPILOT` (RFC 21).
+- No se aceptan URLs provenientes de skills no firmadas sin pasar por la política de SensitiveActions.
+- El proceso es externo: no hereda secretos del keychain ni de `profiles::Profile`.
+
+### Actualizaciones a RFCs existentes (plan)
+
+- **RFC 24 §16** — mencionar terminal-browser como superficie de preview externa opcional (junto al HUD web).
+- **RFC 08** — documentar la familia `atlas browser` (subcomandos de sólo lectura + shell-out).
+- **RFC 18** — registrar la capacidad web del agente como SensitiveAction (opt-in).
+- **RFC 26** — cross-ref `terminal-browser` (aplicado en este commit).
+- **Este archivo (RFC 28 §I)** — checklist abajo.
+
+### §I Checklist
+
+1. ✅ Guía operador `docs/terminal-browser-integration.md` (este commit).
+2. ⏳ `atlas browser probe` (sólo lectura, sin spawn).
+3. ⏳ `atlas browser open|ls` shell-out + `BrowserIntegrationError` con remediación.
+4. ⏳ Skill bundled `browser-pane` (opt-in) que abre artifacts HTML en split pane.
+5. ⏳ (Fase 2) Wrapper tipado sobre `action` (tool "web" del Orchestrator).
+6. ⏳ (Fase 2) Evento `artifact.preview.opened` en Journal + card HUD.
+7. ⏳ (Fase 2) Validación del contrato `agent-browser` (versión pinneada; honestidad si cambia).
+
+Atribución: cualquier port de patrón desde `zenbu-labs/terminal-browser` (MIT) debe preservar la nota de copyright en el module prose. Atlas OS **no** redistribuye el binario.
+
+---
+
 ## Crates nuevas (justificación single-binary-safe)
 
 | Crate | Versión ancla | Licencia | Justificación | Binario coste |
