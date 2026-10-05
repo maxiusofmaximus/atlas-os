@@ -82,14 +82,14 @@ terminal-browser open ./atlas-plan.html --split right
 - **Remote dev server.** `terminal-browser open --ssh user@host http://localhost:3000`.
 - **Split next to the agent.** `terminal-browser open <url> --split right` places the browser beside the agent pane.
 
-> **Planned Atlas OS subcommands (RFC 28 §I checklist — not yet implemented):**
-> `atlas browser probe` (read-only capability check), `atlas browser open <url> [--split right]`, `atlas browser ls`. These shell out to terminal-browser and degrade with clear remediation text when the binary is absent — never a silent no-op.
+> **Atlas OS subcommands (RFC 28 §I, implemented):**
+> `atlas browser probe` (read-only capability check), `atlas browser open <url> [--split right]`, `atlas browser ls`, `atlas browser action -- <args>`. These shell out to terminal-browser; `open`/`ls`/`action` exit non-zero with clear remediation text when the binary is absent — never a silent no-op.
 
 ---
 
 ## 6. Agent access
 
-`terminal-browser action` is an agent-browser-compatible CLI that lets an agent interact with open terminal-browsers. Atlas OS will wrap this (RFC 28 §I, Phase 2) as a typed capability so the Orchestrator can "use the web" as a tool; until then it is a manual/CLI path.
+`terminal-browser action` is an agent-browser-compatible CLI that lets an agent interact with open terminal-browsers. Atlas OS wraps this (RFC 28 §I item 5) with the typed `BrowserAction { Navigate, Click, Type, Snapshot }` and the `atlas browser action` passthrough, so the Orchestrator can "use the web" as a lateral tool. The `agent-browser` contract is not pinned yet (item 7): args are forwarded verbatim, never invented.
 
 Reference pattern (upstream, **not** an Atlas OS dependency): the [Claude Code plugin](https://github.com/zenbu-labs/terminal-browser/tree/main/claude-code-plugin) exposes a `/browser` command and a `Browser.open/close` plugin API. It is useful as a design reference for "agent opens/closes the web surface", not as an install requirement here.
 

@@ -962,7 +962,7 @@ Para 429s sin SpendLimitError (rate-limit transitorio), el `Orchestrator` retry-
 
 ## §I — terminal-browser: browser real embebido en el pane del terminal
 
-**Status: ⏳ documentado, integración lateral (no bundling). Guía operador: `docs/terminal-browser-integration.md`.**
+**Status: ✅ Fase 1 (items 1-5, 7 implementados: guía operador + módulo `browser/` + `atlas browser probe|open|ls|action` + skill `browser-pane` + evento `artifact_preview_opened`); item 6 card HUD ⏳ (RFC 65). Integración lateral (no bundling). Guía operador: `docs/terminal-browser-integration.md`.**
 
 [`zenbu-labs/terminal-browser`](https://github.com/zenbu-labs/terminal-browser) (MIT) es un navegador real — Chromium vía el offscreen-rendering API de Electron — dibujado **dentro del terminal** mediante el [kitty graphics protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/). Envía sólo los parches de píxeles que cambian por frame, lee eventos de teclado/ratón/trackpad (con un helper Swift de input a nivel de OS en macOS) y los reinyecta sintéticos a Chromium. Da al agente y al operador una **superficie web viva en la misma pestaña/pane** donde corre `atlas`, sin abrir un navegador externo. Esta sección especifica la integración **lateral** (proceso externo, jamás bundleado) y delega la receta de instalación a la guía de operador.
 
@@ -1023,13 +1023,13 @@ atlas browser ls                          # delega en `terminal-browser ls`
 
 ### §I Checklist
 
-1. ✅ Guía operador `docs/terminal-browser-integration.md` (este commit).
-2. ⏳ `atlas browser probe` (sólo lectura, sin spawn).
-3. ⏳ `atlas browser open|ls` shell-out + `BrowserIntegrationError` con remediación.
-4. ⏳ Skill bundled `browser-pane` (opt-in) que abre artifacts HTML en split pane.
-5. ⏳ (Fase 2) Wrapper tipado sobre `action` (tool "web" del Orchestrator).
-6. ⏳ (Fase 2) Evento `artifact.preview.opened` en Journal + card HUD.
-7. ⏳ (Fase 2) Validación del contrato `agent-browser` (versión pinneada; honestidad si cambia).
+1. ✅ Guía operador `docs/terminal-browser-integration.md`.
+2. ✅ `atlas browser probe` (sólo lectura, sin spawn) — detecta binario + `--version` + capacidad kitty por señal real (`browser/mod.rs`, tests; NUNCA afirma soporte sin señal).
+3. ✅ `atlas browser open|ls|action` shell-out + `BrowserIntegrationError { NotInstalled, TerminalUnsupported, SpawnFailed }` con remediación textual; `open` sin binario → exit != 0 (no silent no-op).
+4. ✅ Skill bundled `browser-pane` (opt-in; `skills/browser-pane/`, catálogo `BUNDLED_COUNT=16`) que abre artifacts HTML en split pane.
+5. ✅ Wrapper tipado `BrowserAction { Navigate, Click, Type, Snapshot }` + `atlas browser action` passthrough + `run_typed_action` (Orchestrator); contrato `agent-browser` NO pinneado (sin inventar flags).
+6. ✅ Evento `artifact_preview_opened` (bus `BusEventKind` + Journal) emitido por `atlas browser open`; ⏳ card HUD (RFC 65 P3).
+7. ✅ `probe` reporta versión + `ACTION_CONTRACT_PINNED=false` (honestidad si el contrato cambia); validación de shapes pendiente de medir el contrato real.
 
 Atribución: cualquier port de patrón desde `zenbu-labs/terminal-browser` (MIT) debe preservar la nota de copyright en el module prose. Atlas OS **no** redistribuye el binario.
 

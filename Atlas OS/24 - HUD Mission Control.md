@@ -519,6 +519,7 @@ Siguiendo Hermes (https://docs.nousresearch.ai/hermes/overview/) y Loom (https:/
 - **Mobile review**: una Approvals queue simplificada móvil. Acciones `[APR]` `[DENY]` en una mano. Sirve para revisiones async (patrón Loom).
 - **Share mission link**: genera URL public/private con expiration para enseñar el HUD de una mission a un colega (read-only audit + demo player).
 - **Capture terminal**: tap en una card → screenshot del frame actual del subagent.
+- **Preview de artifacts (externo, opt-in)**: abre planes/reportes/diffs HTML en un pane real del terminal vía `atlas browser open` (terminal-browser lateral, RFC 28 §I); publica `artifact_preview_opened` (opt-in, `SensitiveAction` RFC 18 §14).
 
 Esto da el acceso desde cualquier parte del mundo que pidió el usuario (`17 - UI.md` §6).
 

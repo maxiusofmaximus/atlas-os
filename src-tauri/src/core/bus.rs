@@ -98,6 +98,15 @@ pub enum BusEventKind {
         agent_id: Uuid,
         skill_id: String,
     },
+    /// A terminal-browser pane previewed an artifact (RFC 28 §I item 6):
+    /// emitted by `atlas browser open` so the journal/HUD can surface what
+    /// the operator is previewing beside an agent.
+    ArtifactPreviewOpened {
+        mission_id: Option<Uuid>,
+        artifact: String,
+        url: String,
+        source: String,
+    },
     ResearchCompleted {
         research_run_id: Uuid,
     },
@@ -301,6 +310,7 @@ impl BusEventKind {
             BusEventKind::CostThresholdCrossed { .. } => "cost_threshold_crossed",
             BusEventKind::WorktreeDirty { .. } => "worktree_dirty",
             BusEventKind::SkillActivated { .. } => "skill_activated",
+            BusEventKind::ArtifactPreviewOpened { .. } => "artifact_preview_opened",
             BusEventKind::ResearchCompleted { .. } => "research_completed",
             BusEventKind::HudServed { .. } => "hud_served",
             BusEventKind::MissionSteered { .. } => "mission_steered",

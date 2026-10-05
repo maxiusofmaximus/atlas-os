@@ -8,8 +8,8 @@ use super::commands::ResearchCmd;
 #[cfg(feature = "toast")]
 use super::commands::ToastCmd;
 use super::commands::{
-    AgentCmd, AuditCmd, CalendarCmd, DomainCmd, EvalCmd, ExecCmd, ExecuteCmd, ForkCmd, HudCmd,
-    JournalCmd, LearnCmd, McpCmd, MissionCmd, MobileCmd, ModelsCmd, MonitorCmd, PlanCmd,
+    AgentCmd, AuditCmd, BrowserCmd, CalendarCmd, DomainCmd, EvalCmd, ExecCmd, ExecuteCmd, ForkCmd,
+    HudCmd, JournalCmd, LearnCmd, McpCmd, MissionCmd, MobileCmd, ModelsCmd, MonitorCmd, PlanCmd,
     ProfileCmd, RemoteCmd, ResumeCmd, RunCmd, SecurityCmd, SisterCmd, SkillCmd, SteerCmd,
     SwapModelCmd, SwarmCmd, ValidateCmd,
 };
@@ -71,6 +71,9 @@ pub enum Commands {
     Execute(ExecuteCmd),
     /// Terminal agent loop — model runs shell commands to complete a task (RFC 20 Fase 39).
     Agent(AgentCmd),
+    /// Terminal-browser pane — probe/open/ls/action via external terminal-browser
+    /// (lateral, MIT, never bundled) (RFC 28 §I).
+    Browser(BrowserCmd),
     /// Evaluation harness — run/report deterministic suites (RFC 20 Fase 22).
     Eval(EvalCmd),
     /// HUD server control.

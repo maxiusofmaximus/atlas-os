@@ -1,0 +1,18 @@
+# skill.toml — `browser-pane` (RFC 28 §I item 4, lateral terminal-browser)
+
+id = "browser-pane"
+version = "1.0.0"
+description = "Opens HTML artifacts (plans, validation reports, diffs) in a terminal-browser split pane beside the agent via `atlas browser open`."
+engine = "coding"
+priority = 55
+domain = "code"
+confidence = 0.8
+estimated_tokens = 1200
+estimated_time = 8
+compatible_models = ["claude-sonnet-4.5", "gemini-2.5-pro", "gpt-4o", "local-qwen2.5-14b-instruct"]
+summary = "Preview an HTML artifact in a terminal pane"
+auto_generated = false
+verified = true
+author = "atlas-os"
+license = "MIT"
+home = "./skills/browser-pane/"

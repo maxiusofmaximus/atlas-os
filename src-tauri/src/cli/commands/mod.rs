@@ -3,6 +3,7 @@
 
 pub mod agent;
 pub mod audit;
+pub mod browser;
 pub mod calendar;
 pub mod domain;
 pub mod eval;
@@ -35,6 +36,7 @@ pub mod validate;
 
 pub use agent::AgentCmd;
 pub use audit::AuditCmd;
+pub use browser::BrowserCmd;
 pub use calendar::CalendarCmd;
 pub use domain::DomainCmd;
 pub use eval::EvalCmd;
@@ -81,6 +83,7 @@ pub async fn dispatch(cmd: Commands, profile: &str) -> Result<()> {
         Commands::Models(c) => models::run(c, profile).await,
         Commands::Monitor(c) => monitor::run(c, profile).await,
         Commands::Mobile(c) => mobile::run(c, profile).await,
+        Commands::Browser(c) => browser::run(c, profile).await,
         Commands::Exec(c) => exec::run(c, profile).await,
         Commands::Execute(c) => execute::run(c, profile).await,
         Commands::Agent(c) => agent::run(c, profile).await,

@@ -85,7 +85,7 @@ Plan refinado en `Atlas OS/research/29 - Phase 2 model orchestrator.md` (6 sub-f
 - `RoutingStrategy::Mf { threshold }` experimental (RouteLLM `2406.18665`): strong-vs-weak binary routing sobre `classifier_confidence` + `strong_ids` con fallback graceful. **Desviación documentada**: sin `include_bytes!("assets/mf_weights.bin")` pre-trained (G14) — el flavour experimental usa classifier confidence; weights pre-trained + A/B testing contra classifier log-loss postergados a 2.5+.
 - `aggregation_cost_estimate()` impl real ✅: `AggregationCostContext::from_journal()` usando medias histórico `mean_tokens_in/out` — budget guard integra con 2.2.
 - Brazo manual del loop ✅: CLI `atlas models refresh -n <window> --list` (`cli/commands/models.rs`). Cargo: `arc-swap = "1.7"`.
-- M23 `eval_runs` (G16 deferred a 2.5+): no implementada, como estaba planificado.
+- M23 `eval_runs` (G16): **RESUCITADA en Phase 22** (`research/51`) — schema M36 (v35) + `journal/eval_runs.rs` + runner/golden suite + CLI `atlas eval run/list/report/metrics/import` + `GET /hud/eval/summary` + CI `.github/workflows/eval-gate.yml`. ✅
 
 Entregable: el sistema sabe **cuándo cambiar de cerebro**. KPI: coste LLM por mission ≤ baseline Phase 1 × 0.6 (evidence RouteLLM >2× savings).
 
@@ -422,7 +422,7 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - **v3.1.2.2 COMPLETA:** política persistida (M37/v36 `proactive_policy`),
   backlog `next_pending_mission`, host caller `supervisor/host.rs`
   (`proactive_check`), CLI `atlas calendar policy|proactive`, HUD
-  `GET /hud/availability`. 5 tests. (Card Svelte diferida.)
+  `GET /hud/availability`. 5 tests. (Card Svelte `<AvailabilityCard>` entregada en v3.1.2.3 — ver abajo.)
 - **v3.1.2.3 COMPLETA:** golden task `planning.proactive_trigger` (cobertura en el
   gate EVAL) + card HUD `<AvailabilityCard>` (`fetchAvailability`). **Fase 23
   CERRADA.** El único ítem de producto que quedaba bloqueado (v3.1.2) ya no lo está.
@@ -560,7 +560,7 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
 - **Primera corrida COMPLETA:** Terminal-Bench 2 (89/89), kimi-k3 (NIM) → **pass_rate 0.000**,
   4 excepciones (3× `NonZeroAgentExitCode`, 1× `AgentTimeoutError`). El harness mide bien
   (oracle 0.88); el 0.000 es la **capacidad actual** de Atlas (aún no ejecuta comandos de
-  terminal ni verifica artefactos solo). Gap pendiente: `AgentContext` sin tokens/coste.
+  terminal ni verifica artefactos solo). Gap `AgentContext` sin tokens/coste: **cerrado por RFC 63 item 9** (instrumentación `AgentContext` ✅); el `pass_rate` sigue siendo el gate model-bound (RFC 63 items 9/13).
 - **Ingestión arreglada (F32.2 real):** `eval/harbor.rs::load_trials` ahora escanea
   `<trial>/result.json` del job dir (schema Harbor 0.23; antes solo leía `trial_results`
   inline del schema viejo). `atlas eval import` + `eval metrics` verificados.

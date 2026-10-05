@@ -4,10 +4,12 @@
 
 #[cfg(feature = "tauri")]
 use tauri::Manager;
+#[cfg(feature = "tauri")]
 use tracing_subscriber::EnvFilter;
 
 #[cfg(feature = "acp-server")]
 pub mod acp;
+pub mod browser;
 pub mod calendar;
 pub mod cli;
 pub mod coding;

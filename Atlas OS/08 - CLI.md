@@ -17,6 +17,7 @@ Soporte de **CLIs externas** como tools de agente, no como simples comandos shel
 | `socket` | supply chain | Security |
 | `pulumi` / `tofu` | IaC apply | Coding (IaC sub-role) |
 | `docker` | Testcontainers | Validation |
+| `terminal-browser` | browser pane (lateral, kitty graphics — RFC 28 §I) | Coding / Context |
 | `turbopack`/`vite` | build | Validation |
 | `tree-sitter` | AST parsing | Context Engine |
 | `semgrep` | reglas custom | Validation / Security |
@@ -79,3 +80,17 @@ Toda ejecución queda en el Journal.
 ## 6. Profiling de costes
 
 El CLI engine computa tiempo total consumido por CLI en una mission. Esto permite que el Learning Engine sugiera alternativas más rápidas (p. ej. `biome` en vez de `eslint+prettier`).
+
+## 7. Familia `atlas browser` (terminal-browser lateral, RFC 28 §I)
+
+Shell-out (nunca bundling; ver RFC 25 §11). Sin el binario en `PATH`, `open`/`ls`/`action` terminan con exit != 0 y la receta de install (nunca un no-op silencioso):
+
+```bash
+atlas browser probe                       # ¿instalado? versión + ¿terminal con kitty graphics?
+atlas browser open https://example.com    # delega en `terminal-browser open`
+atlas browser open ./plan.html --split right
+atlas browser ls                          # delega en `terminal-browser ls`
+atlas browser action -- navigate https://example.com   # passthrough agent-browser (contrato NO pinneado)
+```
+
+`open` publica `artifact_preview_opened` en el Journal (RFC 28 §I item 6). La capacidad web del agente se clasifica como `SensitiveAction` (RFC 18, opt-in). El binario es `terminal-browser` (MIT) o `$ATLAS_TERMINAL_BROWSER_BIN`.

@@ -1,10 +1,11 @@
 // Atlas OS — Bundled skills catalog (RFC 29 §3.D / RFC 06 §1).
 //
 // The 12 `opencode-*` manifests plus the 3 Phase-7 `atlas-*` compliance
-// skills under `skills/` are compiled into the binary via
-// `include_str!`, single-binary safe per RFC 25 §11. The
-// `bundled-skills` feature (default on) controls the catalog; builds
-// with `--no-default-features` skip it for server-only distributions.
+// skills and the Phase-1.5 `browser-pane` lateral skill under `skills/`
+// are compiled into the binary via `include_str!`, single-binary safe per
+// RFC 25 §11. The `bundled-skills` feature (default on) controls the
+// catalog; builds with `--no-default-features` skip it for server-only
+// distributions.
 // Discovery of user-installed skills still goes through
 // `SkillGraph::scan_directory` (RFC 06 §6).
 
@@ -24,6 +25,7 @@ const BUNDLED_SOURCES: &[&str] = &[
     include_str!("../../../skills/opencode-arxiv-lookup/skill.toml"),
     include_str!("../../../skills/opencode-figma-to-code/skill.toml"),
     include_str!("../../../skills/opencode-ui-from-screenshot/skill.toml"),
+    include_str!("../../../skills/browser-pane/skill.toml"),
     include_str!("../../../skills/atlas-owasp-check/skill.toml"),
     include_str!("../../../skills/atlas-gdpr-check/skill.toml"),
     include_str!("../../../skills/atlas-hipaa-check/skill.toml"),
@@ -32,7 +34,7 @@ const BUNDLED_SOURCES: &[&str] = &[
 #[cfg(not(feature = "bundled-skills"))]
 const BUNDLED_SOURCES: &[&str] = &[];
 
-pub const BUNDLED_COUNT: usize = 15;
+pub const BUNDLED_COUNT: usize = 16;
 
 pub fn bundled_manifests() -> anyhow::Result<Vec<SkillManifest>> {
     let mut out = Vec::with_capacity(BUNDLED_SOURCES.len());
@@ -60,7 +62,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "bundled-skills")]
-    fn bundled_catalog_parses_all_fifteen() {
+    fn bundled_catalog_parses_all_sixteen() {
         let manifests = bundled_manifests().unwrap();
         assert_eq!(manifests.len(), BUNDLED_COUNT);
         let mut ids: Vec<&str> = manifests.iter().map(|m| m.id.as_str()).collect();
@@ -71,6 +73,7 @@ mod tests {
                 "atlas-gdpr-check",
                 "atlas-hipaa-check",
                 "atlas-owasp-check",
+                "browser-pane",
                 "opencode-arxiv-lookup",
                 "opencode-changelog-from-commits",
                 "opencode-doc-from-code",
