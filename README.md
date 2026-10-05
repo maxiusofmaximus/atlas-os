@@ -210,6 +210,7 @@ atlas eval metrics       # pass rate, tokens/solved, $/solved, failure-kind vect
   | 1   | 2026-10-04 | `AtlasAgent` × `kimi-k3` (NIM, nube)                                | `--coding` | 89/89  | **0.000**         | API    |
   | 2   | 2026-10-04 | `AtlasAgent` × `gpt-oss-120b` (Groq, nube)                          | `--agent`  | 11/11  | **0.000**         | API    |
   | 3   | 2026-10-04 | `AtlasAgent` × `qwen3.8-flash-next-iq2_xs` (125B **local**, Strata) | `--agent`  | 89/89  | **>0** (2 tareas) | **$0** |
+  | 4   | 2026-10-04 | `AtlasAgent` × `qwen3.8-flash-next-iq2_xs` (125B local, **RFC 63 rework**) | `--agent`  | 14     | **0.000**         | **$0** |
   - **Control:** el solver de referencia `oracle` da **mean ≈ 0.88** en el mismo harness →
     el instrumento mide bien; los ceros eran capacidad, no artefacto del andamio.
   - **Corrida 1** (`--coding`): el loop editaba ficheros pero **no ejecutaba comandos** → 0.
@@ -218,10 +219,19 @@ atlas eval metrics       # pass rate, tokens/solved, $/solved, failure-kind vect
   - **Corrida 3** (`--agent`, **Qwen 125B local**): el modelo de frontera local rompe el
     0.000 — resueltas `fix-git` y `prove-plus-comm`, a **coste $0** (inferencia local vía
     Strata en `127.0.0.1:8080`, expuesta a los contenedores de Harbor por relay WSL).
+  - **Corrida 4** (RFC 63 §7 rework: loop sobre `ToolRegistry`, fs/code/web/exec, evidencia
+    gate, M49/M50, AgentCard): **14 trials (8 duras + 6 medias), mean 0.000, $0**. El
+    *mecanismo* funciona — el agente corre tools, crea artefactos, persiste steps/tokens y
+    emite el bus (verificado: `circuit-fibsqrt` creó `sim.c` y pasó `test_gates_file_exists`
+    + `test_gates_file_size`; 1 trial por `AgentTimeoutError`) — pero el pass_rate **no sube**
+    en este modelo: los artefactos quedan incompletos (`/app/polyglot` ausente, nginx
+    config ausente) o el cómputo es incorrecto. La barrera sigue siendo **capacidad del
+    modelo** (IQ2_XS de 125B) + **latencia** (timeouts a ~70 tok/s), no el loop.
   - **Lectura:** la barrera no era Atlas ni la infra, era el **modelo**. Detalle y causas
     raíz (GLIBC del binario, aislamiento del CLI de Tauri, relay de red) en `research/61`.
-  - **Gap de observabilidad pendiente:** el `AgentContext` va sin tokens/coste
-    (`populate_context_post_run` sin rellenar).
+  - **Gap de observabilidad pendiente:** el modelo externo (Harbor) no reobserva los tokens;
+    Atlas los persiste en M49/M50 dentro del contenedor. Rellenar `populate_context_post_run`
+    requiere leer el run del journal del contenedor (RFC 63 §9, pendiente).
 
 - **CI gate:** `.github/workflows/eval-gate.yml` runs the golden suite with `--strict`
   (non-zero exit on regression) on every engine change.
