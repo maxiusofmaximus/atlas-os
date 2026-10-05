@@ -291,6 +291,31 @@ export async function fetchAvailability(hudUrl: string): Promise<AvailabilityRes
   return (await res.json()) as AvailabilityResponse;
 }
 
+/** Normalise a raw WS frame into a `HudEvent`. The axum bridge forwards the
+ *  whole `BusEvent` (`{ id, kind: { type, ...fields }, ts }`); tests/older
+ *  producers may send a flat `{ kind: "x", payload }`. Both are accepted, and
+ *  the internally-tagged object becomes the event's `payload` so projections
+ *  can read its fields (`payload.agent`, `payload.run_id`, …). */
+export function normalizeWsEvent(raw: unknown): HudEvent {
+  const r = (raw ?? {}) as { id?: string; ts?: string; kind?: unknown; payload?: unknown };
+  let kind: string;
+  let payload: unknown;
+  if (r.kind && typeof r.kind === 'object') {
+    const k = r.kind as { type?: string };
+    kind = k.type ?? 'unknown';
+    payload = r.kind;
+  } else {
+    kind = typeof r.kind === 'string' ? r.kind : 'unknown';
+    payload = r.payload;
+  }
+  return {
+    id: r.id ?? crypto.randomUUID(),
+    ts: r.ts ?? new Date().toISOString(),
+    kind,
+    payload,
+  };
+}
+
 function connectWs(target: string) {
   let ws: WebSocket;
   try {
@@ -307,18 +332,7 @@ function connectWs(target: string) {
   });
   ws.addEventListener('message', (msg) => {
     try {
-      const evt = JSON.parse(msg.data as string) as {
-        id: string;
-        ts: string;
-        kind: string;
-        payload: unknown;
-      } & { type?: string };
-      const item: HudEvent = {
-        id: evt.id ?? crypto.randomUUID(),
-        ts: evt.ts ?? new Date().toISOString(),
-        kind: evt.kind ?? evt.type ?? 'unknown',
-        payload: evt.payload,
-      };
+      const item = normalizeWsEvent(JSON.parse(msg.data as string));
       update((s) => ({ ...s, events: [...s.events, item].slice(-MAX_EVENTS) }));
     } catch (err) {
       console.warn('HUD WS message parse failed', err);
@@ -1003,4 +1017,118 @@ export function agentRunTotals(steps: AgentStepPayload[]): {
     }),
     { tokens_in: 0, tokens_out: 0, cost_usd: 0 },
   );
+}
+
+// ═══════════════ RFC 65 §3 — Kanban (missions as cards) ═══════════════
+//
+// Mirrors the Rust `Mission` row served by `GET /tail/missions`
+// (id: Uuid → string, label, status). The board groups missions into the four
+// operator columns; unknown statuses fall into `running` so nothing is hidden.
+
+export type KanbanColumn = 'pending' | 'running' | 'done' | 'failed';
+
+export interface MissionRow {
+  id: string;
+  label: string;
+  status: string;
+}
+
+export const KANBAN_COLUMNS: readonly KanbanColumn[] = ['pending', 'running', 'done', 'failed'];
+
+/** Map a free-form mission status to a board column (default: running). */
+export function kanbanColumnOf(status: string): KanbanColumn {
+  const s = status.toLowerCase();
+  if (s.includes('done') || s.includes('complet') || s.includes('consolidat')) return 'done';
+  if (s.includes('fail') || s.includes('error') || s.includes('abort')) return 'failed';
+  if (s.includes('pend') || s.includes('new') || s.includes('queue')) return 'pending';
+  return 'running';
+}
+
+export async function fetchMissions(hudUrl: string): Promise<MissionRow[]> {
+  return fetchTail<MissionRow>(hudUrl, 'missions');
+}
+
+// ═══════════════ RFC 65 §3/§4 — Approvals queue (RFC 24 §6) ═══════════════
+//
+// Mirrors `BusEventKind::ApprovalRequest` (tag `approval_request`) and
+// `ApprovalDecision` (tag `approval_decision`). The drawer folds the WS tail
+// into the pending set: a request appears, its decision (or another device's)
+// removes it. Answers POST to the HUD routes added in `hud/approvals.rs`.
+
+export interface ApprovalRequestPayload {
+  approval_id: string;
+  agent_id: string;
+  action: string;
+}
+
+export interface ApprovalDecisionPayload {
+  approval_id: string;
+  decision: string;
+  user_id: string;
+}
+
+export const APPROVAL_REQUEST_KIND = 'approval_request';
+export const APPROVAL_DECISION_KIND = 'approval_decision';
+
+/** Pending approvals: requests not yet answered by any device. */
+export function projectPendingApprovals(events: HudEvent[]): ApprovalRequestPayload[] {
+  const pending = new Map<string, ApprovalRequestPayload>();
+  for (const evt of events) {
+    if (evt.kind === APPROVAL_REQUEST_KIND) {
+      const p = evt.payload as ApprovalRequestPayload | null;
+      if (p?.approval_id) pending.set(p.approval_id, p);
+    } else if (evt.kind === APPROVAL_DECISION_KIND) {
+      const d = evt.payload as ApprovalDecisionPayload | null;
+      if (d?.approval_id) pending.delete(d.approval_id);
+    }
+  }
+  return [...pending.values()];
+}
+
+export interface ApprovalAck {
+  approval_id: string;
+  decision: string;
+  user_id: string;
+}
+
+async function postApprovalDecision(
+  hudUrl: string | null,
+  approvalId: string,
+  decision: 'approve' | 'deny',
+  userId: string,
+  reason?: string,
+): Promise<ApprovalAck> {
+  const trimmed = (hudUrl ?? '').replace(/\/$/, '');
+  if (!trimmed) throw new Error('HUD URL unavailable — could not answer approval');
+  const body: Record<string, unknown> = { user_id: userId };
+  if (reason) body.reason = reason;
+  const res = await fetch(
+    `${trimmed}/hud/approvals/${encodeURIComponent(approvalId)}/${decision}`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  );
+  if (!res.ok) {
+    throw new Error(`HUD approval ${decision} failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as ApprovalAck;
+}
+
+export function approveApproval(
+  hudUrl: string | null,
+  approvalId: string,
+  userId = 'operator',
+): Promise<ApprovalAck> {
+  return postApprovalDecision(hudUrl, approvalId, 'approve', userId);
+}
+
+export function denyApproval(
+  hudUrl: string | null,
+  approvalId: string,
+  reason?: string,
+  userId = 'operator',
+): Promise<ApprovalAck> {
+  return postApprovalDecision(hudUrl, approvalId, 'deny', userId, reason);
 }

@@ -76,6 +76,11 @@ pub async fn serve(state: Arc<AppState>, shutdown: CancellationToken) {
         // stay as the newest-N projection feed.
         .route("/hud/journal", get(super::observer::get_journal_page))
         .route(
+            "/hud/approvals/:id/approve",
+            post(super::approvals::approve),
+        )
+        .route("/hud/approvals/:id/deny", post(super::approvals::deny))
+        .route(
             "/diff/:id/annotation",
             post(super::annotate::post_annotation).get(super::annotate::get_annotations),
         )

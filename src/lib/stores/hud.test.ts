@@ -7,6 +7,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { get } from 'svelte/store';
 import {
+  normalizeWsEvent,
   hud,
   toWsUrl,
   fetchTail,
@@ -16,6 +17,8 @@ import {
   projectAgentSteps,
   agentStepColor,
   agentRunTotals,
+  projectPendingApprovals,
+  kanbanColumnOf,
   type TailKind,
 } from './hud';
 
@@ -954,12 +957,79 @@ describe('RFC 63/65 — AgentCard projections', () => {
 
   it('agentRunTotals sums tokens and cost', () => {
     const steps = [
-      { run_id: 'ar_a', step: 0, action: 'run_command', observation: null, verdict: null, tokens_in: 10, tokens_out: 5, cost_usd: 0.01 },
-      { run_id: 'ar_a', step: 1, action: 'done', observation: null, verdict: 'pass', tokens_in: 20, tokens_out: 8, cost_usd: 0.02 },
+      {
+        run_id: 'ar_a',
+        step: 0,
+        action: 'run_command',
+        observation: null,
+        verdict: null,
+        tokens_in: 10,
+        tokens_out: 5,
+        cost_usd: 0.01,
+      },
+      {
+        run_id: 'ar_a',
+        step: 1,
+        action: 'done',
+        observation: null,
+        verdict: 'pass',
+        tokens_in: 20,
+        tokens_out: 8,
+        cost_usd: 0.02,
+      },
     ];
     const t = agentRunTotals(steps);
     expect(t.tokens_in).toBe(30);
     expect(t.tokens_out).toBe(13);
     expect(t.cost_usd).toBeCloseTo(0.03);
+  });
+});
+describe('RFC 65 — normalizeWsEvent (bus shape)', () => {
+  it('unwraps the internally-tagged kind object as payload', () => {
+    const raw = {
+      id: 'e1',
+      idempotency_key: 'k',
+      ts: '2026-01-01T00:00:00Z',
+      kind: { type: 'agent_step', run_id: 'ar_1', step: 0 },
+    };
+    const evt = normalizeWsEvent(raw);
+    expect(evt.kind).toBe('agent_step');
+    expect((evt.payload as { run_id: string }).run_id).toBe('ar_1');
+  });
+
+  it('accepts a flat {kind, payload} frame', () => {
+    const evt = normalizeWsEvent({ kind: 'agent_step', payload: { run_id: 'ar_2' } });
+    expect(evt.kind).toBe('agent_step');
+    expect((evt.payload as { run_id: string }).run_id).toBe('ar_2');
+  });
+
+  it('falls back to unknown for junk', () => {
+    expect(normalizeWsEvent(null).kind).toBe('unknown');
+    expect(normalizeWsEvent({}).kind).toBe('unknown');
+  });
+});
+
+describe('RFC 65 — approvals projection', () => {
+  const evt = (kind: string, payload: unknown) => ({ id: kind, ts: 't', kind, payload });
+
+  it('shows requests and removes decided ones', () => {
+    const events = [
+      evt('approval_request', { approval_id: 'a1', agent_id: 'g1', action: 'git.push' }),
+      evt('approval_request', { approval_id: 'a2', agent_id: 'g2', action: 'secrets' }),
+      evt('approval_decision', { approval_id: 'a1', decision: 'approve', user_id: 'max' }),
+    ];
+    const pending = projectPendingApprovals(events);
+    expect(pending.map((p) => p.approval_id)).toEqual(['a2']);
+  });
+});
+
+describe('RFC 65 — kanban column mapping', () => {
+  it('maps statuses to columns', () => {
+    expect(kanbanColumnOf('done')).toBe('done');
+    expect(kanbanColumnOf('completed')).toBe('done');
+    expect(kanbanColumnOf('failed')).toBe('failed');
+    expect(kanbanColumnOf('pending')).toBe('pending');
+    expect(kanbanColumnOf('running')).toBe('running');
+    expect(kanbanColumnOf('weird')).toBe('running');
   });
 });

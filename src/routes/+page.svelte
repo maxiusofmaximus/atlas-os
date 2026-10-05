@@ -23,6 +23,11 @@
   } from '$stores/hud';
   import AutoresearchCard from '$lib/components/AutoresearchCard.svelte';
   import AgentCard from '$lib/components/AgentCard.svelte';
+  import ApprovalQueue from '$lib/components/ApprovalQueue.svelte';
+  import KanbanBoard from '$lib/components/KanbanBoard.svelte';
+  import CommandPalette from '$lib/components/CommandPalette.svelte';
+  import ViewSwitcher from '$lib/components/ViewSwitcher.svelte';
+  import { activeView, type ViewId } from '$stores/views';
   import AvailabilityCard from '$lib/components/AvailabilityCard.svelte';
   import EvalCard from '$lib/components/EvalCard.svelte';
   import SwarmConsole from '$lib/components/SwarmConsole.svelte';
@@ -291,6 +296,30 @@
   function pillColor(row: Record<string, unknown>): string {
     return phaseColor(typeof row.phase === 'string' ? (row.phase as StepPhaseTag) : 'pending');
   }
+
+  // ─── RFC 65 §5 — views, command palette and hotkeys ───
+  // Views available today (P0). Later fases append to this list.
+  const availableViews: ViewId[] = ['overview', 'agent', 'kanban', 'approvals'];
+  let paletteOpen = $state(false);
+
+  function onGlobalKey(e: KeyboardEvent): void {
+    const target = e.target as HTMLElement | null;
+    const typing =
+      target &&
+      (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+    if (typing) return;
+    if (e.key === ':') {
+      e.preventDefault();
+      paletteOpen = true;
+    } else if (e.key === 'Escape') {
+      paletteOpen = false;
+    }
+  }
+
+  $effect(() => {
+    window.addEventListener('keydown', onGlobalKey);
+    return () => window.removeEventListener('keydown', onGlobalKey);
+  });
 </script>
 
 <main>
@@ -299,286 +328,318 @@
     <span class="version">v{import.meta.env.VITE_OC_VERSION ?? '0.1.0'}</span>
   </header>
 
-  <section class="hud-health">
-    <h2>HUD Mission Control</h2>
-    <p>
-      WS status:
-      <span class="status" data-state={$hud.connected ? 'online' : 'offline'}>
-        {$hud.connected ? 'connected' : 'disconnected'}
-      </span>
-    </p>
-    <p class="hud-url">
-      URL:
-      <code>{$hud.url || data.hudUrl || 'waiting…'}</code>
-    </p>
-  </section>
+  <ViewSwitcher available={availableViews} />
 
-  <section class="audit-export">
-    <h2>Audit export — posting format</h2>
-    <p class="hint">
-      Export the most recent audit-log entries to <code>.posting.yaml</code> snapshots under
-      <code>&lt;profile&gt;/snapshots/YYYY-MM-DD/</code>. Closes <em>RFC 27 §3.H Brecha H</em>.
-      Format compatible with <code>darrenburns/posting</code> (Apache-2.0), no runtime dep. See
-      <em>RFC 28 §D</em>.
-    </p>
-    <form
-      onsubmit={(e) => {
-        e.preventDefault();
-        runExportPosting();
-      }}
-    >
-      <label>
-        Last N
-        <input
-          type="number"
-          min="1"
-          max="10000"
-          bind:value={exportState.last}
-          disabled={exportState.busy}
-        />
-      </label>
-      <label>
-        Output dir (optional, defaults to <code>&lt;profile&gt;/snapshots/</code>)
-        <input
-          type="text"
-          placeholder="e.g. C:/snapshots or ./snap"
-          bind:value={exportState.outputDir}
-          disabled={exportState.busy}
-        />
-      </label>
-      <button type="submit" disabled={exportState.busy || !data.hudUrl}>
-        {exportState.busy ? 'exporting…' : 'Export as posting'}
-      </button>
-    </form>
-    {#if exportState.error}
-      <p class="error">Error: {exportState.error}</p>
-    {/if}
-    {#if exportState.result}
-      <p class="success">
-        Packed {exportState.result.entries_packed} entries into
-        {exportState.result.files_written.length} file(s)
-        {#if exportState.result.entries_purged > 0}
-          (purged {exportState.result.entries_purged})
-        {/if}
+  <CommandPalette
+    open={paletteOpen}
+    available={availableViews}
+    onclose={() => (paletteOpen = false)}
+    onaction={(a) => {
+      if (a === 'refresh') window.location.reload();
+    }}
+  />
+
+  {#if $activeView === 'agent'}
+    <section class="agent">
+      <h2>Agent (live)</h2>
+      <p class="hint">
+        RFC 63 §9 / RFC 65 §3. Step timeline of the capability layer, streamed via the Kernel Bus
+        <code>agent_step</code> event (<code>atlas agent "&lt;task&gt;" --verify</code>).
       </p>
-      <p class="snap-root">Root: <code>{exportState.result.snapshot_root}</code></p>
-      {#if exportState.result.files_written.length > 0}
-        <ul class="snap-files">
-          {#each exportState.result.files_written as f (f)}
-            <li><code>{f}</code></li>
+      <AgentCard hudUrl={data.hudUrl ?? null} />
+    </section>
+  {:else if $activeView === 'kanban'}
+    <section class="kanban">
+      <h2>Missions</h2>
+      <p class="hint">
+        RFC 65 §3. Missions as cards across Pending / Running / Done / Failed (<code
+          >GET /tail/missions</code
+        >).
+      </p>
+      <KanbanBoard hudUrl={data.hudUrl ?? null} />
+    </section>
+  {:else if $activeView === 'approvals'}
+    <section class="approvals">
+      <h2>Approvals</h2>
+      <p class="hint">
+        RFC 65 §4 / RFC 24 §6. Pending <code>Confirm</code>-class actions (RFC 18); Approve/Deny fan
+        out a decision on the Kernel Bus to every connected device.
+      </p>
+      <ApprovalQueue hudUrl={data.hudUrl ?? null} />
+    </section>
+  {:else}
+    <section class="hud-health">
+      <h2>HUD Mission Control</h2>
+      <p>
+        WS status:
+        <span class="status" data-state={$hud.connected ? 'online' : 'offline'}>
+          {$hud.connected ? 'connected' : 'disconnected'}
+        </span>
+      </p>
+      <p class="hud-url">
+        URL:
+        <code>{$hud.url || data.hudUrl || 'waiting…'}</code>
+      </p>
+    </section>
+
+    <section class="audit-export">
+      <h2>Audit export — posting format</h2>
+      <p class="hint">
+        Export the most recent audit-log entries to <code>.posting.yaml</code> snapshots under
+        <code>&lt;profile&gt;/snapshots/YYYY-MM-DD/</code>. Closes <em>RFC 27 §3.H Brecha H</em>.
+        Format compatible with <code>darrenburns/posting</code> (Apache-2.0), no runtime dep. See
+        <em>RFC 28 §D</em>.
+      </p>
+      <form
+        onsubmit={(e) => {
+          e.preventDefault();
+          runExportPosting();
+        }}
+      >
+        <label>
+          Last N
+          <input
+            type="number"
+            min="1"
+            max="10000"
+            bind:value={exportState.last}
+            disabled={exportState.busy}
+          />
+        </label>
+        <label>
+          Output dir (optional, defaults to <code>&lt;profile&gt;/snapshots/</code>)
+          <input
+            type="text"
+            placeholder="e.g. C:/snapshots or ./snap"
+            bind:value={exportState.outputDir}
+            disabled={exportState.busy}
+          />
+        </label>
+        <button type="submit" disabled={exportState.busy || !data.hudUrl}>
+          {exportState.busy ? 'exporting…' : 'Export as posting'}
+        </button>
+      </form>
+      {#if exportState.error}
+        <p class="error">Error: {exportState.error}</p>
+      {/if}
+      {#if exportState.result}
+        <p class="success">
+          Packed {exportState.result.entries_packed} entries into
+          {exportState.result.files_written.length} file(s)
+          {#if exportState.result.entries_purged > 0}
+            (purged {exportState.result.entries_purged})
+          {/if}
+        </p>
+        <p class="snap-root">Root: <code>{exportState.result.snapshot_root}</code></p>
+        {#if exportState.result.files_written.length > 0}
+          <ul class="snap-files">
+            {#each exportState.result.files_written as f (f)}
+              <li><code>{f}</code></li>
+            {/each}
+          </ul>
+        {/if}
+      {/if}
+    </section>
+
+    <section class="autoresearch">
+      <h2>Autoresearch loop</h2>
+      <p class="hint">
+        RFC 28 §A. Greedy hill-climbing on git commits; supervisor-owned keep verdict. Card waits
+        for telemetry from <code>opencode mission new --autoresearch</code>.
+      </p>
+      <AutoresearchCard snapshot={null} candidates={[]} hudUrl={data.hudUrl} />
+    </section>
+
+    <section class="swarm">
+      <h2>Swarm Console</h2>
+      <p class="hint">
+        RFC 31 §B 4.5. Office floor (munder-difflin): desks follow the Kernel Bus
+        <code>swarm_agent_spawned</code> / <code>swarm_state_changed</code> stream, the mailbox
+        drawer follows <code>swarm_message</code>, and Checks polls the worktree (CN-004).
+      </p>
+      <SwarmConsole
+        hudUrl={data.hudUrl ?? null}
+        missionId={swarmMissionId}
+        agents={swarmAgents}
+        messages={swarmMessages}
+      />
+    </section>
+
+    <section class="proactive">
+      <h2>Proactive turn</h2>
+      <p class="hint">
+        RFC 20 Fase 23. Operator availability from the calendar busy windows + the mission backlog (<code
+          >atlas calendar proactive</code
+        >, <code>GET /hud/availability</code>).
+      </p>
+      <AvailabilityCard hudUrl={data.hudUrl ?? null} />
+    </section>
+
+    <section class="eval">
+      <h2>Evaluation</h2>
+      <p class="hint">
+        RFC 20 Fase 22. pass rate, tokens/solved, $/solved and the failure-kind vector over recent
+        runs (<code>atlas eval run golden</code>, <code>atlas eval import &lt;job-dir&gt;</code>).
+      </p>
+      <EvalCard hudUrl={data.hudUrl ?? null} />
+    </section>
+
+    <section class="journal">
+      <h2>Journal tail (live)</h2>
+      {#if $hud.events.length === 0}
+        <p class="empty">No events yet. Try: <code>opencode mission new "hello world"</code>.</p>
+      {:else}
+        <ul>
+          {#each $hud.events as evt (evt.id)}
+            <li>
+              <time>{evt.ts}</time>
+              <span class="kind">{evt.kind}</span>
+              <span class="payload">{JSON.stringify(evt.payload).slice(0, 120)}</span>
+            </li>
           {/each}
         </ul>
       {/if}
-    {/if}
-  </section>
+    </section>
 
-  <section class="autoresearch">
-    <h2>Autoresearch loop</h2>
-    <p class="hint">
-      RFC 28 §A. Greedy hill-climbing on git commits; supervisor-owned keep verdict. Card waits for
-      telemetry from <code>opencode mission new --autoresearch</code>.
-    </p>
-    <AutoresearchCard snapshot={null} candidates={[]} hudUrl={data.hudUrl} />
-  </section>
+    <section class="observer">
+      <h2>Journal Observer</h2>
+      <p class="hint">
+        RFC 19 §10 / research 33 §B 6.1. Full inspection over
+        <code>GET /hud/journal</code>: newest-first pages with expandable payload, kind filter and
+        pagination.
+      </p>
+      <JournalObserver hudUrl={data.hudUrl ?? null} />
+    </section>
 
-  <section class="swarm">
-    <h2>Swarm Console</h2>
-    <p class="hint">
-      RFC 31 §B 4.5. Office floor (munder-difflin): desks follow the Kernel Bus
-      <code>swarm_agent_spawned</code> / <code>swarm_state_changed</code> stream, the mailbox drawer
-      follows <code>swarm_message</code>, and Checks polls the worktree (CN-004).
-    </p>
-    <SwarmConsole
-      hudUrl={data.hudUrl ?? null}
-      missionId={swarmMissionId}
-      agents={swarmAgents}
-      messages={swarmMessages}
-    />
-  </section>
-
-  <section class="proactive">
-    <h2>Proactive turn</h2>
-    <p class="hint">
-      RFC 20 Fase 23. Operator availability from the calendar busy windows + the mission backlog (<code
-        >atlas calendar proactive</code
-      >, <code>GET /hud/availability</code>).
-    </p>
-    <AvailabilityCard hudUrl={data.hudUrl ?? null} />
-  </section>
-
-  <section class="eval">
-    <h2>Evaluation</h2>
-    <p class="hint">
-      RFC 20 Fase 22. pass rate, tokens/solved, $/solved and the failure-kind vector over recent
-      runs (<code>atlas eval run golden</code>, <code>atlas eval import &lt;job-dir&gt;</code>).
-    </p>
-    <EvalCard hudUrl={data.hudUrl ?? null} />
-  </section>
-
-  <section class="agent">
-    <h2>Agent (live)</h2>
-    <p class="hint">
-      RFC 63 §9 / RFC 65 §3. Step timeline of the capability layer, streamed via the Kernel Bus
-      <code>agent_step</code> event (<code>atlas agent "&lt;task&gt;" --verify</code>).
-    </p>
-    <AgentCard hudUrl={data.hudUrl ?? null} />
-  </section>
-
-  <section class="journal">
-    <h2>Journal tail (live)</h2>
-    {#if $hud.events.length === 0}
-      <p class="empty">No events yet. Try: <code>opencode mission new "hello world"</code>.</p>
-    {:else}
-      <ul>
-        {#each $hud.events as evt (evt.id)}
-          <li>
-            <time>{evt.ts}</time>
-            <span class="kind">{evt.kind}</span>
-            <span class="payload">{JSON.stringify(evt.payload).slice(0, 120)}</span>
-          </li>
+    <section class="tails">
+      <h2>Pipeline tails</h2>
+      <div class="tails-grid">
+        {#each Object.values(tails) as box (box.kind)}
+          <article class="tail-box" data-kind={box.kind}>
+            <header>
+              <h3>{box.title}</h3>
+              <span class="count">{box.rows.length}</span>
+            </header>
+            {#if box.error}
+              <p class="error">{box.error}</p>
+            {:else if box.rows.length === 0}
+              <p class="empty">No rows yet.</p>
+            {:else if box.kind === 'step_states'}
+              {#each box.rows as row (rowId(row))}
+                <p class="step-row">
+                  <code>{String(row.step_id ?? '').slice(0, 8)}</code>
+                  <span class="pill" data-phase={pillColor(row)}>{row.phase}</span>
+                </p>
+              {/each}
+            {:else if box.kind === 'model_swaps'}
+              {#each box.rows as row (rowId(row))}
+                <p class="swap-row">
+                  <code>{row.prev_model_id}</code>
+                  <span aria-hidden="true">→</span>
+                  <code class="swap-new">{row.new_model_id}</code>
+                  <span class="swap-init" data-by={row.initiator}>{row.initiator}</span>
+                </p>
+              {/each}
+            {:else}
+              <ul>
+                {#each box.rows as row (rowId(row))}
+                  <li>
+                    <code>{rowId(row).slice(0, 8)}</code>
+                    <span>{rowSummary(row)}</span>
+                    {#if box.kind === 'diffs'}
+                      <button
+                        type="button"
+                        class="annotate-btn"
+                        onclick={(e) => {
+                          e.stopPropagation();
+                          void openAnnotationDrawer(row);
+                        }}
+                        aria-label="Annotate diff">✎</button
+                      >
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          </article>
         {/each}
-      </ul>
-    {/if}
-  </section>
+      </div>
+    </section>
 
-  <section class="observer">
-    <h2>Journal Observer</h2>
-    <p class="hint">
-      RFC 19 §10 / research 33 §B 6.1. Full inspection over
-      <code>GET /hud/journal</code>: newest-first pages with expandable payload, kind filter and
-      pagination.
-    </p>
-    <JournalObserver hudUrl={data.hudUrl ?? null} />
-  </section>
+    {#if drawer.open}
+      <aside class="drawer" data-open>
+        <header>
+          <h3>Annotate diff <code>{drawer.diffLabel}</code></h3>
+          <button type="button" class="drawer-close" onclick={closeDrawer} aria-label="Close"
+            >×</button
+          >
+        </header>
 
-  <section class="tails">
-    <h2>Pipeline tails</h2>
-    <div class="tails-grid">
-      {#each Object.values(tails) as box (box.kind)}
-        <article class="tail-box" data-kind={box.kind}>
-          <header>
-            <h3>{box.title}</h3>
-            <span class="count">{box.rows.length}</span>
-          </header>
-          {#if box.error}
-            <p class="error">{box.error}</p>
-          {:else if box.rows.length === 0}
-            <p class="empty">No rows yet.</p>
-          {:else if box.kind === 'step_states'}
-            {#each box.rows as row (rowId(row))}
-              <p class="step-row">
-                <code>{String(row.step_id ?? '').slice(0, 8)}</code>
-                <span class="pill" data-phase={pillColor(row)}>{row.phase}</span>
-              </p>
-            {/each}
-          {:else if box.kind === 'model_swaps'}
-            {#each box.rows as row (rowId(row))}
-              <p class="swap-row">
-                <code>{row.prev_model_id}</code>
-                <span aria-hidden="true">→</span>
-                <code class="swap-new">{row.new_model_id}</code>
-                <span class="swap-init" data-by={row.initiator}>{row.initiator}</span>
-              </p>
-            {/each}
+        <section class="drawer-ann">
+          <h4>Annotations</h4>
+          {#if drawer.loading}
+            <p class="empty">Loading…</p>
+          {:else if drawer.error}
+            <p class="error">{drawer.error}</p>
+          {:else if drawer.annotations.length === 0}
+            <p class="empty">No annotations yet.</p>
           {:else}
             <ul>
-              {#each box.rows as row (rowId(row))}
+              {#each drawer.annotations as ann (ann.id)}
                 <li>
-                  <code>{rowId(row).slice(0, 8)}</code>
-                  <span>{rowSummary(row)}</span>
-                  {#if box.kind === 'diffs'}
-                    <button
-                      type="button"
-                      class="annotate-btn"
-                      onclick={(e) => {
-                        e.stopPropagation();
-                        void openAnnotationDrawer(row);
-                      }}
-                      aria-label="Annotate diff">✎</button
-                    >
-                  {/if}
+                  <div class="ann-head">
+                    <span class="ann-author">{ann.author}</span>
+                    <time>{ann.created_at}</time>
+                  </div>
+                  <div class="ann-loc">
+                    {#if ann.file_path}<code>{ann.file_path}</code>{:else}<span class="dim"
+                        >diff-level</span
+                      >{/if}
+                    {#if ann.line_no != null}<span class="pill pill-loc">L{ann.line_no}</span>{/if}
+                  </div>
+                  <p class="ann-body">{ann.body}</p>
                 </li>
               {/each}
             </ul>
           {/if}
-        </article>
-      {/each}
-    </div>
-  </section>
+        </section>
 
-  {#if drawer.open}
-    <aside class="drawer" data-open>
-      <header>
-        <h3>Annotate diff <code>{drawer.diffLabel}</code></h3>
-        <button type="button" class="drawer-close" onclick={closeDrawer} aria-label="Close"
-          >×</button
-        >
-      </header>
-
-      <section class="drawer-ann">
-        <h4>Annotations</h4>
-        {#if drawer.loading}
-          <p class="empty">Loading…</p>
-        {:else if drawer.error}
-          <p class="error">{drawer.error}</p>
-        {:else if drawer.annotations.length === 0}
-          <p class="empty">No annotations yet.</p>
-        {:else}
-          <ul>
-            {#each drawer.annotations as ann (ann.id)}
-              <li>
-                <div class="ann-head">
-                  <span class="ann-author">{ann.author}</span>
-                  <time>{ann.created_at}</time>
-                </div>
-                <div class="ann-loc">
-                  {#if ann.file_path}<code>{ann.file_path}</code>{:else}<span class="dim"
-                      >diff-level</span
-                    >{/if}
-                  {#if ann.line_no != null}<span class="pill pill-loc">L{ann.line_no}</span>{/if}
-                </div>
-                <p class="ann-body">{ann.body}</p>
-              </li>
-            {/each}
-          </ul>
-        {/if}
-      </section>
-
-      <form class="drawer-form" onsubmit={(e) => void submitAnnotation(e as SubmitEvent)}>
-        <h4>Add annotation</h4>
-        <label>
-          <span>Author</span>
-          <input bind:value={drawer.draftAuthor} placeholder="max" required />
-        </label>
-        <label>
-          <span>Body</span>
-          <textarea
-            bind:value={drawer.draftBody}
-            placeholder="Suggestion, question, fix hint…"
-            rows="3"
-            required
-          ></textarea>
-        </label>
-        <div class="form-row">
+        <form class="drawer-form" onsubmit={(e) => void submitAnnotation(e as SubmitEvent)}>
+          <h4>Add annotation</h4>
           <label>
-            <span>File path (opt.)</span>
-            <input bind:value={drawer.draftFilePath} placeholder="src/lib.rs" />
+            <span>Author</span>
+            <input bind:value={drawer.draftAuthor} placeholder="max" required />
           </label>
           <label>
-            <span>Line no (opt.)</span>
-            <input type="number" min="1" bind:value={drawer.draftLineNo} placeholder="42" />
+            <span>Body</span>
+            <textarea
+              bind:value={drawer.draftBody}
+              placeholder="Suggestion, question, fix hint…"
+              rows="3"
+              required
+            ></textarea>
           </label>
-        </div>
-        {#if drawer.submitError}
-          <p class="error">{drawer.submitError}</p>
-        {/if}
-        <div class="form-actions">
-          <button type="submit" disabled={drawer.submitting || !data.hudUrl}>
-            {drawer.submitting ? 'Posting…' : 'Post'}
-          </button>
-        </div>
-      </form>
-    </aside>
+          <div class="form-row">
+            <label>
+              <span>File path (opt.)</span>
+              <input bind:value={drawer.draftFilePath} placeholder="src/lib.rs" />
+            </label>
+            <label>
+              <span>Line no (opt.)</span>
+              <input type="number" min="1" bind:value={drawer.draftLineNo} placeholder="42" />
+            </label>
+          </div>
+          {#if drawer.submitError}
+            <p class="error">{drawer.submitError}</p>
+          {/if}
+          <div class="form-actions">
+            <button type="submit" disabled={drawer.submitting || !data.hudUrl}>
+              {drawer.submitting ? 'Posting…' : 'Post'}
+            </button>
+          </div>
+        </form>
+      </aside>
+    {/if}
   {/if}
 </main>
 

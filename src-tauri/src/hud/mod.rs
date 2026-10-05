@@ -4,6 +4,7 @@
 // spawned by the desktop binary.
 
 pub mod annotate;
+pub mod approvals;
 pub mod autoresearch;
 pub mod availability;
 pub mod cards;
