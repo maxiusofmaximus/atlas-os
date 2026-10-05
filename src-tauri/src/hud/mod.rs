@@ -8,6 +8,7 @@ pub mod approvals;
 pub mod autoresearch;
 pub mod availability;
 pub mod cards;
+pub mod cost;
 pub mod eval;
 pub mod export;
 #[cfg(feature = "dag_mode")]

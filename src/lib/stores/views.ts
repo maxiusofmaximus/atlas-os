@@ -39,14 +39,14 @@ export const activeView: Readable<ViewId> & {
 } = {
   subscribe,
   set,
-  /** Move to the next/previous implemented view (P0 only, so hotkeys land on
-   *  something real). Unimplemented views are reachable from the switcher. */
+  /** Move to the next/previous implemented view (P0+P1, so hotkeys land on
+   *  something real). Future-fase views are reachable from the switcher. */
   cycle(dir: 1 | -1 = 1) {
     update((current) => {
-      const p0 = VIEWS.filter((v) => v.fase === 'P0').map((v) => v.id);
-      const i = p0.indexOf(current);
-      const next = (i + dir + p0.length) % p0.length;
-      return p0[next] ?? current;
+      const done = VIEWS.filter((v) => v.fase === 'P0' || v.fase === 'P1').map((v) => v.id);
+      const i = done.indexOf(current);
+      const next = (i + dir + done.length) % done.length;
+      return done[next] ?? current;
     });
   },
 };

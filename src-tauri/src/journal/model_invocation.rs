@@ -1,6 +1,8 @@
 // Atlas OS — model_invocations aggregate (RFC 04 §6 sub-fase 2.4).
 // Struct + write/record/read path extracted from journal/mod.rs in Phase 20.2.
 
+use serde::{Deserialize, Serialize};
+
 use super::Journal;
 
 /// RFC 04 §6 sub-fase 2.4 — one row of `model_invocations` (M21) as
@@ -31,7 +33,97 @@ pub struct ModelInvocationRow {
     pub error_message: Option<String>,
 }
 
+/// RFC 65 §3 — per-model cost/token roll-up over a bounded window of the
+/// most recent `model_invocations` rows. Powers the HUD `<CostDashboard>`.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct CostByModelRow {
+    pub model_id: String,
+    pub provider: String,
+    pub invocations: i64,
+    pub cost_usd: f64,
+    pub tokens_in: i64,
+    pub tokens_out: i64,
+    pub mean_latency_ms: f64,
+}
+
+/// RFC 65 §3 — window totals matching the sum of the per-model roll-up.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct CostTotals {
+    pub invocations: i64,
+    pub cost_usd: f64,
+    pub tokens_in: i64,
+    pub tokens_out: i64,
+    pub mean_latency_ms: f64,
+}
+
 impl Journal {
+    /// RFC 65 §3 — window totals over the most recent `window`
+    /// `model_invocations` rows (newest first). Empty journal → all zeros.
+    pub fn cost_totals(&self, window: i64) -> anyhow::Result<CostTotals> {
+        let conn = self.conn.lock();
+        let totals = conn.query_row(
+            "WITH ranked AS (
+                SELECT cost_usd, tokens_in, tokens_out, latency_ms,
+                       ROW_NUMBER() OVER (ORDER BY started_at DESC) AS rk
+                FROM model_invocations
+            )
+            SELECT COUNT(*),
+                   COALESCE(SUM(cost_usd), 0),
+                   COALESCE(SUM(tokens_in), 0),
+                   COALESCE(SUM(tokens_out), 0),
+                   COALESCE(AVG(latency_ms), 0)
+            FROM ranked
+            WHERE rk <= ?1",
+            rusqlite::params![window.max(0)],
+            |r| {
+                Ok(CostTotals {
+                    invocations: r.get(0)?,
+                    cost_usd: r.get(1)?,
+                    tokens_in: r.get(2)?,
+                    tokens_out: r.get(3)?,
+                    mean_latency_ms: r.get(4)?,
+                })
+            },
+        )?;
+        Ok(totals)
+    }
+
+    /// RFC 65 §3 — per-model roll-up over the most recent `window`
+    /// `model_invocations` rows, costliest first.
+    pub fn cost_by_model(&self, window: i64) -> anyhow::Result<Vec<CostByModelRow>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "WITH ranked AS (
+                SELECT model_id, provider, cost_usd, tokens_in, tokens_out, latency_ms,
+                       ROW_NUMBER() OVER (ORDER BY started_at DESC) AS rk
+                FROM model_invocations
+            )
+            SELECT model_id,
+                   provider,
+                   COUNT(*),
+                   COALESCE(SUM(cost_usd), 0),
+                   COALESCE(SUM(tokens_in), 0),
+                   COALESCE(SUM(tokens_out), 0),
+                   COALESCE(AVG(latency_ms), 0)
+            FROM ranked
+            WHERE rk <= ?1
+            GROUP BY model_id, provider
+            ORDER BY SUM(cost_usd) DESC, COUNT(*) DESC, model_id ASC",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![window.max(0)], |r| {
+            Ok(CostByModelRow {
+                model_id: r.get(0)?,
+                provider: r.get(1)?,
+                invocations: r.get(2)?,
+                cost_usd: r.get(3)?,
+                tokens_in: r.get(4)?,
+                tokens_out: r.get(5)?,
+                mean_latency_ms: r.get(6)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    }
+
     /// RFC 04 §6 sub-fase 2.4 — rolling-window means of
     /// `model_invocations.tokens_in`, `tokens_out`, and a blended
     /// input+output cost-per-1M figure for `cost_guard`'s
@@ -137,5 +229,80 @@ impl Journal {
             ],
         )?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    fn invocation(
+        id: &str,
+        model: &str,
+        provider: &str,
+        ts: &str,
+        cost: f64,
+    ) -> ModelInvocationRow {
+        ModelInvocationRow {
+            id: id.into(),
+            mission_id: None,
+            model_id: model.into(),
+            deployment_id: "dep".into(),
+            provider: provider.into(),
+            idempotency_key: format!("idem-{id}"),
+            started_at: ts.into(),
+            finished_at: Some(ts.into()),
+            latency_ms: Some(100),
+            tokens_in: Some(10),
+            tokens_out: Some(5),
+            cache_read_input_tokens: None,
+            cost_usd: Some(cost),
+            seed: None,
+            temperature: None,
+            sampling_params_json: None,
+            route_taken_json: None,
+            was_correct: None,
+            error_kind: None,
+            error_message: None,
+        }
+    }
+
+    #[test]
+    fn cost_totals_is_zero_on_empty_journal() {
+        let dir = TempDir::new().unwrap();
+        let j = Journal::open(dir.path()).unwrap();
+        let totals = j.cost_totals(200).unwrap();
+        assert_eq!(totals, CostTotals::default());
+    }
+
+    #[test]
+    fn cost_rollup_groups_by_model_and_respects_window() {
+        let dir = TempDir::new().unwrap();
+        let j = Journal::open(dir.path()).unwrap();
+        j.record_model_invocation(&invocation("a", "m1", "p1", "2026-01-01T00:00:01Z", 0.10))
+            .unwrap();
+        j.record_model_invocation(&invocation("b", "m1", "p1", "2026-01-01T00:00:03Z", 0.20))
+            .unwrap();
+        j.record_model_invocation(&invocation("c", "m2", "p2", "2026-01-01T00:00:02Z", 0.05))
+            .unwrap();
+
+        let totals = j.cost_totals(200).unwrap();
+        assert_eq!(totals.invocations, 3);
+        assert![(totals.cost_usd - 0.35).abs() < 1e-9];
+        assert_eq!(totals.tokens_in, 30);
+        assert_eq!(totals.tokens_out, 15);
+
+        let by_model = j.cost_by_model(200).unwrap();
+        assert_eq!(by_model.len(), 2);
+        assert_eq!(by_model[0].model_id, "m1");
+        assert_eq!(by_model[0].invocations, 2);
+        assert![(by_model[0].cost_usd - 0.30).abs() < 1e-9];
+        assert_eq!(by_model[1].model_id, "m2");
+
+        // Window of the 2 newest rows drops the oldest (m1 @ :01, $0.10).
+        let windowed = j.cost_totals(2).unwrap();
+        assert_eq!(windowed.invocations, 2);
+        assert![(windowed.cost_usd - 0.25).abs() < 1e-9];
     }
 }

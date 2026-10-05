@@ -26,6 +26,7 @@
   import ApprovalQueue from '$lib/components/ApprovalQueue.svelte';
   import KanbanBoard from '$lib/components/KanbanBoard.svelte';
   import CommandPalette from '$lib/components/CommandPalette.svelte';
+  import CostDashboard from '$lib/components/CostDashboard.svelte';
   import ViewSwitcher from '$lib/components/ViewSwitcher.svelte';
   import { activeView, type ViewId } from '$stores/views';
   import AvailabilityCard from '$lib/components/AvailabilityCard.svelte';
@@ -299,7 +300,7 @@
 
   // ─── RFC 65 §5 — views, command palette and hotkeys ───
   // Views available today (P0). Later fases append to this list.
-  const availableViews: ViewId[] = ['overview', 'agent', 'kanban', 'approvals'];
+  const availableViews: ViewId[] = ['overview', 'agent', 'kanban', 'approvals', 'cost'];
   let paletteOpen = $state(false);
 
   function onGlobalKey(e: KeyboardEvent): void {
@@ -366,6 +367,16 @@
         out a decision on the Kernel Bus to every connected device.
       </p>
       <ApprovalQueue hudUrl={data.hudUrl ?? null} />
+    </section>
+  {:else if $activeView === 'cost'}
+    <section class="cost-view">
+      <h2>Cost &amp; Res</h2>
+      <p class="hint">
+        RFC 65 §3. Window totals and per-model spend from <code>model_invocations</code>, cumulative
+        pressure, and the pending provider reset windows from <code>model_resets</code> (RFC 28 §H)
+        via <code>GET /hud/cost</code>.
+      </p>
+      <CostDashboard hudUrl={data.hudUrl ?? null} />
     </section>
   {:else}
     <section class="hud-health">

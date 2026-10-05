@@ -19,6 +19,8 @@ import {
   agentRunTotals,
   projectPendingApprovals,
   kanbanColumnOf,
+  fetchCost,
+  formatUsd,
   type TailKind,
 } from './hud';
 
@@ -1031,5 +1033,69 @@ describe('RFC 65 — kanban column mapping', () => {
     expect(kanbanColumnOf('pending')).toBe('pending');
     expect(kanbanColumnOf('running')).toBe('running');
     expect(kanbanColumnOf('weird')).toBe('running');
+  });
+});
+
+describe('RFC 65 — cost fetch', () => {
+  const fetchMock = vi.fn();
+  const ok = (body: unknown) => ({ ok: true, status: 200, json: async () => body });
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('requests /hud/cost with no query when window is omitted', async () => {
+    fetchMock.mockResolvedValueOnce(ok({}));
+    await fetchCost('http://localhost:57457/');
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:57457/hud/cost');
+  });
+
+  it('appends ?window=N and parses the response', async () => {
+    const body = {
+      window: 50,
+      totals: {
+        invocations: 2,
+        cost_usd: 1.5,
+        tokens_in: 100,
+        tokens_out: 40,
+        mean_latency_ms: 120,
+      },
+      by_model: [
+        {
+          model_id: 'm1',
+          provider: 'p1',
+          invocations: 2,
+          cost_usd: 1.5,
+          tokens_in: 100,
+          tokens_out: 40,
+          mean_latency_ms: 120,
+        },
+      ],
+      cumulative_usd: 1.5,
+      pressure: { level: 'ok', warn_usd: 5, crit_usd: 20 },
+      pending_resets: [
+        { provider: 'p1', model: 'm1', status_code: 429, error_type: 'rate_limit', resets_at_ms: 1 },
+      ],
+    };
+    fetchMock.mockResolvedValueOnce(ok(body));
+    const res = await fetchCost('http://h:1', 50);
+    expect(fetchMock).toHaveBeenCalledWith('http://h:1/hud/cost?window=50');
+    expect(res.by_model[0]?.model_id).toBe('m1');
+    expect(res.pending_resets[0]?.status_code).toBe(429);
+  });
+
+  it('throws on a non-OK status', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 500, statusText: 'ERR' });
+    await expect(fetchCost('http://x/')).rejects.toThrow();
+  });
+
+  it('formats USD with four decimals and guards non-finite', () => {
+    expect(formatUsd(1.5)).toBe('$1.5000');
+    expect(formatUsd(0)).toBe('$0.0000');
+    expect(formatUsd(Number.NaN)).toBe('$0.0000');
   });
 });

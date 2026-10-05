@@ -1132,3 +1132,59 @@ export function denyApproval(
 ): Promise<ApprovalAck> {
   return postApprovalDecision(hudUrl, approvalId, 'deny', userId, reason);
 }
+
+// ═══════════════ RFC 65 §3 — Cost & Res (CostDashboard) ═══════════════
+//
+// Mirrors `hud/cost.rs` (`GET /hud/cost`): window totals + per-model roll-up
+// from `model_invocations`, cumulative spend with its pressure level, and the
+// pending `model_resets` windows (RFC 28 §H).
+
+export interface CostByModel {
+  model_id: string;
+  provider: string;
+  invocations: number;
+  cost_usd: number;
+  tokens_in: number;
+  tokens_out: number;
+  mean_latency_ms: number;
+}
+
+export interface CostTotals {
+  invocations: number;
+  cost_usd: number;
+  tokens_in: number;
+  tokens_out: number;
+  mean_latency_ms: number;
+}
+
+export interface PendingReset {
+  provider: string;
+  model: string;
+  status_code: number;
+  error_type: string | null;
+  resets_at_ms: number;
+}
+
+export interface CostResponse {
+  window: number;
+  totals: CostTotals;
+  by_model: CostByModel[];
+  cumulative_usd: number;
+  pressure: { level: MonitorPressure; warn_usd: number; crit_usd: number };
+  pending_resets: PendingReset[];
+}
+
+export async function fetchCost(hudUrl: string, window?: number): Promise<CostResponse> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const query = window ? `?window=${encodeURIComponent(window)}` : '';
+  const res = await fetch(`${trimmed}/hud/cost${query}`);
+  if (!res.ok) {
+    throw new Error(`HUD cost failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as CostResponse;
+}
+
+/** Compact USD formatting for the cost table (`$0.0000`). */
+export function formatUsd(n: number): string {
+  return `$${(Number.isFinite(n) ? n : 0).toFixed(4)}`;
+}

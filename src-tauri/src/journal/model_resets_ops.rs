@@ -83,6 +83,16 @@ impl Journal {
         )
     }
 
+    /// RFC 65 §3 — pending reset windows (undismissed, `resets_at` still in the
+    /// future) for the HUD `<CostDashboard>` resources panel. Read-only.
+    pub fn pending_model_resets(
+        &self,
+        now: chrono::DateTime<chrono::Utc>,
+    ) -> anyhow::Result<Vec<ModelResetRow>> {
+        let conn = self.conn.lock();
+        crate::journal::model_resets::pending_resets(&conn, now)
+    }
+
     /// Count of `model_resets` rows for a given `(provider, model)`
     /// pair (regardless of pending / dismissed state). Used by tests
     /// to assert idempotency of `handle_spend_limit_error` — production

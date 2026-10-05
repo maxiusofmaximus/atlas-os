@@ -106,6 +106,7 @@ pub async fn serve(state: Arc<AppState>, shutdown: CancellationToken) {
             get(super::remote_status::get_remote_status),
         )
         .route("/hud/eval/summary", get(super::eval::get_eval_summary))
+        .route("/hud/cost", get(super::cost::get_cost))
         .route(
             "/hud/availability",
             get(super::availability::get_availability),
