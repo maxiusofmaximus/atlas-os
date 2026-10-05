@@ -8,10 +8,10 @@ use super::commands::ResearchCmd;
 #[cfg(feature = "toast")]
 use super::commands::ToastCmd;
 use super::commands::{
-    AgentCmd, AuditCmd, CalendarCmd, EvalCmd, ExecCmd, ExecuteCmd, ForkCmd, HudCmd, JournalCmd,
-    LearnCmd, McpCmd, MissionCmd, MobileCmd, ModelsCmd, MonitorCmd, PlanCmd, ProfileCmd, RemoteCmd,
-    ResumeCmd, RunCmd, SecurityCmd, SisterCmd, SkillCmd, SteerCmd, SwapModelCmd, SwarmCmd,
-    ValidateCmd,
+    AgentCmd, AuditCmd, CalendarCmd, DomainCmd, EvalCmd, ExecCmd, ExecuteCmd, ForkCmd, HudCmd,
+    JournalCmd, LearnCmd, McpCmd, MissionCmd, MobileCmd, ModelsCmd, MonitorCmd, PlanCmd,
+    ProfileCmd, RemoteCmd, ResumeCmd, RunCmd, SecurityCmd, SisterCmd, SkillCmd, SteerCmd,
+    SwapModelCmd, SwarmCmd, ValidateCmd,
 };
 #[derive(Parser, Debug)]
 #[command(name = "atlas", version, propagate_version = true)]
@@ -79,6 +79,8 @@ pub enum Commands {
     Mcp(McpCmd),
     /// Skill management (RFC 06).
     Skill(SkillCmd),
+    /// Domain packs — list/use/probe/open/guide/install (RFC 64, Fase 28).
+    Domain(DomainCmd),
     /// Sister IDE-in-a-terminal frame — text Document Model over the same
     /// Kernel Bus data the HUD serves (RFC 20 Phase 8.4).
     Sister(SisterCmd),

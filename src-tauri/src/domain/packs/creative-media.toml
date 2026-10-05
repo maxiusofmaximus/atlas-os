@@ -1,0 +1,27 @@
+[domain]
+id = "creative-media"
+title = "3D / Asset / Render"
+version = "0.1.0"
+detect = ["*.blend", "*.fbx", "*.gltf", "*.glb", "*.obj", "blender"]
+
+[engines]
+planning = "default"
+coding = "default"
+validation = ["asset.renders", "export.gltf"]
+
+[skills]
+bundled = ["creative.img-to-threejs", "creative.asset-review"]
+
+[mcp]
+servers = ["blender-mcp"]
+
+[tools.lateral]
+open = ["blender"]
+probe = "atlas domain probe creative-media"
+
+[artifacts]
+types = ["blend", "gltf", "render.png", "preview.mp4"]
+
+[policy]
+sensitive = ["exec.run", "fs.write.*"]
+sandbox = "container"

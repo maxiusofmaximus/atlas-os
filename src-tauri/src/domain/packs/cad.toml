@@ -1,0 +1,27 @@
+[domain]
+id = "cad"
+title = "Mechanical / Parametric CAD"
+version = "0.1.0"
+detect = ["*.step", "*.stp", "*.stl", "*.f3d", "cadquery", "openscad", "freecad"]
+
+[engines]
+planning = "default"
+coding = "code-as-cad"
+validation = ["geometry.manifold", "units.consistent", "export.step"]
+
+[skills]
+bundled = ["cad.text-to-cadquery", "cad.parametric-review", "cad.gdt-check"]
+
+[mcp]
+servers = ["freecad-mcp", "blender-mcp"]
+
+[tools.lateral]
+open = ["freecad", "openscad", "zoo"]
+probe = "atlas domain probe cad"
+
+[artifacts]
+types = ["step", "stl", "render.png", "drawing.pdf"]
+
+[policy]
+sensitive = ["exec.run", "fs.write.*"]
+sandbox = "container"

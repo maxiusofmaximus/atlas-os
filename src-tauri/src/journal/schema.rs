@@ -14,7 +14,7 @@ use rusqlite::Connection;
 /// log and must never be renumbered. When adding M(N+1): bump this const
 /// AND change the final migration's `params![N, …]` to
 /// `params![CURRENT_SCHEMA_VERSION, …]` (same value).
-pub const CURRENT_SCHEMA_VERSION: i64 = 39;
+pub const CURRENT_SCHEMA_VERSION: i64 = 40;
 
 pub fn migrate(conn: &Connection) -> Result<()> {
     // M0 — Schema versioning.
@@ -1831,6 +1831,35 @@ pub fn migrate(conn: &Connection) -> Result<()> {
         conn.execute(
             "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
             rusqlite::params![39, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
+    // M51 (v40) — RFC 64 §7: domain packs + domain-scoped runs (Fase 28).
+    if current < 40 {
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS domain_packs (
+                id            TEXT PRIMARY KEY,
+                title         TEXT NOT NULL,
+                version       TEXT NOT NULL,
+                manifest_toml TEXT NOT NULL,
+                sha256        TEXT,
+                signed        INTEGER NOT NULL DEFAULT 0,
+                installed     INTEGER NOT NULL DEFAULT 1,
+                ts            INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS domain_runs (
+                id           TEXT PRIMARY KEY,
+                mission_id   TEXT NOT NULL REFERENCES missions(id) ON DELETE CASCADE,
+                domain_id    TEXT NOT NULL,
+                pack_version TEXT NOT NULL,
+                status       TEXT NOT NULL,
+                ts_started   INTEGER NOT NULL,
+                ts_ended     INTEGER
+            );
+            CREATE INDEX IF NOT EXISTS idx_domain_runs_mission ON domain_runs(mission_id, ts_started);",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![40, chrono::Utc::now().to_rfc3339()],
         )?;
     }
     Ok(())

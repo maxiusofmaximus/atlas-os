@@ -8,6 +8,7 @@ pub mod ast_symbols;
 pub mod autoresearch;
 pub mod calendar_ops;
 pub mod compaction;
+pub mod domain;
 pub mod eval_runs;
 pub mod export;
 pub mod frecency;
@@ -42,6 +43,7 @@ pub use agent_events::AgentSessionEventRow;
 pub use ast_symbols::AstSymbolRow;
 
 pub use agent_runs::{AgentRunRow, AgentStepRow, ArtifactRow, ToolInvocationRow};
+pub use domain::{DomainPackRow, DomainRunRow};
 pub use eval_runs::{EvalCaseInput, EvalCaseRow, EvalRunRow, EvalRunStart, EvalTotals};
 
 pub use model_resets::ModelResetRow;

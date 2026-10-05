@@ -4,6 +4,7 @@
 pub mod agent;
 pub mod audit;
 pub mod calendar;
+pub mod domain;
 pub mod eval;
 pub mod exec;
 pub mod execute;
@@ -35,6 +36,7 @@ pub mod validate;
 pub use agent::AgentCmd;
 pub use audit::AuditCmd;
 pub use calendar::CalendarCmd;
+pub use domain::DomainCmd;
 pub use eval::EvalCmd;
 pub use exec::ExecCmd;
 pub use execute::ExecuteCmd;
@@ -85,6 +87,7 @@ pub async fn dispatch(cmd: Commands, profile: &str) -> Result<()> {
         Commands::Hud(c) => hud::run(c, profile).await,
         Commands::Mcp(c) => mcp::run(c, profile).await,
         Commands::Skill(c) => skill::run(c, profile).await,
+        Commands::Domain(c) => domain::run(c, profile).await,
         Commands::Security(c) => security::run(c, profile).await,
         Commands::Sister(c) => sister::run(c, profile).await,
         Commands::Swarm(c) => swarm::run(c, profile).await,

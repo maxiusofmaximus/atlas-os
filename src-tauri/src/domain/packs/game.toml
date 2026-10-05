@@ -1,0 +1,27 @@
+[domain]
+id = "game"
+title = "Video Games"
+version = "0.1.0"
+detect = ["project.godot", "*.tscn", "*.gdscript", "Assets/", "ProjectSettings/", "*.uproject"]
+
+[engines]
+planning = "default"
+coding = "default"
+validation = ["assets.valid", "scene.parses"]
+
+[skills]
+bundled = ["game.scene-review", "game.asset-check"]
+
+[mcp]
+servers = []
+
+[tools.lateral]
+open = ["godot"]
+probe = "atlas domain probe game"
+
+[artifacts]
+types = ["scene", "asset", "build"]
+
+[policy]
+sensitive = ["exec.run", "fs.write.*"]
+sandbox = "container"
