@@ -1,7 +1,7 @@
 # RFC 63 — Agentic Capability Engine (Fase 27)
 
 **Author:** opencode architect agent · **Date:** 2026-10-04
-**Status:** Proposed — 0 de los 13 items implementados.
+**Status:** In progress — 10/13 implementados; 1 diferido (Daytona/E2B opt-in), 2 bloqueados por capacidad del modelo (`≥0.10`/`≥0.50` pass_rate). Ver §12.
 **Depends on:** RFC 03 (Engines), RFC 04 (Orchestrator), RFC 05 (Swarm), RFC 13 (Coding), RFC 14 (Validation), RFC 15 (Repair), RFC 18 (Security), RFC 19 (Supervisor), RFC 25 (Stack), RFC 28 §I (terminal-browser), `research/61` (audit), `research/62` (genealogy).
 **Scope:** Cierra la **brecha #1** de la auditoría `61` — la capacidad agéntica end-to-end (Terminal-Bench 2 = **0.000**, F38 agent-mode **0/11**). Añade una **Capa de Capacidad** (tool registry + sandbox de ejecución + verificación de artefactos + instrumentación de tokens/coste) y endurece el bucle agéntico hasta un success-predicate con evidencia. Sin crates obligatorias nuevas; sandbox local por defecto, backends laterales (WSL2/Daytona/E2B) opcionales.
 
@@ -157,16 +157,16 @@ atlas bench terminal-bench --agent atlas --limit 20   # harness de capacidad
 
 ## 12. Checklist
 
-1. ⏳ `Tool` trait + `ToolRegistry` (`orchestrator/tools/`).
-2. ⏳ Tools `fs.*` (read/write/edit/list/glob/grep).
-3. ⏳ Tool `exec.run` + trait `Sandbox` + backend `Local`.
-4. ⏳ Backend `Wsl2` (lateral) + `Daytona`/`E2B` (features opt-in).
-5. ⏳ `code.apply_diff` + `web.fetch`/`web.search` + `browse.*` (RFC 28 §I lateral).
-6. ⏳ `ArtifactVerifier` + wiring a `EvidenceGate`.
-7. ⏳ M49/M50 (`agent_runs`/`agent_steps`/`tool_invocations`/`artifacts`).
-8. ⏳ Rework de `orchestrator/agent.rs` (success_predicate + repair + re-observación).
-9. ⏳ Instrumentación `AgentContext` (tokens/coste) + `AgentStep` bus event; **gate Terminal-Bench ≥0.10**.
-10. ⏳ `atlas agent tools` + `--verify` + `--sandbox`.
-11. ⏳ `AgentCard.svelte` (live) — coordina con RFC 65.
-12. ⏳ CI `agent-bench.yml` (ratchet).
-13. ⏳ Subir capacidad: `pass_rate ≥0.50`, F38 `≥5/11`.
+1. [x] `Tool` trait + `ToolRegistry` (`orchestrator/tools/`): `registry.rs`, `mod.rs`.
+2. [x] Tools `fs.*` (`orchestrator/tools/fs.rs`: read/write/edit/list/glob/grep).
+3. [x] Tool `exec.run` + trait `Sandbox` + backend `Local` (`orchestrator/sandbox/{mod,local}.rs`).
+4. [x] Backend `Wsl2` (lateral, `sandbox/wsl2.rs`). `Daytona`/`E2B` (features opt-in) **⏳ diferidos** (no hay crates/features en `Cargo.toml`).
+5. [x] `code.apply_diff` + `web.fetch`/`web.search` + `browse.*` (`tools/code.rs`, `tools/web.rs`, `tools/browse.rs`; RFC 28 §I lateral).
+6. [x] `ArtifactVerifier` (`orchestrator/artifacts.rs::verify_artifacts`) + `success_predicate` gate.
+7. [x] M49/M50 (`agent_runs`/`agent_steps`/`tool_invocations`/`artifacts`, `journal/agent_runs.rs`).
+8. [x] Rework de `orchestrator/agent.rs` (loop sobre ToolRegistry + reparación + re-observación).
+9. [~] Instrumentación `AgentContext` (tokens/coste) + `AgentStep` bus events ✅. **Gate Terminal-Bench ≥0.10: ⏳ BLOQUEADO por capacidad del modelo** (README corrida 4: mean 0.000; oracle 0.88 en el mismo harness → el instrumento mide bien).
+10. [x] `atlas agent --list-tools` + `--verify` + `--sandbox` (verificado: 6 tools, fallback local en Linux).
+11. [x] `AgentCard.svelte` (live) — entregado en RFC 65 (`c76bf68`).
+12. [~] CI gate de capacidad `eval-gate.yml` (golden incl. `agent.loop_closes` + `agent.evidence_blocks_done`) ✅. Ratchet `agent-bench.yml`/Terminal-Bench **⏳ diferido** (harness Harbor externo).
+13. [~] Subir capacidad `pass_rate ≥0.50`, F38 `≥5/11` — **⏳ BLOQUEADO por capacidad del modelo** (barrera medida, igual que item 9).
