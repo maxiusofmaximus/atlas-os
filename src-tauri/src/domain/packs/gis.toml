@@ -1,0 +1,27 @@
+[domain]
+id = "gis"
+title = "Civil / Topography / GIS"
+version = "0.1.0"
+detect = ["*.shp", "*.geojson", "*.gpkg", "*.qgz", "*.qgs", "qgis", "opencadstudio"]
+
+[engines]
+planning = "default"
+coding = "default"
+validation = ["geometry.valid", "crs.consistent", "export.geojson"]
+
+[skills]
+bundled = ["gis.layer-review", "gis.crs-check"]
+
+[mcp]
+servers = []
+
+[tools.lateral]
+open = ["qgis"]
+probe = "atlas domain probe gis"
+
+[artifacts]
+types = ["geojson", "shp", "render.png"]
+
+[policy]
+sensitive = ["exec.run", "fs.write.*"]
+sandbox = "container"

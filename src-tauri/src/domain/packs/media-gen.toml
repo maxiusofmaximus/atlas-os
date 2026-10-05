@@ -1,0 +1,27 @@
+[domain]
+id = "media-gen"
+title = "Media Generation (video / image / audio)"
+version = "0.1.0"
+detect = ["*.mp4", "*.mov", "*.webm", "generated/", "media/", "*.png", "*.jpg"]
+
+[engines]
+planning = "default"
+coding = "default"
+validation = ["media.exists", "codec.playable"]
+
+[skills]
+bundled = ["media.prompt-to-clip", "media.asset-review"]
+
+[mcp]
+servers = []
+
+[tools.lateral]
+open = ["ffmpeg"]
+probe = "atlas domain probe media-gen"
+
+[artifacts]
+types = ["mp4", "png", "wav", "preview.mp4"]
+
+[policy]
+sensitive = ["exec.run", "fs.write.*", "web.fetch"]
+sandbox = "local"

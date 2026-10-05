@@ -1,0 +1,27 @@
+[domain]
+id = "mobile"
+title = "Android / Mobile"
+version = "0.1.0"
+detect = ["AndroidManifest.xml", "build.gradle", "build.gradle.kts", "*.kt", "*.apk", "tauri.conf.json"]
+
+[engines]
+planning = "default"
+coding = "default"
+validation = ["gradle.builds", "apk.signed"]
+
+[skills]
+bundled = ["mobile.reproduce-bug", "mobile.write-tests"]
+
+[mcp]
+servers = []
+
+[tools.lateral]
+open = ["artemis"]
+probe = "atlas domain probe mobile"
+
+[artifacts]
+types = ["apk", "screenshot", "logcat"]
+
+[policy]
+sensitive = ["exec.run", "fs.write.*"]
+sandbox = "container"

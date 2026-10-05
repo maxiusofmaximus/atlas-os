@@ -15,6 +15,9 @@ const BUILTIN: &[(&str, &str)] = &[
     ("cad", include_str!("packs/cad.toml")),
     ("game", include_str!("packs/game.toml")),
     ("creative-media", include_str!("packs/creative-media.toml")),
+    ("mobile", include_str!("packs/mobile.toml")),
+    ("gis", include_str!("packs/gis.toml")),
+    ("media-gen", include_str!("packs/media-gen.toml")),
 ];
 
 #[derive(Clone, Debug, Default)]
@@ -110,13 +113,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn builtin_seed_has_the_four_packs() {
+    fn builtin_seed_has_the_seven_packs() {
         let reg = DomainRegistry::builtin();
-        assert!(reg.get("coding").is_some());
-        assert!(reg.get("cad").is_some());
-        assert!(reg.get("game").is_some());
-        assert!(reg.get("creative-media").is_some());
-        assert!(reg.list().len() >= 4);
+        for id in [
+            "coding",
+            "cad",
+            "game",
+            "creative-media",
+            "mobile",
+            "gis",
+            "media-gen",
+        ] {
+            assert!(reg.get(id).is_some(), "missing seed pack {id}");
+        }
+        assert!(reg.list().len() >= 7);
     }
 
     #[test]
