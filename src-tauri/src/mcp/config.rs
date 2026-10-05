@@ -141,6 +141,47 @@ impl McpServerConfig {
         !self.allowed_tools.is_empty()
     }
 
+    /// RFC 07 §2 — the isolation this server MUST run under given its trust.
+    /// An unsigned server is forced to `container`; a signed one is floored at
+    /// `vuOnly` (a known signature still never runs un-isolated). An explicit
+    /// stronger declaration is never downgraded.
+    pub fn effective_sandbox(&self) -> McpSandbox {
+        if !self.trusted {
+            McpSandbox::Container
+        } else {
+            match self.sandbox {
+                McpSandbox::None => McpSandbox::VuOnly,
+                declared => declared,
+            }
+        }
+    }
+
+    /// Whether the runtime can *enforce* [`Self::effective_sandbox`] today.
+    /// Fase 29.0 only spawns on the host, so `vuOnly`/`container` are declared
+    /// but not yet enforced; this flips to real isolation in Fase 29.1.
+    pub fn is_sandbox_enforced(&self) -> bool {
+        matches!(self.effective_sandbox(), McpSandbox::None)
+    }
+
+    /// A human-facing RFC 07 §2 finding, when the declaration is weaker than
+    /// policy or the required isolation is not yet enforceable. `None` = clean.
+    pub fn sandbox_finding(&self) -> Option<String> {
+        let effective = self.effective_sandbox();
+        if effective != self.sandbox {
+            return Some(format!(
+                "declared sandbox `{}` is weaker than policy `{effective}` for an {} server (RFC 07 §2)",
+                self.sandbox,
+                if self.trusted { "signed" } else { "unsigned" }
+            ));
+        }
+        if !self.is_sandbox_enforced() {
+            return Some(format!(
+                "requires `{effective}` isolation, not enforced yet (Fase 29.1) — only run servers you trust until then"
+            ));
+        }
+        None
+    }
+
     /// The full argv to spawn: `command` followed by `args`.
     pub fn argv(&self) -> Vec<String> {
         let mut v = Vec::with_capacity(1 + self.args.len());
@@ -448,6 +489,36 @@ mod tests {
         let cfg = McpServerConfig::new("cmd");
         assert!(!cfg.exposes_any());
         assert!(!cfg.is_tool_allowed("anything"));
+    }
+
+    #[test]
+    fn unsigned_server_is_forced_to_container() {
+        // RFC 07 §2: no signature ⇒ container, regardless of the declaration.
+        let mut cfg = McpServerConfig::new("cmd");
+        cfg.sandbox = McpSandbox::None;
+        assert!(!cfg.trusted);
+        assert_eq!(cfg.effective_sandbox(), McpSandbox::Container);
+        assert!(cfg.sandbox_finding().unwrap().contains("weaker"));
+    }
+
+    #[test]
+    fn signed_server_floors_at_vuonly() {
+        // A known signature still never runs un-isolated.
+        let mut cfg = McpServerConfig::new("cmd");
+        cfg.trusted = true;
+        cfg.sandbox = McpSandbox::None;
+        assert_eq!(cfg.effective_sandbox(), McpSandbox::VuOnly);
+        assert!(cfg.sandbox_finding().is_some());
+    }
+
+    #[test]
+    fn matching_container_is_not_weaker_but_still_unenforced() {
+        let mut cfg = McpServerConfig::new("cmd");
+        cfg.sandbox = McpSandbox::Container; // the unsigned default
+        assert_eq!(cfg.effective_sandbox(), cfg.sandbox);
+        let finding = cfg.sandbox_finding().expect("isolation not enforced yet");
+        assert!(finding.contains("not enforced"), "{finding}");
+        assert!(!cfg.is_sandbox_enforced());
     }
 
     #[test]

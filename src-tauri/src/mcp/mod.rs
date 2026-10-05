@@ -14,8 +14,12 @@
 //   * `client`   — stdio transport + `initialize`/`tools/list`/
 //                  `tools/call`, timeout-bounded, allowlist-enforced.
 //
-// Sandbox enforcement (RFC 07 §2), supply-chain verification (§3), the
-// RFC 63 `ToolRegistry` bridge and telemetry (§8) are later sub-phases.
+// Sandbox *policy* (RFC 07 §2) is applied in `config::McpServerConfig`
+// (`effective_sandbox`/`sandbox_finding`): an unsigned server is forced to
+// `container`, a signed one floored at `vuOnly`, and `atlas mcp list/add/probe/
+// call` surface the finding (warn by default, refuse under `--strict`).
+// Real isolation (running under vuOnly/container), supply-chain verification
+// (§3), the RFC 63 `ToolRegistry` bridge and telemetry (§8) are later sub-phases.
 //
 // No new crate: transport rides `tokio::process`, framing rides
 // `serde_json`, errors ride `thiserror` — all already in the tree

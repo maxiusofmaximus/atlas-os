@@ -52,7 +52,12 @@ pub enum McpAction {
     /// Remove a server from the registry.
     Remove { name: String },
     /// Connect, handshake and list the server's tools (read-only).
-    Probe { name: String },
+    Probe {
+        name: String,
+        /// Refuse to spawn when the server's required sandbox is not enforceable (RFC 07 §2).
+        #[arg(long, default_value_t = false)]
+        strict: bool,
+    },
     /// Call a tool (enforced against the server's `allowed_tools`).
     Call {
         name: String,
@@ -60,6 +65,9 @@ pub enum McpAction {
         /// JSON arguments object, e.g. --args '{"libraryId":"/x/y"}'.
         #[arg(long, default_value = "{}")]
         args: String,
+        /// Refuse to spawn when the server's required sandbox is not enforceable (RFC 07 §2).
+        #[arg(long, default_value_t = false)]
+        strict: bool,
     },
 }
 
@@ -77,8 +85,13 @@ pub async fn run(cmd: McpCmd, profile: &str) -> Result<()> {
             allow,
         } => add(&root, name, command, args, env, trusted, &sandbox, allow),
         McpAction::Remove { name } => remove(&root, &name),
-        McpAction::Probe { name } => probe(&root, &name).await,
-        McpAction::Call { name, tool, args } => call(&root, &name, &tool, &args).await,
+        McpAction::Probe { name, strict } => probe(&root, &name, strict).await,
+        McpAction::Call {
+            name,
+            tool,
+            args,
+            strict,
+        } => call(&root, &name, &tool, &args, strict).await,
     }
 }
 
@@ -119,11 +132,19 @@ fn list(root: &std::path::Path) -> Result<()> {
         } else {
             "no tools exposed".to_string()
         };
+        let effective = cfg.effective_sandbox();
+        let sandbox = if effective == cfg.sandbox {
+            format!("{}", cfg.sandbox)
+        } else {
+            format!("{}→{effective}", cfg.sandbox)
+        };
         println!(
             "  {name}  [{sandbox}] {trust} {enabled} — {tools}\n    {}",
-            cfg.argv().join(" "),
-            sandbox = cfg.sandbox
+            cfg.argv().join(" ")
         );
+        if let Some(finding) = cfg.sandbox_finding() {
+            println!("    ! {finding}");
+        }
     }
     Ok(())
 }
@@ -149,6 +170,7 @@ fn add(
         .map_err(|e| anyhow::anyhow!(e))?;
     cfg.allowed_tools = allow;
     cfg.validate().map_err(|e| anyhow::anyhow!(e))?;
+    let finding = cfg.sandbox_finding();
     let replaced = registry.insert(name.clone(), cfg).is_some();
     let path = McpRegistry::config_path(root);
     registry.save(&path)?;
@@ -157,6 +179,9 @@ fn add(
         if replaced { "replaced" } else { "added" },
         path.display()
     );
+    if let Some(f) = finding {
+        println!("mcp: note — {f}");
+    }
     Ok(())
 }
 
@@ -185,12 +210,26 @@ fn parse_env(entries: &[String]) -> Result<BTreeMap<String, String>> {
     Ok(env)
 }
 
-async fn probe(root: &std::path::Path, name: &str) -> Result<()> {
+/// RFC 07 §2 — warn (default) or refuse (`--strict`) before spawning a server
+/// whose required isolation the runtime cannot yet enforce. Fail-safe: never
+/// silently run an unsandboxed server when policy demands isolation.
+fn enforce_sandbox(name: &str, cfg: &McpServerConfig, strict: bool) -> Result<()> {
+    if let Some(finding) = cfg.sandbox_finding() {
+        if strict {
+            bail!("mcp: refusing `{name}` under --strict — {finding}");
+        }
+        eprintln!("mcp: WARNING — {finding}");
+    }
+    Ok(())
+}
+
+async fn probe(root: &std::path::Path, name: &str, strict: bool) -> Result<()> {
     let registry = load_registry(root)?;
     let cfg = registry
         .get(name)
         .with_context(|| format!("no MCP server named `{name}` in the registry"))?;
     cfg.validate().map_err(|e| anyhow::anyhow!(e))?;
+    enforce_sandbox(name, cfg, strict)?;
 
     let mut client = McpClient::connect(name, cfg)
         .await
@@ -219,12 +258,19 @@ async fn probe(root: &std::path::Path, name: &str) -> Result<()> {
     Ok(())
 }
 
-async fn call(root: &std::path::Path, name: &str, tool: &str, args: &str) -> Result<()> {
+async fn call(
+    root: &std::path::Path,
+    name: &str,
+    tool: &str,
+    args: &str,
+    strict: bool,
+) -> Result<()> {
     let registry = load_registry(root)?;
     let cfg = registry
         .get(name)
         .with_context(|| format!("no MCP server named `{name}` in the registry"))?;
     cfg.validate().map_err(|e| anyhow::anyhow!(e))?;
+    enforce_sandbox(name, cfg, strict)?;
     let arguments: Value = serde_json::from_str(args).context("`--args` must be a JSON value")?;
 
     let mut client = McpClient::connect(name, cfg)
