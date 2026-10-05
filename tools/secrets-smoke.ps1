@@ -60,12 +60,12 @@ $env:OC_PROFILE = $scratch
 New-Item -ItemType Directory -Force $scratchRoot | Out-Null
 
 try {
-    Write-Host "`n[1/3] set (value on stdin)..." -ForegroundColor Cyan
+    Write-Host "`n[1/4] set (value on stdin)..." -ForegroundColor Cyan
     $out = ($value | & $Bin secrets set $acct 2>&1 | Out-String)
     Assert-True ($LASTEXITCODE -eq 0) "set returned exit 0"
     Assert-Contains $out $acct "set reports the account"
 
-    Write-Host "`n[2/3] get (masked) + get --show..." -ForegroundColor Cyan
+    Write-Host "`n[2/4] get (masked) + get --show..." -ForegroundColor Cyan
     $masked = (& $Bin secrets get $acct 2>&1 | Out-String)
     Assert-Contains $masked $acct "get names the account"
     Assert-True ($masked -notlike "*$value*") "masked get does NOT leak the raw value"
@@ -75,7 +75,21 @@ try {
     Assert-Contains $list $acct "list includes the account"
     Assert-Contains $list "[stored]" "list marks it stored"
 
-    Write-Host "`n[3/3] delete + idempotence..." -ForegroundColor Cyan
+    Write-Host "`n[3/4] import (file + --consume)..." -ForegroundColor Cyan
+    $impAcct = "atlas-smoke-imp-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+    $impVal = "sk-imp-$([guid]::NewGuid().ToString('N').Substring(0,12))"
+    $impFile = Join-Path $scratchRoot "secretos.txt"
+    $template = "# Pruebas`n$impAcct = $impVal`nCAMPO_VACIO =`n"
+    [System.IO.File]::WriteAllText($impFile, $template, [System.Text.UTF8Encoding]::new($false))
+    $impOut = (& $Bin secrets import $impFile --consume 2>&1 | Out-String)
+    Assert-Contains $impOut "1 secret(s)" "import reports one stored secret"
+    $impNow = (& $Bin secrets get $impAcct --show 2>&1 | Out-String).Trim()
+    Assert-True ($impNow -eq $impVal) "imported value resolves from the keychain"
+    $fileNow = [System.IO.File]::ReadAllText($impFile)
+    Assert-True ($fileNow -notlike "*$impVal*") "plaintext value was blanked from the file"
+    & $Bin secrets delete $impAcct 2>&1 | Out-Null
+
+    Write-Host "`n[4/4] delete + idempotence..." -ForegroundColor Cyan
     $del = (& $Bin secrets delete $acct 2>&1 | Out-String)
     Assert-Contains $del "deleted" "first delete removes it"
     $after = (& $Bin secrets get $acct 2>&1 | Out-String)

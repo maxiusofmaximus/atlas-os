@@ -239,6 +239,7 @@ Config:
   secrets   set <slot>            stored in OS keychain (value via stdin).
   secrets   get <slot> [--show]   masked preview, or the raw value.
   secrets   list / delete <slot>  enumerate / remove (names, never values).
+  secrets   import <file> [--consume]  load `NOMBRE = valor` fields from a text file.
 
 Sandbox:
   sandbox   exec <cmd> [...]     Run inside sandboxProfile.

@@ -44,6 +44,17 @@ pub enum SecretsAction {
     List,
     /// Delete a secret from the OS keychain.
     Delete { account: String },
+    /// Import secrets from a simple text file of `NOMBRE = valor` lines
+    /// (open it in Notepad, write your key after the `=`). Blank values are
+    /// skipped so the file can be a reusable template.
+    Import {
+        /// Path to the plain-text file.
+        file: String,
+        /// Blank the imported values in the file afterwards, so the plaintext
+        /// key does not stay on disk.
+        #[arg(long, default_value_t = false)]
+        consume: bool,
+    },
 }
 
 pub async fn run(cmd: SecretsCmd, profile: &str) -> Result<()> {
@@ -53,6 +64,7 @@ pub async fn run(cmd: SecretsCmd, profile: &str) -> Result<()> {
         SecretsAction::Get { account, show } => get(&account, show),
         SecretsAction::List => list(&root),
         SecretsAction::Delete { account } => delete(&root, &account),
+        SecretsAction::Import { file, consume } => import(&root, &file, consume),
     }
 }
 
@@ -120,6 +132,58 @@ fn delete(root: &Path, account: &str) -> Result<()> {
             "no entry to delete for"
         }
     );
+    Ok(())
+}
+
+/// Import a `NOMBRE = valor` text file into the keychain. `--consume` blanks
+/// the values in the file afterwards so the plaintext key does not linger.
+fn import(root: &Path, file: &str, consume: bool) -> Result<()> {
+    let path = PathBuf::from(file);
+    let raw =
+        std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
+    let raw = raw.strip_prefix('\u{feff}').unwrap_or(&raw); // strip a UTF-8 BOM
+    let mut lines: Vec<String> = raw.lines().map(str::to_string).collect();
+
+    let mut stored = 0usize;
+    let mut empty = 0usize;
+    for line in lines.iter_mut() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        let Some((key, value)) = trimmed.split_once('=') else {
+            continue;
+        };
+        let (key, value) = (key.trim(), value.trim());
+        if key.is_empty() {
+            continue;
+        }
+        if value.is_empty() {
+            empty += 1;
+            continue;
+        }
+        secrets::set(key, value).map_err(|e| anyhow::anyhow!(e))?;
+        remember_account(root, key)?;
+        stored += 1;
+        println!("secrets: stored `{key}`");
+        if consume {
+            *line = format!("{key} =");
+        }
+    }
+
+    if consume && stored > 0 {
+        std::fs::write(&path, lines.join("\n"))
+            .with_context(|| format!("blanking {}", path.display()))?;
+    }
+
+    println!("secrets: {stored} secret(s) guardado(s), {empty} campo(s) vacío(s)");
+    if stored == 0 {
+        println!(
+            "  (nada importado — escribe tu clave después del `=` en el archivo y vuelve a ejecutar)"
+        );
+    } else if consume {
+        println!("  (los valores se borraron del archivo; la clave ya está en el Keychain)");
+    }
     Ok(())
 }
 
