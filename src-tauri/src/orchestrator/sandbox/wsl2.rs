@@ -65,12 +65,24 @@ pub fn wsl2_available() -> bool {
 }
 
 /// `C:\Users\x` → `/mnt/c/Users/x`. Non-Windows-style paths pass through.
+/// Strips the `\\?\` verbatim prefix Rust's `canonicalize` adds on Windows, and
+/// maps `\\?\UNC\server\share` to `/mnt/unc/server/share`.
 pub fn windows_path_to_wsl(p: &Path) -> String {
-    let s = p.to_string_lossy().replace('\\', "/");
+    let raw = p.to_string_lossy();
+    // `canonicalize` yields `\\?\C:\...` (or `\\?\UNC\srv\share`).
+    let stripped = raw
+        .strip_prefix(r"\\?\UNC\")
+        .map(|rest| format!(r"\\{rest}"))
+        .or_else(|| raw.strip_prefix(r"\\?\").map(|rest| rest.to_string()))
+        .unwrap_or_else(|| raw.to_string());
+    let s = stripped.replace('\\', "/");
     let bytes = s.as_bytes();
     if bytes.len() >= 2 && bytes[1] == b':' {
         let drive = (bytes[0] as char).to_ascii_lowercase();
         format!("/mnt/{drive}{}", &s[2..])
+    } else if let Some(unc) = s.strip_prefix("//") {
+        // \\server\share\x -> /mnt/unc/server/share/x
+        format!("/mnt/unc/{unc}")
     } else {
         s
     }
@@ -174,6 +186,19 @@ mod tests {
     }
 
     #[test]
+    fn windows_path_strips_verbatim_prefix() {
+        // What `canonicalize` actually returns on Windows.
+        assert_eq!(
+            windows_path_to_wsl(Path::new(r"\\?\C:\Users\Max\proj")),
+            "/mnt/c/Users/Max/proj"
+        );
+        assert_eq!(
+            windows_path_to_wsl(Path::new(r"\\?\UNC\srv\share\x")),
+            "/mnt/unc/srv/share/x"
+        );
+    }
+
+    #[test]
     fn argv_has_distro_and_bash() {
         let sb = Wsl2Sandbox::new("Ubuntu-24.04");
         let argv = sb.wsl_argv(Path::new(r"C:\proj"), "echo hi");
@@ -200,13 +225,24 @@ mod tests {
         }
         let sb = Wsl2Sandbox::from_env();
         assert_eq!(sb.kind(), "wsl2");
+        // Use a real canonicalized Windows dir (as the CLI does), so the
+        // `\\?\`-prefix path conversion is exercised end to end.
+        let dir = tempfile::TempDir::new().unwrap();
+        let canon = std::fs::canonicalize(dir.path()).unwrap();
         let r = sb.exec(
-            Path::new("/tmp"),
-            "echo from-wsl && uname -s",
+            &canon,
+            "echo from-wsl && uname -s && echo hi > wsl_made.txt",
             Duration::from_secs(60),
         );
         assert_eq!(r.exit_code, 0, "stderr: {}", r.stderr);
         assert!(r.stdout.contains("from-wsl"));
         assert!(r.stdout.contains("Linux"));
+        // The file was created inside WSL's view of the same /mnt/c dir, so it
+        // must be visible from Windows too — proof the cwd mapped correctly.
+        assert!(
+            dir.path().join("wsl_made.txt").exists(),
+            "file written in WSL not visible from Windows (cwd mapping broken): {}",
+            r.stderr
+        );
     }
 }
