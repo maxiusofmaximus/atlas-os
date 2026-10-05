@@ -5,6 +5,7 @@
 
 pub mod annotate;
 pub mod approvals;
+pub mod audit;
 pub mod autoresearch;
 pub mod availability;
 pub mod cards;
@@ -13,6 +14,7 @@ pub mod eval;
 pub mod export;
 #[cfg(feature = "dag_mode")]
 pub mod graph;
+pub mod health;
 pub mod observer;
 pub mod reliability;
 pub mod remote_status;

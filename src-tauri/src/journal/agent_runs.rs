@@ -175,8 +175,21 @@ impl Journal {
         Ok(rows.collect::<Result<Vec<_>, _>>()?)
     }
 
-    // ---- agent_steps (M49 / v38) ------------------------------------------
+    /// RFC 65 §3 — `(status, count)` buckets over `agent_runs` for the Health
+    /// KPIs card (running / done / failed / other). Read-only.
+    pub fn agent_run_status_counts(&self) -> anyhow::Result<Vec<(String, i64)>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT status, COUNT(*) AS n
+             FROM agent_runs
+             GROUP BY status
+             ORDER BY n DESC, status ASC",
+        )?;
+        let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    }
 
+    // ---- agent_steps (M49 / v38) ------------------------------------------
     pub fn record_agent_step(&self, s: &AgentStepRow) -> anyhow::Result<()> {
         let conn = self.conn.lock();
         conn.execute(
@@ -453,6 +466,19 @@ mod tests {
             .map(|r| r.id)
             .collect();
         assert_eq!(ids, vec!["b", "c", "a"]);
+    }
+
+    #[test]
+    fn run_status_counts_bucket_by_status() {
+        let j = open();
+        for (id, status) in [("a", "done"), ("b", "done"), ("c", "failed")] {
+            let mut r = run(id);
+            r.status = status.into();
+            j.create_agent_run(&r).unwrap();
+        }
+        let counts = j.agent_run_status_counts().unwrap();
+        assert_eq!(counts[0], ("done".to_string(), 2));
+        assert!(counts.iter().any(|(s, n)| s == "failed" && *n == 1));
     }
 
     #[test]

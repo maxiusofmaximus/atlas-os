@@ -1705,6 +1705,20 @@ impl Journal {
         let conn = self.conn.lock();
         agent_events::agent_session_events_for_pane(&conn, pane_id)
     }
+
+    /// Total persisted `agent_session_events` rows (RFC 65 §3 health KPI).
+    pub fn agent_session_event_count(&self) -> anyhow::Result<i64> {
+        let conn = self.conn.lock();
+        agent_events::agent_session_event_count(&conn)
+    }
+
+    /// `(event_type, count)` buckets for the Health KPIs card (RFC 65 §3).
+    pub fn agent_session_event_type_counts(
+        &self,
+    ) -> anyhow::Result<Vec<agent_events::AgentEventTypeCount>> {
+        let conn = self.conn.lock();
+        agent_events::agent_session_event_type_counts(&conn)
+    }
 }
 #[cfg(feature = "dag_mode")]
 pub mod dag_mode_ops;

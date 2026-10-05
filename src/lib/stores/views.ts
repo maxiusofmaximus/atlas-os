@@ -9,7 +9,15 @@
 
 import { writable, type Readable } from 'svelte/store';
 
-export type ViewId = 'overview' | 'agent' | 'kanban' | 'approvals' | 'cost' | 'health' | 'canvas';
+export type ViewId =
+  | 'overview'
+  | 'agent'
+  | 'kanban'
+  | 'approvals'
+  | 'cost'
+  | 'health'
+  | 'audit'
+  | 'canvas';
 
 export interface ViewDef {
   id: ViewId;
@@ -27,6 +35,7 @@ export const VIEWS: readonly ViewDef[] = [
   { id: 'approvals', label: 'Approvals', key: 'p', fase: 'P0' },
   { id: 'cost', label: 'Cost & Res', key: 'c', fase: 'P1' },
   { id: 'health', label: 'Health KPIs', key: 'h', fase: 'P1' },
+  { id: 'audit', label: 'Audit', key: 'u', fase: 'P1' },
   { id: 'canvas', label: 'Canvas', key: 'g', fase: 'P2' },
 ];
 

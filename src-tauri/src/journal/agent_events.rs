@@ -16,6 +16,42 @@
 // not stored as a hard FK.
 
 use rusqlite::Connection;
+use serde::{Deserialize, Serialize};
+
+/// RFC 65 §3 — one `(event_type, count)` bucket for the Health KPIs card.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct AgentEventTypeCount {
+    pub event_type: String,
+    pub count: i64,
+}
+
+/// Total number of persisted `agent_session_events` rows (health KPI).
+pub fn agent_session_event_count(conn: &Connection) -> anyhow::Result<i64> {
+    let n: i64 = conn.query_row("SELECT COUNT(*) FROM agent_session_events", [], |r| {
+        r.get(0)
+    })?;
+    Ok(n)
+}
+
+/// Counts grouped by `event_type`, most frequent first (health KPI).
+pub fn agent_session_event_type_counts(
+    conn: &Connection,
+) -> anyhow::Result<Vec<AgentEventTypeCount>> {
+    let mut stmt = conn.prepare(
+        "SELECT event_type, COUNT(*) AS n
+         FROM agent_session_events
+         GROUP BY event_type
+         ORDER BY n DESC, event_type ASC",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok(AgentEventTypeCount {
+            event_type: row.get(0)?,
+            count: row.get(1)?,
+        })
+    })?;
+    rows.collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(Into::into)
+}
 
 /// Canonical OSC 9001 envelope persisted as a row of `agent_session_events`.
 /// Mirrors the SQL schema 1:1 so callers (HUD, replay, audit) can read the
@@ -257,5 +293,24 @@ mod tests {
         let row = &rows[0];
         assert!(row.pane_id.is_none());
         assert!(row.task_id.is_none());
+    }
+
+    #[test]
+    fn counts_group_by_event_type_most_frequent_first() {
+        let (_tmp, conn) = fresh_conn();
+        for (ts, et) in [
+            (1, "agent.started"),
+            (2, "agent.started"),
+            (3, "agent.error"),
+        ] {
+            insert_agent_session_event(&conn, ts, None, et, "opencode", None, "{}").expect("i");
+        }
+        assert_eq!(agent_session_event_count(&conn).expect("count"), 3);
+        let counts = agent_session_event_type_counts(&conn).expect("counts");
+        assert_eq!(counts.len(), 2);
+        assert_eq!(counts[0].event_type, "agent.started");
+        assert_eq!(counts[0].count, 2);
+        assert_eq!(counts[1].event_type, "agent.error");
+        assert_eq!(counts[1].count, 1);
     }
 }

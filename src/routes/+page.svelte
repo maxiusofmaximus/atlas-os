@@ -27,6 +27,8 @@
   import KanbanBoard from '$lib/components/KanbanBoard.svelte';
   import CommandPalette from '$lib/components/CommandPalette.svelte';
   import CostDashboard from '$lib/components/CostDashboard.svelte';
+  import HealthKPIs from '$lib/components/HealthKPIs.svelte';
+  import AuditTimeline from '$lib/components/AuditTimeline.svelte';
   import ViewSwitcher from '$lib/components/ViewSwitcher.svelte';
   import { activeView, type ViewId } from '$stores/views';
   import AvailabilityCard from '$lib/components/AvailabilityCard.svelte';
@@ -300,7 +302,15 @@
 
   // ─── RFC 65 §5 — views, command palette and hotkeys ───
   // Views available today (P0). Later fases append to this list.
-  const availableViews: ViewId[] = ['overview', 'agent', 'kanban', 'approvals', 'cost'];
+  const availableViews: ViewId[] = [
+    'overview',
+    'agent',
+    'kanban',
+    'approvals',
+    'cost',
+    'health',
+    'audit',
+  ];
   let paletteOpen = $state(false);
 
   function onGlobalKey(e: KeyboardEvent): void {
@@ -377,6 +387,27 @@
         via <code>GET /hud/cost</code>.
       </p>
       <CostDashboard hudUrl={data.hudUrl ?? null} />
+    </section>
+  {:else if $activeView === 'health'}
+    <section class="health-view">
+      <h2>Health KPIs</h2>
+      <p class="hint">
+        RFC 65 §3. Agent-session telemetry (<code>agent_session_events</code>), capability run states
+        (<code>agent_runs</code>) and swarm-registry states (<code>swarm_agents</code>) via
+        <code>GET /hud/health</code>; supervisor heartbeat liveness from the live
+        <code>agent_heartbeat</code> bus event.
+      </p>
+      <HealthKPIs hudUrl={data.hudUrl ?? null} />
+    </section>
+  {:else if $activeView === 'audit'}
+    <section class="audit-view">
+      <h2>Audit</h2>
+      <p class="hint">
+        RFC 65 §3 / RFC 24 §10. The append-only <code>audit_log</code> chain, newest first, via
+        <code>GET /hud/audit</code>. Hash-chain verification is not implemented yet and is not
+        claimed here.
+      </p>
+      <AuditTimeline hudUrl={data.hudUrl ?? null} />
     </section>
   {:else}
     <section class="hud-health">

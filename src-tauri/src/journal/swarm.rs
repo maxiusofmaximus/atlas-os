@@ -123,6 +123,20 @@ impl super::Journal {
         Ok(out)
     }
 
+    /// RFC 65 §3 — `(state, count)` buckets over `swarm_agents` for the Health
+    /// KPIs card. Read-only.
+    pub fn swarm_agent_state_counts(&self) -> anyhow::Result<Vec<(String, i64)>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT state, COUNT(*) AS n
+             FROM swarm_agents
+             GROUP BY state
+             ORDER BY n DESC, state ASC",
+        )?;
+        let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    }
+
     pub fn swarm_agent(&self, id: Uuid) -> anyhow::Result<Option<SwarmAgentRow>> {
         let conn = self.conn.lock();
         let mut stmt = conn.prepare(
@@ -341,6 +355,24 @@ mod tests {
         let journal = super::super::Journal::open(tmp.path()).expect("open");
         let agents = journal.swarm_agents_for_mission("ghost").expect("list");
         assert!(agents.is_empty());
+    }
+
+    #[test]
+    fn swarm_agent_state_counts_bucket_by_state() {
+        let tmp = TempDir::new().expect("tmp");
+        let journal = super::super::Journal::open(tmp.path()).expect("open");
+        let a = Uuid::new_v4();
+        let b = Uuid::new_v4();
+        journal
+            .register_swarm_agent(a, "m1", Role::Testing, None, None)
+            .expect("a");
+        journal
+            .register_swarm_agent(b, "m1", Role::Backend, None, None)
+            .expect("b");
+        journal.set_swarm_agent_state(b, "working").expect("state");
+        let counts = journal.swarm_agent_state_counts().expect("counts");
+        assert!(counts.iter().any(|(s, n)| s == "spawned" && *n == 1));
+        assert!(counts.iter().any(|(s, n)| s == "working" && *n == 1));
     }
 
     #[test]

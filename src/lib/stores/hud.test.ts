@@ -21,6 +21,9 @@ import {
   kanbanColumnOf,
   fetchCost,
   formatUsd,
+  fetchHealth,
+  projectLatestHeartbeat,
+  fetchAudit,
   type TailKind,
 } from './hud';
 
@@ -1097,5 +1100,65 @@ describe('RFC 65 — cost fetch', () => {
     expect(formatUsd(1.5)).toBe('$1.5000');
     expect(formatUsd(0)).toBe('$0.0000');
     expect(formatUsd(Number.NaN)).toBe('$0.0000');
+  });
+});
+
+describe('RFC 65 — health + audit fetch', () => {
+  const fetchMock = vi.fn();
+  const ok = (body: unknown) => ({ ok: true, status: 200, json: async () => body });
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('requests /hud/health with ?last=N and parses the response', async () => {
+    fetchMock.mockResolvedValueOnce(
+      ok({
+        agent_events: {
+          total: 3,
+          by_type: [{ event_type: 'agent.started', count: 2 }],
+          recent: [],
+        },
+        agent_runs: [{ status: 'done', count: 1 }],
+        swarm_agents: [{ state: 'working', count: 1 }],
+      }),
+    );
+    const res = await fetchHealth('http://h:1', 20);
+    expect(fetchMock).toHaveBeenCalledWith('http://h:1/hud/health?last=20');
+    expect(res.agent_events.total).toBe(3);
+    expect(res.agent_runs[0]?.status).toBe('done');
+  });
+
+  it('requests /hud/audit and parses the timeline', async () => {
+    fetchMock.mockResolvedValueOnce(
+      ok({
+        rows: [{ seq: 1, ts: 't', actor: 'op', action: 'x', inputs: {}, outputs: {} }],
+        count: 1,
+      }),
+    );
+    const res = await fetchAudit('http://h:1/', 50);
+    expect(fetchMock).toHaveBeenCalledWith('http://h:1/hud/audit?last=50');
+    expect(res.count).toBe(1);
+  });
+
+  it('throws on a non-OK health status', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 503, statusText: 'DOWN' });
+    await expect(fetchHealth('http://x/')).rejects.toThrow();
+  });
+
+  it('projects the latest agent_heartbeat from the WS tail', () => {
+    const evt = (kind: string, ts: string) => ({ id: ts, ts, kind, payload: {} });
+    expect(projectLatestHeartbeat([])).toBeNull();
+    expect(
+      projectLatestHeartbeat([
+        evt('agent_heartbeat', '2026-01-01T00:00:01Z'),
+        evt('agent_step', '2026-01-01T00:00:02Z'),
+        evt('agent_heartbeat', '2026-01-01T00:00:03Z'),
+      ]),
+    ).toBe('2026-01-01T00:00:03Z');
   });
 });

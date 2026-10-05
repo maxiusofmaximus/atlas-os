@@ -1188,3 +1188,87 @@ export async function fetchCost(hudUrl: string, window?: number): Promise<CostRe
 export function formatUsd(n: number): string {
   return `$${(Number.isFinite(n) ? n : 0).toFixed(4)}`;
 }
+
+// ═══════════════ RFC 65 §3 — Health KPIs (HealthKPIs) ═══════════════
+//
+// Mirrors `hud/health.rs` (`GET /hud/health`): agent-session telemetry,
+// capability-layer run states and live swarm-registry states.
+
+export interface AgentEventTypeCount {
+  event_type: string;
+  count: number;
+}
+
+export interface AgentSessionEvent {
+  id: number;
+  ts: number;
+  pane_id: string | null;
+  event_type: string;
+  agent: string;
+  task_id: string | null;
+}
+
+export interface StatusCount {
+  status: string;
+  count: number;
+}
+
+export interface StateCount {
+  state: string;
+  count: number;
+}
+
+export interface HealthResponse {
+  agent_events: { total: number; by_type: AgentEventTypeCount[]; recent: AgentSessionEvent[] };
+  agent_runs: StatusCount[];
+  swarm_agents: StateCount[];
+}
+
+export async function fetchHealth(hudUrl: string, last?: number): Promise<HealthResponse> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const query = last ? `?last=${encodeURIComponent(last)}` : '';
+  const res = await fetch(`${trimmed}/hud/health${query}`);
+  if (!res.ok) {
+    throw new Error(`HUD health failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as HealthResponse;
+}
+
+export const AGENT_HEARTBEAT_KIND = 'agent_heartbeat';
+
+/** Latest supervisor heartbeat timestamp from the WS tail (null if none). */
+export function projectLatestHeartbeat(events: HudEvent[]): string | null {
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    if (events[i]?.kind === AGENT_HEARTBEAT_KIND) return events[i]?.ts ?? null;
+  }
+  return null;
+}
+
+// ═══════════════ RFC 65 §3 — Audit timeline (AuditTimeline) ═══════════════
+//
+// Mirrors `hud/audit.rs` (`GET /hud/audit`): the append-only `audit_log` chain,
+// newest first. Hash-chain verification (RFC 24 §10) is not implemented yet.
+
+export interface AuditEntry {
+  seq: number;
+  ts: string;
+  actor: string;
+  action: string;
+  inputs: unknown;
+  outputs: unknown;
+}
+
+export interface AuditResponse {
+  rows: AuditEntry[];
+  count: number;
+}
+
+export async function fetchAudit(hudUrl: string, last?: number): Promise<AuditResponse> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const query = last ? `?last=${encodeURIComponent(last)}` : '';
+  const res = await fetch(`${trimmed}/hud/audit${query}`);
+  if (!res.ok) {
+    throw new Error(`HUD audit failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as AuditResponse;
+}
