@@ -520,7 +520,10 @@ pub async fn run_agent_real<C: ProviderClient>(
     let verify_root = owned.clone();
     let timeout = cfg.timeout;
     let checks = cfg.success_predicate.clone();
-    let sandbox = crate::orchestrator::sandbox::resolve_sandbox();
+    // RFC 63 §4: one sandbox runtime for both the tools and the verifier.
+    let sandbox: std::sync::Arc<dyn crate::orchestrator::sandbox::Sandbox> =
+        std::sync::Arc::from(crate::orchestrator::sandbox::resolve_sandbox());
+    let tool_sandbox = sandbox.clone();
     let registry =
         registry.unwrap_or_else(crate::orchestrator::tools::ToolRegistry::with_core_tools);
     run_agent(
@@ -533,7 +536,8 @@ pub async fn run_agent_real<C: ProviderClient>(
         cfg,
         denied,
         move |tool, args| {
-            let ctx = crate::orchestrator::tools::ToolContext::new(exec_root.clone());
+            let ctx = crate::orchestrator::tools::ToolContext::new(exec_root.clone())
+                .with_sandbox(tool_sandbox.clone());
             // `exec.run` keeps the loop's timeout when the model omits one.
             let mut args = args.clone();
             if tool == "exec.run" {

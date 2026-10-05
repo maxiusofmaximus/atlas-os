@@ -103,14 +103,26 @@ fn bound(s: &str, max: usize) -> String {
     format!("{head}\n…(truncated)…\n{tail}")
 }
 
-/// Context handed to every tool call: the workspace root and the per-call
-/// limits. Tools must never escape `root` for writes unless the declared
-/// `SensitiveAction` allows it (enforced by the registry/policy).
-#[derive(Clone, Debug)]
+/// Context handed to every tool call: the workspace root, the per-call limits,
+/// and the sandbox runtime (RFC 63 §4) the command tools execute in.
 pub struct ToolContext {
     pub root: std::path::PathBuf,
     pub max_output_bytes: usize,
     pub default_timeout_ms: u64,
+    /// WHERE commands run (`local`, `wsl2`). Shared so the registry and the
+    /// verifier use one runtime.
+    pub sandbox: std::sync::Arc<dyn crate::orchestrator::sandbox::Sandbox>,
+}
+
+impl std::fmt::Debug for ToolContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ToolContext")
+            .field("root", &self.root)
+            .field("max_output_bytes", &self.max_output_bytes)
+            .field("default_timeout_ms", &self.default_timeout_ms)
+            .field("sandbox", &self.sandbox.kind())
+            .finish()
+    }
 }
 
 impl ToolContext {
@@ -119,7 +131,17 @@ impl ToolContext {
             root: root.into(),
             max_output_bytes: 32_768,
             default_timeout_ms: 120_000,
+            sandbox: std::sync::Arc::new(crate::orchestrator::sandbox::LocalSandbox),
         }
+    }
+
+    /// Attach a specific sandbox runtime (RFC 63 §4). Builder for the host.
+    pub fn with_sandbox(
+        mut self,
+        sandbox: std::sync::Arc<dyn crate::orchestrator::sandbox::Sandbox>,
+    ) -> Self {
+        self.sandbox = sandbox;
+        self
     }
 }
 

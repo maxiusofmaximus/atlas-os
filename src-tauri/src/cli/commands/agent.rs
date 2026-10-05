@@ -40,6 +40,10 @@ pub struct AgentCmd {
     /// default: they are `NetworkEgress` (RFC 18) and need a backend.
     #[arg(long, default_value_t = false)]
     pub web: bool,
+    /// Sandbox runtime the commands run in: `local` (default) or `wsl2`
+    /// (RFC 63 §4). `wsl2` falls back to `local` when WSL is unavailable.
+    #[arg(long, default_value = "local")]
+    pub sandbox: String,
 }
 
 pub async fn run(cmd: AgentCmd, profile: &str) -> Result<()> {
@@ -120,6 +124,16 @@ pub async fn run(cmd: AgentCmd, profile: &str) -> Result<()> {
         }
         None => Vec::new(),
     };
+    // RFC 63 §4: resolve the sandbox runtime from `--sandbox` (honoured by
+    // `resolve_sandbox` when it builds the tool context). Validated so a typo
+    // fails loudly instead of silently running on the host.
+    match cmd.sandbox.as_str() {
+        "local" | "wsl2" | "daytona" | "e2b" => {
+            std::env::set_var("ATLAS_SANDBOX", &cmd.sandbox);
+        }
+        other => anyhow::bail!("unknown --sandbox `{other}` (local|wsl2|daytona|e2b)"),
+    }
+
     // RFC 63 §4: build the live tool registry (web tools opt-in via --web).
     let registry = if cmd.web {
         crate::orchestrator::ToolRegistry::with_web_tools()
@@ -141,11 +155,12 @@ pub async fn run(cmd: AgentCmd, profile: &str) -> Result<()> {
     };
 
     println!(
-        "agent: model={} root={} max_steps={} tools={}",
+        "agent: model={} root={} max_steps={} tools={} sandbox={}",
         model,
         work.display(),
         cfg.max_steps,
-        registry.catalog().len()
+        registry.catalog().len(),
+        cmd.sandbox
     );
 
     let client = HttpProviderClient::new();

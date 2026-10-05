@@ -41,7 +41,7 @@ impl Tool for ExecRunTool {
             return ToolResult::err(self.name(), "empty command");
         }
         let timeout = Duration::from_millis(a.timeout_ms.unwrap_or(ctx.default_timeout_ms));
-        let res = crate::orchestrator::agent::run_command(&ctx.root, &a.command, timeout);
+        let res = ctx.sandbox.exec(&ctx.root, &a.command, timeout);
         let mut out = ToolResult {
             tool: self.name().to_string(),
             ok: res.exit_code == 0,
