@@ -27,6 +27,7 @@ pub mod journal;
 pub mod learning;
 #[cfg(feature = "lsp")]
 pub mod lsp;
+pub mod mcp;
 pub mod mobile;
 pub mod monitor;
 pub mod orchestrator;

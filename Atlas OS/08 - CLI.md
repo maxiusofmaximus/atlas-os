@@ -94,3 +94,17 @@ atlas browser action -- navigate https://example.com   # passthrough agent-brows
 ```
 
 `open` publica `artifact_preview_opened` en el Journal (RFC 28 §I item 6). La capacidad web del agente se clasifica como `SensitiveAction` (RFC 18, opt-in). El binario es `terminal-browser` (MIT) o `$ATLAS_TERMINAL_BROWSER_BIN`.
+
+## 8. Familia `atlas mcp` (runtime MCP, RFC 07)
+
+Runtime MCP real (Fase 29.0): registry dual-shape (`.opencode/mcp.json` opencode + `mcp.json` RFC 07) y protocolo stdio JSON-RPC. `probe`/`call` spawnean el servidor; `call` aplica `allowed_tools` (RFC 07 §4) **antes** de enviar bytes.
+
+```bash
+atlas mcp list                                   # servidores configurados (sólo lectura)
+atlas mcp add context7 --command pnpm --arg dlx --arg @upstash/context7-mcp@3.2.4 --allow resolve-library-id
+atlas mcp probe context7                         # spawn + handshake + tools/list
+atlas mcp call context7 resolve-library-id --args '{"libraryName":"react","query":"hooks"}'
+atlas mcp remove context7
+```
+
+En Windows los shims `npx`/`pnpm` (`.cmd`) se enrutan por `cmd /C` (CreateProcess no ejecuta `.cmd` directo). Sandbox/supply-chain/ToolRegistry bridge: Fase 29.1+.
