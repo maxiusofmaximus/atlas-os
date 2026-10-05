@@ -9,14 +9,14 @@ validation. Engines (Godot/Bevy/Unity) are lateral.
 
 ## Manifest (`src-tauri/src/domain/packs/game.toml`)
 
-| Field | Value |
-|---|---|
-| `detect` | `project.godot`, `*.tscn`, `*.gdscript`, `Assets/`, `ProjectSettings/`, `*.uproject` |
-| `engines.validation` | `assets.valid`, `scene.parses` |
-| `skills.bundled` | `game.scene-review`, `game.asset-check` |
-| `tools.lateral.open` | `godot` |
-| `artifacts.types` | `scene`, `asset`, `build` |
-| `policy.sandbox` | `container` |
+| Field                | Value                                                                                |
+| -------------------- | ------------------------------------------------------------------------------------ |
+| `detect`             | `project.godot`, `*.tscn`, `*.gdscript`, `Assets/`, `ProjectSettings/`, `*.uproject` |
+| `engines.validation` | `assets.valid`, `scene.parses`                                                       |
+| `skills.bundled`     | `game.scene-review`, `game.asset-check`                                              |
+| `tools.lateral.open` | `godot`                                                                              |
+| `artifacts.types`    | `scene`, `asset`, `build`                                                            |
+| `policy.sandbox`     | `container`                                                                          |
 
 ## Lateral tools
 

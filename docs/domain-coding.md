@@ -9,15 +9,15 @@ generic engines already provide for source projects.
 
 ## Manifest (`src-tauri/src/domain/packs/coding.toml`)
 
-| Field | Value |
-|---|---|
-| `detect` | `Cargo.toml`, `package.json`, `pyproject.toml`, `go.mod`, `*.rs`, `*.ts`, `*.py` |
-| `engines.coding` | `default` (LSP + tests + Biome/tsc) |
-| `engines.validation` | `tests.pass`, `lint.clean` |
-| `skills.bundled` | `prompt-clarify`, `opencode-test` |
-| `tools.lateral.open` | — (no external binary) |
-| `artifacts.types` | `diff`, `test_report` |
-| `policy.sandbox` | `local` |
+| Field                | Value                                                                            |
+| -------------------- | -------------------------------------------------------------------------------- |
+| `detect`             | `Cargo.toml`, `package.json`, `pyproject.toml`, `go.mod`, `*.rs`, `*.ts`, `*.py` |
+| `engines.coding`     | `default` (LSP + tests + Biome/tsc)                                              |
+| `engines.validation` | `tests.pass`, `lint.clean`                                                       |
+| `skills.bundled`     | `prompt-clarify`, `opencode-test`                                                |
+| `tools.lateral.open` | — (no external binary)                                                           |
+| `artifacts.types`    | `diff`, `test_report`                                                            |
+| `policy.sandbox`     | `local`                                                                          |
 
 ## Usage
 

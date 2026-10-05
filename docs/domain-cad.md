@@ -10,16 +10,16 @@ representation) and validates geometry. External DCC tools are **lateral**
 
 ## Manifest (`src-tauri/src/domain/packs/cad.toml`)
 
-| Field | Value |
-|---|---|
-| `detect` | `*.step`, `*.stp`, `*.stl`, `*.f3d`, `cadquery`, `openscad`, `freecad` |
-| `engines.coding` | `code-as-cad` |
-| `engines.validation` | `geometry.manifold`, `units.consistent`, `export.step` |
-| `skills.bundled` | `cad.text-to-cadquery`, `cad.parametric-review`, `cad.gdt-check` |
-| `mcp.servers` | `freecad-mcp`, `blender-mcp` |
-| `tools.lateral.open` | `freecad`, `openscad`, `zoo` |
-| `artifacts.types` | `step`, `stl`, `render.png`, `drawing.pdf` |
-| `policy.sandbox` | `container` |
+| Field                | Value                                                                  |
+| -------------------- | ---------------------------------------------------------------------- |
+| `detect`             | `*.step`, `*.stp`, `*.stl`, `*.f3d`, `cadquery`, `openscad`, `freecad` |
+| `engines.coding`     | `code-as-cad`                                                          |
+| `engines.validation` | `geometry.manifold`, `units.consistent`, `export.step`                 |
+| `skills.bundled`     | `cad.text-to-cadquery`, `cad.parametric-review`, `cad.gdt-check`       |
+| `mcp.servers`        | `freecad-mcp`, `blender-mcp`                                           |
+| `tools.lateral.open` | `freecad`, `openscad`, `zoo`                                           |
+| `artifacts.types`    | `step`, `stl`, `render.png`, `drawing.pdf`                             |
+| `policy.sandbox`     | `container`                                                            |
 
 ## Lateral tools
 

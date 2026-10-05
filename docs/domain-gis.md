@@ -9,14 +9,14 @@ lateral references (RFC 64 §3).
 
 ## Manifest (`src-tauri/src/domain/packs/gis.toml`)
 
-| Field | Value |
-|---|---|
-| `detect` | `*.shp`, `*.geojson`, `*.gpkg`, `*.qgz`, `*.qgs`, `qgis`, `opencadstudio` |
-| `engines.validation` | `geometry.valid`, `crs.consistent`, `export.geojson` |
-| `skills.bundled` | `gis.layer-review`, `gis.crs-check` |
-| `tools.lateral.open` | `qgis` |
-| `artifacts.types` | `geojson`, `shp`, `render.png` |
-| `policy.sandbox` | `container` |
+| Field                | Value                                                                     |
+| -------------------- | ------------------------------------------------------------------------- |
+| `detect`             | `*.shp`, `*.geojson`, `*.gpkg`, `*.qgz`, `*.qgs`, `qgis`, `opencadstudio` |
+| `engines.validation` | `geometry.valid`, `crs.consistent`, `export.geojson`                      |
+| `skills.bundled`     | `gis.layer-review`, `gis.crs-check`                                       |
+| `tools.lateral.open` | `qgis`                                                                    |
+| `artifacts.types`    | `geojson`, `shp`, `render.png`                                            |
+| `policy.sandbox`     | `container`                                                               |
 
 ## Lateral tools
 

@@ -10,15 +10,15 @@ reference for this pattern (RFC 64 §1).
 
 ## Manifest (`src-tauri/src/domain/packs/creative-media.toml`)
 
-| Field | Value |
-|---|---|
-| `detect` | `*.blend`, `*.fbx`, `*.gltf`, `*.glb`, `*.obj`, `blender` |
-| `engines.validation` | `asset.renders`, `export.gltf` |
-| `skills.bundled` | `creative.img-to-threejs`, `creative.asset-review` |
-| `mcp.servers` | `blender-mcp` |
-| `tools.lateral.open` | `blender` |
-| `artifacts.types` | `blend`, `gltf`, `render.png`, `preview.mp4` |
-| `policy.sandbox` | `container` |
+| Field                | Value                                                     |
+| -------------------- | --------------------------------------------------------- |
+| `detect`             | `*.blend`, `*.fbx`, `*.gltf`, `*.glb`, `*.obj`, `blender` |
+| `engines.validation` | `asset.renders`, `export.gltf`                            |
+| `skills.bundled`     | `creative.img-to-threejs`, `creative.asset-review`        |
+| `mcp.servers`        | `blender-mcp`                                             |
+| `tools.lateral.open` | `blender`                                                 |
+| `artifacts.types`    | `blend`, `gltf`, `render.png`, `preview.mp4`              |
+| `policy.sandbox`     | `container`                                               |
 
 ## Lateral tools
 
