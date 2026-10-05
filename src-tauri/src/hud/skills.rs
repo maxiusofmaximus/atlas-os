@@ -25,6 +25,9 @@ use crate::core::state::AppState;
 /// Bound the id the same way mission ids are bounded elsewhere (RFC 28 §C).
 const MAX_SKILL_ID_LEN: usize = 128;
 
+// Compile-time sanity: the bound must stay comfortably above real skill ids.
+const _: () = assert!(MAX_SKILL_ID_LEN >= 64);
+
 #[derive(Debug, Deserialize, Default)]
 pub struct ActivateBody {
     /// Target subagent; omitted ⇒ operator/global scope (`Uuid::nil()`).
@@ -82,10 +85,5 @@ mod tests {
             b.agent_id.as_deref(),
             Some("00000000-0000-0000-0000-000000000001")
         );
-    }
-
-    #[test]
-    fn skill_id_bound_is_sane() {
-        assert!(MAX_SKILL_ID_LEN >= 64);
     }
 }
