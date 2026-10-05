@@ -112,6 +112,28 @@ atlas-os/
 - **SvelteKit 2 / Svelte 5 runes**, `adapter-static` — CSR only.
 - **pnpm 9+** (NEVER npm).
 
+### Default build — what is on and off
+
+The default build (`tauri, hud, lsp, cli, bundled-skills`) ships the full
+orchestration core, the HUD and the `atlas` CLI. These capabilities are
+**off by default** and must be enabled explicitly with `--features`:
+
+| Feature                           | Adds                                                 | RFC   |
+| --------------------------------- | ---------------------------------------------------- | ----- |
+| `fastembed`                       | Vector Knowledge embeddings + `sqlite-vec` retrieval | 09    |
+| `dag_mode`                        | Mission graph / planner DAG                          | 28 §C |
+| `codebase-graph` / `ast`          | tree-sitter codebase graph                           | 28 §C |
+| `acp-server`                      | Microsoft IT ACP host loop                           | 28 §B |
+| `calendar-ics` / `calendar-graph` | Calendar feed / Graph reader                         | 28 §G |
+| `toast`                           | Windows Toast notifications                          | 28 §F |
+| `firecrawl`                       | Web ingestion                                        | 28 §E |
+| `laya`                            | Laya "System One" classifier                         | 35    |
+
+So a **default build has no vector memory and no codebase graph** — enable
+`fastembed` / `dag_mode` / `codebase-graph` if you rely on them. `fastembed`
+is Windows-hostile under `--all-features` (see the M45 note below). See
+`Atlas OS/research/61` §8.3.
+
 ## Install & run
 
 Requires Rust 1.84+, Node 20+, pnpm 9+.
@@ -128,11 +150,11 @@ to it via Tauri IPC.
 Headless CLI sanity checks:
 
 ```bash
-cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- mission new "test prompt"
-cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- hud
-cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- profile list
-cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- audit -n 10
-cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- journal -n 10
+cargo run --manifest-path src-tauri/Cargo.toml --bin atlas -- mission new "test prompt"
+cargo run --manifest-path src-tauri/Cargo.toml --bin atlas -- hud
+cargo run --manifest-path src-tauri/Cargo.toml --bin atlas -- profile list
+cargo run --manifest-path src-tauri/Cargo.toml --bin atlas -- audit -n 10
+cargo run --manifest-path src-tauri/Cargo.toml --bin atlas -- journal -n 10
 ```
 
 ## Lint / test

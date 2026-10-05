@@ -18,14 +18,14 @@
 #
 # Usage:
 #   tools/reset-window-smoke.ps1
-#   tools/reset-window-smoke.ps1 -Bin .\src-tauri\target\release\opencode.exe
+#   tools/reset-window-smoke.ps1 -Bin .\src-tauri\target\release\atlas.exe
 #   tools/reset-window-smoke.ps1 -Bin ... -Toast    # also check Toast feature
 #
 # Exits 0 when every assertion passed, non-zero on first failure.
 
 [CmdletBinding()]
 param(
-    [string]$Bin = ".\src-tauri\target\debug\opencode.exe",
+    [string]$Bin = ".\src-tauri\target\debug\atlas.exe",
     [switch]$Toast
 )
 
@@ -51,7 +51,7 @@ function Assert-Contains($haystack, $needle, $msg) {
 
 # ---------- 0. Preflight ----------
 if (-not (Test-Path -LiteralPath $Bin)) {
-    Write-Host "FAIL: opencode binary not found at: $Bin" -ForegroundColor Red
+    Write-Host "FAIL: atlas binary not found at: $Bin" -ForegroundColor Red
     Write-Host "Hint: run pnpm tauri:build (or cargo build --manifest-path src-tauri/Cargo.toml) before invoking this script." -ForegroundColor Yellow
     exit 2
 }
@@ -62,11 +62,11 @@ Write-Host "Binary: $Bin"
 # ---------- 1. Confirm §H parser + HUD card serialisers compiled ----------
 Write-Host "`n[1/4] Inspecting binary for §H symbols…" -ForegroundColor Cyan
 $dump = & $Bin --help 2>&1 | Out-String
-Assert-Contains $dump "journal" "opencode journal subcommand present"
-Assert-Contains $dump "audit"   "opencode audit subcommand present"
+Assert-Contains $dump "journal" "atlas journal subcommand present"
+Assert-Contains $dump "audit"   "atlas audit subcommand present"
 
-# ---------- 2. Confirm opencode journal -k spend_limit_observed accepts the §H kind ----------
-Write-Host "`n[2/4] Invoking opencode journal -k spend_limit_observed..." -ForegroundColor Cyan
+# ---------- 2. Confirm atlas journal -k spend_limit_observed accepts the §H kind ----------
+Write-Host "`n[2/4] Invoking atlas journal -k spend_limit_observed..." -ForegroundColor Cyan
 $scratchProfile = "oc_smoke_reset_$([guid]::NewGuid().ToString('N').Substring(0,8))"
 $env:OC_PROFILE = $scratchProfile
 try {
@@ -75,7 +75,7 @@ try {
     # profile (no rows of that kind), but the binary must not refuse the
     # filter string — that confirms the spend_limit_observed tag is
     # a known-looking kind.
-    Assert-True ($LASTEXITCODE -eq 0) "opencode journal returned exit code 0 (got $LASTEXITCODE)"
+    Assert-True ($LASTEXITCODE -eq 0) "atlas journal returned exit code 0 (got $LASTEXITCODE)"
     Write-Host '. journal accepted `-k spend_limit_observed` filter' -ForegroundColor DarkGreen
 } catch {
     throw
@@ -110,7 +110,7 @@ backup_profile_id = "personal"
 
     $lsOut = & $Bin profile list 2>&1 | Out-String
     # The CLI must not choke on the profile.toml; it should at least exit 0.
-    Assert-True ($LASTEXITCODE -eq 0) "opencode profile list returned exit code 0 with §H profile.toml present"
+    Assert-True ($LASTEXITCODE -eq 0) "atlas profile list returned exit code 0 with §H profile.toml present"
 
     Write-Host ". profile list accepted §H fields" -ForegroundColor DarkGreen
 } catch {

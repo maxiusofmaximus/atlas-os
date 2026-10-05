@@ -123,11 +123,11 @@ pnpm tauri:build  # production build for the current OS
 Headless CLI quick sanity checks:
 
 ```bash
-cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- mission new "test prompt"
-cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- hud
-cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- profile list
-cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- audit -n 10
-cargo run --manifest-path src-tauri/Cargo.toml --bin opencode -- journal -n 10
+cargo run --manifest-path src-tauri/Cargo.toml --bin atlas -- mission new "test prompt"
+cargo run --manifest-path src-tauri/Cargo.toml --bin atlas -- hud
+cargo run --manifest-path src-tauri/Cargo.toml --bin atlas -- profile list
+cargo run --manifest-path src-tauri/Cargo.toml --bin atlas -- audit -n 10
+cargo run --manifest-path src-tauri/Cargo.toml --bin atlas -- journal -n 10
 ```
 
 ## 4. Critical conventions

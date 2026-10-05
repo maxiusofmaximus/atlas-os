@@ -10,13 +10,13 @@
 #
 # Usage:
 #   tools/acp-smoke.ps1
-#   tools/acp-smoke.ps1 -Bin .\src-tauri\target\release\opencode.exe
+#   tools/acp-smoke.ps1 -Bin .\src-tauri\target\release\atlas.exe
 #
 # Exits 0 when every assertion passed, non-zero on first failure.
 
 [CmdletBinding()]
 param(
-    [string]$Bin = ".\src-tauri\target\debug\opencode.exe",
+    [string]$Bin = ".\src-tauri\target\debug\atlas.exe",
     [switch]$Trace
 )
 
