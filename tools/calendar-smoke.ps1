@@ -10,17 +10,13 @@
 #      once and persisted (`calendar_ics_token.txt`), never regenerated.
 #   3. Asserts the persisted token is `base64url(16 bytes)` = 22 URL-safe
 #      chars (RFC 28 G.2) and that the profile DB accepts `busy count`.
-#   4. (Live) Attaches to an ALREADY-RUNNING HUD via the active profile: reads
-#      the `webcal://` URL from `calendar feed`, fetches
-#      `GET /atlas-calendar.ics?token=...` and validates the RFC 5545 skeleton
-#      (`BEGIN:VCALENDAR` / `VERSION:2.0` / `END:VCALENDAR`). A wrong token
-#      must be rejected with 401. If no HUD is running, or the route returns
-#      404 (build lacks `calendar-ics`), the step is SKIPPED - not failed.
-#
-# NOTE ON SPAWNING: the HUD axum server is owned by the Tauri desktop process
-# (`atlas-os-desktop`); the headless CLI has no `--serve` and `atlas hud` only
-# *reads* the published port. This smoke therefore attaches to a running HUD
-# rather than spawning one.
+#   4. (Live) SPAWNS the headless HUD with `atlas serve` (RFC 29 3.A - a real
+#      daemon that runs the axum server without the Tauri webview), waits for
+#      `hud_port.txt`, fetches `GET /atlas-calendar.ics?token=...` and
+#      validates the RFC 5545 skeleton (`BEGIN:VCALENDAR` / `VERSION:2.0` /
+#      `END:VCALENDAR`). If the route returns 404 the build lacks
+#      `calendar-ics`, and the step is SKIPPED with a rebuild hint.
+#   5. (Live) A wrong token must be rejected with 401.
 #
 # The Graph READ verbs (`login`/`sync`/`status`) and the `.ics` subscription
 # verbs (`sync-ics`/`subscribe`/`subscriptions`/`sync-all`) are feature-gated
@@ -30,7 +26,7 @@
 # Usage:
 #   tools/calendar-smoke.ps1
 #   tools/calendar-smoke.ps1 -Bin .\src-tauri\target\release\atlas.exe
-#   tools/calendar-smoke.ps1 -Live        # also fetch the feed from a running HUD
+#   tools/calendar-smoke.ps1 -Live        # also spawn `atlas serve` + fetch the feed
 #
 # Exits 0 when every assertion passed (or was legitimately skipped), non-zero
 # on the first real failure.
@@ -81,18 +77,12 @@ $scratch = "oc_smoke_cal_$([guid]::NewGuid().ToString('N').Substring(0,8))"
 $scratchRoot = Join-Path $env:USERPROFILE ".opencode\profiles\$scratch"
 $env:OC_PROFILE = $scratch
 New-Item -ItemType Directory -Force $scratchRoot | Out-Null
-
-function Restore-Profile {
-    if ($hadProfile) { $env:OC_PROFILE = $priorProfile }
-    else { Remove-Item Env:\OC_PROFILE -ErrorAction SilentlyContinue }
-    if (Test-Path -LiteralPath $scratchRoot) {
-        Remove-Item -LiteralPath $scratchRoot -Recurse -Force -ErrorAction SilentlyContinue
-    }
-}
+$hudJob = $null
+$port = $null
 
 try {
     # ---------- 1. Namespace + always-present verbs ----------
-    Write-Host "`n[1/4] Checking 'atlas calendar' namespace..." -ForegroundColor Cyan
+    Write-Host "`n[1/5] Checking 'atlas calendar' namespace..." -ForegroundColor Cyan
     $help = & $Bin calendar --help 2>&1 | Out-String
     Assert-Contains $help "feed"         "calendar feed verb present"
     Assert-Contains $help "busy"         "calendar busy verb present"
@@ -114,7 +104,7 @@ try {
     }
 
     # ---------- 2. feed is idempotent (token persisted, not regenerated) ----------
-    Write-Host "`n[2/4] Checking 'calendar feed' is idempotent..." -ForegroundColor Cyan
+    Write-Host "`n[2/5] Checking 'calendar feed' is idempotent..." -ForegroundColor Cyan
     $feed1 = (& $Bin calendar feed 2>&1 | Out-String).Trim()
     Assert-True ($LASTEXITCODE -eq 0) "calendar feed returned exit code 0 (got $LASTEXITCODE)"
     $feed2 = (& $Bin calendar feed 2>&1 | Out-String).Trim()
@@ -122,7 +112,7 @@ try {
     Assert-Contains $feed1 "atlas-calendar.ics" "feed advertises the /atlas-calendar.ics endpoint"
 
     # ---------- 3. Token format + schema reachable ----------
-    Write-Host "`n[3/4] Checking ICS token format + busy-window storage..." -ForegroundColor Cyan
+    Write-Host "`n[3/5] Checking ICS token format + busy-window storage..." -ForegroundColor Cyan
     $tokenFile = Join-Path $scratchRoot "calendar_ics_token.txt"
     Assert-True (Test-Path -LiteralPath $tokenFile) "token persisted at calendar_ics_token.txt"
     $token = (Get-Content -LiteralPath $tokenFile -Raw).Trim()
@@ -132,56 +122,69 @@ try {
     $null = & $Bin calendar busy count 2>&1 | Out-String
     Assert-True ($LASTEXITCODE -eq 0) "calendar busy count returned exit code 0 (M18 schema reachable)"
 
-    # ---------- 4. (Live) RFC 5545 feed from an already-running HUD ----------
+    # ---------- 4. (Live) spawn the HUD and validate the RFC 5545 feed ----------
+    $liveFetched = $false
     if ($Live) {
-        Write-Host "`n[4/4] Live: fetching the ICS feed from the active profile's HUD..." -ForegroundColor Cyan
-        # The HUD is owned by the desktop process; query the ACTIVE profile's
-        # feed URL (unset the scratch profile for this probe only).
-        Remove-Item Env:\OC_PROFILE -ErrorAction SilentlyContinue
-        $activeFeed = (& $Bin calendar feed 2>&1 | Out-String).Trim()
+        Write-Host "`n[4/5] Live: spawning 'atlas serve' and fetching the ICS feed..." -ForegroundColor Cyan
+        $hudJob = Start-Job -ScriptBlock {
+            param($exe, $prof)
+            $env:OC_PROFILE = $prof
+            & $exe serve --host 127.0.0.1 --port 0
+        } -ArgumentList (Resolve-Path $Bin).Path, $scratch
 
-        $m = [regex]::Match($activeFeed, 'webcal://127\.0\.0\.1:(\d+)/atlas-calendar\.ics\?token=([A-Za-z0-9_-]+)')
-        if (-not $m.Success) {
-            Skip "no running HUD for the active profile (start atlas-os-desktop, then re-run -Live)"
-        } else {
-            $port = $m.Groups[1].Value
-            $liveToken = $m.Groups[2].Value
-            $url = "http://127.0.0.1:$port/atlas-calendar.ics?token=$liveToken"
-            $liveFetched = $false
-            try {
-                $resp = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 10
-                Assert-Contains $resp.Content "BEGIN:VCALENDAR" "feed body has BEGIN:VCALENDAR"
-                Assert-Contains $resp.Content "VERSION:2.0"      "feed body has VERSION:2.0"
-                Assert-Contains $resp.Content "END:VCALENDAR"    "feed body has END:VCALENDAR"
-                $liveFetched = $true
-            } catch {
-                $status = $null
-                if ($_.Exception.Response) { $status = [int]$_.Exception.Response.StatusCode }
-                if ($status -eq 404) {
-                    Skip "GET /atlas-calendar.ics returned 404 - rebuild with --features calendar-ics to exercise the RFC 5545 feed"
-                } else {
-                    throw
-                }
+        # Wait up to ~20 s for the daemon to publish its ephemeral port.
+        $portFile = Join-Path $scratchRoot "hud_port.txt"
+        for ($i = 0; $i -lt 40; $i++) {
+            if (Test-Path -LiteralPath $portFile) {
+                $candidate = (Get-Content -LiteralPath $portFile -Raw).Trim()
+                if ($candidate -match '^\d+$' -and [int]$candidate -gt 0) { $port = $candidate; break }
             }
+            Start-Sleep -Milliseconds 500
+        }
+        Assert-True ($port -match '^\d+$') "atlas serve published a port to hud_port.txt (got '$port')"
 
-            # The auth gate must reject a wrong token.
-            if ($liveFetched) {
-                $badUrl = "http://127.0.0.1:$port/atlas-calendar.ics?token=wrongtokenthatis22ch"
-                try {
-                    Invoke-WebRequest -Uri $badUrl -UseBasicParsing -TimeoutSec 10 | Out-Null
-                    Assert-True $false "wrong token should not return 200"
-                } catch {
-                    $status = $null
-                    if ($_.Exception.Response) { $status = [int]$_.Exception.Response.StatusCode }
-                    Assert-True ($status -eq 401) "wrong token gives 401 (got $status)"
-                }
+        $url = "http://127.0.0.1:$port/atlas-calendar.ics?token=$token"
+        try {
+            $resp = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 10
+            Assert-Contains $resp.Content "BEGIN:VCALENDAR" "feed body has BEGIN:VCALENDAR"
+            Assert-Contains $resp.Content "VERSION:2.0"      "feed body has VERSION:2.0"
+            Assert-Contains $resp.Content "END:VCALENDAR"    "feed body has END:VCALENDAR"
+            $liveFetched = $true
+        } catch {
+            $status = $null
+            if ($_.Exception.Response) { $status = [int]$_.Exception.Response.StatusCode }
+            if ($status -eq 404) {
+                Skip "GET /atlas-calendar.ics returned 404 - rebuild with --features calendar-ics to exercise the RFC 5545 feed"
+            } else {
+                throw
             }
         }
     } else {
-        Write-Host "`n[4/4] Live feed check skipped (pass -Live to enable)" -ForegroundColor DarkGray
+        Write-Host "`n[4/5] Live HUD + feed check skipped (pass -Live to enable)" -ForegroundColor DarkGray
+    }
+
+    # ---------- 5. (Live) the auth gate must reject a wrong token ----------
+    if ($liveFetched) {
+        Write-Host "`n[5/5] Auth gate: wrong token must be rejected..." -ForegroundColor Cyan
+        $badUrl = "http://127.0.0.1:$port/atlas-calendar.ics?token=wrongtokenthatis22ch"
+        try {
+            Invoke-WebRequest -Uri $badUrl -UseBasicParsing -TimeoutSec 10 | Out-Null
+            Assert-True $false "wrong token should not return 200"
+        } catch {
+            $status = $null
+            if ($_.Exception.Response) { $status = [int]$_.Exception.Response.StatusCode }
+            Assert-True ($status -eq 401) "wrong token gives 401 (got $status)"
+        }
+    } else {
+        Write-Host "`n[5/5] Auth-gate check skipped (needs -Live + a calendar-ics build)" -ForegroundColor DarkGray
     }
 } finally {
-    Restore-Profile
+    if ($hudJob) { Stop-Job $hudJob -ErrorAction SilentlyContinue; Remove-Job $hudJob -Force -ErrorAction SilentlyContinue }
+    if ($hadProfile) { $env:OC_PROFILE = $priorProfile }
+    else { Remove-Item Env:\OC_PROFILE -ErrorAction SilentlyContinue }
+    if (Test-Path -LiteralPath $scratchRoot) {
+        Remove-Item -LiteralPath $scratchRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 Write-Host "`nPASS: calendar smoke test completed" -ForegroundColor Green

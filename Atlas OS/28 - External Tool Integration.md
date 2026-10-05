@@ -671,7 +671,7 @@ pub fn next_free_slot(&self, turn_eta: Duration) -> Option<(chrono::DateTime<Utc
 - [x] **Item 7**: `AppState` integration — `CalendarPoller` (60 s; `ATLAS_CALENDAR_POLL_SECS`) fills `AppState.context_availability` (renamed from the sketched `context_busy_windows`).
 - [x] **Item 8**: `planning/availability.rs::next_free_slot()` + `availability_now()` consulted before enqueuing a proactive turn (Phase 23 v3.1.2; golden task `planning.availability`).
 - [x] **Item 9**: `docs/calendar-integration.md` — subscribe `webcal://`, authorize Graph, ad-hoc/durable `.ics`, availability/policy, troubleshooting.
-- [x] **Item 10**: `tools/calendar-smoke.ps1` — feature-gate probe + token format + idempotent feed URL; `-Live` fetches `/atlas-calendar.ics` from a running HUD and validates the RFC 5545 skeleton + 401 on a wrong token (the HUD server is owned by the desktop process, so the script attaches rather than spawns).
+- [x] **Item 10**: `tools/calendar-smoke.ps1` — feature-gate probe + token format + idempotent feed URL; `-Live` **spawns the headless HUD with `atlas serve`** (RFC 29 §3.A), waits for `hud_port.txt`, fetches `/atlas-calendar.ics` and validates the RFC 5545 skeleton (`BEGIN:VCALENDAR`/`VERSION:2.0`/`END:VCALENDAR`) + 401 on a wrong token.
 
 ### G.7 Riesgos
 
