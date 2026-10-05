@@ -78,7 +78,13 @@ pub async fn approve(
     let user_id = body
         .and_then(|b| b.0.user_id)
         .unwrap_or_else(|| "operator".into());
-    publish_decision(&state, approval_id, ApprovalDecisionKind::Apr, user_id, None)
+    publish_decision(
+        &state,
+        approval_id,
+        ApprovalDecisionKind::Apr,
+        user_id,
+        None,
+    )
 }
 
 pub async fn deny(
@@ -91,7 +97,13 @@ pub async fn deny(
         .map(|b| (b.0.user_id, b.0.reason))
         .unwrap_or((None, None));
     let user_id = user_id.unwrap_or_else(|| "operator".into());
-    publish_decision(&state, approval_id, ApprovalDecisionKind::Deny, user_id, reason)
+    publish_decision(
+        &state,
+        approval_id,
+        ApprovalDecisionKind::Deny,
+        user_id,
+        reason,
+    )
 }
 
 #[cfg(test)]
