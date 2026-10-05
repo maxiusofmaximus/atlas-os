@@ -142,7 +142,7 @@ CREATE TABLE IF NOT EXISTS domain_runs (
 5. [x] CLI `atlas domain list/use/install/open/probe/guide` (verificado por smoke).
 6. [x] Packs iniciales `coding`, `cad`, `game`, `creative-media` (embebidos).
 7. [x] Packs `mobile` (artemis) + `gis` (OpenCADStudio) + `media-gen` (7 seed packs embebidos).
-8. ⏳ Stages de validación de dominio (geometry/units/export) — declarados en el manifiesto; wiring pendiente.
+8. [~] Stages de validación de dominio (geometry/units/export) — **⏳ diferido**: el manifiesto declara los nombres (`engines.validation`) pero RFC 64 no especifica la semántica ni el comando de cada stage. Requiere validadores por dominio o un campo `[validation] command=` en el manifiesto (decisión de diseño pendiente; no se inventan checkers placeholder).
 9. [x] Firma obligatoria de packs (RFC 18 §6): `install` exige `--sha256`; mismatch rechazado (verificado).
 10. [x] Docs operador por pack (`docs/domain-<id>.md`, 7 guías).
 11. [x] Cross-refs RFC 02/03/06/07/26/28 (RFC 26 actualizado).
