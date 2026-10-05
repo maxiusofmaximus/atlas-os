@@ -1,6 +1,6 @@
 # 03 - Engine Architecture
 
-Atlas OS está formado por **diez motores** independientes. Algunos son continuos, otros reactivos. Esta especificación define responsabilidades, interfaces y eventos de cada uno.
+Atlas OS está formado por **nueve motores** independientes más una **capacidad transversal de razonamiento** (`§4` — integral, *no* un motor aislado). Algunos son continuos, otros reactivos. Esta especificación define responsabilidades, interfaces y eventos de cada uno.
 
 ---
 
@@ -11,13 +11,14 @@ Atlas OS está formado por **diez motores** independientes. Algunos son continuo
 | 1 | Context Engine | Continuo | `11` |
 | 2 | Research Engine | Reactivo | `10` |
 | 3 | Planning Engine | Reactivo | `12` |
-| 4 | Reasoning Engine | Reactivo | (embed en muchos) |
-| 5 | Coding Engine | Reactivo | `13` |
-| 6 | Validation Engine | Reactivo incremental | `14` |
-| 7 | Repair Engine | Reactivo | `15` |
-| 8 | Learning Engine | Continuo + reactivo | `16` |
-| 9 | Model Orchestrator | Reactivo | `04` |
-| 10 | Execution Supervisor | Continuo | `19` |
+| 4 | Coding Engine | Reactivo | `13` |
+| 5 | Validation Engine | Reactivo incremental | `14` |
+| 6 | Repair Engine | Reactivo | `15` |
+| 7 | Learning Engine | Continuo + reactivo | `16` |
+| 8 | Model Orchestrator | Reactivo | `04` |
+| 9 | Execution Supervisor | Continuo | `19` |
+
+**Capacidad transversal (no motor): Reasoning** — `§4`. No es un motor aislado; cualquier motor la invoca. Materializada en `orchestrator/aggregation/` (`moa.rs` + `majority_vote.rs` = MoA/voto; `council.rs` = debate multi-agente; `self_refine.rs`/`reflexion.rs`/`self_discover.rs` = self-reflection) y `orchestrator/reliability_gate.rs` (verificación + confidence gate). No existe —ni se requiere— un directorio `reasoning/` (reconciliación `research/61 §8.4`).
 
 A estos se suman subsistemas transversales:
 - **Swarm Coordinator** (`05`)
@@ -73,9 +74,11 @@ Mission
                                     [Execution Journal]
 ```
 
-## 4. Reasoning Engine (integral)
+## 4. Reasoning — capacidad transversal (integral)
 
 El razonamiento no es un motor aislado que se ejecuta una vez: es una capacidad que **cualquier motor puede invocar**. Métodos expuestos:
+
+> **Materialización (verificado 2026-10, `research/61 §8.4`):** no hay módulo `reasoning/` (sería superficie sin profundidad). MoA/voto y debate viven en `orchestrator/aggregation/` (`moa.rs`, `majority_vote.rs`, `council.rs`); self-reflection en `orchestrator/aggregation/{self_refine,reflexion,self_discover}.rs`; verificación + confidence gate (Meta-Reasoning) en `orchestrator/reliability_gate.rs`.
 
 | Método | Cuándo |
 |---|---|

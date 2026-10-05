@@ -82,7 +82,7 @@ Escala: **0** no existe · **1** spec · **2** scaffold · **3** funcional inter
 | **opencode / Claude Code / Codex CLI** | Resolver tareas de código de punta a punta | **2–3** | Plumbing completo (diff/apply/verify/repair/terminal), pero Terminal-Bench 0.000 |
 | **Cursor / Windsurf** | IDE + UX (editor, review queue, demos) | **1–2** | Sin editor (RFC 17 declarado reemplazado); HUD = panel de debug |
 | **Hermes** | HUD local + profiles + worktrees | **3** | HUD WS, profiles, worktrees reales |
-| **Hermes** | Agente persistente 24/7 multi-canal + cloud | **0–1** | Runtime muere con el desktop (RFC 29 §3.A); sin gateway multi-canal (§3.B) |
+| **Hermes** | Agente persistente 24/7 multi-canal + cloud | **1–2** | Runtime headless real: `atlas serve` (RFC 29 §3.A) sobrevive al desktop; falta el gateway multi-canal (§3.B) y user modeling (§3.C) |
 | **OpenClaw** | Extensible + **seguro** | **3** | Firmas SHA-256, sandbox types, supply-chain gate (scaffold sólido) |
 | **Cline / Roo / Aider** | Gobernanza (doom-loop, budget) | **4** | `DoomLoopDetector` hard-deny + budget caps + 4 modos (spec *y* código) |
 | **OpenRouter Fusion / Fugu / AionUI** | Orquestación multi-modelo adaptativa | **4** | Phase 2 completa: routing/cascade/normalización/coste/backpressure/affinity |
@@ -128,7 +128,7 @@ Atlas OS es hoy un **sistema de orquestación y observabilidad de amplitud inusu
 1. **Cerrar la brecha A antes que añadir superficie.** Congelar features nuevas; invertir todo en el bucle agéntico (herramientas de filesystem/exec, verificación de artefactos, reparación) hasta mover Terminal-Bench de 0.000 a >0.1 → luego >0.5. Es el único KPI que decide si el proyecto "iguala/supera" a los objetivos.
 2. **Re-fundar el HUD** sobre las 8 views de RFC 24 (empezar por Kanban + approvals queue + agent cards), o declarar explícitamente el recorte.
 3. **Hacer honesto el default build:** o activar `fastembed`/`ast` por defecto, o documentar que el producto por defecto **no** tiene memoria vectorial ni grafo.
-4. **Reconciliar spec vs código:** añadir un `REASONING ENGINE` real o corregir RFC 03 (9 motores, no 10); robustecer MCP (RFC 07) que hoy es casi nominal. **→ MCP: ✅ Fase 29.0** — runtime real (`mcp/`: registry dual-shape opencode/RFC07 + JSON-RPC 2.0 + stdio con `cmd /C` en Windows + allowlist §4; CLI `atlas mcp list|add|remove|probe|call`), verificado en vivo contra Context7 (`probe` + `call` reales). Reasoning Engine sigue pendiente (RFC 03).
+4. **Reconciliar spec vs código:** añadir un `REASONING ENGINE` real o corregir RFC 03 (9 motores, no 10); robustecer MCP (RFC 07) que hoy es casi nominal. **→ MCP: ✅ Fase 29.0** — runtime real (`mcp/`: registry dual-shape opencode/RFC07 + JSON-RPC 2.0 + stdio con `cmd /C` en Windows + allowlist §4; CLI `atlas mcp list|add|remove|probe|call`), verificado en vivo contra Context7 (`probe` + `call` reales). Reasoning Engine **resuelto por reconciliación (2026-10): RFC 03 corregido a 9 motores + Reasoning como capacidad transversal**, materializado en `orchestrator/aggregation/` (`moa.rs`/`majority_vote.rs`/`council.rs`/`self_refine.rs`/`reflexion.rs`/`self_discover.rs`) + `orchestrator/reliability_gate.rs`. No se añade un módulo `reasoning/` (evitaría superficie sin profundidad).
 5. **Mantener el baseline externo en CI** (no solo el golden 6/6) para que la capacidad no pueda fingirse con tests triviales.
 
 ---
