@@ -10,10 +10,10 @@ use super::commands::ServeCmd;
 #[cfg(feature = "toast")]
 use super::commands::ToastCmd;
 use super::commands::{
-    AgentCmd, AuditCmd, BrowserCmd, CalendarCmd, DomainCmd, EvalCmd, ExecCmd, ExecuteCmd, ForkCmd,
-    HudCmd, JournalCmd, LearnCmd, McpCmd, MissionCmd, MobileCmd, ModelsCmd, MonitorCmd, PlanCmd,
-    ProfileCmd, RemoteCmd, ResumeCmd, RunCmd, SecretsCmd, SecurityCmd, SisterCmd, SkillCmd,
-    SteerCmd, SwapModelCmd, SwarmCmd, ValidateCmd,
+    AgentCmd, AuditCmd, BrowserCmd, CalendarCmd, ChannelsCmd, DomainCmd, EvalCmd, ExecCmd,
+    ExecuteCmd, ForkCmd, HudCmd, JournalCmd, LearnCmd, McpCmd, MissionCmd, MobileCmd, ModelsCmd,
+    MonitorCmd, PlanCmd, ProfileCmd, RemoteCmd, ResumeCmd, RunCmd, SecretsCmd, SecurityCmd,
+    SisterCmd, SkillCmd, SteerCmd, SwapModelCmd, SwarmCmd, ValidateCmd,
 };
 #[derive(Parser, Debug)]
 #[command(name = "atlas", version, propagate_version = true)]
@@ -86,6 +86,8 @@ pub enum Commands {
     Serve(ServeCmd),
     /// List/add/remove/probe/call MCP servers (RFC 07).
     Mcp(McpCmd),
+    /// Multi-channel gateway status — steer from anywhere (RFC 29 §3.B).
+    Channels(ChannelsCmd),
     /// Skill management (RFC 06).
     Skill(SkillCmd),
     /// Domain packs — list/use/probe/open/guide/install (RFC 64, Fase 28).

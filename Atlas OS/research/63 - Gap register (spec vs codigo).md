@@ -33,7 +33,7 @@ Esto confirma la tesis del registro: **los checklists verdes ≠ entorno usable.
 |---|---|---|---|---|
 | **A1** | **Capacidad agéntica ≈ 0**: el agente no resuelve tareas reales | `research/61 §3/§8bis` (Terminal-Bench 2 `pass_rate` 0.000 con modelos de nube; **>0** con Qwen 125B local) | **Modelo** (el harness mide bien: oracle 0.88) | Correr el harness con un modelo de frontera y subir el baseline (RFC 63 §9/§13) |
 | **A2** | **Configuración de una clave/modelo** (antes: solo env vars) | `secrets/` + `atlas secrets set\|get\|list\|delete` + `orchestrator::client::resolve_api_key` (env → keychain); backend nativo por SO en `Cargo.toml` | ✅ **Implementado (2026-10)** | Hecho (roundtrip verificado con `tools/secrets-smoke.ps1`). Opcional a futuro: input en el HUD |
-| **A3** | **Sin gateway multicanal** (steer desde Telegram/Slack/…); el operador solo abre el HUD web | RFC 29 §3.B | Faltan crates (`teloxide`/`serenity`/`slack-morphism`) + tokens de bot → **decisión de operador** | Diferido hasta decisión |
+| **A3** | **Gateway multicanal** (steer desde Telegram/Slack/…); antes solo HUD web | RFC 29 §3.B | **A3.0 ✅ (2026-10-06)** núcleo channel-agnóstico `channels/` (`parse_command` + `format_event` + CLI `atlas channels`); adaptador `teloxide` (feature `multi-channel`, default off) + token de bot | Núcleo hecho; adaptador pendiente |
 | **A4** | ~~Sin user modeling~~ ✅ **Implementado** | `journal/user_profile.rs` (`user_profile` table + `knowledge_state.gaps_identified`) consumido por `prompt/steps/detect.rs::apply_user_profile` (RFC 23) | ✅ Hecho | — |
 | **A5** | ~~Bundled skills catalog ausente~~ ✅ **Implementado** | `skills/bundled.rs` compila **16** skills vía `include_str!` (`bundled-skills`, default on) | ✅ Hecho | — |
 

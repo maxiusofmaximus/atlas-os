@@ -5,6 +5,7 @@ pub mod agent;
 pub mod audit;
 pub mod browser;
 pub mod calendar;
+pub mod channels;
 pub mod domain;
 pub mod eval;
 pub mod exec;
@@ -41,6 +42,7 @@ pub use agent::AgentCmd;
 pub use audit::AuditCmd;
 pub use browser::BrowserCmd;
 pub use calendar::CalendarCmd;
+pub use channels::ChannelsCmd;
 pub use domain::DomainCmd;
 pub use eval::EvalCmd;
 pub use exec::ExecCmd;
@@ -97,6 +99,7 @@ pub async fn dispatch(cmd: Commands, profile: &str) -> Result<()> {
         #[cfg(feature = "hud")]
         Commands::Serve(c) => serve::run(c, profile).await,
         Commands::Mcp(c) => mcp::run(c, profile).await,
+        Commands::Channels(c) => channels::run(c, profile).await,
         Commands::Skill(c) => skill::run(c, profile).await,
         Commands::Domain(c) => domain::run(c, profile).await,
         Commands::Security(c) => security::run(c, profile).await,

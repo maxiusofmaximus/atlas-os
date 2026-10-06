@@ -128,6 +128,8 @@ Las 6 brechas concretas que el audit identifica. Cada una está entrada como `(p
 **Patrón:** §2.2 multi-canal.
 **Status:** RFC 24 §16 menciona "web responsive + push notifications + mobile review queue" pero NO hay gateway a Telegram/Discord/Slack/Teams/WhatsApp. El operador debe abrir el HUD web.
 
+**A3.0 ✅ (2026-10-06):** núcleo channel-agnóstico `channels/` — `parse_command` (`/pause`, `/resume`, `/steer <text>`, `/approve <id>`, `/deny <id>`, `/status`) y `format_event` (mapea `approval.request` → botones Approve/Deny; `cost.threshold.crossed` / `doom_loop` / `goal_drift` → Pause; el resto se ignora). CLI `atlas channels [--json]` (status, sin red, no spawnea nada).
+
 **Propuesta:** Implementar `opencode channel <platform>` (sub-comando CLI) que registra un bot OAuth en el canal del operador y mapea steer/approval requests a messages. Patrones:
 
 - `approval.request` event → DraftsBot envía a Slack con botones `[APR] [DENY] [STEER]`.
@@ -135,6 +137,8 @@ Las 6 brechas concretas que el audit identifica. Cada una está entrada como `(p
 - `mission.consolidated` → Notion-style card posted en channel.
 
 Stack: `teloxide` (Telegram, MIT), `serenity` (Discord, MIT), `slack-morphism` (Slack, MIT) — todas pure Rust, single-binary safe (RFC 25 §11). Feature-gated `multi-channel` default off.
+
+**A3.1 (pendiente):** adaptador `teloxide` detrás de la feature `multi-channel` (default off; compila sin tokens). El token vive en `ATLAS_TELEGRAM_BOT_TOKEN` (env o llavero vía `atlas secrets set`), y el núcleo ya formatea/parsea lo que el adaptador sólo tiene que transportar.
 
 **Riesgo:** Cada canal tiene rate limits distintos. Mitigación: cola por canal con backpressure (memo del patrón §2.4 de RFC 27).
 

@@ -11,6 +11,7 @@ use tracing_subscriber::EnvFilter;
 pub mod acp;
 pub mod browser;
 pub mod calendar;
+pub mod channels;
 pub mod cli;
 pub mod coding;
 pub mod context;
