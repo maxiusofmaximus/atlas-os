@@ -191,6 +191,15 @@ impl Registry {
         };
         let mut d = Deployment::new(model.trim(), base.trim());
         d.api_key_env = Some(key_env);
+        if base.contains("opencode.ai") {
+            // Go/Zen require a stable per-conversation session id for routing
+            // and prompt caching (see https://opencode.ai/docs/go — "Where can I
+            // use it?"). The self-identifying User-Agent is set on the client.
+            d.extra_headers = vec![(
+                "x-opencode-session".to_string(),
+                uuid::Uuid::new_v4().to_string(),
+            )];
+        }
         vec![d]
     }
 
@@ -523,6 +532,11 @@ mod tests {
         assert_eq!(d.len(), 1);
         assert_eq!(d[0].api_base, "https://opencode.ai/zen/go/v1");
         assert_eq!(d[0].api_key_env.as_deref(), Some("OPENCODE_GO_KEY"));
+        // Go/Zen require a per-conversation session header.
+        assert!(d[0]
+            .extra_headers
+            .iter()
+            .any(|(k, _)| k == "x-opencode-session"));
 
         // An explicit slot always wins.
         std::env::set_var("ATLAS_LLM_API_KEY_ENV", "MY_SLOT");

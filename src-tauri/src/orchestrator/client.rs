@@ -147,9 +147,13 @@ pub struct HttpProviderClient {
 
 impl HttpProviderClient {
     pub fn new() -> Self {
-        Self {
-            http: reqwest::Client::new(),
-        }
+        // Identify as Atlas OS, not a generic HTTP library (OpenCode Go asks
+        // clients to send a self-identifying User-Agent).
+        let http = reqwest::Client::builder()
+            .user_agent(concat!("atlas-os/", env!("CARGO_PKG_VERSION")))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+        Self { http }
     }
 }
 
@@ -193,6 +197,10 @@ impl ProviderClient for HttpProviderClient {
             if !key.trim().is_empty() {
                 builder = builder.bearer_auth(key);
             }
+        }
+        // Provider-mandated headers (e.g. OpenCode Go's `x-opencode-session`).
+        for (name, value) in &deployment.extra_headers {
+            builder = builder.header(name.as_str(), value.as_str());
         }
         let response = builder
             .send()

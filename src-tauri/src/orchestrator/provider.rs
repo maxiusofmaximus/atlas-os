@@ -436,6 +436,10 @@ pub struct Deployment {
     /// `std::env::var(env_var_name)` at first use and caches. Encrypting
     /// at-rest in SQLite is a Phase 3 concern (RFC 25 §6 OS keychain).
     pub api_key_env: Option<String>,
+    /// Extra HTTP headers this provider requires on every request (e.g.
+    /// OpenCode Go's `x-opencode-session`, its routing/prompt-cache key).
+    #[serde(default)]
+    pub extra_headers: Vec<(String, String)>,
 }
 
 impl Deployment {
@@ -462,6 +466,7 @@ impl Deployment {
             requests_per_minute: None,
             max_parallel: None,
             api_key_env: None,
+            extra_headers: Vec::new(),
         }
     }
 

@@ -29,6 +29,17 @@ Modelos usados para el **benchmark** (RFC 63):
 
 El catálogo en vivo: `GET https://opencode.ai/zen/go/v1/models`.
 
+> **Requisitos de Go (ya aplicados):** Go exige `x-opencode-session` (un id
+> **estable por conversación**, para routing y prompt-cache) y un **User-Agent**
+> propio (no genérico de librería). Atlas envía ambos automáticamente para las
+> bases `opencode.ai`.
+>
+> **Protocolo por modelo:** `deepseek-*`, `mimo-*`, `glm-*`, `kimi-*`, `longcat-*`
+> usan `/chat/completions` (lo que usa Atlas). `grok-*`/`gpt-*-luna` usan
+> `/responses`; `minimax-*` usa `/messages`; `muse-spark-*` **no** acepta
+> `/chat/completions` (`ModelProtocolUnsupported`). Para el benchmark usa
+> **`deepseek-v4.1-flash`** o **`mimo-v2.6-flash`**.
+
 ```powershell
 $env:ATLAS_LLM_BASE_URL = "https://opencode.ai/zen/go/v1"
 $env:ATLAS_LLM_MODEL    = "deepseek-v4.1-flash"   # o mimo-v2.6-flash / muse-spark-1.3-contributor
