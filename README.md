@@ -157,30 +157,6 @@ cargo run --manifest-path src-tauri/Cargo.toml --bin atlas -- audit -n 10
 cargo run --manifest-path src-tauri/Cargo.toml --bin atlas -- journal -n 10
 ```
 
-### Guardar tu API key (sin comandos)
-
-Para probar con un modelo real necesitas darle una clave a Atlas. La forma
-fácil, sin terminal:
-
-1. Haz **doble clic** en `Guardar-Clave.bat` (en la raíz del proyecto).
-2. Se abre el **Bloc de notas** con un archivo de campos. Escribe tu clave
-   después del `=`, por ejemplo:
-
-   ```
-   OPENCODE_GO_KEY = sk-tu-clave-aqui
-   ```
-
-3. Guarda (`Ctrl+S`) y **cierra** el Bloc de notas.
-4. Al cerrarlo, la clave se guarda en el **llavero seguro de Windows**
-   (Credential Manager) y el valor se **borra** del archivo. Listo.
-
-El agente la usa automáticamente (sin variables de entorno). En terminal,
-el equivalente es:
-
-```powershell
-atlas secrets import "$env:USERPROFILE\.opencode\secretos.txt" --consume
-```
-
 ## Lint / test
 
 | Target     | Command                                                                          |
