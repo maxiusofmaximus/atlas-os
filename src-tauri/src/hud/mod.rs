@@ -20,6 +20,7 @@ pub mod mcp;
 pub mod observer;
 pub mod reliability;
 pub mod remote_status;
+pub mod secrets;
 pub mod server;
 pub mod skills;
 pub mod tail;

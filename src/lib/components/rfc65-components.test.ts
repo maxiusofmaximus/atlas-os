@@ -22,6 +22,7 @@ const components: Array<{ file: string; marker: string }> = [
   { file: 'WorktreesView.svelte', marker: 'fetchWorktrees' },
   { file: 'DemoPane.svelte', marker: 'fetchDemos' },
   { file: 'SkillMcpRail.svelte', marker: 'fetchMcp' },
+  { file: 'SettingsView.svelte', marker: 'fetchSecretSlots' },
 ];
 
 describe('RFC 65 components — compile', () => {
@@ -45,4 +46,14 @@ describe('RFC 65 components — wiring + empty/error states', () => {
       expect(source).toContain('empty');
     });
   }
+});
+
+describe('settings view is catalogued', () => {
+  it('Settings is in VIEWS with the `s` hotkey and a P1 fase', async () => {
+    const { VIEWS } = await import('../stores/views');
+    const settings = VIEWS.find((v) => v.id === 'settings');
+    expect(settings).toBeDefined();
+    expect(settings?.key).toBe('s');
+    expect(settings?.fase).toBe('P1');
+  });
 });

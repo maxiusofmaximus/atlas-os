@@ -291,6 +291,52 @@ export async function fetchAvailability(hudUrl: string): Promise<AvailabilityRes
   return (await res.json()) as AvailabilityResponse;
 }
 
+// ────────────── RFC 25 §3.10 — API-key settings (OS keychain) ──────────────
+//
+// The in-app surface over `crate::secrets`. Values are write-only: the read
+// side returns only a `present` flag per slot, never the secret itself.
+
+export interface SecretSlot {
+  account: string;
+  present: boolean;
+}
+
+export interface SecretsResponse {
+  service: string;
+  slots: SecretSlot[];
+}
+
+export async function fetchSecretSlots(hudUrl: string): Promise<SecretsResponse> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const res = await fetch(`${trimmed}/hud/secrets`);
+  if (!res.ok) {
+    throw new Error(`HUD secrets failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as SecretsResponse;
+}
+
+export async function postSecret(hudUrl: string, account: string, value: string): Promise<void> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const res = await fetch(`${trimmed}/hud/secrets`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ account, value }),
+  });
+  if (!res.ok) {
+    throw new Error(`HUD secrets store failed: ${res.status} ${res.statusText}`);
+  }
+}
+
+export async function deleteSecret(hudUrl: string, account: string): Promise<void> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const res = await fetch(`${trimmed}/hud/secrets/${encodeURIComponent(account)}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    throw new Error(`HUD secrets delete failed: ${res.status} ${res.statusText}`);
+  }
+}
+
 /** Normalise a raw WS frame into a `HudEvent`. The axum bridge forwards the
  *  whole `BusEvent` (`{ id, kind: { type, ...fields }, ts }`); tests/older
  *  producers may send a flat `{ kind: "x", payload }`. Both are accepted, and

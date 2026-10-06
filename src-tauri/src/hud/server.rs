@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use axum::routing::{get, post};
+use axum::routing::{delete, get, post};
 use axum::Router;
 use tokio_util::sync::CancellationToken;
 use tower_http::cors::CorsLayer;
@@ -129,6 +129,14 @@ pub async fn serve_on(
         .route("/hud/demos", get(super::demos::get_demos))
         .route("/hud/mcp", get(super::mcp::get_mcp))
         .route("/hud/skills/:id/activate", post(super::skills::activate))
+        .route(
+            "/hud/secrets",
+            get(super::secrets::get_secrets).post(super::secrets::post_secret),
+        )
+        .route(
+            "/hud/secrets/:account",
+            delete(super::secrets::delete_secret),
+        )
         .route(
             "/hud/availability",
             get(super::availability::get_availability),

@@ -20,7 +20,8 @@ export type ViewId =
   | 'canvas'
   | 'outline'
   | 'timeline'
-  | 'worktrees';
+  | 'worktrees'
+  | 'settings';
 
 export interface ViewDef {
   id: ViewId;
@@ -43,6 +44,7 @@ export const VIEWS: readonly ViewDef[] = [
   { id: 'outline', label: 'Outline', key: 'l', fase: 'P2' },
   { id: 'timeline', label: 'Timeline', key: 't', fase: 'P2' },
   { id: 'worktrees', label: 'Worktrees', key: 'w', fase: 'P2' },
+  { id: 'settings', label: 'Settings', key: 's', fase: 'P1' },
 ];
 
 const initial: ViewId = 'overview';

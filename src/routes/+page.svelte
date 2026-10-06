@@ -35,6 +35,7 @@
   import OutlineView from '$lib/components/OutlineView.svelte';
   import TimelineView from '$lib/components/TimelineView.svelte';
   import WorktreesView from '$lib/components/WorktreesView.svelte';
+  import SettingsView from '$lib/components/SettingsView.svelte';
   import DemoPane from '$lib/components/DemoPane.svelte';
   import SkillMcpRail from '$lib/components/SkillMcpRail.svelte';
   import ViewSwitcher from '$lib/components/ViewSwitcher.svelte';
@@ -328,6 +329,7 @@
     'outline',
     'timeline',
     'worktrees',
+    'settings',
   ];
   let paletteOpen = $state(false);
 
@@ -477,6 +479,15 @@
         fail-safe when git is missing or the path is not a repo.
       </p>
       <WorktreesView hudUrl={data.hudUrl ?? null} />
+    </section>
+  {:else if $activeView === 'settings'}
+    <section class="settings-view-page">
+      <h2>Settings</h2>
+      <p class="hint">
+        RFC 25 §3.10. Provider API keys live in the <strong>OS keychain</strong> (Windows Credential Manager
+        / macOS Keychain / Linux Secret Service) — never in files, prompts or logs.
+      </p>
+      <SettingsView hudUrl={data.hudUrl ?? null} />
     </section>
   {:else}
     <section class="hud-health">
