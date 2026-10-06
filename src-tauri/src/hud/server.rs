@@ -129,6 +129,7 @@ pub async fn serve_on(
         .route("/hud/demos", get(super::demos::get_demos))
         .route("/hud/mcp", get(super::mcp::get_mcp))
         .route("/hud/mcp/allowlist", post(super::mcp::set_allowlist))
+        .route("/hud/mcp/probe", post(super::mcp::probe))
         .route("/hud/skills/:id/activate", post(super::skills::activate))
         .route(
             "/hud/secrets",

@@ -16,6 +16,7 @@ use axum::Json;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
+use crate::mcp::client::McpClient;
 use crate::mcp::config::{McpRegistry, McpServerConfig};
 
 #[derive(Debug, Deserialize)]
@@ -145,6 +146,118 @@ pub async fn set_allowlist(Json(body): Json<AllowlistBody>) -> Json<Value> {
     }
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ProbeBody {
+    pub repo: Option<String>,
+    pub server: String,
+}
+
+/// RFC 07 §10 — connect to a configured server and list the tools it actually
+/// exposes (`tools/list`), so the operator can build the allowlist without
+/// guessing names. Fail-safe: a BLOCK supply verdict refuses to spawn (RFC 07
+/// §3); a sandbox/supply warning is returned alongside the tools.
+pub async fn probe(Json(body): Json<ProbeBody>) -> Json<Value> {
+    let repo = match body.repo {
+        Some(r) => PathBuf::from(r),
+        None => match std::env::current_dir() {
+            Ok(d) => d,
+            Err(e) => {
+                return Json(
+                    json!({ "ok": false, "reason": format!("cwd unavailable: {e}"), "tools": [] }),
+                )
+            }
+        },
+    };
+    let candidates = [
+        repo.join(".opencode").join("mcp.json"),
+        repo.join("mcp.json"),
+    ];
+    let existing: Vec<PathBuf> = candidates.iter().filter(|p| p.is_file()).cloned().collect();
+    if existing.is_empty() {
+        return Json(json!({
+            "ok": false,
+            "reason": format!("{}: not found", candidates[0].display()),
+            "tools": [],
+        }));
+    }
+    let registry = match McpRegistry::load_from(&existing) {
+        Ok(r) => r,
+        Err(e) => {
+            return Json(
+                json!({ "ok": false, "reason": format!("invalid registry: {e}"), "tools": [] }),
+            )
+        }
+    };
+    let cfg = match registry.get(&body.server) {
+        Some(c) => c.clone(),
+        None => {
+            return Json(json!({
+                "ok": false,
+                "reason": format!("server `{}` not found", body.server),
+                "tools": [],
+            }))
+        }
+    };
+    if !cfg.enabled {
+        return Json(json!({ "ok": false, "reason": "server is disabled", "tools": [] }));
+    }
+    if let Err(e) = cfg.validate() {
+        return Json(json!({ "ok": false, "reason": e, "tools": [] }));
+    }
+    let supply = cfg.supply_report();
+    if supply.as_ref().is_some_and(|r| r.verdict.is_blocking()) {
+        return Json(json!({
+            "ok": false,
+            "reason": "supply-chain BLOCK (RFC 07 §3): refusing to spawn",
+            "tools": [],
+        }));
+    }
+
+    let mut client = match McpClient::connect(&body.server, &cfg).await {
+        Ok(c) => c,
+        Err(e) => {
+            return Json(
+                json!({ "ok": false, "reason": format!("connect failed: {e}"), "tools": [] }),
+            )
+        }
+    };
+    let tools = match client.tools_list().await {
+        Ok(t) => t
+            .into_iter()
+            .map(|t| {
+                json!({
+                    "name": t.name,
+                    "description": t.description,
+                    "allowed": cfg.is_tool_allowed(&t.name),
+                })
+            })
+            .collect::<Vec<_>>(),
+        Err(e) => {
+            return Json(
+                json!({ "ok": false, "reason": format!("tools/list failed: {e}"), "tools": [] }),
+            )
+        }
+    };
+
+    Json(json!({
+        "ok": true,
+        "server": body.server,
+        "reason": Value::Null,
+        "tools": tools,
+        "allowed_tools": cfg.allowed_tools,
+        "sandbox": {
+            "effective": cfg.effective_sandbox().as_str(),
+            "enforced": cfg.is_sandbox_enforced(),
+            "finding": cfg.sandbox_finding(),
+        },
+        "supply": supply.map(|r| json!({
+            "package": r.package,
+            "verdict": r.verdict.as_str(),
+            "reasons": r.reasons,
+        })),
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -253,5 +366,44 @@ mod tests {
         .await;
         assert_eq!(v["ok"], false);
         assert!(v["reason"].as_str().is_some());
+    }
+
+    #[tokio::test]
+    async fn probe_missing_server_is_ok_false() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let opencode = dir.path().join(".opencode");
+        std::fs::create_dir_all(&opencode).unwrap();
+        std::fs::write(
+            opencode.join("mcp.json"),
+            r#"{"mcp":{"a":{"command":"x"}}}"#,
+        )
+        .unwrap();
+        let Json(v) = probe(Json(ProbeBody {
+            repo: Some(dir.path().display().to_string()),
+            server: "missing".into(),
+        }))
+        .await;
+        assert_eq!(v["ok"], false);
+        assert!(v["reason"].as_str().unwrap().contains("not found"));
+    }
+
+    #[tokio::test]
+    async fn probe_refuses_a_supply_block_without_spawning() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let opencode = dir.path().join(".opencode");
+        std::fs::create_dir_all(&opencode).unwrap();
+        // `lodaxh` ~ `lodash` (typosquat) → BLOCK before any spawn (RFC 07 §3).
+        std::fs::write(
+            opencode.join("mcp.json"),
+            r#"{"mcp":{"evil":{"command":["npx","-y","lodaxh"],"enabled":true}}}"#,
+        )
+        .unwrap();
+        let Json(v) = probe(Json(ProbeBody {
+            repo: Some(dir.path().display().to_string()),
+            server: "evil".into(),
+        }))
+        .await;
+        assert_eq!(v["ok"], false);
+        assert!(v["reason"].as_str().unwrap().contains("BLOCK"));
     }
 }

@@ -1,11 +1,19 @@
 <!-- RFC 65 §10 (P1) — McpView: the MCP catalog with the RFC 07 §2/§3/§4 policy
-     the runtime enforces (sandbox, supply chain, tool allowlist) and an in-place
-     allowlist editor. Read-only except the allowlist: a missing/malformed
-     registry is surfaced as a reason, never a fabricated list. -->
+     the runtime enforces (sandbox, supply chain, tool allowlist), a probe
+     (`tools/list`) and an in-place allowlist editor. Read-only except the
+     allowlist: a missing/malformed registry is surfaced as a reason, never a
+     fabricated list. -->
 
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { fetchMcp, saveMcpAllowlist, type McpCatalog, type McpServer } from '$stores/hud';
+  import {
+    fetchMcp,
+    probeMcp,
+    saveMcpAllowlist,
+    type McpCatalog,
+    type McpProbeTool,
+    type McpServer,
+  } from '$stores/hud';
 
   interface Props {
     hudUrl: string | null;
@@ -16,6 +24,8 @@
   let data = $state<McpCatalog | null>(null);
   let repoInput = $state('');
   let drafts = $state<Record<string, string>>({});
+  let probed = $state<Record<string, McpProbeTool[]>>({});
+  let probing = $state<string | null>(null);
   let saving = $state<string | null>(null);
   let notice = $state<string | null>(null);
   let error = $state<string | null>(null);
@@ -42,6 +52,35 @@
   onMount(() => {
     void refresh();
   });
+
+  async function probeServer(s: McpServer): Promise<void> {
+    if (!hudUrl) return;
+    probing = s.name;
+    notice = null;
+    error = null;
+    try {
+      const r = await probeMcp(hudUrl, s.name, repoInput.trim() || undefined);
+      if (!r.ok) {
+        error = r.reason ?? 'probe failed';
+      } else {
+        probed = { ...probed, [s.name]: r.tools };
+        notice = `${s.name}: ${r.tools.length} tool(s) discovered`;
+      }
+    } catch (err) {
+      error = err instanceof Error ? err.message : String(err);
+    } finally {
+      probing = null;
+    }
+  }
+
+  function addTool(server: string, tool: string): void {
+    const current = (drafts[server] ?? '')
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+    if (!current.includes(tool)) current.push(tool);
+    drafts = { ...drafts, [server]: current.join(', ') };
+  }
 
   async function save(s: McpServer): Promise<void> {
     if (!hudUrl) return;
@@ -139,6 +178,13 @@
               />
               <button
                 type="button"
+                onclick={() => void probeServer(s)}
+                disabled={probing === s.name || !hudUrl}
+              >
+                {probing === s.name ? 'Probing…' : 'Probe'}
+              </button>
+              <button
+                type="button"
                 onclick={() => void save(s)}
                 disabled={saving === s.name || !hudUrl}
               >
@@ -146,6 +192,21 @@
               </button>
             </div>
           </div>
+          {#if probed[s.name]?.length}
+            <div class="tools">
+              {#each probed[s.name] as t (t.name)}
+                <button
+                  type="button"
+                  class="tool add"
+                  class:on={t.allowed}
+                  onclick={() => addTool(s.name, t.name)}
+                  title={t.description ?? ''}
+                >
+                  + {t.name}
+                </button>
+              {/each}
+            </div>
+          {/if}
           <div class="tools">
             {#if s.allowed_tools && s.allowed_tools.length > 0}
               {#each s.allowed_tools as t (t)}<span class="tool">{t}</span>{/each}
@@ -296,6 +357,17 @@
     border-radius: 4px;
     padding: 0.1rem 0.4rem;
     color: #c9d1d9;
+  }
+  .tool.add {
+    cursor: pointer;
+  }
+  .tool.add:hover {
+    border-color: #58a6ff;
+    color: #79c0ff;
+  }
+  .tool.add.on {
+    border-color: #1f5a2a;
+    color: #3fb950;
   }
   .empty-tools {
     font-size: 0.72rem;

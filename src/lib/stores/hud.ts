@@ -1505,6 +1505,40 @@ export async function saveMcpAllowlist(
   return (await res.json()) as McpAllowlistAck;
 }
 
+export interface McpProbeTool {
+  name: string;
+  description: string | null;
+  allowed: boolean;
+}
+
+export interface McpProbeResult {
+  ok: boolean;
+  reason: string | null;
+  server?: string;
+  tools: McpProbeTool[];
+  allowed_tools?: string[];
+  sandbox?: McpSandboxInfo;
+  supply?: McpSupply | null;
+}
+
+/** RFC 07 §10 — connect and list a server's real tools (build the allowlist). */
+export async function probeMcp(
+  hudUrl: string,
+  server: string,
+  repo?: string,
+): Promise<McpProbeResult> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const res = await fetch(`${trimmed}/hud/mcp/probe`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repo: repo || undefined, server }),
+  });
+  if (!res.ok) {
+    throw new Error(`HUD mcp probe failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as McpProbeResult;
+}
+
 export interface SkillActivateAck {
   skill_id: string;
   agent_id: string;
