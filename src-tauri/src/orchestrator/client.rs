@@ -169,12 +169,15 @@ impl Default for HttpProviderClient {
 /// the key into the process environment.
 fn resolve_api_key(slot: &str) -> ClientResult<String> {
     if let Ok(value) = std::env::var(slot) {
-        if !value.trim().is_empty() {
-            return Ok(value);
+        // Trim: a Windows CRLF `.env` leaves a trailing `\r` on the value,
+        // which corrupts the bearer token (401). Keys never contain spaces.
+        let value = value.trim();
+        if !value.is_empty() {
+            return Ok(value.to_string());
         }
     }
     match crate::secrets::get(slot) {
-        Ok(Some(value)) if !value.trim().is_empty() => Ok(value),
+        Ok(Some(value)) if !value.trim().is_empty() => Ok(value.trim().to_string()),
         Ok(_) => Err(ClientError::MissingApiKey(slot.to_string())),
         Err(e) => Err(ClientError::Http(format!(
             "keychain lookup for `{slot}` failed: {e}"
@@ -319,6 +322,18 @@ mod tests {
             .await
             .unwrap_err();
         assert!(matches!(err, ClientError::MissingApiKey(_)));
+    }
+
+    static KEY_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    #[test]
+    fn resolve_api_key_trims_trailing_whitespace_from_env() {
+        let _guard = KEY_ENV_LOCK.lock().unwrap();
+        // A Windows CRLF .env leaves `\r` on the value; it must not reach the
+        // bearer token.
+        std::env::set_var("ATLAS_TEST_TRIM_KEY", "sk-abc\r\n");
+        assert_eq!(resolve_api_key("ATLAS_TEST_TRIM_KEY").unwrap(), "sk-abc");
+        std::env::remove_var("ATLAS_TEST_TRIM_KEY");
     }
 
     struct ScriptedClient {

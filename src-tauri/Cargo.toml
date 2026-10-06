@@ -294,7 +294,10 @@ keyring = { version = "3", features = ["windows-native"] }
 keyring = { version = "3", features = ["apple-native"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-keyring = { version = "3", features = ["sync-secret-service", "crypto-rust"] }
+# Kernel keyutils: no system library (static-musl-safe; keyring's own Linux
+# default). The D-Bus Secret Service backend needs libdbus-1-dev + pkg-config,
+# which breaks the dependency-free static harness build.
+keyring = { version = "3", features = ["linux-native"] }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
