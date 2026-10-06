@@ -151,10 +151,11 @@ fn import(root: &Path, file: &str, consume: bool) -> Result<()> {
         if trimmed.is_empty() || trimmed.starts_with('#') {
             continue;
         }
-        let Some((key, value)) = trimmed.split_once('=') else {
+        let trimmed = trimmed.strip_prefix("export ").unwrap_or(trimmed).trim();
+        let Some((key, raw_value)) = trimmed.split_once('=') else {
             continue;
         };
-        let (key, value) = (key.trim(), value.trim());
+        let (key, value) = (key.trim(), unquote(raw_value.trim()));
         if key.is_empty() {
             continue;
         }
@@ -185,6 +186,19 @@ fn import(root: &Path, file: &str, consume: bool) -> Result<()> {
         println!("  (los valores se borraron del archivo; la clave ya está en el Keychain)");
     }
     Ok(())
+}
+
+/// Strip one pair of matching surrounding quotes (`"..."` / `'...'`), the way
+/// a `.env` file may quote a value. Doesn't touch the interior.
+fn unquote(value: &str) -> &str {
+    let bytes = value.as_bytes();
+    if bytes.len() >= 2 {
+        let (first, last) = (bytes[0], bytes[bytes.len() - 1]);
+        if (first == b'"' && last == b'"') || (first == b'\'' && last == b'\'') {
+            return &value[1..value.len() - 1];
+        }
+    }
+    value
 }
 
 /// Read one line from stdin, without echoing it ourselves.
@@ -305,5 +319,14 @@ mod tests {
         assert_eq!(load_index(dir.path()).unwrap(), vec!["B"]);
         let body = std::fs::read_to_string(index_path(dir.path())).unwrap();
         assert!(!body.contains("secret"), "index holds names only");
+    }
+
+    #[test]
+    fn unquote_strips_only_matching_surrounding_quotes() {
+        assert_eq!(unquote("\"abc\""), "abc");
+        assert_eq!(unquote("'abc'"), "abc");
+        assert_eq!(unquote("abc"), "abc");
+        assert_eq!(unquote("\"abc"), "\"abc");
+        assert_eq!(unquote(""), "");
     }
 }
