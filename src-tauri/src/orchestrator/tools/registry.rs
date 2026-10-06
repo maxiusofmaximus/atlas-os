@@ -133,7 +133,12 @@ impl ToolRegistry {
                 })
             }
         }
-        Ok(t.execute(ctx, args))
+        // RFC 07 §8: time every call centrally (the registry is the one entry
+        // point), so `tool_invocations.duration_ms` is real for every tool.
+        let started = std::time::Instant::now();
+        let mut result = t.execute(ctx, args);
+        result.duration_ms = Some(started.elapsed().as_millis() as u64);
+        Ok(result)
     }
 }
 
@@ -257,5 +262,17 @@ mod tests {
         let mut r2 = ToolRegistry::new(SandboxLevel::Container, true).with_network();
         r2.register(Box::new(NetDummy));
         assert!(r2.call("net.dummy", &ctx, &serde_json::json!({})).is_ok());
+    }
+
+    #[test]
+    fn call_records_wall_clock_duration() {
+        // RFC 07 §8: the registry is the one entry point, so every call is timed
+        // there and lands in `tool_invocations.duration_ms`.
+        let r = ToolRegistry::with_core_tools();
+        let ctx = ToolContext::new(".");
+        let res = r
+            .call("fs.list", &ctx, &serde_json::json!({ "path": "." }))
+            .expect("fs.list is a core tool");
+        assert!(res.duration_ms.is_some(), "duration must be recorded");
     }
 }

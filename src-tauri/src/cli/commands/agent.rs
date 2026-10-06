@@ -286,7 +286,7 @@ pub async fn run(cmd: AgentCmd, profile: &str) -> Result<()> {
                 .unwrap_or_default(),
             ),
             exit_code: tr.exit_code.map(|c| c as i64),
-            duration_ms: None,
+            duration_ms: tr.duration_ms.map(|d| d as i64),
             tokens: None,
             cost_usd: None,
             ts: chrono::Utc::now().timestamp_millis(),

@@ -37,6 +37,10 @@ pub struct ToolResult {
     /// The args the tool was called with (JSON string), for `tool_invocations`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub args_json: Option<String>,
+    /// Wall-clock time the call took, filled by `ToolRegistry::call` (RFC 07 §8
+    /// telemetry). Tools build results without it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub duration_ms: Option<u64>,
 }
 
 impl ToolResult {
@@ -48,6 +52,7 @@ impl ToolResult {
             output: output.into(),
             error: None,
             args_json: None,
+            duration_ms: None,
         }
     }
 
@@ -59,6 +64,7 @@ impl ToolResult {
             output: String::new(),
             error: Some(error.into()),
             args_json: None,
+            duration_ms: None,
         }
     }
 

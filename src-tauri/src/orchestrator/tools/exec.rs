@@ -49,6 +49,7 @@ impl Tool for ExecRunTool {
             output: res.stdout,
             error: None,
             args_json: None,
+            duration_ms: None,
         };
         if !res.stderr.trim().is_empty() {
             if out.output.is_empty() {
