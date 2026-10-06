@@ -141,9 +141,14 @@ impl Registry {
     /// env). The bundled seed only carries PRICES — the actual endpoint is a
     /// runtime/deployment concern, so this is where a real run gets its backend.
     ///
-    /// `api_key_env` is resolved lazily by `HttpProviderClient` at first use, so
-    /// the key never touches this structure. Returns an empty vec when the
-    /// endpoint/model vars are unset (caller then behaves as before).
+    /// The key slot is chosen in this order: an explicit `ATLAS_LLM_API_KEY_ENV`
+    /// (the slot name stored via `atlas secrets`/Settings), then the
+    /// `opencode.ai` gateways (`OPENCODE_GO_KEY` for `/go/`, else
+    /// `OPENCODE_ZEN_KEY`), then the legacy per-provider env vars.
+    ///
+    /// `api_key_env` is resolved lazily by `HttpProviderClient` at first use
+    /// (env var first, then the OS keychain), so the key never touches this
+    /// structure. Returns an empty vec when endpoint/model are unset.
     pub fn deployments_from_env() -> Vec<Deployment> {
         let Ok(base) = std::env::var("ATLAS_LLM_BASE_URL") else {
             return Vec::new();
@@ -154,25 +159,38 @@ impl Registry {
         if base.trim().is_empty() || model.trim().is_empty() {
             return Vec::new();
         }
-        let key_env = if std::env::var("NVIDIA_API_KEY").is_ok() && base.contains("nvidia") {
-            "NVIDIA_API_KEY"
+        let key_env = if let Some(slot) = std::env::var("ATLAS_LLM_API_KEY_ENV")
+            .ok()
+            .filter(|s| !s.trim().is_empty())
+        {
+            slot.trim().to_string()
+        } else if base.contains("opencode.ai") {
+            // OpenCode Go (subscription) / Zen (pay-as-you-go) gateways; both
+            // are OpenAI-compatible and differ only by base URL.
+            if base.contains("/go/") {
+                "OPENCODE_GO_KEY".to_string()
+            } else {
+                "OPENCODE_ZEN_KEY".to_string()
+            }
+        } else if std::env::var("NVIDIA_API_KEY").is_ok() && base.contains("nvidia") {
+            "NVIDIA_API_KEY".to_string()
         } else if std::env::var("CEREBRAS_API_KEY").is_ok() && base.contains("cerebras") {
-            "CEREBRAS_API_KEY"
+            "CEREBRAS_API_KEY".to_string()
         } else if std::env::var("GROQ_API_KEY").is_ok() && base.contains("groq") {
-            "GROQ_API_KEY"
+            "GROQ_API_KEY".to_string()
         } else if std::env::var("OPENAI_API_KEY").is_ok() {
-            "OPENAI_API_KEY"
+            "OPENAI_API_KEY".to_string()
         } else if std::env::var("NVIDIA_API_KEY").is_ok() {
-            "NVIDIA_API_KEY"
+            "NVIDIA_API_KEY".to_string()
         } else if std::env::var("CEREBRAS_API_KEY").is_ok() {
-            "CEREBRAS_API_KEY"
+            "CEREBRAS_API_KEY".to_string()
         } else if std::env::var("GROQ_API_KEY").is_ok() {
-            "GROQ_API_KEY"
+            "GROQ_API_KEY".to_string()
         } else {
             return Vec::new();
         };
         let mut d = Deployment::new(model.trim(), base.trim());
-        d.api_key_env = Some(key_env.to_string());
+        d.api_key_env = Some(key_env);
         vec![d]
     }
 
@@ -483,5 +501,46 @@ mod tests {
         let json = serde_json::to_string(&meta).unwrap();
         let back: RegistrySeedMeta = serde_json::from_str(&json).unwrap();
         assert_eq!(back, meta);
+    }
+
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    #[test]
+    fn deployments_from_env_maps_opencode_gateways_to_their_key_slot() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        for v in [
+            "ATLAS_LLM_BASE_URL",
+            "ATLAS_LLM_MODEL",
+            "ATLAS_LLM_API_KEY_ENV",
+        ] {
+            std::env::remove_var(v);
+        }
+        std::env::set_var("ATLAS_LLM_BASE_URL", "https://opencode.ai/zen/go/v1");
+        std::env::set_var("ATLAS_LLM_MODEL", "glm-5.3");
+
+        // OpenCode Go → the `OPENCODE_GO_KEY` slot (kept in the OS keychain).
+        let d = Registry::deployments_from_env();
+        assert_eq!(d.len(), 1);
+        assert_eq!(d[0].api_base, "https://opencode.ai/zen/go/v1");
+        assert_eq!(d[0].api_key_env.as_deref(), Some("OPENCODE_GO_KEY"));
+
+        // An explicit slot always wins.
+        std::env::set_var("ATLAS_LLM_API_KEY_ENV", "MY_SLOT");
+        let d = Registry::deployments_from_env();
+        assert_eq!(d[0].api_key_env.as_deref(), Some("MY_SLOT"));
+
+        // Zen (no `/go/`) → the Zen slot.
+        std::env::remove_var("ATLAS_LLM_API_KEY_ENV");
+        std::env::set_var("ATLAS_LLM_BASE_URL", "https://opencode.ai/zen/v1");
+        let d = Registry::deployments_from_env();
+        assert_eq!(d[0].api_key_env.as_deref(), Some("OPENCODE_ZEN_KEY"));
+
+        for v in [
+            "ATLAS_LLM_BASE_URL",
+            "ATLAS_LLM_MODEL",
+            "ATLAS_LLM_API_KEY_ENV",
+        ] {
+            std::env::remove_var(v);
+        }
     }
 }

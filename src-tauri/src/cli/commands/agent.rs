@@ -77,7 +77,8 @@ pub async fn run(cmd: AgentCmd, profile: &str) -> Result<()> {
     }
     if deployments.is_empty() {
         anyhow::bail!(
-            "no deployments: set ATLAS_LLM_BASE_URL + ATLAS_LLM_MODEL + the provider key in .env"
+            "no deployments: set ATLAS_LLM_BASE_URL and ATLAS_LLM_MODEL, then store the API key \
+             (Settings view or `atlas secrets set <slot>`)"
         );
     }
     let model = deployments[0].model_id.clone();
