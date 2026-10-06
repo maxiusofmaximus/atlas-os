@@ -7,6 +7,8 @@
 > **Conclusión de una línea:** los **mecanismos** existen casi todos (los checklists de RFC están verdes), pero faltan **capacidad end-to-end, configuración de modelo, y varias features apagadas por defecto**. El hueco #1 es que **el agente aún no resuelve tareas reales** — y eso está atado al **modelo**, no al andamiaje.
 >
 > **Reconciliado contra código (2026-10-05):** A2 (claves/llavero), A4 (user modeling) y A5 (skills empaquetadas) están **implementados**; A3 (multicanal) **sigue ausente**. Verificado por búsqueda directa en `src-tauri/src`.
+>
+> **Reconciliado (2026-10-06):** RFC 07 §10 cerrado salvo infra externa — puente `ToolRegistry` (`mcp/bridge.rs`, **sin cambiar el trait `Tool`**), latencia §8 (`ToolResult.duration_ms`), rotación §9, vista HUD MCP + editor de allowlist (RFC 65 §10). M23 `eval_runs` ya **completada** (Phase 22). Vistas HUD 11→13, tests 1359→1383.
 
 ---
 
@@ -17,8 +19,8 @@
 | Módulos Rust (`src-tauri/src/*`) | **32** |
 | Subcomandos CLI (`atlas <cmd>`) | **32** |
 | Features Cargo | **22** (5 en el build default; 17 opt-in) |
-| Vistas HUD | **11** (`overview, agent, kanban, approvals, cost, health, audit, canvas, outline, timeline, worktrees`) |
-| Tests Rust (`cargo test --lib`) | **1359 ok** |
+| Vistas HUD | **13** (`overview, agent, kanban, approvals, cost, health, audit, canvas, outline, timeline, worktrees, settings, mcp`) |
+| Tests Rust (`cargo test --lib`) | **1383 ok** |
 | Checklists de RFC | **casi todos ✅**; solo RFC 63 tiene 2 parciales (por modelo) |
 
 Esto confirma la tesis del registro: **los checklists verdes ≠ entorno usable.** Abajo están los huecos que los checklists NO capturan.
@@ -63,10 +65,10 @@ Build default = `tauri, hud, lsp, cli, bundled-skills`. Estas **no están** salv
 | RFC | Diferido | Estado |
 |---|---|---|
 | 63 | items 9/13 — gates de capacidad `≥0.10` / `≥0.50` | **Bloqueado por modelo** (A1) |
-| 07 | Fase 29.1+ — isolation real de sandbox, supply-chain MCP, puente `ToolRegistry`, telemetría, rotación | §2 (política) ✅; el resto pendiente. El puente `ToolRegistry` requiere cambiar la firma del trait `Tool` (async + nombres dinámicos) |
+| 07 | Fase 29.1+ — isolation real de sandbox, supply-chain MCP, puente `ToolRegistry`, telemetría, rotación | ✅ **puente `ToolRegistry`** (`mcp/bridge.rs`: hilo worker + runtime propio + nombres leaked; **sin cambiar el trait `Tool`**, contra lo que asumía este registro), ✅ latencia §8 (`ToolResult.duration_ms` rellenada en `ToolRegistry::call`), ✅ rotación §9 (3 fallos consecutivos → tool desactivada), ✅ vista HUD MCP + editor de allowlist (RFC 65 §10). Pendiente: isolation real §2, firma/checksum + Socket §3, `confidence_delta` §8, Learning Engine §9 |
 | 28 | §E items 9-10 (MCP server nativo; graphify closure); §I checklist 2-7 (terminal-browser) | post-MVP |
 | 65 | video TTS/Loom, MCP hot-swap, E2E Playwright, auditoría móvil | diferido explícito |
-| 20 | M23 `eval_runs` (gap G16); routing diferido (Phase 2.5); auditorías de deps (sysinfo/nvml, oidc, ratatui, candle) | diferido |
+| 20 | M23 `eval_runs` (gap G16) — **RESUCITADA y COMPLETA** (Phase 22, M36/v35: `journal/eval_runs.rs` + CLI `atlas eval run/list/report/metrics/import` + gate CI); routing diferido (Phase 2.5); auditorías de deps | eval_runs ✅, resto diferido |
 | 13 | Laya real | **bloqueado por upstream** (`research/42`: criterio no cumplido) |
 | 25 §6 | **OS keychain para secretos** | = A2 |
 
