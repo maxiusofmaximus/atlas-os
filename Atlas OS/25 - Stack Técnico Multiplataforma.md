@@ -255,7 +255,7 @@ Sandbox:
 
 - Windows → Credential Manager.
 - macOS → Keychain.
-- Linux → Secret Service (GNOME Keyring / KWallet).
+- Linux → kernel keyutils (`linux-native`; el backend D-Bus Secret Service exige `libdbus-1-dev` y rompe el binario estático musl del harness).
 
 Nunca escribir claves a `.env`, dotfile plaintext, ni `journal.db`. La entrada en keychain es `(service="OpenCodeOS", account="<slot>")` — el `slot` es, por convención, el nombre del `api_key_env` del deployment (p. ej. `OPENAI_API_KEY`). Si el usuario prefiere dotenv, se soporta pero se advierte.
 
