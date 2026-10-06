@@ -8,7 +8,9 @@
 
 use std::collections::BTreeMap;
 
-use crate::security::sandbox::{approval_for, Approval, SandboxLevel, SensitiveAction};
+use crate::security::sandbox::{
+    approval_for_with_network, Approval, SandboxLevel, SensitiveAction,
+};
 
 use super::{Tool, ToolContext, ToolError, ToolResult};
 
@@ -19,6 +21,9 @@ pub struct ToolRegistry {
     /// When true, `Confirm`-class tools are allowed without a human in the loop
     /// (AUTOPILOT/AUTONOMOUS per RFC 21). When false, they raise `NeedsApproval`.
     allow_confirm: bool,
+    /// When true, `NetworkEgress` tools are allowed (RFC 07 §7 opt-in egress:
+    /// web/MCP). Default false — egress is Forbidden (RFC 18).
+    allow_network: bool,
 }
 
 impl ToolRegistry {
@@ -27,6 +32,7 @@ impl ToolRegistry {
             tools: BTreeMap::new(),
             sandbox_level,
             allow_confirm,
+            allow_network: false,
         }
     }
 
@@ -48,11 +54,19 @@ impl ToolRegistry {
     /// using `with_core_tools`, and in so it can enable browsing.
     pub fn with_web_tools() -> Self {
         let mut r = Self::with_core_tools();
+        r.allow_network = true;
         r.register(Box::new(super::web::WebFetchTool));
         r.register(Box::new(super::web::WebSearchTool));
         r.register(Box::new(super::browse::BrowseOpenTool));
         r.register(Box::new(super::browse::BrowseSnapshotTool));
         r
+    }
+
+    /// Opt into network egress (RFC 07 §7). Required for `web.*`/`browse.*`/MCP
+    /// tools to run; without it `NetworkEgress` is Forbidden (RFC 18).
+    pub fn with_network(mut self) -> Self {
+        self.allow_network = true;
+        self
     }
 
     pub fn register(&mut self, tool: Box<dyn Tool>) {
@@ -88,7 +102,7 @@ impl ToolRegistry {
             .get(tool)
             .ok_or_else(|| ToolError::UnknownTool(tool.to_string()))?;
         let action: SensitiveAction = t.sensitivity();
-        match approval_for(self.sandbox_level, action) {
+        match approval_for_with_network(self.sandbox_level, action, self.allow_network) {
             Approval::Auto => {}
             Approval::Confirm if self.allow_confirm => {}
             Approval::Confirm => {
@@ -194,5 +208,39 @@ mod tests {
         assert!(r2
             .call("dummy.denied", &ctx, &serde_json::json!({}))
             .is_ok());
+    }
+
+    struct NetDummy;
+    impl Tool for NetDummy {
+        fn name(&self) -> &'static str {
+            "net.dummy"
+        }
+        fn description(&self) -> &'static str {
+            "egress"
+        }
+        fn sensitivity(&self) -> SensitiveAction {
+            SensitiveAction::NetworkEgress
+        }
+        fn execute(&self, _c: &ToolContext, _a: &serde_json::Value) -> ToolResult {
+            ToolResult::ok(self.name(), "ran")
+        }
+    }
+
+    #[test]
+    fn network_egress_is_forbidden_unless_opted_in() {
+        let ctx = ToolContext::new(".");
+        let mut r = ToolRegistry::new(SandboxLevel::Container, true);
+        r.register(Box::new(NetDummy));
+        assert!(
+            matches!(
+                r.call("net.dummy", &ctx, &serde_json::json!({}))
+                    .unwrap_err(),
+                ToolError::Denied { .. }
+            ),
+            "egress must be Forbidden by default"
+        );
+        let mut r2 = ToolRegistry::new(SandboxLevel::Container, true).with_network();
+        r2.register(Box::new(NetDummy));
+        assert!(r2.call("net.dummy", &ctx, &serde_json::json!({})).is_ok());
     }
 }

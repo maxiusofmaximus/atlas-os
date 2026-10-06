@@ -185,6 +185,20 @@ pub fn approval_for_str(level: &str, action: &str) -> Approval {
     }
 }
 
+/// Like [`approval_for`], but with an explicit opt-in for network egress
+/// (RFC 07 §7: "web navigation in a sandbox → Auto"). Egress stays Forbidden
+/// unless the caller opted in **and** a sandbox is in force — never at `None`.
+pub fn approval_for_with_network(
+    level: SandboxLevel,
+    action: SensitiveAction,
+    allow_network: bool,
+) -> Approval {
+    if allow_network && action == SensitiveAction::NetworkEgress && level != SandboxLevel::None {
+        return Approval::Auto;
+    }
+    approval_for(level, action)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
