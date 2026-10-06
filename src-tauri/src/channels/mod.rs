@@ -117,10 +117,49 @@ pub fn parse_command(text: &str) -> Option<ChannelAction> {
     }
 }
 
+/// The seam a per-provider adapter implements (Telegram via `teloxide`, …):
+/// deliver one outbound message. Everything above this line is adapter-free and
+/// unit-tested; the adapter only has to transport.
+pub trait Channel {
+    fn send(&self, message: &ChannelMessage) -> Result<(), String>;
+}
+
+/// Routes Kernel Bus events to a [`Channel`] and inbound text to actions. The
+/// adapter implements [`Channel`]; this routing logic is adapter-free and
+/// testable with a recording channel (no network).
+pub struct Dispatcher<C: Channel> {
+    channel: C,
+}
+
+impl<C: Channel> Dispatcher<C> {
+    pub fn new(channel: C) -> Self {
+        Self { channel }
+    }
+
+    /// Forward an event to the channel if it is attention-worthy. Returns
+    /// whether anything was sent (so a caller can log/skip cheaply).
+    pub fn on_event(&self, event: &BusEvent) -> Result<bool, String> {
+        match format_event(event) {
+            Some(msg) => {
+                self.channel.send(&msg)?;
+                Ok(true)
+            }
+            None => Ok(false),
+        }
+    }
+
+    /// Parse inbound text into an action for the caller to apply. `None` for
+    /// unknown text (never a silent no-op action).
+    pub fn on_inbound(&self, text: &str) -> Option<ChannelAction> {
+        parse_command(text)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::core::bus::BusEvent;
+    use std::cell::RefCell;
 
     fn event(kind: BusEventKind) -> BusEvent {
         BusEvent::new(kind)
@@ -202,5 +241,44 @@ mod tests {
         assert_eq!(parse_command("/approve"), None, "approve needs an id");
         assert_eq!(parse_command("/deny"), None, "deny needs an id");
         assert_eq!(parse_command(""), None);
+    }
+
+    #[derive(Default)]
+    struct RecordingChannel {
+        sent: RefCell<Vec<ChannelMessage>>,
+    }
+    impl Channel for RecordingChannel {
+        fn send(&self, message: &ChannelMessage) -> Result<(), String> {
+            self.sent.borrow_mut().push(message.clone());
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn dispatcher_forwards_only_attention_events() {
+        let ch = RecordingChannel::default();
+        let d = Dispatcher::new(ch);
+        let sent = d
+            .on_event(&event(BusEventKind::ApprovalRequest {
+                approval_id: uuid::Uuid::new_v4(),
+                agent_id: uuid::Uuid::new_v4(),
+                action: "exec.run".into(),
+            }))
+            .unwrap();
+        assert!(sent);
+        let skipped = d
+            .on_event(&event(BusEventKind::AgentHeartbeat {
+                agent_id: uuid::Uuid::new_v4(),
+            }))
+            .unwrap();
+        assert!(!skipped);
+        assert_eq!(d.channel.sent.borrow().len(), 1);
+    }
+
+    #[test]
+    fn dispatcher_parses_inbound_commands() {
+        let d = Dispatcher::new(RecordingChannel::default());
+        assert_eq!(d.on_inbound("/pause"), Some(ChannelAction::Pause));
+        assert_eq!(d.on_inbound("random"), None);
     }
 }

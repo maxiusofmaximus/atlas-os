@@ -128,7 +128,7 @@ Las 6 brechas concretas que el audit identifica. Cada una está entrada como `(p
 **Patrón:** §2.2 multi-canal.
 **Status:** RFC 24 §16 menciona "web responsive + push notifications + mobile review queue" pero NO hay gateway a Telegram/Discord/Slack/Teams/WhatsApp. El operador debe abrir el HUD web.
 
-**A3.0 ✅ (2026-10-06):** núcleo channel-agnóstico `channels/` — `parse_command` (`/pause`, `/resume`, `/steer <text>`, `/approve <id>`, `/deny <id>`, `/status`) y `format_event` (mapea `approval.request` → botones Approve/Deny; `cost.threshold.crossed` / `doom_loop` / `goal_drift` → Pause; el resto se ignora). CLI `atlas channels [--json]` (status, sin red, no spawnea nada).
+**A3.0 ✅ (2026-10-06):** núcleo channel-agnóstico `channels/` — `parse_command` (`/pause`, `/resume`, `/steer <text>`, `/approve <id>`, `/deny <id>`, `/status`) y `format_event` (mapea `approval.request` → botones Approve/Deny; `cost.threshold.crossed` / `doom_loop` / `goal_drift` → Pause; el resto se ignora). Seam de integración: trait `Channel` + `Dispatcher` (routing adapter-agnóstico, testeado con un canal de grabación — sin red). CLI `atlas channels [--json]` (status, sin red, no spawnea nada).
 
 **Propuesta:** Implementar `opencode channel <platform>` (sub-comando CLI) que registra un bot OAuth en el canal del operador y mapea steer/approval requests a messages. Patrones:
 
