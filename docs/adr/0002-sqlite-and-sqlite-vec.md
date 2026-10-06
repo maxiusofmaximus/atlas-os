@@ -53,3 +53,22 @@ switches to versioned migrations per RFC 24 §10).
   tooling — and ecosystem momentum is on SQLite.
 - **DuckDB**: OLAP-shaped; we need single-row append-heavy workloads.
 - **LMDB**: no SQL, and we want ergonomic queries.
+
+## Reproducción del ICE de `ort-sys` (2026-10-06)
+
+Medido en Windows, `rustc 1.96.0 (ac68faa20 2026-05-25)`, `ort-sys 2.0.0-rc.9`
+(vía `fastembed = "4"`):
+
+| Comando | Resultado |
+|---|---|
+| `cargo check --features fastembed` | ✅ exit 0 — el ICE es de **codegen**, no de *check* |
+| `cargo check --all-features` | ✅ exit 0 |
+| `cargo build --bin atlas --features fastembed` | ❌ **ICE** — `thread 'rustc' panicked … could not compile ort-sys` |
+| `cargo build --bin atlas --features dag_mode,codebase-graph` | ✅ exit 0 |
+
+**Conclusión:** `fastembed` **sigue bloqueado** para el build por defecto en
+Windows/rustc 1.96 (el ICE de `ort-sys` es real y sólo aparece al generar código;
+por eso `cargo check` engaña). Las features puras-Rust `dag_mode` +
+`codebase-graph` **sí** compilan; su coste medido (perfil dev) es **+1.1 MB**
+(`atlas.exe` 18.4 → 19.5 MB). Decisión de B (activar por defecto) en
+`research/63` §B.

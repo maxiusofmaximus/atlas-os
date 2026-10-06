@@ -58,6 +58,8 @@ Build default = `tauri, hud, lsp, cli, bundled-skills`. Estas **no están** salv
 
 **Decisión pendiente:** activarlas por defecto (peso/ICE en Windows, ADR 0002) **o** mantenerlas opt-in (hoy: documentado en README §"Default build").
 
+**Evidencia medida (2026-10-06, ADR 0002 §"Reproducción del ICE"):** con `rustc 1.96.0` + `ort-sys 2.0.0-rc.9`, `fastembed` **sigue ICEando en `cargo build`** (no en `cargo check`) → **no puede ser default**. `dag_mode` + `codebase-graph` (Rust puro) **sí** compilan, con **+1.1 MB** (dev). **Recomendación:** mantener `fastembed` opt-in; `dag_mode`/`codebase-graph` son activables por defecto (coste bajo) **cuando el operador lo decida** (el comentario de `Cargo.toml` los gatea a "GraphView toggle" y a la preferencia de tamaño).
+
 ---
 
 ## C. Sub-fases diferidas (enumerables, ya especificadas)
