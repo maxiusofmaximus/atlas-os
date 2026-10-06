@@ -1,11 +1,11 @@
 <!-- RFC 65 §10 (P1) — McpView: the MCP catalog with the RFC 07 §2/§3/§4 policy
-     the runtime enforces (sandbox, supply chain, tool allowlist). Read-only and
-     fail-safe: a missing/malformed registry is surfaced as a reason, never a
-     fabricated list. -->
+     the runtime enforces (sandbox, supply chain, tool allowlist) and an in-place
+     allowlist editor. Read-only except the allowlist: a missing/malformed
+     registry is surfaced as a reason, never a fabricated list. -->
 
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { fetchMcp, type McpCatalog, type McpServer } from '$stores/hud';
+  import { fetchMcp, saveMcpAllowlist, type McpCatalog, type McpServer } from '$stores/hud';
 
   interface Props {
     hudUrl: string | null;
@@ -15,6 +15,9 @@
 
   let data = $state<McpCatalog | null>(null);
   let repoInput = $state('');
+  let drafts = $state<Record<string, string>>({});
+  let saving = $state<string | null>(null);
+  let notice = $state<string | null>(null);
   let error = $state<string | null>(null);
   let loading = $state(false);
 
@@ -24,6 +27,11 @@
     error = null;
     try {
       data = await fetchMcp(hudUrl, repoInput.trim() || undefined);
+      if (data.ok) {
+        drafts = Object.fromEntries(
+          data.servers.map((s) => [s.name, (s.allowed_tools ?? []).join(', ')]),
+        );
+      }
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
     } finally {
@@ -34,6 +42,30 @@
   onMount(() => {
     void refresh();
   });
+
+  async function save(s: McpServer): Promise<void> {
+    if (!hudUrl) return;
+    saving = s.name;
+    notice = null;
+    error = null;
+    try {
+      const tools = (drafts[s.name] ?? '')
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+      const ack = await saveMcpAllowlist(hudUrl, s.name, tools, repoInput.trim() || undefined);
+      if (!ack.ok) {
+        error = ack.reason ?? 'save failed';
+      } else {
+        notice = `${s.name}: saved (${tools.length} tool${tools.length === 1 ? '' : 's'})`;
+        await refresh();
+      }
+    } catch (err) {
+      error = err instanceof Error ? err.message : String(err);
+    } finally {
+      saving = null;
+    }
+  }
 
   function argv(cmd: unknown): string {
     if (Array.isArray(cmd)) return cmd.join(' ');
@@ -71,6 +103,9 @@
   {:else if data.servers.length === 0}
     <p class="empty">No MCP servers declared in <code>{data.path}</code>.</p>
   {:else}
+    {#if notice}
+      <p class="notice">{notice}</p>
+    {/if}
     <ul class="servers">
       {#each data.servers as s (s.name)}
         <li class="server">
@@ -94,6 +129,23 @@
           {#if s.supply && s.supply.reasons.length > 0}
             <div class="finding">supply: {s.supply.reasons.join('; ')}</div>
           {/if}
+          <div class="edit">
+            <span class="edit-label">allowed tools (RFC 07 §4 — empty = none exposed)</span>
+            <div class="edit-row">
+              <input
+                class="tools-input"
+                placeholder="resolve-library-id, query-docs"
+                bind:value={drafts[s.name]}
+              />
+              <button
+                type="button"
+                onclick={() => void save(s)}
+                disabled={saving === s.name || !hudUrl}
+              >
+                {saving === s.name ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
           <div class="tools">
             {#if s.allowed_tools && s.allowed_tools.length > 0}
               {#each s.allowed_tools as t (t)}<span class="tool">{t}</span>{/each}
@@ -146,7 +198,8 @@
     font-size: 0.7rem;
     color: #8b949e;
   }
-  .repo input {
+  .repo input,
+  .tools-input {
     background: #0d1117;
     color: #c9d1d9;
     border: 1px solid #30363d;
@@ -214,6 +267,22 @@
     font-size: 0.72rem;
     color: #d29922;
   }
+  .edit {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+  .edit-label {
+    font-size: 0.66rem;
+    color: #8b949e;
+  }
+  .edit-row {
+    display: flex;
+    gap: 0.4rem;
+  }
+  .edit-row .tools-input {
+    flex: 1;
+  }
   .tools {
     display: flex;
     flex-wrap: wrap;
@@ -231,6 +300,11 @@
   .empty-tools {
     font-size: 0.72rem;
     color: #8b949e;
+  }
+  .notice {
+    color: #3fb950;
+    font-size: 0.78rem;
+    margin: 0;
   }
   .reason {
     color: #d29922;

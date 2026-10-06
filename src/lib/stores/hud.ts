@@ -1478,6 +1478,33 @@ export async function fetchMcp(hudUrl: string, repo?: string): Promise<McpCatalo
   return (await res.json()) as McpCatalog;
 }
 
+export interface McpAllowlistAck {
+  ok: boolean;
+  reason: string | null;
+  path?: string;
+  server?: string;
+  tools?: string[];
+}
+
+/** RFC 07 §4 — set a server's tool allowlist in place (shape-preserving). */
+export async function saveMcpAllowlist(
+  hudUrl: string,
+  server: string,
+  tools: string[],
+  repo?: string,
+): Promise<McpAllowlistAck> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const res = await fetch(`${trimmed}/hud/mcp/allowlist`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repo: repo || undefined, server, tools }),
+  });
+  if (!res.ok) {
+    throw new Error(`HUD mcp allowlist failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as McpAllowlistAck;
+}
+
 export interface SkillActivateAck {
   skill_id: string;
   agent_id: string;

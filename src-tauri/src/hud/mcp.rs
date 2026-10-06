@@ -100,6 +100,51 @@ fn server_json(name: &str, cfg: &McpServerConfig) -> Value {
     })
 }
 
+#[derive(Debug, Deserialize)]
+pub struct AllowlistBody {
+    pub repo: Option<String>,
+    pub server: String,
+    pub tools: Vec<String>,
+}
+
+/// RFC 07 §4 — set one server's tool allowlist, in place, preserving the config
+/// shape. Fail-safe: a missing registry or unknown server is an `ok:false`
+/// reason, never a silent write elsewhere.
+pub async fn set_allowlist(Json(body): Json<AllowlistBody>) -> Json<Value> {
+    let repo = match body.repo {
+        Some(r) => PathBuf::from(r),
+        None => match std::env::current_dir() {
+            Ok(d) => d,
+            Err(e) => {
+                return Json(json!({ "ok": false, "reason": format!("cwd unavailable: {e}") }))
+            }
+        },
+    };
+    let candidates = [
+        repo.join(".opencode").join("mcp.json"),
+        repo.join("mcp.json"),
+    ];
+    let path = match candidates.iter().find(|p| p.is_file()) {
+        Some(p) => p.clone(),
+        None => {
+            return Json(json!({
+                "ok": false,
+                "reason": format!("{}: not found", candidates[0].display()),
+            }))
+        }
+    };
+    match McpRegistry::set_allowed_tools_in_file(&path, &body.server, &body.tools) {
+        Ok(()) => Json(json!({
+            "ok": true,
+            "reason": Value::Null,
+            "path": path.display().to_string(),
+            "server": body.server,
+            "tools": body.tools,
+        })),
+        Err(e) => Json(json!({ "ok": false, "reason": e.to_string() })),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -159,5 +204,54 @@ mod tests {
         assert_eq!(s["package"], "@upstash/context7-mcp");
         assert_eq!(s["supply"]["package"], "@upstash/context7-mcp");
         assert!(s["supply"]["verdict"].as_str().is_some());
+    }
+
+    #[tokio::test]
+    async fn set_allowlist_writes_in_place_and_read_reflects_it() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let opencode = dir.path().join(".opencode");
+        std::fs::create_dir_all(&opencode).unwrap();
+        let file = opencode.join("mcp.json");
+        std::fs::write(
+            &file,
+            r#"{"mcp":{"context7":{"command":["pnpm","dlx","ctx7"],"enabled":true}}}"#,
+        )
+        .unwrap();
+        let repo = Some(dir.path().display().to_string());
+        let Json(v) = set_allowlist(Json(AllowlistBody {
+            repo: repo.clone(),
+            server: "context7".into(),
+            tools: vec!["resolve-library-id".into()],
+        }))
+        .await;
+        assert_eq!(v["ok"], true);
+        // Shape preserved (`mcp`, not `mcpServers`).
+        let text = std::fs::read_to_string(&file).unwrap();
+        assert!(text.contains("\"mcp\""));
+        assert!(!text.contains("mcpServers"));
+
+        let Json(r) = get_mcp(Query(McpQuery { repo })).await;
+        assert_eq!(r["servers"][0]["allowed_tools"][0], "resolve-library-id");
+        assert_eq!(r["servers"][0]["exposes_tools"], true);
+    }
+
+    #[tokio::test]
+    async fn set_allowlist_unknown_server_is_ok_false() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let opencode = dir.path().join(".opencode");
+        std::fs::create_dir_all(&opencode).unwrap();
+        std::fs::write(
+            opencode.join("mcp.json"),
+            r#"{"mcp":{"a":{"command":"x"}}}"#,
+        )
+        .unwrap();
+        let Json(v) = set_allowlist(Json(AllowlistBody {
+            repo: Some(dir.path().display().to_string()),
+            server: "missing".into(),
+            tools: vec![],
+        }))
+        .await;
+        assert_eq!(v["ok"], false);
+        assert!(v["reason"].as_str().is_some());
     }
 }

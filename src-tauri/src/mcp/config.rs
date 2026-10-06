@@ -353,6 +353,43 @@ impl McpRegistry {
         std::fs::write(path, text).with_context(|| format!("writing {}", path.display()))?;
         Ok(())
     }
+
+    /// RFC 07 §4 — set one server's `allowed_tools` **in place**, preserving the
+    /// rest of the file: both layouts (opencode `mcp` / RFC 07 `mcpServers`) and
+    /// every other field keep their shape. Used by the HUD allowlist editor so it
+    /// never rewrites the operator's config into the other shape. Atomic: writes
+    /// a sibling temp file and renames it over the original.
+    pub fn set_allowed_tools_in_file(
+        path: &Path,
+        server: &str,
+        tools: &[String],
+    ) -> anyhow::Result<()> {
+        let text =
+            std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+        let mut root: Value =
+            serde_json::from_str(&text).with_context(|| format!("parsing {}", path.display()))?;
+        let key = if root.get("mcp").is_some_and(Value::is_object) {
+            "mcp"
+        } else if root.get("mcpServers").is_some_and(Value::is_object) {
+            "mcpServers"
+        } else {
+            anyhow::bail!("no `mcp`/`mcpServers` object in {}", path.display());
+        };
+        let entry = root
+            .get_mut(key)
+            .and_then(Value::as_object_mut)
+            .and_then(|m| m.get_mut(server))
+            .and_then(Value::as_object_mut)
+            .ok_or_else(|| anyhow::anyhow!("server `{server}` not found in {}", path.display()))?;
+        entry.insert("allowed_tools".to_string(), serde_json::to_value(tools)?);
+
+        let out = serde_json::to_string_pretty(&root).context("serializing registry")?;
+        let tmp = path.with_extension("json.tmp");
+        std::fs::write(&tmp, format!("{out}\n"))
+            .with_context(|| format!("writing {}", tmp.display()))?;
+        std::fs::rename(&tmp, path).with_context(|| format!("replacing {}", path.display()))?;
+        Ok(())
+    }
 }
 
 /// Extract `(command, args)` from a server value. `command` accepts a
@@ -640,5 +677,63 @@ mod tests {
         let reg = McpRegistry::load_from(&[a, b]).unwrap();
         assert_eq!(reg.get("s").unwrap().command, "from-a");
         assert_eq!(reg.get("t").unwrap().command, "only-b");
+    }
+
+    #[test]
+    fn set_allowed_tools_preserves_shape_and_other_fields() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("mcp.json");
+        std::fs::write(
+            &path,
+            r#"{"$schema":"x","mcp":{"context7":{"type":"stdio","command":["pnpm","dlx","ctx7"],"enabled":true,"timeout":60000}}}"#,
+        )
+        .unwrap();
+        McpRegistry::set_allowed_tools_in_file(&path, "context7", &["resolve-library-id".into()])
+            .unwrap();
+        let text = std::fs::read_to_string(&path).unwrap();
+        let v: Value = serde_json::from_str(&text).unwrap();
+        // The opencode shape survives: `mcp` (not `mcpServers`), `$schema`, argv.
+        assert!(v.get("mcp").is_some());
+        assert!(v.get("mcpServers").is_none());
+        assert_eq!(v["$schema"], "x");
+        assert_eq!(v["mcp"]["context7"]["command"][0], "pnpm");
+        assert_eq!(v["mcp"]["context7"]["enabled"], true);
+        assert_eq!(v["mcp"]["context7"]["timeout"], 60000);
+        assert_eq!(
+            v["mcp"]["context7"]["allowed_tools"][0],
+            "resolve-library-id"
+        );
+        // And it still loads with the allowlist applied.
+        let reg = McpRegistry::from_json(&text).unwrap();
+        assert!(reg
+            .get("context7")
+            .unwrap()
+            .is_tool_allowed("resolve-library-id"));
+    }
+
+    #[test]
+    fn set_allowed_tools_preserves_the_rfc07_shape() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("mcp.json");
+        std::fs::write(
+            &path,
+            r#"{"mcpServers":{"s":{"command":"npx","args":["-y","@x/mcp"]}}}"#,
+        )
+        .unwrap();
+        McpRegistry::set_allowed_tools_in_file(&path, "s", &["go".into()]).unwrap();
+        let v: Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert!(v.get("mcpServers").is_some());
+        assert_eq!(v["mcpServers"]["s"]["command"], "npx");
+        assert_eq!(v["mcpServers"]["s"]["args"][1], "@x/mcp");
+        assert_eq!(v["mcpServers"]["s"]["allowed_tools"][0], "go");
+    }
+
+    #[test]
+    fn set_allowed_tools_rejects_an_unknown_server() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("mcp.json");
+        std::fs::write(&path, r#"{"mcp":{"a":{"command":"x"}}}"#).unwrap();
+        let err = McpRegistry::set_allowed_tools_in_file(&path, "missing", &[]).unwrap_err();
+        assert!(err.to_string().contains("not found"));
     }
 }
