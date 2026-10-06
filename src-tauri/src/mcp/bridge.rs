@@ -11,7 +11,7 @@
 
 use std::collections::HashMap;
 use std::sync::mpsc::{self, Receiver, Sender};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::mcp::client::{McpClient, StdioTransport};
 use crate::mcp::config::{McpRegistry, McpServerConfig};
@@ -35,10 +35,16 @@ enum Request {
     },
 }
 
+/// RFC 07 §9: a tool that fails this many times in a row is rotated out for the
+/// rest of the process; a success resets the counter.
+const MAX_CONSECUTIVE_FAILURES: u32 = 3;
+
 /// Handle to the MCP worker thread. Shared by every `McpTool` of the bridge.
 pub struct McpBridge {
     tx: Sender<Request>,
     descriptors: Vec<McpToolDescriptor>,
+    /// `server\ttool` → consecutive failures (RFC 07 §9 rotation).
+    failures: Mutex<HashMap<String, u32>>,
 }
 
 impl McpBridge {
@@ -65,15 +71,60 @@ impl McpBridge {
                 Vec::new()
             }
         };
-        McpBridge { tx, descriptors }
+        McpBridge {
+            tx,
+            descriptors,
+            failures: Mutex::new(HashMap::new()),
+        }
     }
 
     pub fn descriptors(&self) -> &[McpToolDescriptor] {
         &self.descriptors
     }
 
-    /// Synchronous call used by `Tool::execute`; blocks on the worker.
+    /// Synchronous call used by `Tool::execute`; blocks on the worker. Enforces
+    /// the RFC 07 §9 rotation: a tool that fails `MAX_CONSECUTIVE_FAILURES`
+    /// times in a row is disabled (the Kernel signals the Learning Engine to
+    /// lower its priority); a success clears the streak.
     pub fn call(
+        &self,
+        server: &str,
+        tool: &str,
+        args: &serde_json::Value,
+    ) -> Result<String, String> {
+        let key = format!("{server}\t{tool}");
+        if let Ok(f) = self.failures.lock() {
+            if f.get(&key).copied().unwrap_or(0) >= MAX_CONSECUTIVE_FAILURES {
+                return Err(format!(
+                    "MCP tool `{server}/{tool}` temporarily disabled after \
+                     {MAX_CONSECUTIVE_FAILURES} consecutive failures (RFC 07 §9)"
+                ));
+            }
+        }
+        let out = self.dispatch(server, tool, args);
+        if let Ok(mut f) = self.failures.lock() {
+            match &out {
+                Ok(_) => {
+                    f.remove(&key);
+                }
+                Err(_) => {
+                    let n = f.entry(key).or_insert(0);
+                    *n += 1;
+                    if *n >= MAX_CONSECUTIVE_FAILURES {
+                        tracing::warn!(
+                            server,
+                            tool,
+                            failures = *n,
+                            "mcp bridge: tool rotated out (RFC 07 §9); signal Learning Engine to lower its priority"
+                        );
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    fn dispatch(
         &self,
         server: &str,
         tool: &str,
@@ -229,6 +280,7 @@ mod tests {
         let bridge = Arc::new(McpBridge {
             tx,
             descriptors: vec![d.clone()],
+            failures: Mutex::new(HashMap::new()),
         });
         let tool = McpTool::new(Arc::clone(&bridge), &d);
         assert_eq!(tool.name(), "mcp.context7.resolve-library-id");
@@ -240,5 +292,38 @@ mod tests {
         let r = tool.execute(&ToolContext::new("."), &serde_json::json!({}));
         assert!(!r.ok);
         assert_eq!(r.tool, "mcp.context7.resolve-library-id");
+    }
+
+    #[test]
+    fn repeated_failures_rotate_a_tool_out() {
+        // RFC 07 §9: after MAX_CONSECUTIVE_FAILURES failures in a row the tool is
+        // disabled without touching the worker; the message says so.
+        let d = McpToolDescriptor {
+            server: "s".into(),
+            tool: "t".into(),
+            description: String::new(),
+        };
+        let (tx, rx) = mpsc::channel();
+        drop(rx); // every call fails (worker gone)
+        let bridge = Arc::new(McpBridge {
+            tx,
+            descriptors: vec![d.clone()],
+            failures: Mutex::new(HashMap::new()),
+        });
+        let tool = McpTool::new(Arc::clone(&bridge), &d);
+        let ctx = ToolContext::new(".");
+
+        for _ in 0..MAX_CONSECUTIVE_FAILURES {
+            let r = tool.execute(&ctx, &serde_json::json!({}));
+            assert!(!r.ok);
+            assert!(!r.error.unwrap().contains("temporarily disabled"));
+        }
+        // The next call is refused by the rotation guard, not the worker.
+        let r = tool.execute(&ctx, &serde_json::json!({}));
+        assert!(!r.ok);
+        assert!(
+            r.error.unwrap().contains("temporarily disabled"),
+            "expected the rotation guard to fire"
+        );
     }
 }
