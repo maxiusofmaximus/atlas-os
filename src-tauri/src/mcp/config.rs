@@ -27,6 +27,23 @@ pub const RFC07_CONFIG: &str = "mcp.json";
 pub const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 pub const DEFAULT_TRANSPORT: &str = "stdio";
 
+/// Package runners whose following non-flag token is a package spec to gate
+/// (RFC 07 §3). `dlx`/`exec` are subcommands, not packages.
+const PACKAGE_RUNNERS: &[&str] = &["npx", "pnpm", "yarn", "bunx", "uvx", "pipx"];
+const RUNNER_SUBCOMMANDS: &[&str] = &["dlx", "exec"];
+
+/// `@org/pkg@1.2` → `@org/pkg`; `pkg@1.2` → `pkg`.
+fn strip_version(spec: &str) -> String {
+    if let Some(rest) = spec.strip_prefix('@') {
+        match rest.split_once('@') {
+            Some((head, _)) => format!("@{head}"),
+            None => spec.to_string(),
+        }
+    } else {
+        spec.split('@').next().unwrap_or(spec).to_string()
+    }
+}
+
 fn default_true() -> bool {
     true
 }
@@ -180,6 +197,31 @@ impl McpServerConfig {
             ));
         }
         None
+    }
+
+    /// RFC 07 §3 — best-effort extraction of the npm/PyPI package this server
+    /// launches (`pnpm dlx @upstash/context7-mcp@3.2.4` → `@upstash/context7-mcp`)
+    /// so the supply-chain gate can run before spawning. `None` when the command
+    /// is not a known package runner.
+    pub fn package_spec(&self) -> Option<String> {
+        let argv = self.argv();
+        let runner = argv.iter().position(|a| {
+            let base = a.rsplit(['/', '\\']).next().unwrap_or(a.as_str());
+            let base = base.strip_suffix(".cmd").unwrap_or(base);
+            PACKAGE_RUNNERS.contains(&base)
+        })?;
+        let token = argv[runner + 1..]
+            .iter()
+            .find(|a| !a.starts_with('-') && !RUNNER_SUBCOMMANDS.contains(&a.as_str()))?;
+        Some(strip_version(token))
+    }
+
+    /// RFC 07 §3 — deterministic supply-chain gate on the server's package
+    /// (reuses `security::supply_gate`; no network in the MVP). `None` when the
+    /// command is not a package runner.
+    pub fn supply_report(&self) -> Option<crate::security::supply_gate::SupplyReport> {
+        self.package_spec()
+            .map(|p| crate::security::supply_gate::evaluate_package(&p, None))
     }
 
     /// The full argv to spawn: `command` followed by `args`.
@@ -519,6 +561,34 @@ mod tests {
         let finding = cfg.sandbox_finding().expect("isolation not enforced yet");
         assert!(finding.contains("not enforced"), "{finding}");
         assert!(!cfg.is_sandbox_enforced());
+    }
+
+    #[test]
+    fn package_spec_extracts_from_package_runners() {
+        let mut c = McpServerConfig::new("pnpm");
+        c.args = vec!["dlx".into(), "@upstash/context7-mcp@3.2.4".into()];
+        assert_eq!(c.package_spec().as_deref(), Some("@upstash/context7-mcp"));
+
+        let mut n = McpServerConfig::new("npx");
+        n.args = vec!["-y".into(), "some-pkg@1.2.3".into()];
+        assert_eq!(n.package_spec().as_deref(), Some("some-pkg"));
+
+        // A plain binary is not a package runner.
+        assert_eq!(McpServerConfig::new("my-server").package_spec(), None);
+    }
+
+    #[test]
+    fn supply_report_blocks_a_typosquat_and_passes_a_clean_name() {
+        let mut bad = McpServerConfig::new("npx");
+        bad.args = vec!["-y".into(), "lodaxh".into()]; // ~lodash, distance 1
+        assert!(bad.supply_report().unwrap().verdict.is_blocking());
+
+        let mut ok = McpServerConfig::new("npx");
+        ok.args = vec!["-y".into(), "left-pad".into()];
+        assert_eq!(
+            ok.supply_report().unwrap().verdict,
+            crate::security::supply_gate::SupplyVerdict::Pass
+        );
     }
 
     #[test]

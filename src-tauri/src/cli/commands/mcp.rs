@@ -15,6 +15,7 @@ use serde_json::Value;
 
 use crate::mcp::{McpClient, McpRegistry, McpSandbox, McpServerConfig};
 use crate::profiles::{resolve_root, ProfileId};
+use crate::security::supply_gate::SupplyVerdict;
 
 #[derive(Args, Debug)]
 pub struct McpCmd {
@@ -145,6 +146,16 @@ fn list(root: &std::path::Path) -> Result<()> {
         if let Some(finding) = cfg.sandbox_finding() {
             println!("    ! {finding}");
         }
+        if let Some(report) = cfg.supply_report() {
+            if report.verdict != SupplyVerdict::Pass {
+                println!(
+                    "    ! supply-chain {} for `{}`: {}",
+                    report.verdict.as_str(),
+                    report.package,
+                    report.reasons.join("; ")
+                );
+            }
+        }
     }
     Ok(())
 }
@@ -171,6 +182,7 @@ fn add(
     cfg.allowed_tools = allow;
     cfg.validate().map_err(|e| anyhow::anyhow!(e))?;
     let finding = cfg.sandbox_finding();
+    let supply = cfg.supply_report();
     let replaced = registry.insert(name.clone(), cfg).is_some();
     let path = McpRegistry::config_path(root);
     registry.save(&path)?;
@@ -181,6 +193,16 @@ fn add(
     );
     if let Some(f) = finding {
         println!("mcp: note — {f}");
+    }
+    if let Some(report) = supply {
+        if report.verdict != SupplyVerdict::Pass {
+            println!(
+                "mcp: note — supply-chain {} for `{}`: {}",
+                report.verdict.as_str(),
+                report.package,
+                report.reasons.join("; ")
+            );
+        }
     }
     Ok(())
 }
@@ -210,15 +232,29 @@ fn parse_env(entries: &[String]) -> Result<BTreeMap<String, String>> {
     Ok(env)
 }
 
-/// RFC 07 §2 — warn (default) or refuse (`--strict`) before spawning a server
-/// whose required isolation the runtime cannot yet enforce. Fail-safe: never
-/// silently run an unsandboxed server when policy demands isolation.
+/// RFC 07 §2/§3 — warn (default) or refuse (`--strict`) before spawning. The
+/// supply-chain gate (§3) is fail-safe: a BLOCK always refuses (RFC 18).
 fn enforce_sandbox(name: &str, cfg: &McpServerConfig, strict: bool) -> Result<()> {
     if let Some(finding) = cfg.sandbox_finding() {
         if strict {
             bail!("mcp: refusing `{name}` under --strict — {finding}");
         }
         eprintln!("mcp: WARNING — {finding}");
+    }
+    if let Some(report) = cfg.supply_report() {
+        let detail = format!("`{}`: {}", report.package, report.reasons.join("; "));
+        match report.verdict {
+            SupplyVerdict::Block => {
+                bail!("mcp: refusing `{name}` — supply-chain BLOCK for {detail}");
+            }
+            SupplyVerdict::Warn => {
+                if strict {
+                    bail!("mcp: refusing `{name}` under --strict — supply-chain WARN for {detail}");
+                }
+                eprintln!("mcp: WARNING — supply-chain WARN for {detail}");
+            }
+            SupplyVerdict::Pass => {}
+        }
     }
     Ok(())
 }
