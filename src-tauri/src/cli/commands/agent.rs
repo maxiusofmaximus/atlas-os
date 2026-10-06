@@ -40,15 +40,53 @@ pub struct AgentCmd {
     /// default: they are `NetworkEgress` (RFC 18) and need a backend.
     #[arg(long, default_value_t = false)]
     pub web: bool,
+    /// Expose the configured MCP servers' allowlisted tools to the agent
+    /// (RFC 07 §6). Servers that fail to connect are skipped.
+    #[arg(long, default_value_t = false)]
+    pub mcp: bool,
     /// Sandbox runtime the commands run in: `local` (default) or `wsl2`
     /// (RFC 63 §4). `wsl2` falls back to `local` when WSL is unavailable.
     #[arg(long, default_value = "local")]
     pub sandbox: String,
 }
 
+/// Build the agent's tool registry (RFC 63 §4) and, when `--mcp` is set, bridge
+/// the configured MCP servers' tools in (RFC 07 §6). The returned bridge owns a
+/// worker thread and must outlive the run.
+fn build_registry(
+    cmd: &AgentCmd,
+    root: &std::path::Path,
+) -> (
+    crate::orchestrator::ToolRegistry,
+    Option<std::sync::Arc<crate::mcp::McpBridge>>,
+) {
+    let mut registry = if cmd.web {
+        crate::orchestrator::ToolRegistry::with_web_tools()
+    } else {
+        crate::orchestrator::ToolRegistry::with_core_tools()
+    };
+    let bridge = if cmd.mcp {
+        match crate::mcp::McpRegistry::load_from(&crate::cli::commands::mcp::registry_paths(root)) {
+            Ok(mcp_registry) => {
+                let b = std::sync::Arc::new(crate::mcp::McpBridge::connect(&mcp_registry));
+                println!("agent: mcp tools={}", b.descriptors().len());
+                registry.register_mcp(&b);
+                Some(b)
+            }
+            Err(e) => {
+                eprintln!("agent: MCP registry unavailable ({e}); continuing without MCP");
+                None
+            }
+        }
+    } else {
+        None
+    };
+    (registry, bridge)
+}
+
 pub async fn run(cmd: AgentCmd, profile: &str) -> Result<()> {
     if cmd.list_tools {
-        let reg = crate::orchestrator::ToolRegistry::with_core_tools();
+        let (reg, _mcp_bridge) = build_registry(&cmd, std::path::Path::new(&cmd.root));
         println!("atlas agent tools ({}):", reg.catalog().len());
         for (name, desc) in reg.catalog() {
             println!("  {name:<12} {desc}");
@@ -135,12 +173,10 @@ pub async fn run(cmd: AgentCmd, profile: &str) -> Result<()> {
         other => anyhow::bail!("unknown --sandbox `{other}` (local|wsl2|daytona|e2b)"),
     }
 
-    // RFC 63 §4: build the live tool registry (web tools opt-in via --web).
-    let registry = if cmd.web {
-        crate::orchestrator::ToolRegistry::with_web_tools()
-    } else {
-        crate::orchestrator::ToolRegistry::with_core_tools()
-    };
+    // RFC 63 §4 + RFC 07 §6: live tool registry (web opt-in via --web, MCP via
+    // --mcp, project-scoped to --root). The bridge owns a worker thread; keep it
+    // alive for the run.
+    let (registry, _mcp_bridge) = build_registry(&cmd, std::path::Path::new(&cmd.root));
     let tools: Vec<(String, String)> = registry
         .catalog()
         .into_iter()

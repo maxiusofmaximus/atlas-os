@@ -99,7 +99,7 @@ pub async fn run(cmd: McpCmd, profile: &str) -> Result<()> {
 /// Candidate registry files, in precedence order: the profile's RFC 07
 /// file, its opencode file, then the process cwd (the repo checkout, where
 /// `.opencode/mcp.json` lives).
-fn registry_paths(root: &std::path::Path) -> Vec<PathBuf> {
+pub(crate) fn registry_paths(root: &std::path::Path) -> Vec<PathBuf> {
     let mut paths = vec![
         McpRegistry::config_path(root),
         root.join(".opencode").join("mcp.json"),

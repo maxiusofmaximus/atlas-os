@@ -25,10 +25,12 @@
 // `serde_json`, errors ride `thiserror` — all already in the tree
 // (RFC 25 §11, single-binary safe).
 
+pub mod bridge;
 pub mod client;
 pub mod config;
 pub mod protocol;
 
+pub use bridge::{McpBridge, McpTool, McpToolDescriptor};
 pub use client::{McpClient, McpError, McpTransport, StdioTransport};
 pub use config::{McpRegistry, McpSandbox, McpServerConfig};
 pub use protocol::{ServerInfo, ToolCallOutcome, ToolInfo, MCP_PROTOCOL_VERSION};

@@ -69,6 +69,21 @@ impl ToolRegistry {
         self
     }
 
+    /// Register every allowlisted tool of a connected MCP bridge (RFC 07 §6) and
+    /// opt into network egress (MCP servers are external processes).
+    pub fn register_mcp(&mut self, bridge: &std::sync::Arc<crate::mcp::bridge::McpBridge>) {
+        if bridge.descriptors().is_empty() {
+            return;
+        }
+        self.allow_network = true;
+        for d in bridge.descriptors() {
+            self.register(Box::new(crate::mcp::bridge::McpTool::new(
+                std::sync::Arc::clone(bridge),
+                d,
+            )));
+        }
+    }
+
     pub fn register(&mut self, tool: Box<dyn Tool>) {
         self.tools.insert(tool.name(), tool);
     }
