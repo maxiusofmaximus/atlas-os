@@ -23,6 +23,7 @@ const components: Array<{ file: string; marker: string }> = [
   { file: 'DemoPane.svelte', marker: 'fetchDemos' },
   { file: 'SkillMcpRail.svelte', marker: 'fetchMcp' },
   { file: 'SettingsView.svelte', marker: 'fetchSecretSlots' },
+  { file: 'McpView.svelte', marker: 'fetchMcp' },
 ];
 
 describe('RFC 65 components — compile', () => {
@@ -55,5 +56,16 @@ describe('settings view is catalogued', () => {
     expect(settings).toBeDefined();
     expect(settings?.key).toBe('s');
     expect(settings?.fase).toBe('P1');
+  });
+});
+
+describe('mcp view is catalogued', () => {
+  it('MCP is in VIEWS with the `m` hotkey and a P1 fase', async () => {
+    const { VIEWS, viewForKey } = await import('../stores/views');
+    const mcp = VIEWS.find((v) => v.id === 'mcp');
+    expect(mcp).toBeDefined();
+    expect(mcp?.key).toBe('m');
+    expect(mcp?.fase).toBe('P1');
+    expect(viewForKey('m')).toBe('mcp');
   });
 });

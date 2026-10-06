@@ -1433,11 +1433,31 @@ export interface SkillCatalogRow {
   generated_at: string;
 }
 
+export interface McpSandboxInfo {
+  declared: string;
+  effective: string;
+  enforced: boolean;
+  finding: string | null;
+}
+
+export interface McpSupply {
+  package: string;
+  verdict: string;
+  reasons: string[];
+}
+
 export interface McpServer {
   name: string;
   type: string | null;
   enabled: boolean;
   command: unknown;
+  transport?: string;
+  allowed_tools?: string[];
+  exposes_tools?: boolean;
+  timeout_ms?: number;
+  sandbox?: McpSandboxInfo;
+  package?: string | null;
+  supply?: McpSupply | null;
 }
 
 export interface McpCatalog {

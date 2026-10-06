@@ -36,6 +36,7 @@
   import TimelineView from '$lib/components/TimelineView.svelte';
   import WorktreesView from '$lib/components/WorktreesView.svelte';
   import SettingsView from '$lib/components/SettingsView.svelte';
+  import McpView from '$lib/components/McpView.svelte';
   import DemoPane from '$lib/components/DemoPane.svelte';
   import SkillMcpRail from '$lib/components/SkillMcpRail.svelte';
   import ViewSwitcher from '$lib/components/ViewSwitcher.svelte';
@@ -330,6 +331,7 @@
     'timeline',
     'worktrees',
     'settings',
+    'mcp',
   ];
   let paletteOpen = $state(false);
 
@@ -488,6 +490,15 @@
         / macOS Keychain / Linux Secret Service) — never in files, prompts or logs.
       </p>
       <SettingsView hudUrl={data.hudUrl ?? null} />
+    </section>
+  {:else if $activeView === 'mcp'}
+    <section class="mcp-view-page">
+      <h2>MCP servers</h2>
+      <p class="hint">
+        RFC 65 §10 / RFC 07. The local MCP catalog (<code>GET /hud/mcp</code>) with the policy the
+        runtime enforces: sandbox (§2), supply chain (§3) and the tool allowlist (§4).
+      </p>
+      <McpView hudUrl={data.hudUrl ?? null} />
     </section>
   {:else}
     <section class="hud-health">

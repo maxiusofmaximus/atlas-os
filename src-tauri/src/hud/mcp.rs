@@ -16,6 +16,8 @@ use axum::Json;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
+use crate::mcp::config::{McpRegistry, McpServerConfig};
+
 #[derive(Debug, Deserialize)]
 pub struct McpQuery {
     /// Repository root holding `.opencode/mcp.json`. Defaults to the process cwd.
@@ -35,31 +37,31 @@ pub async fn get_mcp(Query(q): Query<McpQuery>) -> Json<Value> {
         },
     };
     let repo_display = repo.display().to_string();
-    let path = repo.join(".opencode").join("mcp.json");
-    let text = match std::fs::read_to_string(&path) {
-        Ok(t) => t,
-        Err(e) => return Json(missing(&repo_display, &format!("{}: {e}", path.display()))),
+
+    // Prefer the opencode file the operator already uses; fall back to the RFC 07
+    // `mcp.json`. Missing = honest `ok:false`, never a fabricated list.
+    let candidates = [
+        repo.join(".opencode").join("mcp.json"),
+        repo.join("mcp.json"),
+    ];
+    let existing: Vec<PathBuf> = candidates.iter().filter(|p| p.is_file()).cloned().collect();
+    if existing.is_empty() {
+        return Json(missing(
+            &repo_display,
+            &format!("{}: not found", candidates[0].display()),
+        ));
+    }
+    let path = existing[0].clone();
+    let registry = match McpRegistry::load_from(&existing) {
+        Ok(r) => r,
+        Err(e) => return Json(missing(&repo_display, &format!("invalid registry: {e}"))),
     };
-    let value: Value = match serde_json::from_str(&text) {
-        Ok(v) => v,
-        Err(e) => return Json(missing(&repo_display, &format!("invalid JSON: {e}"))),
-    };
-    let servers: Vec<Value> = value
-        .get("mcp")
-        .and_then(Value::as_object)
-        .map(|obj| {
-            obj.iter()
-                .map(|(name, cfg)| {
-                    json!({
-                        "name": name,
-                        "type": cfg.get("type").and_then(Value::as_str),
-                        "enabled": cfg.get("enabled").and_then(Value::as_bool).unwrap_or(false),
-                        "command": cfg.get("command").cloned().unwrap_or(Value::Null),
-                    })
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+
+    let servers: Vec<Value> = registry
+        .servers
+        .iter()
+        .map(|(name, cfg)| server_json(name, cfg))
+        .collect();
 
     Json(json!({
         "repo": repo_display,
@@ -68,6 +70,34 @@ pub async fn get_mcp(Query(q): Query<McpQuery>) -> Json<Value> {
         "path": path.display().to_string(),
         "servers": servers,
     }))
+}
+
+/// One server, enriched with the RFC 07 §2/§3/§4 policy the runtime enforces
+/// (sandbox, supply chain, allowlist), so the HUD is the honest read side.
+fn server_json(name: &str, cfg: &McpServerConfig) -> Value {
+    let sandbox = cfg.effective_sandbox();
+    json!({
+        "name": name,
+        "type": cfg.transport,
+        "transport": cfg.transport,
+        "enabled": cfg.enabled,
+        "command": cfg.argv(),
+        "allowed_tools": cfg.allowed_tools,
+        "exposes_tools": cfg.exposes_any(),
+        "timeout_ms": cfg.timeout_ms,
+        "sandbox": {
+            "declared": cfg.sandbox.as_str(),
+            "effective": sandbox.as_str(),
+            "enforced": cfg.is_sandbox_enforced(),
+            "finding": cfg.sandbox_finding(),
+        },
+        "package": cfg.package_spec(),
+        "supply": cfg.supply_report().map(|r| json!({
+            "package": r.package,
+            "verdict": r.verdict.as_str(),
+            "reasons": r.reasons,
+        })),
+    })
 }
 
 #[cfg(test)]
@@ -102,5 +132,32 @@ mod tests {
         assert_eq!(v["ok"], true);
         assert_eq!(v["servers"][0]["name"], "context7");
         assert_eq!(v["servers"][0]["enabled"], true);
+    }
+
+    #[tokio::test]
+    async fn enriches_servers_with_policy_and_supply() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let opencode = dir.path().join(".opencode");
+        std::fs::create_dir_all(&opencode).unwrap();
+        std::fs::write(
+            opencode.join("mcp.json"),
+            r#"{"mcp":{"context7":{"type":"stdio","command":["pnpm","dlx","@upstash/context7-mcp@3.2.4"],"enabled":true,"allowed_tools":["resolve-library-id"]}}}"#,
+        )
+        .unwrap();
+        let Json(v) = get_mcp(Query(McpQuery {
+            repo: Some(dir.path().display().to_string()),
+        }))
+        .await;
+        let s = &v["servers"][0];
+        assert_eq!(s["allowed_tools"][0], "resolve-library-id");
+        assert_eq!(s["exposes_tools"], true);
+        // RFC 07 §2: unsigned → container, not enforced yet (Fase 29.1).
+        assert_eq!(s["sandbox"]["effective"], "container");
+        assert_eq!(s["sandbox"]["enforced"], false);
+        assert!(s["sandbox"]["finding"].as_str().is_some());
+        // RFC 07 §3: package extracted + a supply verdict.
+        assert_eq!(s["package"], "@upstash/context7-mcp");
+        assert_eq!(s["supply"]["package"], "@upstash/context7-mcp");
+        assert!(s["supply"]["verdict"].as_str().is_some());
     }
 }

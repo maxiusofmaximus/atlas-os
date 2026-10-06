@@ -38,6 +38,8 @@ Faltan (vs RFC 24):
 | Health KPIs | `HealthKPIs.svelte` | `agent_session_events`, supervisor heartbeats |
 | Audit | `AuditTimeline.svelte` | audit hash-chain |
 | Worktrees | `WorktreesView.svelte` | `swarm/` worktrees |
+| Settings | `SettingsView.svelte` | OS keychain (`GET/POST /hud/secrets`) |
+| MCP | `McpView.svelte` | `GET /hud/mcp` (catálogo + política RFC 07 §2/§3/§4) |
 | (todas) | `AgentCard.svelte` (RFC 63) · `ApprovalQueue.svelte` · `CommandPalette.svelte` · `DemoPane.svelte` · `SkillMcpRail.svelte` | — |
 
 Reutiliza lo ya existente (`AutoresearchCard`, `AvailabilityCard`, `EvalCard`, `GraphView`, `JournalObserver`, `SwarmConsole`, `ModelReadyCard`, `SpendLimitErrorCard`) como *detail panels* dentro de las views.
@@ -94,3 +96,4 @@ Cada fase es un `ViewSwitcher` que enciende una view sin romper las demás.
 10. [x] `SkillMcpRail.svelte` + **activación real de skills**: drop → `POST /hud/skills/:id/activate` (`hud/skills.rs` publica `SkillActivated` en el Kernel Bus; 3 tests + svelte-check verde). MCP sigue read-only (stage).
 11. [x] Responsive (`@media` ≤720px) + badge de acceso remoto (`GET /remote/status`; OIDC backend ya en `remote_auth/`). Audit completo de dispositivos diferido.
 12. [x] Tests: vitest por componente (estructural, idiom del repo) + contrato de tipos store. E2E Playwright diferido (§8 lo marca opcional).
+13. [x] `McpView.svelte` (view `mcp`, hotkey `m`) + `GET /hud/mcp` **enriquecido**: cada server incluye `allowed_tools` (§4), `sandbox` declarado/efectivo/enforced/finding (§2) y `supply` (paquete + veredicto + razones, §3). Read-only y fail-safe (registro ausente/malformado → `ok:false` + reason).
