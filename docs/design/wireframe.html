@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Atlas OS — Wireframes (lo-fi) · RFC 66</title>
+<style>
+:root{--ink:#111;--line:#9aa;--fill:#f4f4f2;--fill2:#e7e7e4;--note:#6a6a6a;--accent:#111}
+*{box-sizing:border-box}
+body{margin:0;background:#fafaf9;color:var(--ink);font:13px/1.5 ui-monospace,"Cascadia Code",Menlo,monospace;padding:30px 20px 70px}
+.wrap{max-width:1200px;margin:0 auto}
+h1{font-size:17px;margin:0 0 4px}
+.kick{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--note)}
+.lead{color:var(--note);font-size:12.5px;max-width:80ch;margin:6px 0 26px}
+section{margin-bottom:38px}
+h2{font-size:12px;letter-spacing:.16em;text-transform:uppercase;border-bottom:2px solid var(--ink);padding-bottom:7px;margin:0 0 16px}
+.wf{border:2px solid var(--ink);border-radius:6px;overflow:hidden;background:#fff;position:relative}
+.row{border-bottom:1px dashed var(--line)}
+.box{border:1px dashed var(--line);border-radius:4px;padding:8px;background:var(--fill);font-size:11px;color:#333}
+.box .t{font-weight:700;font-size:11px;color:#111;display:block;margin-bottom:3px}
+.box.soft{background:var(--fill2)}
+.box.ghost{background:transparent;border-style:dotted}
+.topbar{display:flex;gap:8px;align-items:center;padding:9px;background:var(--fill2)}
+.topbar .box{flex:none;padding:6px 9px}
+.topbar .box.grow{flex:1}
+.shell{display:grid;grid-template-columns:1.6fr 5fr 2.2fr}
+.shell>div{padding:10px;border-right:1px dashed var(--line);min-height:320px}
+.shell>div:last-child{border-right:0}
+.stack{display:grid;gap:7px}
+.mini{font-size:10px;color:var(--note)}
+.acts{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.act{border:1px solid var(--ink);border-radius:3px;padding:2px 6px;font-size:10px;background:#fff}
+.ann{position:absolute;font-size:10px;color:var(--note)}
+.tag{display:inline-block;border:1px solid var(--ink);border-radius:999px;padding:1px 7px;font-size:10px;margin:0 4px 4px 0}
+.flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.node{border:1.5px solid var(--ink);border-radius:6px;padding:9px 11px;background:#fff;font-size:11px;min-width:110px}
+.node b{display:block}
+.arrow{color:var(--note);font-size:14px}
+.lanes{margin-top:12px;border:1.5px solid var(--ink);border-radius:6px;padding:12px;background:#fff}
+.lane{display:grid;grid-template-columns:120px 1fr;gap:10px;border-bottom:1px dashed var(--line);padding:7px 0;align-items:center}
+.lane:last-child{border-bottom:0}
+.lane .who{font-weight:700;font-size:11px}
+.bars{display:flex;gap:4px}
+.bar{height:16px;border:1px solid var(--ink);border-radius:3px;font-size:9px;display:grid;place-items:center;padding:0 5px;background:var(--fill)}
+.resp{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.resp .cap{font-size:10px;color:var(--note);margin-bottom:5px}
+.resp .frame{border:1.5px solid var(--ink);border-radius:6px;height:150px;padding:7px;background:#fff}
+.resp .b{border:1px dashed var(--line);border-radius:3px;height:100%;display:grid;place-items:center;font-size:10px;color:#333}
+.note{font-size:11px;color:var(--note);margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="kick">RFC 66 · FASE 8</div>
+  <h1>Atlas OS — low-fidelity wireframes</h1>
+  <p class="lead">Structure, hierarchy and flow only — no color, no type styling. These fix the layout decisions from <code>RFC 66 §4–§7</code>: Mission rail · multi-projection canvas · Activity Spine · Approvals dock · Status bar. Read alongside <code>mockup.html</code> (hi-fi).</p>
+
+  <!-- 1. MASTER LAYOUT -->
+  <section>
+    <h2>1 · Master layout — Mission Control (not an IDE)</h2>
+    <div class="wf">
+      <div class="topbar row">
+        <div class="box">⌂ logo</div>
+        <div class="box grow">Mission selector ▾ — <span class="mini">active mission / worktree</span></div>
+        <div class="box">profile ▾</div>
+        <div class="box">🔔 approvals (4)</div>
+        <div class="box">⚙</div>
+      </div>
+      <div class="shell row">
+        <div>
+          <div class="box"><span class="t">MISSION RAIL</span>
+            [+ New Mission]
+            <div class="stack" style="margin-top:7px">
+              <div class="box soft">✕ Auth refactor <div class="mini">swarm ×4 · 1 blocked ⟵ rollup</div></div>
+              <div class="box soft">◐ Dashboard charts <div class="mini">awaiting review</div></div>
+              <div class="box soft">✕ Bug 422 <div class="mini">doom loop halted</div></div>
+              <div class="box soft">✓ Set up CI <div class="mini">completed · demo</div></div>
+            </div>
+            <div style="margin-top:8px"><span class="tag">status</span><span class="tag">model</span><span class="tag">cost</span><span class="tag">skill</span></div>
+          </div>
+          <p class="mini" style="margin-top:7px">Root axis = <b>Missions</b> (not files). Frecent ordering. <b>Rollup:</b> the most severe child state elevates the mission.</p>
+        </div>
+        <div>
+          <div class="box ghost" style="margin-bottom:8px">
+            <div class="stack"><span class="t">VIEW BAR</span>
+              <div>[Kanban][Canvas][Outline][Timeline] · [Cost][Health][Audit][Worktrees] &nbsp;|&nbsp; [Aggregated|Expanded]</div>
+            </div>
+          </div>
+          <div class="box" style="min-height:230px"><span class="t">CANVAS — projection of the active mission</span>
+            <div class="stack" style="grid-template-columns:1fr 1fr 1fr;display:grid">
+              <div class="box soft">IN PROGRESS<br><b>AgentX</b> coding<br><span class="mini">+262/−26 · $0.42</span>
+                <div class="acts"><span class="act">⏸</span><span class="act">💬</span><span class="act">🔱</span></div></div>
+              <div class="box soft">READY REVIEW<br><b>AgentY</b> reviewing<br><span class="mini">🎬 demo · +58/−12</span>
+                <div class="acts"><span class="act">✓</span><span class="act">✕</span></div></div>
+              <div class="box soft">QUEUED<br><b>AgentV</b> waiting<br><span class="mini">slot 4/4</span>
+                <div class="acts"><span class="act">▶</span></div></div>
+            </div>
+            <p class="mini" style="margin-top:8px">Same Journal, 8 projections. Switching a view never stops execution.</p>
+          </div>
+        </div>
+        <div>
+          <div class="box" style="min-height:320px"><span class="t">ACTIVITY SPINE</span>
+            <div class="stack">
+              <div class="box soft">⚠ 14:21 approval requested</div>
+              <div class="box soft">✓ 14:20 task done</div>
+              <div class="box soft">✦ 14:19 research completed</div>
+              <div class="box soft">✕ 14:18 doom_loop halted</div>
+              <div class="box soft">→ 14:16 read 4 files</div>
+            </div>
+            <p class="mini" style="margin-top:8px">Chronological ticker, color by event class (§8.3). Click → jump to card/frame. <b>⇄ sync</b> with Canvas selection (n8n); can dock under the canvas.</p>
+          </div>
+        </div>
+      </div>
+      <div class="row" style="padding:9px;background:var(--fill2)">
+        <div class="box"><span class="t">APPROVALS DOCK (persistent, action)</span>
+          ⚠ AgentX wants to create <code>src/auth/session.ts</code> — [✓ Approve][✕ Deny][💬 Steer][🔱 Fork] · Batch: 2 · 0 conflicts
+        </div>
+      </div>
+      <div style="padding:7px 9px;font-size:11px;color:#333">
+        STATUS BAR — 🕊 Manual · 🏛 architect · conf 0.87 · VRAM 4.1G · cost $0.42 · ⚠ doom ×1 · latency 38ms
+      </div>
+    </div>
+    <p class="note">Decision: <b>rail + canvas + spine + dock</b> (§5.2). Editor is a secondary surface opened from an artifact, never the root screen. Every concept lives in ONE primary surface.</p>
+  </section>
+
+  <!-- 2. MISSION LIFECYCLE -->
+  <section>
+    <h2>2 · Interaction model — the mission loop (HITL)</h2>
+    <div class="flow">
+      <div class="node"><b>Prompt</b><span class="mini">+ New Mission</span></div>
+      <span class="arrow">→</span>
+      <div class="node"><b>Understanding</b><span class="mini">verdict · confidence · questions</span></div>
+      <span class="arrow">→</span>
+      <div class="node"><b>Lock &amp; Plan</b><span class="mini">→ Plan DAG (Outline)</span></div>
+      <span class="arrow">→</span>
+      <div class="node"><b>Swarm runs</b><span class="mini">Kanban / Canvas</span></div>
+      <span class="arrow">→</span>
+      <div class="node"><b>Review</b><span class="mini">demo · evidence · diff</span></div>
+      <span class="arrow">→</span>
+      <div class="node"><b>Reporter</b><span class="mini">outcome + learning</span></div>
+    </div>
+    <p class="note">HITL classes are never mixed (§7): <span class="tag">informativo</span><span class="tag">confirmación</span><span class="tag">decisión</span><span class="tag">bloqueo</span><span class="tag">error</span><span class="tag">resultado</span>. Only <b>confirmación / decisión / bloqueo</b> block the agent and dock.</p>
+  </section>
+
+  <!-- 3. AGENT CARD ANATOMY -->
+  <section>
+    <h2>3 · Agent card anatomy (disclosure: layers 0–3)</h2>
+    <div class="wf" style="padding:14px">
+      <div class="box" style="max-width:430px">
+        <span class="t">LAYER 1 — always visible</span>
+        ● AgentX · researcher · model · 12m · 📌 mission › obj › task
+        <div class="mini">status (spine+label) · diff +N/−M · cost</div>
+        <div style="border-top:1px dashed var(--line);margin:8px 0"></div>
+        <span class="t">LAYER 0 — on COMPLETION (collapsed)</span>
+        <div class="mini">▸ Worked for 14m 22s · Thinking / Commands / Edits — auto-collapses when done (Zed); "?" glyph + faint = <b>unknown</b> state</div>
+        <div style="border-top:1px dashed var(--line);margin:8px 0"></div>
+        <span class="t">LAYER 2 — expand</span>
+        <div class="mini">confidence + judgment · files touched · tool calls · skill · execution mode · modo uso</div>
+        <div style="border-top:1px dashed var(--line);margin:8px 0"></div>
+        <span class="t">LAYER 3 — click</span>
+        <div class="mini">step timeline · evidence links · worktree/branch/dirty · checkpoint · reasoning trail</div>
+        <div style="border-top:1px dashed var(--line);margin:8px 0"></div>
+        <div class="acts"><span class="act">▶ Run</span><span class="act">⏸ Pause</span><span class="act">⏹ Stop</span><span class="act">🔱 Fork</span><span class="act">🚑 Recover</span><span class="act">💬 Steer</span><span class="act">👁 Reason</span><span class="act">🎬 Demo</span></div>
+      </div>
+    </div>
+    <p class="note">Layer 1 never shows JSON; layer 3 never forces reading logs. Actions are gated by state (doom_loop ⇒ Recover/Override/Stop only). <b>On completion</b> the card collapses to Layer 0 ("Worked for Nm").</p>
+  </section>
+
+  <!-- 4. TIMELINE / LANES -->
+  <section>
+    <h2>4 · Timeline projection (per-agent tracks)</h2>
+    <div class="lanes">
+      <div class="lane"><span class="who">AgentX</span><div class="bars"><span class="bar">◇</span><span class="bar">◇</span><span class="bar">◆</span><span class="bar">◆</span><span class="bar">✱</span><span class="bar">◇</span></div></div>
+      <div class="lane"><span class="who">AgentY</span><div class="bars"><span class="bar">◇</span><span class="bar">◆</span><span class="bar">◆</span><span class="bar">✱</span></div></div>
+      <div class="lane"><span class="who">AgentZ</span><div class="bars"><span class="bar">◇</span><span class="bar">◆</span><span class="bar">★</span></div></div>
+    </div>
+    <p class="note">◆ tool call · ◇ heartbeat · ✱ decision · ★ error. Answers “when did the agent stall?”.</p>
+  </section>
+
+  <!-- 5. RESPONSIVE -->
+  <section>
+    <h2>5 · Responsive collapse</h2>
+    <div class="resp">
+      <div><div class="cap">≥1180 — full</div><div class="frame" style="display:grid;grid-template-columns:1fr 3fr 1.4fr;gap:5px">
+        <div class="b">rail</div><div class="b">canvas</div><div class="b">spine</div></div></div>
+      <div><div class="cap">820–1180 — spine collapses</div><div class="frame" style="display:grid;grid-template-columns:1fr 3fr;gap:5px">
+        <div class="b">rail</div><div class="b">canvas (+spine badge)</div></div></div>
+      <div><div class="cap">≤720 — review mode (mobile)</div><div class="frame" style="display:grid;grid-template-rows:auto 1fr auto;gap:5px">
+        <div class="b">missions</div><div class="b">approvals + activity</div><div class="b">APR / DENY</div></div></div>
+    </div>
+    <p class="note">Mobile = async <b>review</b> (RFC 24 §16), not editing: one-hand approve/deny, mission list, activity.</p>
+  </section>
+</div>
+</body>
+</html>

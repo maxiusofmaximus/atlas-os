@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Atlas OS — Mission Control · Design Mockup (RFC 66)</title>
+<style>
+/* ============================================================
+   ATLAS OS — DESIGN MOCKUP  (RFC 66 · Addendum A)
+   Tokens authored in OKLCH; shipped sRGB. Contrast measured, not guessed.
+   Identity: "Calm Instrumentation" — graphite room, one teal signal.
+   This is a STATIC DESIGN ARTIFACT. It does not touch app source.
+   ============================================================ */
+:root, [data-theme="dark"]{
+  --a-bg:#0d0d0d; --a-surface:#161616; --a-surface-2:#1f1f1f;
+  --a-border:#292929; --a-border-strong:#404040; --a-border-ui:#747474;
+  --a-text:#ebebeb; --a-text-muted:#a8a8a8; --a-text-faint:#868686;
+  --a-primary:#4fd5d1; --a-info:#65b2f1; --a-ok:#6fd087; --a-warn:#f0ba59; --a-err:#fd7273; --a-violet:#b39ef2;
+  --a-focus:#4fd5d1;
+  --a-on-primary:#0d0d0d;
+  --a-primary-soft:color-mix(in oklab, var(--a-primary) 16%, transparent);
+  --a-info-soft:color-mix(in oklab, var(--a-info) 14%, transparent);
+  --a-err-soft:color-mix(in oklab, var(--a-err) 14%, transparent);
+  --a-ok-soft:color-mix(in oklab, var(--a-ok) 14%, transparent);
+  --a-warn-soft:color-mix(in oklab, var(--a-warn) 14%, transparent);
+  --shadow:0 8px 32px rgba(0,0,0,.45);
+}
+[data-theme="light"]{
+  --a-bg:#ffffff; --a-surface:#f6f6f6; --a-surface-2:#eeeeee;
+  --a-border:#e2e2e2; --a-border-strong:#cfcfcf; --a-border-ui:#868686;
+  --a-text:#1b1b1b; --a-text-muted:#606060; --a-text-faint:#808080;
+  --a-primary:#007d7b; --a-info:#0068a7; --a-ok:#007834; --a-warn:#966000; --a-err:#c2272d; --a-violet:#6646a8;
+  --a-focus:#007d7b; --a-on-primary:#ffffff;
+  --shadow:0 8px 28px rgba(0,0,0,.14);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--a-bg); color:var(--a-text);
+  font:14px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  padding:28px 20px 60px;
+}
+.mono{font-family:ui-monospace,"JetBrains Mono","Cascadia Code",Menlo,monospace;font-variant-numeric:tabular-nums}
+.muted{color:var(--a-text-muted)}
+.faint{color:var(--a-text-faint)}
+.wrap{max-width:1440px;margin:0 auto}
+
+/* ---- mockup chrome (not part of the product) ---- */
+.doc-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--a-border);padding-bottom:14px;margin-bottom:22px}
+.doc-head h1{font-size:18px;margin:0;letter-spacing:.01em;font-weight:600}
+.doc-head .kicker{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--a-primary);font-weight:600}
+.doc-head p{margin:4px 0 0;color:var(--a-text-muted);font-size:12.5px;max-width:70ch}
+.theme-toggle{display:inline-flex;border:1px solid var(--a-border-ui);border-radius:999px;overflow:hidden}
+.theme-toggle button{appearance:none;border:0;background:transparent;color:var(--a-text-muted);padding:6px 14px;font:inherit;font-size:12px;cursor:pointer}
+.theme-toggle button[aria-pressed="true"]{background:var(--a-primary);color:var(--a-on-primary);font-weight:600}
+
+/* ============================================================
+   APP FRAME
+   ============================================================ */
+.app{border:1px solid var(--a-border-strong);border-radius:12px;overflow:hidden;background:var(--a-bg);box-shadow:var(--shadow)}
+.app, .app *{min-width:0}
+
+/* Top bar */
+.topbar{display:flex;align-items:center;gap:14px;height:52px;padding:0 14px;background:var(--a-surface);border-bottom:1px solid var(--a-border)}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600;letter-spacing:.02em}
+.brand .mark{width:20px;height:20px;border-radius:5px;background:var(--a-primary);position:relative;box-shadow:0 0 0 1px color-mix(in oklab,var(--a-primary) 40%, transparent)}
+.brand .mark::after{content:"";position:absolute;inset:5px;border-radius:2px;background:var(--a-bg)}
+.brand b{font-size:13.5px}
+.brand span{color:var(--a-text-faint);font-size:11px;letter-spacing:.14em;font-weight:500}
+.mission-pick{display:flex;align-items:center;gap:8px;background:var(--a-bg);border:1px solid var(--a-border-ui);border-radius:8px;padding:6px 10px;font-size:12.5px;min-width:250px}
+.mission-pick .dot{width:8px;height:8px;border-radius:50%;background:var(--a-info);box-shadow:0 0 0 3px var(--a-info-soft)}
+.mission-pick .caret{margin-left:auto;color:var(--a-text-faint)}
+.spacer{flex:1}
+.iconbtn{appearance:none;background:transparent;border:1px solid transparent;border-radius:8px;color:var(--a-text-muted);padding:6px 9px;cursor:pointer;font:inherit;font-size:12.5px;display:inline-flex;align-items:center;gap:7px}
+.iconbtn:hover{background:var(--a-surface-2);color:var(--a-text)}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--a-err);color:var(--a-bg);font-size:11px;font-weight:700}
+.profile{display:flex;align-items:center;gap:8px;border:1px solid var(--a-border-ui);border-radius:999px;padding:4px 10px 4px 5px;font-size:12.5px}
+.avatar{width:22px;height:22px;border-radius:50%;background:var(--a-violet);color:#0d0d0d;display:grid;place-items:center;font-size:11px;font-weight:700}
+
+/* Shell */
+.shell{display:grid;grid-template-columns:236px 1fr 312px;min-height:660px}
+@media (max-width:1180px){.shell{grid-template-columns:220px 1fr}.spine{display:none}}
+@media (max-width:820px){.shell{grid-template-columns:1fr}.rail{display:none}}
+
+/* Mission rail */
+.rail{background:var(--a-surface);border-right:1px solid var(--a-border);display:flex;flex-direction:column;padding:12px}
+.newmission{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:9px;border-radius:8px;border:1px solid var(--a-border-ui);background:transparent;color:var(--a-text);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.newmission:hover{border-color:var(--a-primary);color:var(--a-primary)}
+.newmission .plus{color:var(--a-primary);font-weight:700}
+.rail-label{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--a-text-faint);margin:18px 6px 8px}
+.mission{display:flex;gap:10px;align-items:center;padding:8px 9px;border-radius:8px;cursor:pointer;position:relative}
+.mission:hover{background:var(--a-surface-2)}
+.mission[aria-current="true"]{background:var(--a-surface-2)}
+.mission[aria-current="true"]::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:2px;background:var(--a-primary)}
+.mission .spine{width:3px;height:22px;border-radius:2px;flex:none}
+.mission .name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mission .meta{font-size:11px;color:var(--a-text-faint)}
+.mission .count{margin-left:auto;font-size:11px;color:var(--a-text-faint)}
+.filters{margin-top:auto;border-top:1px solid var(--a-border);padding-top:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--a-text-muted);border:1px solid var(--a-border);border-radius:999px;padding:3px 9px;margin:0 6px 6px 0}
+
+/* Main */
+.maincol{display:flex;flex-direction:column;min-width:0}
+.viewbar{display:flex;align-items:center;gap:4px;padding:9px 12px;border-bottom:1px solid var(--a-border);background:var(--a-bg);overflow-x:auto}
+.view{appearance:none;border:0;background:transparent;color:var(--a-text-muted);font:inherit;font-size:12.5px;padding:6px 11px;border-radius:7px;cursor:pointer;white-space:nowrap}
+.view:hover{background:var(--a-surface-2);color:var(--a-text)}
+.view[aria-selected="true"]{background:var(--a-primary-soft);color:var(--a-primary);font-weight:600}
+.viewbar .sep{width:1px;height:16px;background:var(--a-border);margin:0 6px}
+
+.canvas{padding:14px;flex:1;overflow:auto;background:
+  radial-gradient(120% 100% at 100% 0, color-mix(in oklab,var(--a-primary) 4%, transparent), transparent 55%)}
+.kanban{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:start}
+@media (max-width:1180px){.kanban{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:820px){.kanban{grid-template-columns:1fr}}
+.col-h{display:flex;align-items:center;gap:8px;padding:4px 6px 10px}
+.col-h .t{font-size:12px;font-weight:600;letter-spacing:.02em}
+.col-h .n{font-size:11px;color:var(--a-text-faint)}
+.col-h .rule{flex:1;height:1px;background:var(--a-border)}
+
+/* Agent card */
+.card{position:relative;background:var(--a-surface);border:1px solid var(--a-border);border-radius:10px;padding:11px 12px 11px 14px;margin-bottom:10px;overflow:hidden}
+.card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--st,var(--a-text-faint))}
+.card:hover{border-color:var(--a-border-strong);background:var(--a-surface-2)}
+.card.sel{border-color:var(--a-primary);box-shadow:0 0 0 1px var(--a-primary-soft)}
+.card.s-doing{--st:var(--a-info)} .card.s-review{--st:var(--a-warn)} .card.s-idle{--st:var(--a-text-faint)}
+.card.s-ok{--st:var(--a-ok)} .card.s-doom{--st:var(--a-err)} .card.s-queued{--st:var(--a-text-faint)}
+.c-top{display:flex;align-items:center;gap:8px}
+.role{font-size:12.5px;font-weight:600}
+.model{font-size:11px;color:var(--a-text-faint)}
+.c-top .time{margin-left:auto;font-size:11px;color:var(--a-text-faint)}
+.dot{width:9px;height:9px;border-radius:50%;flex:none}
+.dot.ring{background:transparent;box-shadow:inset 0 0 0 2px currentColor}
+.c-ref{font-size:11px;color:var(--a-text-muted);margin:6px 0 9px;display:flex;gap:6px;align-items:center}
+.c-ref .pin{color:var(--a-primary)}
+.statline{font-size:12px;display:flex;align-items:center;gap:7px;margin-bottom:9px}
+.statline .st{font-weight:600}
+.statline .arrow{color:var(--a-text-faint)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;font-size:11.5px;margin-bottom:9px}
+.kv{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dashed color-mix(in oklab,var(--a-border) 70%, transparent);padding-bottom:4px;min-width:0}
+.kv .k{color:var(--a-text-faint);white-space:nowrap}
+.kv .v{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;min-width:0}
+.kv.wide{grid-column:1/-1}
+.diff .add{color:var(--a-ok)} .diff .rm{color:var(--a-err)}
+.meter{height:4px;border-radius:999px;background:var(--a-surface-2);position:relative;overflow:hidden;margin-top:3px}
+.meter i{position:absolute;inset:0 30% 0 0;background:var(--a-ok)}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.tag{font-size:10.5px;padding:3px 8px;border-radius:999px;border:1px solid var(--a-border-ui);color:var(--a-text-muted);display:inline-flex;gap:5px;align-items:center}
+.tag.mode{border-color:color-mix(in oklab,var(--a-info) 55%, transparent);color:var(--a-info)}
+.tag.uso{border-color:color-mix(in oklab,var(--a-violet) 55%, transparent);color:var(--a-violet)}
+.acts{display:flex;flex-wrap:wrap;gap:6px;border-top:1px solid var(--a-border);padding-top:9px}
+.act{appearance:none;font:inherit;font-size:11.5px;color:var(--a-text-muted);background:transparent;border:1px solid var(--a-border);border-radius:7px;padding:4px 9px;cursor:pointer;display:inline-flex;gap:5px;align-items:center}
+.act:hover{color:var(--a-text);border-color:var(--a-border-strong);background:var(--a-surface-2)}
+.act.pri{color:var(--a-on-primary);background:var(--a-primary);border-color:var(--a-primary);font-weight:600}
+.act.danger{color:var(--a-err);border-color:color-mix(in oklab,var(--a-err) 55%, transparent)}
+.act.warn{color:var(--a-warn);border-color:color-mix(in oklab,var(--a-warn) 55%, transparent)}
+.card.doom{border-color:color-mix(in oklab,var(--a-err) 60%, transparent);background:linear-gradient(180deg,var(--a-err-soft),transparent 40%)}
+.doomline{font-size:11.5px;color:var(--a-err);display:flex;gap:7px;align-items:center;margin:8px 0;font-weight:600}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--a-err);animation:p 1.4s infinite}
+@keyframes p{0%,100%{box-shadow:0 0 0 0 var(--a-err-soft)}50%{box-shadow:0 0 0 5px var(--a-err-soft)}}
+@media (prefers-reduced-motion:reduce){.pulse{animation:none}}
+.demo-thumb{margin:9px 0;height:74px;border-radius:8px;border:1px solid var(--a-border);background:
+  repeating-linear-gradient(135deg,var(--a-surface-2) 0 10px,transparent 10px 20px);display:flex;align-items:center;justify-content:center;color:var(--a-text-faint);font-size:11px;gap:7px}
+
+/* --- audit §3.1 patterns (2026-10-06) --- */
+:focus-visible{outline:2px solid var(--a-focus);outline-offset:2px;border-radius:6px}
+.focus-demo{outline:2px solid var(--a-focus);outline-offset:2px}
+.card.s-unknown{--st:var(--a-text-faint)}
+.turn-collapse{font-size:11.5px;color:var(--a-text-muted);display:flex;gap:7px;align-items:center;border:1px solid var(--a-border);border-radius:7px;padding:5px 9px;margin:8px 0;background:var(--a-surface-2);cursor:pointer}
+.turn-collapse b{color:var(--a-text);font-weight:600}
+.unkdot{width:13px;height:13px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:9px;font-weight:700;color:var(--a-text-faint);box-shadow:inset 0 0 0 2px currentColor}
+.sync{display:inline-flex;gap:5px;align-items:center;font-size:10.5px;color:var(--a-text-muted);border:1px solid var(--a-border-ui);border-radius:999px;padding:2px 8px;margin-left:8px}
+.sync[aria-pressed="true"]{color:var(--a-primary);border-color:color-mix(in oklab,var(--a-primary) 55%, transparent)}
+.seg{display:inline-flex;border:1px solid var(--a-border-ui);border-radius:8px;overflow:hidden;margin-left:auto}
+.seg button{appearance:none;border:0;background:transparent;color:var(--a-text-muted);font:inherit;font-size:11px;padding:4px 10px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--a-primary-soft);color:var(--a-primary);font-weight:600}
+
+/* Activity spine */
+.spine{background:var(--a-surface);border-left:1px solid var(--a-border);display:flex;flex-direction:column}
+.spine-h{padding:11px 13px;border-bottom:1px solid var(--a-border);display:flex;align-items:center;gap:8px}
+.spine-h .t{font-size:12px;font-weight:600}
+.spine-h .live{margin-left:auto;font-size:10.5px;color:var(--a-ok);display:flex;gap:6px;align-items:center}
+.spine-h .live i{width:6px;height:6px;border-radius:50%;background:var(--a-ok)}
+.feed{overflow:auto;padding:6px 0}
+.ev{display:flex;gap:10px;padding:7px 13px;position:relative;cursor:pointer}
+.ev:hover{background:var(--a-surface-2)}
+.ev::before{content:"";position:absolute;left:22px;top:22px;bottom:-7px;width:1px;background:var(--a-border)}
+.ev:last-child::before{display:none}
+.ev .ic{width:16px;height:16px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:9px;color:var(--a-bg);z-index:1;margin-top:1px}
+.ev .body{font-size:11.5px;min-width:0}
+.ev .body b{font-weight:600}
+.ev .body .ts{color:var(--a-text-faint);font-size:10.5px}
+.i-ok{background:var(--a-ok)} .i-apr{background:var(--a-warn)} .i-err{background:var(--a-err)}
+.i-res{background:var(--a-violet)} .i-info{background:var(--a-info)}
+
+/* Approvals dock */
+.dock{display:flex;align-items:center;gap:12px;padding:9px 14px;border-top:1px solid color-mix(in oklab,var(--a-err) 45%, var(--a-border));background:linear-gradient(90deg,var(--a-err-soft),transparent 55%)}
+.dock .warn-ic{color:var(--a-err)}
+.dock .txt{font-size:12.5px}
+.dock .txt .who{font-weight:600} .dock .pat{font-size:11px;color:var(--a-text-muted)}
+.dock .grow{flex:1}
+.dock .batch{font-size:11px;color:var(--a-text-muted);margin-right:4px}
+
+/* Status bar */
+.statusbar{display:flex;align-items:center;gap:16px;height:30px;padding:0 14px;background:var(--a-surface);border-top:1px solid var(--a-border);font-size:11.5px;color:var(--a-text-muted);overflow-x:auto}
+.sb{display:inline-flex;gap:6px;align-items:center;white-space:nowrap}
+.sb b{color:var(--a-text);font-weight:600}
+.pill{display:inline-flex;gap:6px;align-items:center;padding:2px 8px;border-radius:999px;border:1px solid var(--a-border-ui);font-size:11px}
+.pill .d{width:7px;height:7px;border-radius:50%}
+.pill.warn{border-color:color-mix(in oklab,var(--a-warn) 55%, transparent);color:var(--a-warn)}
+.pill.alert{border-color:color-mix(in oklab,var(--a-err) 55%, transparent);color:var(--a-err)}
+
+/* Design legend */
+.legend{margin-top:34px}
+.legend h2{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--a-primary);margin:0 0 14px}
+.legend .block{border-top:1px solid var(--a-border);padding:18px 0}
+.legend h3{font-size:13px;margin:0 0 12px;font-weight:600}
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.sw{border:1px solid var(--a-border);border-radius:8px;overflow:hidden}
+.sw .chip{height:38px;margin:0;border:0;border-radius:0;display:block}
+.sw .lab{padding:7px 9px;font-size:11px}
+.sw .lab b{display:block;font-weight:600}
+.sw .lab code{color:var(--a-text-faint);font-size:10.5px}
+.typescale div{margin:6px 0}
+.note{font-size:12px;color:var(--a-text-muted);max-width:80ch}
+.note code{color:var(--a-text);background:var(--a-surface-2);padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="doc-head">
+    <div>
+      <div class="kicker">RFC 66 · Addendum A · Design Mockup</div>
+      <h1>Atlas OS — Mission Control</h1>
+      <p>Reading this as an <b>operate</b>-mode mission console for technical operators, with a <b>calm-instrumentation</b> language: pure graphite surfaces, one teal signal, a closed semantic vocabulary for agent state. Static design artifact — no app source touched.</p>
+    </div>
+    <div class="theme-toggle" role="group" aria-label="Theme">
+      <button id="t-dark" aria-pressed="true" onclick="setTheme('dark')">Dark</button>
+      <button id="t-light" aria-pressed="false" onclick="setTheme('light')">Light</button>
+    </div>
+  </div>
+
+  <!-- ===================== APP ===================== -->
+  <div class="app">
+
+    <!-- Top bar -->
+    <div class="topbar">
+      <div class="brand"><span class="mark"></span><b>ATLAS OS</b><span>AEOS</span></div>
+      <div class="mission-pick" title="Active mission">
+        <span class="dot"></span>
+        <span>Auth refactor</span>
+        <span class="caret">▾</span>
+      </div>
+      <div class="spacer"></div>
+      <button class="iconbtn" title="Approvals">🔔 Approvals <span class="badge">4</span></button>
+      <button class="iconbtn" title="Command palette (:)">⌘ Palette</button>
+      <button class="iconbtn" title="Settings">⚙</button>
+      <div class="profile"><span class="avatar">M</span><span>max · local</span></div>
+    </div>
+
+    <!-- Shell -->
+    <div class="shell">
+
+      <!-- Mission rail -->
+      <nav class="rail" aria-label="Missions">
+        <button class="newmission"><span class="plus">+</span> New Mission</button>
+        <div class="rail-label">Missions</div>
+
+        <div class="mission" aria-current="true" title="Rollup: the most severe child state elevates the mission">
+          <span class="spine" style="background:var(--a-err)"></span>
+          <div>
+            <div class="name">Auth refactor</div>
+            <div class="meta">swarm ×4 · <span style="color:var(--a-err)">1 blocked</span></div>
+          </div>
+          <span class="count" style="color:var(--a-err)">⚠</span>
+        </div>
+        <div class="mission">
+          <span class="spine" style="background:var(--a-warn)"></span>
+          <div>
+            <div class="name">Dashboard charts</div>
+            <div class="meta">awaiting review</div>
+          </div>
+          <span class="count">2</span>
+        </div>
+        <div class="mission">
+          <span class="spine" style="background:var(--a-err)"></span>
+          <div>
+            <div class="name">Bug 422 · timezone</div>
+            <div class="meta">doom loop halted</div>
+          </div>
+          <span class="count">⚠</span>
+        </div>
+        <div class="mission">
+          <span class="spine" style="background:var(--a-ok)"></span>
+          <div>
+            <div class="name">Set up CI</div>
+            <div class="meta">completed · demo ready</div>
+          </div>
+          <span class="count">✓</span>
+        </div>
+
+        <div class="filters">
+          <div class="rail-label" style="margin-top:2px">Filters</div>
+          <span class="chip">status ▾</span><span class="chip">model ▾</span>
+          <span class="chip">cost ▾</span><span class="chip">skill ▾</span>
+        </div>
+      </nav>
+
+      <!-- Main -->
+      <main class="maincol">
+        <div class="viewbar" role="tablist">
+          <button class="view" role="tab" aria-selected="true">Kanban</button>
+          <button class="view" role="tab" aria-selected="false">Canvas</button>
+          <button class="view" role="tab" aria-selected="false">Outline</button>
+          <button class="view" role="tab" aria-selected="false">Timeline</button>
+          <span class="sep"></span>
+          <button class="view" role="tab" aria-selected="false">Cost</button>
+          <button class="view" role="tab" aria-selected="false">Health</button>
+          <button class="view" role="tab" aria-selected="false">Audit</button>
+          <button class="view" role="tab" aria-selected="false">Worktrees</button>
+          <span class="seg" role="group" aria-label="Projection density" title="Canvas / Outline projection (Langfuse pattern)">
+            <button aria-pressed="true">Aggregated</button>
+            <button aria-pressed="false">Expanded</button>
+          </span>
+        </div>
+
+        <div class="canvas">
+          <div class="kanban">
+
+            <!-- In progress -->
+            <section>
+              <div class="col-h"><span class="t">In progress</span><span class="n">2</span><span class="rule"></span></div>
+
+              <!-- Agent card: working -->
+              <article class="card s-doing sel">
+                <div class="c-top">
+                  <span class="dot" style="background:var(--a-info)"></span>
+                  <span class="role">AgentX</span><span class="model">· researcher · Gemini-1.5-Pro</span>
+                  <span class="time mono">12m 04s</span>
+                </div>
+                <div class="c-ref"><span class="pin">📌</span> Auth refactor · Obj 2 · Subtask 3</div>
+                <div class="statline"><span class="st" style="color:var(--a-info)">coding</span><span class="arrow">▶</span>
+                  <span class="muted">editing <span class="mono">src/auth/session.ts</span></span></div>
+                <div class="grid2">
+                  <div class="kv"><span class="k">Confidence</span><span class="v mono" style="color:var(--a-ok)">0.87 · HIGH</span></div>
+                  <div class="kv"><span class="k">Files</span><span class="v mono">4</span></div>
+                  <div class="kv"><span class="k">Diff</span><span class="v mono diff"><span class="add">+262</span> / <span class="rm">−26</span></span></div>
+                  <div class="kv"><span class="k">Cost</span><span class="v mono">$0.42</span></div>
+                  <div class="kv wide"><span class="k">Tools</span><span class="v mono">8 · web 3 · fs 5</span></div>
+                  <div class="kv wide"><span class="k">Tokens</span><span class="v mono">58.1k → 9.2k</span></div>
+                </div>
+                <div class="meter" title="confidence 0.87"><i></i></div>
+                <div class="tags" style="margin-top:10px">
+                  <span class="tag">★ ★ ★ ★ ★ React UI Expert</span>
+                  <span class="tag mode">🤝 HUMAN_IN_LOOP</span>
+                  <span class="tag uso">🏛 architect</span>
+                </div>
+                <div class="acts">
+                  <button class="act pri">⏸ Pause</button>
+                  <button class="act">💬 Steer</button>
+                  <button class="act">🔱 Fork</button>
+                  <button class="act">👁 Reason</button>
+                  <button class="act">🎬 Demo</button>
+                </div>
+              </article>
+
+              <!-- Agent card: doom loop -->
+              <article class="card s-doom doom">
+                <div class="c-top">
+                  <span class="dot" style="background:var(--a-err)"></span>
+                  <span class="role">AgentZ</span><span class="model">· backend · DeepSeek-V3</span>
+                  <span class="time mono">3m 51s</span>
+                </div>
+                <div class="c-ref"><span class="pin" style="color:var(--a-err)">📌</span> Auth refactor · Obj 3 · Task 6</div>
+                <div class="doomline"><span class="pulse"></span> doom_loop detected · 3 identical steps consecutivos</div>
+                <div class="grid2">
+                  <div class="kv"><span class="k">Confidence</span><span class="v mono" style="color:var(--a-err)">0.31 · BLOCK</span></div>
+                  <div class="kv"><span class="k">Cost</span><span class="v mono">$0.18</span></div>
+                  <div class="kv wide"><span class="k">Checkpoint</span><span class="v mono">cp_0x9f1a</span></div>
+                  <div class="kv wide"><span class="k">Worktree</span><span class="v mono">oc-auth/db · dirty</span></div>
+                </div>
+                <div class="acts">
+                  <button class="act warn">🚑 Recover</button>
+                  <button class="act danger">🔓 Override + reason</button>
+                  <button class="act">⏹ Stop</button>
+                </div>
+              </article>
+            </section>
+
+            <!-- Ready for review -->
+            <section>
+              <div class="col-h"><span class="t">Ready for review</span><span class="n">2</span><span class="rule"></span></div>
+
+              <article class="card s-review">
+                <div class="c-top">
+                  <span class="dot ring" style="color:var(--a-warn)"></span>
+                  <span class="role">AgentY</span><span class="model">· frontend · Claude-Sonnet</span>
+                  <span class="time mono">7m 12s</span>
+                </div>
+                <div class="c-ref"><span class="pin">📌</span> Auth refactor · Obj 2 · Task 5</div>
+                <div class="statline"><span class="st" style="color:var(--a-warn)">reviewing</span><span class="arrow">▶</span>
+                  <span class="muted">self-test · 2 huerfanos de tipos</span></div>
+                <div class="demo-thumb">🎬 Demo · 40s screen recording + narración TTS</div>
+                <div class="grid2">
+                  <div class="kv"><span class="k">Diff</span><span class="v mono diff"><span class="add">+58</span> / <span class="rm">−12</span></span></div>
+                  <div class="kv"><span class="k">Files</span><span class="v mono">2</span></div>
+                  <div class="kv"><span class="k">Evidence</span><span class="v mono">3 sources</span></div>
+                  <div class="kv"><span class="k">Cost</span><span class="v mono">$0.11</span></div>
+                </div>
+                <div class="acts">
+                  <button class="act pri">✓ Approve</button>
+                  <button class="act">🎬 Demo</button>
+                  <button class="act danger">✕ Deny</button>
+                  <button class="act">🔱 Fork</button>
+                </div>
+              </article>
+
+              <article class="card s-ok">
+                <div class="c-top">
+                  <span class="dot" style="background:var(--a-ok)"></span>
+                  <span class="role">AgentW</span><span class="model">· database · Qwen-Coder</span>
+                  <span class="time mono">14m 22s</span>
+                </div>
+                <div class="c-ref"><span class="pin">📌</span> Auth refactor · Obj 1 · Task 4</div>
+                <div class="statline"><span class="st" style="color:var(--a-ok)">success</span><span class="arrow">✓</span>
+                  <span class="muted">migración aplicada · +3 tests</span></div>
+                <div class="turn-collapse" title="Turn collapsed on completion (Zed pattern)">▸ Worked for <b>14m 22s</b> · <span class="muted">Thinking / Commands / Edits</span></div>
+                <div class="grid2">
+                  <div class="kv"><span class="k">Diff</span><span class="v mono diff"><span class="add">+91</span> / <span class="rm">−4</span></span></div>
+                  <div class="kv"><span class="k">Validation</span><span class="v mono" style="color:var(--a-ok)">tsc ✓ vitest ✓</span></div>
+                </div>
+                <div class="acts">
+                  <button class="act">🎬 Demo</button>
+                  <button class="act">👁 Reason</button>
+                  <button class="act">⤓ Merge</button>
+                </div>
+              </article>
+            </section>
+
+            <!-- Queued -->
+            <section>
+              <div class="col-h"><span class="t">Queued</span><span class="n">2</span><span class="rule"></span></div>
+
+              <article class="card s-queued">
+                <div class="c-top">
+                  <span class="dot ring" style="color:var(--a-text-faint)"></span>
+                  <span class="role">AgentV</span><span class="model">· testing</span>
+                  <span class="time mono">waiting</span>
+                </div>
+                <div class="c-ref"><span class="pin">📌</span> Auth refactor · Obj 3 · Task 7</div>
+                <div class="statline"><span class="st" style="color:var(--a-text-muted)">queued</span><span class="arrow">·</span>
+                  <span class="muted">slot pool 4/4 · ~2m</span></div>
+                <div class="acts"><button class="act">▶ Run</button><button class="act">⇅ Priority</button></div>
+              </article>
+
+              <article class="card s-idle">
+                <div class="c-top">
+                  <span class="dot ring" style="color:var(--a-text-faint)"></span>
+                  <span class="role">AgentU</span><span class="model">· reviewer</span>
+                  <span class="time mono">idle</span>
+                </div>
+                <div class="c-ref"><span class="pin">📌</span> Auth refactor · pool</div>
+                <div class="statline"><span class="st" style="color:var(--a-text-muted)">idle</span><span class="arrow">·</span>
+                  <span class="muted">recursos: VRAM 4.1G libre</span></div>
+                <div class="acts"><button class="act">▶ Run</button></div>
+              </article>
+
+              <article class="card s-unknown">
+                <div class="c-top">
+                  <span class="unkdot">?</span>
+                  <span class="role">AgentT</span><span class="model">· unknown</span>
+                  <span class="time mono">—</span>
+                </div>
+                <div class="c-ref"><span class="pin" style="color:var(--a-text-faint)">📌</span> Bug 422 · timezone</div>
+                <div class="statline"><span class="st" style="color:var(--a-text-faint)">unknown</span><span class="arrow">?</span>
+                  <span class="muted">proceso presente · el detector no clasifica</span></div>
+                <div class="acts"><button class="act">👁 Inspect</button><button class="act danger">⏹ Stop</button></div>
+              </article>
+            </section>
+
+          </div>
+        </div>
+      </main>
+
+      <!-- Activity spine -->
+      <aside class="spine" aria-label="Activity">
+        <div class="spine-h"><span class="t">Activity</span>
+          <span class="live"><i></i>live</span>
+          <span class="sync" aria-pressed="true" title="Selection synced with Canvas (n8n pattern)">⇄ canvas</span>
+        </div>
+        <div class="feed">
+          <div class="ev"><span class="ic i-apr">⚠</span><div class="body"><b>AgentX</b> requests approval — <span class="mono">create src/auth/session.ts</span><div class="ts mono">14:21:09 · pattern: new file</div></div></div>
+          <div class="ev"><span class="ic i-ok">✓</span><div class="body"><b>AgentW</b> task 4 done · <span class="mono">tsc ✓ vitest ✓</span><div class="ts mono">14:20:55 · +91/−4</div></div></div>
+          <div class="ev"><span class="ic i-res">✦</span><div class="body"><b>Research</b> completed — 3 sources · feasibility HIGH<div class="ts mono">14:19:48 · research.completed</div></div></div>
+          <div class="ev"><span class="ic i-err">✕</span><div class="body"><b>AgentZ</b> doom_loop ×3 — halted at checkpoint<div class="ts mono">14:18:02 · cp_0x9f1a</div></div></div>
+          <div class="ev"><span class="ic i-info">→</span><div class="body"><b>AgentX</b> <span class="mono">read</span> 4 files · planning objective 2<div class="ts mono">14:16:31</div></div></div>
+          <div class="ev"><span class="ic i-info">→</span><div class="body"><b>AgentY</b> started on worktree <span class="mono">oc-auth/frontend</span><div class="ts mono">14:15:02</div></div></div>
+        </div>
+      </aside>
+
+    </div><!-- /shell -->
+
+    <!-- Approvals dock -->
+    <div class="dock" role="region" aria-label="Approvals">
+      <span class="warn-ic">⚠</span>
+      <div class="txt">
+        <div><span class="who">AgentX</span> wants to <b>create <span class="mono">src/auth/session.ts</span></b></div>
+        <div class="pat">pattern: <span class="mono">new file</span> · scope <span class="mono">src/auth/*</span></div>
+      </div>
+      <span class="grow"></span>
+      <span class="batch">Batch: 2 selected · 0 file conflicts</span>
+      <button class="act pri">✓ Approve</button>
+      <button class="act danger">✕ Deny</button>
+      <button class="act">💬 Steer</button>
+      <button class="act">🔱 Fork</button>
+    </div>
+
+    <!-- Status bar -->
+    <div class="statusbar">
+      <span class="sb">🕊 <b>Manual Classic</b></span>
+      <span class="sb"><span class="pill">🏛 architect</span></span>
+      <span class="sb">confidence <b class="mono" style="color:var(--a-ok)">0.87</b></span>
+      <span class="sb">VRAM <b class="mono">4.1G</b> / 12G</span>
+      <span class="sb">cost <b class="mono">$0.42</b> · budget $0.50</span>
+      <span class="sb"><span class="pill warn">◆ cost 84%</span></span>
+      <span class="sb"><span class="pill alert">⚠ doom ×1</span></span>
+      <span class="spacer"></span>
+      <span class="sb faint">HUD latency <b class="mono">38ms</b></span>
+    </div>
+
+  </div><!-- /app -->
+
+  <!-- ===================== LEGEND ===================== -->
+  <div class="legend">
+    <h2>Design system — shipped with this mockup</h2>
+
+    <div class="block">
+      <h3>Color tokens · authored in OKLCH, validated with WCAG</h3>
+      <div class="swatches" id="swatches"></div>
+      <p class="note" style="margin-top:12px">Measured on dark: text <b>16.28:1</b>, muted <b>8.12:1</b>, faint <b>5.33:1</b>, all state colors ≥ 7.25:1, control border <b>4.17:1</b> (≥ 3:1, WCAG 1.4.11). Full tables + FASE-9 re-measurement: <code>docs/design/PALETTE.md</code> §4/§4.1.</p>
+    </div>
+
+    <div class="block">
+      <h3>Typography</h3>
+      <div class="typescale">
+        <div style="font-size:20px;font-weight:600">Agent run title — 20 / 600</div>
+        <div style="font-size:16px;font-weight:600">Section heading — 16 / 600</div>
+        <div style="font-size:14px">Body prose (human-readable) — 14 / 400, line-height 1.45</div>
+        <div class="mono" style="font-size:13px;color:var(--a-text-muted)">machine facts: run_id 0x9f1a · +262/−26 · $0.42 · 58.1k tok</div>
+        <div style="font-size:11px;letter-spacing:.02em;text-transform:uppercase;color:var(--a-text-faint)">label / eyebrow — 11 uppercase, tracking .02em</div>
+      </div>
+      <p class="note">Sans = system stack for prose; mono = all machine facts (ids, paths, tokens, cost, hashes). System fonts honor the no-new-dependency boundary (RFC 66 §9.3).</p>
+    </div>
+
+    <div class="block">
+      <h3>State vocabulary (never color alone)</h3>
+      <p class="note">Each state pairs a color with a <b>spine</b>, a <b>dot shape</b>, an <b>icon</b> and a <b>label</b>, so it survives color-blindness and grayscale. Mapped 1:1 to the real <code>AgentStatus</code> enum, plus the proposed <code>unknown</code> (glyph <code>?</code>, <code>faint #868686</code>, AA 5.33:1). ← spine = identity device: scanned peripherally without reading.</p>
+    </div>
+
+    <div class="block">
+      <h3>Keyboard focus · <code>:focus-visible</code></h3>
+      <p class="note">Every control shows a 2px ring (<code>--a-focus</code> = teal, ≥3:1 per WCAG 1.4.11) on keyboard navigation. This was an open FASE-9 finding; the rule is now live in this mockup.</p>
+      <button class="act focus-demo">Focused control</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function setTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  document.getElementById('t-dark').setAttribute('aria-pressed', String(t==='dark'));
+  document.getElementById('t-light').setAttribute('aria-pressed', String(t==='light'));
+}
+const TOKENS=[
+  ['--a-bg','Background'],['--a-surface','Surface'],['--a-surface-2','Surface 2'],
+  ['--a-border-ui','Border UI'],['--a-text','Text'],['--a-text-muted','Muted'],['--a-text-faint','Faint'],
+  ['--a-primary','Primary / signal'],['--a-info','Info / running'],['--a-ok','OK / success'],
+  ['--a-warn','Warn / review'],['--a-err','Error / doom'],['--a-violet','Violet / research'],
+];
+const box=document.getElementById('swatches');
+box.innerHTML=TOKENS.map(([v,l])=>`<div class="sw"><span class="chip" style="background:var(${v})"></span><div class="lab"><b>${l}</b><code>${v}</code></div></div>`).join('');
+if(new URLSearchParams(location.search).get('theme')==='light') setTheme('light');
+</script>
+</body>
+</html>
