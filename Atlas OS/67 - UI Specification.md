@@ -670,7 +670,7 @@ Script: OKLCH→sRGB + **APCA-W3 0.0.98G** + **Machado 2009** (severity 1.0) sob
 | **G8** | `rg "KernelCommand" src/lib` | **0** (la UI no se cablea al dead code) |
 | **G9** | Para cada **ruta HUD nueva**: `rg -n "<ruta>" docs/audit/backend-capabilities.md` (no vacío) **y** `cargo test --manifest-path src-tauri/Cargo.toml --lib <módulo>` verde (feliz + fallo) | cada ruta HUD nueva **aparece en `backend-capabilities.md`** y tiene **test feliz + fallo** |
 
-**FASE 10 se considera cerrada cuando G1–G9 pasan** (G7 en curso: reserva declarada). FASE 11 (B3/B4/B6/B8) **no** se inicia hasta entonces.
+**FASE 10 se considera cerrada cuando G1–G9 pasan** (G7 en curso: reserva declarada). FASE 11 backend (B3/B4/B6/B8) se lanzó por decisión del Project Lead antes del cierre completo de G7; G9 cerrado el 2026-10-07.
 
 ---
 
