@@ -96,9 +96,18 @@ pub async fn serve_on(
             post(super::approvals::approve),
         )
         .route("/hud/approvals/:id/deny", post(super::approvals::deny))
+        .route("/hud/approvals/batch", post(super::approvals::batch))
         .route(
             "/diff/:id/annotation",
             post(super::annotate::post_annotation).get(super::annotate::get_annotations),
+        )
+        .route(
+            "/task/:id/annotation",
+            post(super::annotate::post_task_annotation).get(super::annotate::get_task_annotations),
+        )
+        .route(
+            "/hud/agent/:run_id/snapshot",
+            get(super::snapshot::get_agent_snapshot),
         )
         .route(
             "/audit/export-posting",
@@ -144,7 +153,10 @@ pub async fn serve_on(
             get(super::availability::get_availability),
         )
         .route("/hud/reliability", get(super::reliability::get_reliability))
-        .route("/hud/missions", post(super::missions::post_mission));
+        .route(
+            "/hud/missions",
+            get(super::missions::get_missions).post(super::missions::post_mission),
+        );
 
     // Phase 1.5c §C item 7 — graph read endpoint (RFC 28). Always
     // mounted: the M15 tables are created unconditionally and the read

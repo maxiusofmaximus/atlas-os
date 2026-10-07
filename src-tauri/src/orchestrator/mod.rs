@@ -99,7 +99,7 @@ pub use routing::{
     Condition, FallbackBucket, FallbackMap, RouteContext, RouteDecision, Router, RoutingConfig,
     RoutingStrategy, SkipReason,
 };
-pub use sandbox::{resolve_sandbox, LocalSandbox, Sandbox};
+pub use sandbox::{resolve_sandbox, sandbox_for_kind, LocalSandbox, Sandbox};
 pub use tokenizer::{estimate_prompt, PromptMessage, PromptRole, Tokenizer};
 pub use tools::{Tool, ToolContext, ToolError, ToolRegistry, ToolResult};
 pub use verify::{verify_diff, VerifyConfig, VerifyOutcome};

@@ -115,6 +115,21 @@ pub fn resolve_sandbox() -> Box<dyn Sandbox> {
     }
 }
 
+/// Resolve a sandbox runtime by its recorded `kind` string. Returns `None`
+/// when the kind names a backend this build cannot provide (an unknown token,
+/// or a lateral backend whose CLI is absent). The HUD snapshot route (RFC 67
+/// §20 H-08) uses this so a run that references an unavailable runtime
+/// surfaces a 404 + reason instead of silently snapshotting the wrong place.
+pub fn sandbox_for_kind(kind: &str) -> Option<Box<dyn Sandbox>> {
+    match kind {
+        "local" => Some(Box::new(LocalSandbox)),
+        "wsl2" if wsl2::wsl2_available() => Some(Box::new(Wsl2Sandbox::from_env())),
+        "daytona" if daytona::available() => Some(Box::new(daytona::sandbox())),
+        "e2b" if e2b::available() => Some(Box::new(e2b::sandbox())),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

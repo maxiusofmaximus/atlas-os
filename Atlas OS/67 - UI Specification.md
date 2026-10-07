@@ -604,6 +604,7 @@ Script: OKLCH→sRGB + **APCA-W3 0.0.98G** + **Machado 2009** (severity 1.0) sob
 
 ## 21. Changelog
 
+- **2026-10-06 v4.3:** **§23 desarrollado**: cada función del backlog FASE 11+ (sesiones scrollback/reattach, ping por panel, manifiesto de agente, grid de PTYs) con **referentes [Os] + ficha**, **wireframe textual**, **estados**, **hueco backend + rutas propuestas**, **criterios de aceptación verificables** y **orden de lotes F11-1…F11-4 con dependencias** (§23.5). **§22.3** añade **G9** (cada ruta HUD nueva: test feliz+fallo y presente en `backend-capabilities.md`); cierre FASE 10 pasa a **G1–G9** (G7 en curso).
 - **2026-10-06 v4.2:** nuevo **§24 Cabecera y shell** (construible): regiones del shell (§24.1, RFC 66 §5.2), identidad Calm Instrumentation en la cabecera (§24.2, RFC 66 §9.1 + PALETTE §3), contenido con dato real (§24.3), **estados de conexión** color+glifo+label (§24.4), **leader `:`** con `:v :a :n :m :d :?` y comportamiento exacto de `:m` (foco Mission Rail) y `:?` (help overlay, `Esc` cierra) (§24.5), markup Svelte esperado (§24.6), tokens (§24.7) y **criterios de aceptación C1–C10** (§24.8). Añadido lote **F0.5** (§22.1) y **G7** ampliado a la cabecera (§22.3).
 - **2026-10-06 v4.1:** **G6** (§22.3) corregido: la regex `#[0-9a-fA-F]{3,8}` daba falsos positivos con `{#each}` (41) y con refs tipo `#10207`; sustituida por `rg -nP "(?<![{])#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b" src -g "*.svelte"` (**0** hoy, verificado ejecutándolo). Alineada la misma regex en la aceptación de **F0** (§22.1).
 - **2026-10-06 v4:** ronda C9/C10/C11. **C9:** recuento de fichas unificado a **132** (`count.mjs`: **62 [Os] / 55 [Os parcial] / 15 [P]**; 10 de categoría) — coherente en Status + §1.2/§19/§20 (eliminadas las cifras contradictorias "6 ENTREGADAS" / "9 con ficha" / "62 prioridad-A"). **C10:** citas `herdr.md`/`orca.md` (y `hermes.md`) sustituidas por **`docs/design/CONSENSUS_AUDIT.md`** (§1.3/§2.x) — no existen en `ux-catalog/` (9 líneas: §2/§3/§4/§5/§6/§7/§8). **C11:** tamaños de audit corregidos a **276** (backend) y **277** (frontend). Nuevo **§23 Backlog FASE 11+** (4 funciones NO-DOCUMENTADAS de `_funcion-x-referente.md`).
@@ -667,25 +668,197 @@ Script: OKLCH→sRGB + **APCA-W3 0.0.98G** + **Machado 2009** (severity 1.0) sob
 | **G6** | `rg -nP "(?<![{])#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b" src -g "*.svelte"` | **0** (sin hex crudo; longitudes CSS válidas 3/4/6/8 y `#` no precedido de `{` ⇒ excluye `{#each}` y refs tipo `#10207`; verificado hoy) |
 | **G7** | Capturas **dark/light** de **Cabecera** (connected/disconnected), **Mission Rail**, **Activity Spine**, **Approvals Dock** y **1 view** (p.ej. Kanban) | 5 componentes en ambos temas; anillo `:focus-visible` visible |
 | **G8** | `rg "KernelCommand" src/lib` | **0** (la UI no se cablea al dead code) |
+| **G9** | Para cada **ruta HUD nueva**: `rg -n "<ruta>" docs/audit/backend-capabilities.md` (no vacío) **y** `cargo test --manifest-path src-tauri/Cargo.toml --lib <módulo>` verde (feliz + fallo) | cada ruta HUD nueva **aparece en `backend-capabilities.md`** y tiene **test feliz + fallo** |
 
-**FASE 10 se considera cerrada cuando G1–G8 pasan.** FASE 11 (B3/B4/B6/B8) **no** se inicia hasta entonces.
+**FASE 10 se considera cerrada cuando G1–G9 pasan** (G7 en curso: reserva declarada). FASE 11 (B3/B4/B6/B8) **no** se inicia hasta entonces.
 
 ---
 
-## 23. Backlog FASE 11+ — funciones NO-DOCUMENTADAS detectadas por `_funcion-x-referente.md`
+## 23. Backlog FASE 11+ — funciones NO-DOCUMENTADAS (detallado) [R]
 
-> `_funcion-x-referente.md` (Researcher, pasada 4) detectó **4 funciones** presentes en **≥3 referentes** que **no constan en RFC 24/65/66/67**. **DECISIÓN DEL PROJECT LEAD: no entran en FASE 10.** Se registran aquí para **FASE 11+**; ninguna bloquea FASE 10 ni la UI v1 (§20 degrada como se describe).
+> `_funcion-x-referente.md` (Researcher, pasada 4) detectó **4 funciones** presentes en **≥3 referentes** que **no constan en RFC 24/65/66/67**. **DECISIÓN DEL PL: no entran en FASE 10** (cerrada con reservas — G7 parcial). Cada una se detalla abajo: **referentes [Os] con ficha · wireframe · estados · hueco backend + rutas propuestas · criterios verificables · lote F11-x**. Toda ruta HUD nueva debe cumplir **G9** (§22.3).
 
-| # | Función (NO-DOCUMENTADA) | Referentes con evidencia | Ficha | Lote propuesto | Hueco backend probable |
+**Resumen:**
+
+| # | Función | Referentes [Os] (ficha) | Lote | Deps | Hueco backend |
 |---|---|---|---|---|---|
-| **B-23-1** | **Sesiones que sobreviven reinicios/desconexiones** con *scrollback* + **reattach/resume** | Cate [Os]; tlbx [Os]; GridBash [Os]; CliDeck [Os] | `ade-orquestador.md` | **F11+** — `PtySessionManager` + replay | Persistencia/rehidratación de sesión PTY + **replay de scrollback por WS** al reattach; RFC 19 cubre *checkpoints de misión*, no la UX de reattach |
-| **B-23-2** | **Panel `running/waiting/finished` por agente + aviso/ping cuando requiere respuesta** | Cate [Os]; GridBash [Os]; Herdr [Link→`CONSENSUS_AUDIT` §2.1] | `ade-orquestador.md` | **F11+** — `PanelStatusBadge` + ping | **Notificación/push por panel** (HITL por agente); RFC 24 §16 solo cubre push global |
-| **B-23-3** | **Manifiesto único de agente** (modelos/persona/tools/permisos) **editable en UI** | Jazz [Os]; Smelt [Os]; OpenCastle [Os] | `ade-orquestador.md` | **F11+** — `AgentManifestEditor` | Endpoint **CRUD de un manifiesto de agente** persistido + validación; RFC 06/07 definen skills/MCP, no un manifiesto único por UI |
-| **B-23-4** | **Grid de PTYs multi-pane por agente** (layout físico de terminales) | GridBash [Os]; Cate [Os]; agent-manager/hcom [Os] | `ade-orquestador.md` | **F11+** — `PtyGrid` | **Multiplexado de PTYs** (PTY host + layout server-side); RFC 24 §12 cubre worktrees, no la grid |
+| B-23-1 | Sesiones con **scrollback + reattach/resume** | Cate · tlbx · GridBash · CliDeck (`ade-orquestador.md`) | **F11-1** | F10, F0.5 | Persistencia de sesión PTY + ring buffer + replay WS |
+| B-23-2 | Panel `running/waiting/finished` + **ping** | Cate · GridBash (`ade-orquestador.md`) · Herdr (`CONSENSUS_AUDIT`) | **F11-2** | F11-1, B2 (H-03) | Estado por panel + cola de atención/ping |
+| B-23-3 | **Manifiesto único de agente** editable | Jazz · Smelt · OpenCastle (`ade-orquestador.md`) | **F11-3** | F0.5, F1 | CRUD de manifiesto + validación (tabla) |
+| B-23-4 | **Grid de PTYs** multi-pane | GridBash · Cate (`ade-orquestador.md`) · agent-manager/hcom (`_funcion-x-referente.md`) | **F11-4** | F11-1 | PTY host + layout server-side |
+
+### 23.1 F11-1 — Sesiones con scrollback + reattach/resume
+
+**Referentes [Os] (con ficha):**
+- **Cate** — `research/ux-catalog/ade-orquestador.md §Cate` (L103): *"las agent sessions sobreviven reinicios (scrollback + resume)"*; paneles en dock/tabs/splits con layout por proyecto.
+- **tlbx** — `§tlbx` (L229): *"Sessions survive disconnects"*; control-plane como JSON (API=UI).
+- **GridBash** — `§GridBash` (L219): *"restore sessions"*, background panes.
+- **CliDeck** — `§CliDeck` (L209): dashboard con *"live status detection, session resume"*.
+
+**Wireframe textual:**
+```
+┌ Sessions ────────────────┐┌ session: auth-refactor ─────────── [⟳ reattach] ┐
+│ ● auth-refactor  running ││ $ opencode mission run auth-refactor           │
+│ ◐ dashboard-fix  waiting ││ ... 214 líneas de scrollback restauradas ...    │
+│ ○ bug-422        finished││ $ █                                            │
+│ ─── detached ───         ││ ── rehydrated @14:21 · seq 3120 ──             │
+│ ○ old-run        detached││                                                │
+└──────────────────────────┘└────────────────────────────────────────────────┘
+```
+
+**Estados:** `loading` (lista) · `empty` ("sin sesiones") · `error` (fetch falla + `Retry`) · `reconnecting` (bus) · `rehydrating` (reattach en curso; spinner en `⟳`) · `resumed` (scrollback restaurado; badge "rehydrated @ts · seq N") · `detached` (sesión viva sin attach). Glifo + label, nunca solo-color (§1.3).
+
+**Hueco backend + rutas propuestas:**
+- `GET /hud/sessions` — `{id, mission_id, agent_id, cwd, state, last_seq, created_at}`.
+- `GET /hud/sessions/:id` · `GET /hud/sessions/:id/scrollback?from_seq=&limit=` (paginado).
+- `POST /hud/sessions/:id/reattach` · `POST /hud/sessions/:id/detach`.
+- WS: `session_attached`, `session_detached`, `session_rehydrated` (con `seq`).
+- Backend: persistir sesión PTY (id, cwd, mission, created_at, last_seq) + **ring buffer de scrollback**; rehidratar al arranque. RFC 19 cubre *checkpoints de misión*, no la UX de reattach.
+
+**Criterios de aceptación (verificables):**
+| # | Criterio | Verificación |
+|---|---|---|
+| C-23-1.1 | Tras reiniciar, `GET /hud/sessions` devuelve las sesiones previas con el **mismo id** | `cargo test … hud::sessions` (feliz: persiste+relee; fallo: id desconocido → 404) |
+| C-23-1.2 | Reattach restaura **≥ N líneas** de scrollback | test: `…/scrollback` devuelve `from_seq`..`last_seq`; UI muestra "rehydrated … seq N" |
+| C-23-1.3 | Lista con glifo+label por estado; `rehydrating` visible durante reattach | `pnpm test` (`Sessions.test.ts`: 6 estados §1.4) |
+| C-23-1.4 | Bus caído ⇒ datos congelados + `ts` (no se pierde scrollback) | test con `connected:false` |
+
+**Lote:** **F11-1**. **Deps:** F10 (cerrada) + **F0.5** (shell). **Bloquea:** F11-2, F11-4.
+
+### 23.2 F11-2 — Panel `running/waiting/finished` + ping cuando requiere respuesta
+
+**Referentes [Os] (con ficha):**
+- **Cate** — `ade-orquestador.md §Cate` (L103): *"cada panel muestra running / waiting / finished y te avisa cuando necesita una respuesta"*.
+- **GridBash** — `§GridBash` (L219): *"inspect stable pane activity"*.
+- **Herdr** — `docs/design/CONSENSUS_AUDIT.md §1.3 #1 / §2.1` (rollup pane→tab→workspace) [Link].
+
+**Wireframe textual:**
+```
+┌ pane: agentX ────────────────────────┐
+│ ● running          [⚑ ping]          │   ← chip estado + ping
+│ $ applying patch src/auth/session.go │
+└──────────────────────────────────────┘
+  ⚑ = requiere respuesta (waiting) → click lleva al Approvals Dock
+```
+
+**Estados:** `running` (`--a-info`) · `waiting` (`--a-warn` + `⚑ ping`) · `finished` (`--a-ok`) · `unknown` (`--a-text-faint`, glifo `?`). Ping: `pending` (⚑) → `acked` (⚑ resuelto/oculto). Regla color+glifo+label.
+
+**Hueco backend + rutas propuestas:**
+- `GET /hud/panels` — estado por panel/agente `{run_id, state, needs_response}`.
+- `GET /hud/agent/:run_id/attention` · `POST /hud/pings/:id/ack` · `POST /hud/agent/:run_id/ping`.
+- WS: `panel_state_changed`, `agent_needs_response`, `ping_acked`.
+- Backend: máquina de estados por panel + **cola de atención/ping**. RFC 24 §16 solo cubre push global; H-03 (`AgentStatus::Unknown`) llega en FASE 10 (**B2**).
+
+**Criterios de aceptación:**
+| # | Criterio | Verificación |
+|---|---|---|
+| C-23-2.1 | Panel refleja `running/waiting/finished` | `pnpm test` (`PanelStatus.test.ts`) |
+| C-23-2.2 | `agent_needs_response` ⇒ aparece `⚑ ping` en el panel | test WS: emitir evento → assert badge |
+| C-23-2.3 | Ack limpia el ping y es **persistente** | `cargo test … hud::panels` (feliz ack; fallo id desconocido → 404) |
+| C-23-2.4 | `unknown` usa `--a-text-faint` + glifo, no solo-color | assert token/estilo |
+
+**Lote:** **F11-2**. **Deps:** **F11-1** (host de paneles) + **B2/H-03** (FASE 10).
+
+### 23.3 F11-3 — Manifiesto único de agente (modelos/persona/tools/permisos) editable
+
+**Referentes [Os] (con ficha):**
+- **Jazz** — `ade-orquestador.md §Jazz` (L300): *"primary + companion models, persona, tools, permissions en un único JSON"*.
+- **Smelt** — `§Smelt` (L310): *permisos granulares* + modos Normal→Plan→Apply→Yolo.
+- **OpenCastle** — `§OpenCastle` (L189): config generada **versionada como lockfile** + `sync --check` (drift) en CI.
+
+**Wireframe textual:**
+```
+┌ Agent Manifest: reviewer ───────────────── [Validar] [Guardar] ┐
+│ Modelo    [ claude-opus ▾ ]  Compañero [ haiku ▾ ]             │
+│ Persona   [ revisor estricto de seguridad…            ]        │
+│ Tools     [x] read  [x] diff  [ ] write  [ ] shell             │
+│ Permisos  Normal ( ) Plan ( ) Apply (•) Yolo ( )               │
+│ ─ drift: sync --check ✗ (1 tool fuera de allowlist) ─         │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**Estados:** `loading` · `empty` (sin manifiestos → "crear") · `error` · `valid` · `invalid` (422: tool/modelo no permitido; se marcan los campos) · `drift` (config desviada, como OpenCastle) · `saved`.
+
+**Hueco backend + rutas propuestas:**
+- `GET /hud/manifests` · `POST /hud/manifests` · `GET|PUT|DELETE /hud/manifests/:id`.
+- `POST /hud/manifests/:id/validate` — valida tools/modelos/permisos.
+- WS: `manifest_changed`.
+- Backend: tabla `agent_manifests` (model, companion, persona, tools[], permissions) + validación. RFC 06/07 definen skills/MCP, no un manifiesto único por UI.
+
+**Criterios de aceptación:**
+| # | Criterio | Verificación |
+|---|---|---|
+| C-23-3.1 | CRUD round-trip de un manifiesto | `cargo test … hud::manifests` (feliz; fallo: body inválido → 422) |
+| C-23-3.2 | Editar y guardar refleja el cambio en la UI | `pnpm test` (`AgentManifestEditor.test.ts`) |
+| C-23-3.3 | Tool/modelo fuera de política ⇒ error de campo, no guarda | test `validate` → 422 con `fields` |
+| C-23-3.4 | Sin hex crudo | §22.3 G6 = 0 |
+
+**Lote:** **F11-3**. **Deps:** **F0.5** (shell) + **F1** (Agent Card). **Independiente** de PTY.
+
+### 23.4 F11-4 — Grid de PTYs multi-pane por agente
+
+**Referentes [Os] (con ficha):**
+- **GridBash** — `ade-orquestador.md §GridBash` (L219): *hasta 100 PTY panes*, *input routing (pane/set/grid)*, `--worktrees` por pane.
+- **Cate** — `§Cate` (L103): paneles *"on a canvas or in a dock"* → *"dock into tabs and splits"*, **layout persiste por proyecto**.
+- **agent-manager/hcom** — *TUI por pane* [Os en `research/ux-catalog/_funcion-x-referente.md` §23; **sin ficha propia**].
+
+**Wireframe textual:**
+```
+┌ grid 2x2 ──────────────── [routing: focused ▾] ─┐
+│ ┌ pane1 ● running ┐ ┌ pane2 ◐ waiting ┐          │
+│ │ $ agentX        │ │ $ agentY        │          │
+│ └─────────────────┘ └─────────────────┘          │
+│ ┌ pane3 ○ finished┐ ┌ pane4 ? unknown ┐          │
+│ └─────────────────┘ └─────────────────┘          │
+└──────────────────────────────────────────────────┘
+```
+
+**Estados:** `loading` · `empty` (sin panes → spawn) · `error`; por pane: `running/exited/resized`; routing: `focused | set | grid`. `resize` reflow.
+
+**Hueco backend + rutas propuestas:**
+- `GET /hud/pty` · `POST /hud/pty` (spawn `{profile, cwd, worktree?}`) · `DELETE /hud/pty/:id` · `POST /hud/pty/:id/resize`.
+- Stream: WS `pty_output` (por pane).
+- WS: `pty_spawned`, `pty_output`, `pty_exited`, `pty_resized`.
+- Backend: **PTY host + layout server-side**. RFC 24 §12 cubre *worktrees*, no la grid física.
+
+**Criterios de aceptación:**
+| # | Criterio | Verificación |
+|---|---|---|
+| C-23-4.1 | Spawn/close de panes y salida en streaming | `cargo test … hud::pty` (feliz spawn+output; fallo: spawn sin perfil → 400/409) |
+| C-23-4.2 | Routing `pane/set/grid` envía input solo al destino | test de input routing |
+| C-23-4.3 | Layout persiste por misión (como Cate) | `pnpm test` (`PtyGrid.test.ts`) |
+| C-23-4.4 | Sin hex crudo | §22.3 G6 = 0 |
+
+**Lote:** **F11-4**. **Deps:** **F11-1** (host de sesiones/PTY). **Peso:** alto (PTY multiplexado).
+
+### 23.5 Orden de lotes F11-x y dependencias
+
+```
+FASE 10 (cerrada) ─▶ F0.5 (shell)
+                       │
+   §22.2 FASE 11 backend (B3/B4/B6/B8) ── primero (diferidos de FASE 10)
+                       │
+        ┌──────────────┼───────────────┐
+        ▼              ▼               ▼
+     F11-1 ─────────▶ F11-2          F11-3   (independiente)
+     (sesiones)       (paneles+ping)  (manifiesto)
+        │
+        ▼
+     F11-4 (grid PTY)
+```
+
+| Lote | Función | Deps | Peso |
+|---|---|---|---|
+| **F11-1** | Sesiones scrollback/reattach | F10, F0.5 | medio |
+| **F11-2** | Panel estado + ping | F11-1, B2 (H-03) | medio |
+| **F11-3** | Manifiesto de agente | F0.5, F1 | bajo/medio |
+| **F11-4** | Grid de PTYs | F11-1 | alto |
+
+> **Orden recomendado:** §22.2 **B3/B4/B6/B8** → **F11-3** (barato, independiente) → **F11-1** → **F11-2** → **F11-4**. Ninguna bloquea FASE 10 ni la UI v1 (§20 degrada como se describe).
 
 **Relacionado (parcial, no es hueco nuevo):** *ack/aprobación en el canal del humano* y *notificaciones* están **parcialmente** cubiertos por **RFC 24 §16** (`_funcion-x-referente.md`).
 
-**Dependencia:** las 4 exigen **backend nuevo** (lote propio en FASE 11+); se priorizan tras validar FASE 10 (§22.3).
+**Dependencia:** las 4 exigen **backend nuevo** (lote propio en FASE 11+); se priorizan tras validar FASE 10 (§22.3) y cumplen **G9**.
 
 ---
 

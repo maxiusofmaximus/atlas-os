@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::core::state::AppState;
-use crate::journal::DiffAnnotationRow;
+use crate::journal::{DiffAnnotationRow, TaskAnnotationRow};
 
 /// POST /diff/{id}/annotation — body shape received from HUD (or any
 /// reviewer UI). All but `body` are optional: a diff-level comment
@@ -88,6 +88,69 @@ pub async fn get_annotations(
         .map(Json)
 }
 
+/// POST /task/{id}/annotation — task-level comment (RFC 67 §20 H-05). Same
+/// body shape as the diff annotation, but `task_id` is an opaque string (a
+/// mission / step / objective id) rather than a diff uuid.
+#[derive(Debug, Deserialize)]
+pub struct TaskAnnotationPost {
+    pub body: String,
+    pub author: String,
+    pub file_path: Option<String>,
+    pub line_no: Option<i64>,
+}
+
+/// Echoed after `POST` so the caller can render the row immediately.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TaskAnnotationPosted {
+    pub id: String,
+    pub task_id: String,
+    pub created_at: String,
+}
+
+pub async fn post_task_annotation(
+    State(state): State<Arc<AppState>>,
+    Path(task_id): Path<String>,
+    Json(body): Json<TaskAnnotationPost>,
+) -> Result<Json<TaskAnnotationPosted>, StatusCode> {
+    if task_id.trim().is_empty() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    if body.body.trim().is_empty() {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+    let id = Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+    let row = TaskAnnotationRow {
+        id: id.clone(),
+        task_id: task_id.clone(),
+        file_path: body.file_path.filter(|s| !s.trim().is_empty()),
+        line_no: body.line_no,
+        body: body.body,
+        author: body.author,
+        created_at: now.clone(),
+    };
+    let journal = state.journal();
+    journal
+        .save_task_annotation(&row)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(TaskAnnotationPosted {
+        id,
+        task_id,
+        created_at: now,
+    }))
+}
+
+pub async fn get_task_annotations(
+    State(state): State<Arc<AppState>>,
+    Path(task_id): Path<String>,
+) -> Result<Json<Vec<TaskAnnotationRow>>, StatusCode> {
+    let journal = state.journal();
+    journal
+        .task_annotations_for_task(&task_id)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+        .map(Json)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -110,6 +173,10 @@ mod tests {
             .route(
                 "/diff/:id/annotation",
                 post(post_annotation).get(get_annotations),
+            )
+            .route(
+                "/task/:id/annotation",
+                post(post_task_annotation).get(get_task_annotations),
             )
             .with_state(state)
     }
@@ -233,5 +300,64 @@ mod tests {
                 pair[1].created_at
             );
         }
+    }
+
+    #[tokio::test]
+    async fn task_post_then_get_round_trips() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let state = fresh_state(&tmp);
+        let app = app(state);
+
+        let req_body = serde_json::json!({
+            "body": "split this objective in two",
+            "author": "max",
+            "file_path": "src/lib.rs",
+            "line_no": 7,
+        });
+        let req = Request::builder()
+            .method("POST")
+            .uri("/task/mission-1/annotation")
+            .header("content-type", "application/json")
+            .body(axum::body::Body::from(req_body.to_string()))
+            .unwrap();
+        let res = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        let bytes = to_bytes(res.into_body(), 8192).await.unwrap();
+        let posted: TaskAnnotationPosted = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(posted.task_id, "mission-1");
+
+        let req = Request::builder()
+            .method("GET")
+            .uri("/task/mission-1/annotation")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        let bytes = to_bytes(res.into_body(), 8192).await.unwrap();
+        let rows: Vec<TaskAnnotationRow> = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].task_id, "mission-1");
+        assert_eq!(rows[0].body, "split this objective in two");
+        assert_eq!(rows[0].author, "max");
+        assert_eq!(rows[0].line_no, Some(7));
+    }
+
+    #[tokio::test]
+    async fn task_empty_body_is_unprocessable() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let state = fresh_state(&tmp);
+        let app = app(state);
+        let req_body = serde_json::json!({
+            "body": "   ",
+            "author": "anyone",
+        });
+        let req = Request::builder()
+            .method("POST")
+            .uri("/task/mission-1/annotation")
+            .header("content-type", "application/json")
+            .body(axum::body::Body::from(req_body.to_string()))
+            .unwrap();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::UNPROCESSABLE_ENTITY);
     }
 }

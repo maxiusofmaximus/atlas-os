@@ -60,7 +60,7 @@ pub use user_profile::{UserProfile, UserProfileError};
 pub use store::{
     AuditEntry, CheckpointRow, CompactionEventRow, ConsolidatedRow, DiffAnnotationRow, DiffRow,
     DirAccessRow, JournalEntry, LearnedRuleRow, Mission, ModelSwapRow, PatternRow, PlanRow,
-    RepairRunRow, SkillRow, StepStateRow, ValidationReportRow, VerdictRow,
+    RepairRunRow, SkillRow, StepStateRow, TaskAnnotationRow, ValidationReportRow, VerdictRow,
 };
 
 pub use model_invocation::ModelInvocationRow;
@@ -377,6 +377,67 @@ impl Journal {
         let conn = self.conn.lock();
         let now_ms = chrono::Utc::now().timestamp_millis();
         frecency::frecency(&conn, prefix, now_ms, limit)
+    }
+
+    /// Ranked `(mission_id, score)` frecency for missions (RFC 67 §20 H-01).
+    /// Frequency is the number of `journal_events` whose payload names the
+    /// mission (`mission_id`), decayed by the freshest such event like the
+    /// `dir_access` buckets. A journal with no such events yields an empty
+    /// vec so the caller can fall back to a stable order.
+    pub fn mission_frecency(&self, limit: i64) -> anyhow::Result<Vec<(String, f64)>> {
+        let conn = self.conn.lock();
+        let now_ms = chrono::Utc::now().timestamp_millis();
+        frecency::mission_frecency(&conn, now_ms, limit)
+    }
+
+    /// Upsert an operator decision into the `approvals` table (RFC 67 §20
+    /// H-02). The pending row is owned by the supervisor; `agent_id`/`action`
+    /// stay unknown (`''`) when the HUD answers before that row lands, while
+    /// the decision columns are always refreshed. Persisting `reason` closes
+    /// the audit-trail gap that previously dropped it.
+    pub fn record_approval_decision(
+        &self,
+        approval_id: Uuid,
+        status: &str,
+        user_id: &str,
+        reason: Option<&str>,
+    ) -> anyhow::Result<()> {
+        let conn = self.conn.lock();
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT INTO approvals
+                (id, agent_id, action, status, decision_by, decision_at, reason, created_at, updated_at)
+             VALUES (?1, '', '', ?2, ?3, ?4, ?5, ?4, ?4)
+             ON CONFLICT(id) DO UPDATE SET
+                status = excluded.status,
+                decision_by = excluded.decision_by,
+                decision_at = excluded.decision_at,
+                reason = excluded.reason,
+                updated_at = excluded.updated_at",
+            rusqlite::params![approval_id.to_string(), status, user_id, now, reason],
+        )?;
+        Ok(())
+    }
+
+    /// Existing operator decision for an approval as `(status, reason)`, or
+    /// `None` while it is still pending/unknown. Backs the batch conflict
+    /// check — re-deciding with the opposite outcome is a `409`.
+    pub fn approval_decision_row(
+        &self,
+        approval_id: Uuid,
+    ) -> anyhow::Result<Option<(String, Option<String>)>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT status, reason FROM approvals
+             WHERE id = ?1 AND status IN ('approved', 'denied')",
+        )?;
+        let mut rows = stmt.query_map(rusqlite::params![approval_id.to_string()], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?))
+        })?;
+        if let Some(row) = rows.next().transpose()? {
+            return Ok(Some(row));
+        }
+        Ok(None)
     }
 
     /// Tail the append-only audit log (RFC 24 §10). Phase 0 returns the raw
@@ -1647,6 +1708,60 @@ impl Journal {
                     tracing::warn!(error = %e, raw = %diff_id_str, "annotation diff_id parse failed; using nil");
                     Uuid::nil()
                 }),
+                file_path: row.get(2)?,
+                line_no: row.get(3)?,
+                body: row.get(4)?,
+                author: row.get(5)?,
+                created_at: row.get(6)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for item in rows.flatten() {
+            out.push(item);
+        }
+        Ok(out)
+    }
+
+    /// RFC 67 §20 H-05 — persist a comment on a task. Append-only: each call
+    /// inserts a fresh `id` (the caller mints it). Mirrors
+    /// `save_diff_annotation` but keyed by an opaque `task_id` string (a
+    /// mission / step / objective id) instead of a diff uuid.
+    pub fn save_task_annotation(&self, row: &TaskAnnotationRow) -> anyhow::Result<()> {
+        let conn = self.conn.lock();
+        conn.execute(
+            "INSERT INTO task_annotations
+                (id, task_id, file_path, line_no, body, author, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+             ON CONFLICT(id) DO NOTHING",
+            rusqlite::params![
+                row.id,
+                row.task_id,
+                row.file_path,
+                row.line_no,
+                row.body,
+                row.author,
+                row.created_at,
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// RFC 67 §20 H-05 — annotations for a single task, oldest-first (the
+    /// Outline renders them in chronological order so the operator can follow
+    /// the thread).
+    pub fn task_annotations_for_task(
+        &self,
+        task_id: &str,
+    ) -> anyhow::Result<Vec<TaskAnnotationRow>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT id, task_id, file_path, line_no, body, author, created_at
+             FROM task_annotations WHERE task_id = ?1 ORDER BY created_at ASC",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![task_id], |row| {
+            Ok(TaskAnnotationRow {
+                id: row.get(0)?,
+                task_id: row.get(1)?,
                 file_path: row.get(2)?,
                 line_no: row.get(3)?,
                 body: row.get(4)?,

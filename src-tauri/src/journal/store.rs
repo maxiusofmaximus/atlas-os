@@ -234,6 +234,21 @@ pub struct DiffAnnotationRow {
     pub created_at: String,
 }
 
+/// Row projection of `task_annotations` (M52) for the Outline's per-task
+/// comment surface (RFC 67 §20 H-05). Append-only; one row per comment posted
+/// against a task. Mirrors `DiffAnnotationRow` but is keyed by an opaque
+/// `task_id` string (a mission / step / objective id) instead of a diff uuid.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TaskAnnotationRow {
+    pub id: String,
+    pub task_id: String,
+    pub file_path: Option<String>,
+    pub line_no: Option<i64>,
+    pub body: String,
+    pub author: String,
+    pub created_at: String,
+}
+
 /// Row projection of `dir_access` (M31) for the frecency navigation
 /// (research 36 sub-fase 8.0, RFC 35 §5 zoxide port). One row per
 /// recorded dir; the frecency score (`access_count × recency decay`)

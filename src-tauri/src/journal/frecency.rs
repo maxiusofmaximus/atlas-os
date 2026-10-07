@@ -6,6 +6,7 @@
 
 use anyhow::{Context, Result};
 use rusqlite::Connection;
+use std::collections::HashMap;
 
 const HOUR_MS: i64 = 3_600_000;
 const DAY_MS: i64 = 86_400_000;
@@ -78,6 +79,49 @@ pub fn frecency(
         let (dir, count, last) = row?;
         out.push((dir, frecency_score(count, parse_ms(&last), now_ms)));
     }
+    out.sort_by(|a, b| {
+        b.1.partial_cmp(&a.1)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.0.cmp(&b.0))
+    });
+    out.truncate(limit as usize);
+    Ok(out)
+}
+
+/// Ranked `(mission_id, score)` frecency derived from the journal itself
+/// (RFC 67 §20 H-01): every `journal_events` payload that names a
+/// `mission_id` counts as one access, decayed by the freshest such event
+/// (zoxide buckets). Missions with no events are absent, so the caller
+/// falls back to its stable order.
+pub fn mission_frecency(conn: &Connection, now_ms: i64, limit: i64) -> Result<Vec<(String, f64)>> {
+    let limit = limit.clamp(1, 200);
+    let mut stmt =
+        conn.prepare("SELECT payload, ts FROM journal_events ORDER BY ts DESC LIMIT 5000")?;
+    let rows = stmt.query_map([], |row| {
+        let payload: String = row.get(0)?;
+        let ts: String = row.get(1)?;
+        Ok((payload, ts))
+    })?;
+    let mut agg: HashMap<String, (i64, i64)> = HashMap::new();
+    for row in rows {
+        let (payload, ts) = row?;
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(&payload) else {
+            continue;
+        };
+        let Some(mission_id) = value.get("mission_id").and_then(|v| v.as_str()) else {
+            continue;
+        };
+        let ms = parse_ms(&ts);
+        let entry = agg.entry(mission_id.to_string()).or_insert((0, 0));
+        entry.0 += 1;
+        if ms > entry.1 {
+            entry.1 = ms;
+        }
+    }
+    let mut out: Vec<(String, f64)> = agg
+        .into_iter()
+        .map(|(id, (count, last))| (id, frecency_score(count, last, now_ms)))
+        .collect();
     out.sort_by(|a, b| {
         b.1.partial_cmp(&a.1)
             .unwrap_or(std::cmp::Ordering::Equal)

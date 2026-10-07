@@ -23,6 +23,7 @@ pub mod remote_status;
 pub mod secrets;
 pub mod server;
 pub mod skills;
+pub mod snapshot;
 pub mod tail;
 pub mod worktrees;
 pub mod ws;

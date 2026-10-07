@@ -14,7 +14,7 @@ use rusqlite::Connection;
 /// log and must never be renumbered. When adding M(N+1): bump this const
 /// AND change the final migration's `params![N, …]` to
 /// `params![CURRENT_SCHEMA_VERSION, …]` (same value).
-pub const CURRENT_SCHEMA_VERSION: i64 = 40;
+pub const CURRENT_SCHEMA_VERSION: i64 = 41;
 
 pub fn migrate(conn: &Connection) -> Result<()> {
     // M0 — Schema versioning.
@@ -1860,6 +1860,34 @@ pub fn migrate(conn: &Connection) -> Result<()> {
         conn.execute(
             "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
             rusqlite::params![40, chrono::Utc::now().to_rfc3339()],
+        )?;
+    }
+    // M52 (v41) — RFC 67 §20 H-05: task-level annotations.
+    //   `task_annotations` is the per-task comment surface the Outline needs
+    //   (RFC 67 §6). It mirrors `diff_annotations` (M12) but is keyed by an
+    //   opaque `task_id` string (a mission / step / objective id) instead of a
+    //   diff uuid, so a comment can anchor to the task rather than to a diff.
+    //   `file_path` / `line_no` stay optional: a task-level comment carries
+    //   neither, a line-anchored one pins both. Append-only, like the diff
+    //   annotations it parallels.
+    if current < 41 {
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS task_annotations (
+                id          TEXT PRIMARY KEY,
+                task_id     TEXT NOT NULL,
+                file_path   TEXT,
+                line_no     INTEGER,
+                body        TEXT NOT NULL,
+                author      TEXT NOT NULL,
+                created_at  TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_task_annotations_task   ON task_annotations(task_id);
+            CREATE INDEX IF NOT EXISTS idx_task_annotations_author ON task_annotations(author);",
+        )?;
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+            rusqlite::params![41, chrono::Utc::now().to_rfc3339()],
         )?;
     }
     Ok(())

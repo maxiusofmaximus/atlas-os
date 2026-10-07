@@ -43,3 +43,6 @@ mod research_m27_schema_tests;
 
 #[cfg(test)]
 mod journal_phase80_tests;
+
+#[cfg(test)]
+mod task_annotations_schema_tests;
