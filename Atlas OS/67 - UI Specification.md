@@ -604,6 +604,7 @@ Script: OKLCH→sRGB + **APCA-W3 0.0.98G** + **Machado 2009** (severity 1.0) sob
 
 ## 21. Changelog
 
+- **2026-10-06 v4.1:** **G6** (§22.3) corregido: la regex `#[0-9a-fA-F]{3,8}` daba falsos positivos con `{#each}` (41) y con refs tipo `#10207`; sustituida por `rg -nP "(?<![{])#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b" src -g "*.svelte"` (**0** hoy, verificado ejecutándolo). Alineada la misma regex en la aceptación de **F0** (§22.1).
 - **2026-10-06 v4:** ronda C9/C10/C11. **C9:** recuento de fichas unificado a **132** (`count.mjs`: **62 [Os] / 55 [Os parcial] / 15 [P]**; 10 de categoría) — coherente en Status + §1.2/§19/§20 (eliminadas las cifras contradictorias "6 ENTREGADAS" / "9 con ficha" / "62 prioridad-A"). **C10:** citas `herdr.md`/`orca.md` (y `hermes.md`) sustituidas por **`docs/design/CONSENSUS_AUDIT.md`** (§1.3/§2.x) — no existen en `ux-catalog/` (9 líneas: §2/§3/§4/§5/§6/§7/§8). **C11:** tamaños de audit corregidos a **276** (backend) y **277** (frontend). Nuevo **§23 Backlog FASE 11+** (4 funciones NO-DOCUMENTADAS de `_funcion-x-referente.md`).
 - **2026-10-06 v3.1:** 5ª pasada (correcciones del PL). **Status** de cabecera alineado con §19 (backend cotejado; fichas Researcher **en curso**). §20: huecos **H-01…H-09 (9/9)**; **H-09** como fila con UI v1 + fase. §22.2 **dividido en FASE 10 (B1/B2/B5/B7) y FASE 11 (B3/B4/B6/B8)** por decisión del PL; "Fuera de FASE 10" reducido a v2 real. **§22.3 gates de cierre**.
 - **2026-10-06 v3:** 4ª pasada, **sin bloqueos de backend**. §1.7 **cotejado 1:1** contra `backend-capabilities.md` (41 rutas + handler + payload + test; 26 eventos con payload; `KernelCommand`=dead code). §19 **CERRADA**. §20 con **veredictos H-01…H-09** + resolución UI v1 + cambio de backend exigido. §1.12 cita `outline/settings/kanban-pm/canvas`. Scope corregido a **13 views**. §22 Plan FASE 10. Corregidas 5 referencias a `KernelCommand` en §2/§4/§5/§6.
@@ -620,7 +621,7 @@ Script: OKLCH→sRGB + **APCA-W3 0.0.98G** + **Machado 2009** (severity 1.0) sob
 
 | Lote | Qué | Archivos | Criterio de aceptación | Deps | Riesgo |
 |---|---|---|---|---|---|
-| **F0 — Tokens** | crear `src/app.css` con `--a-*` (PALETTE §3); importar; sustituir los 531 literales | `src/app.css` (nuevo), `src/routes/+layout.svelte`, 24 `.svelte` | `pnpm check && pnpm lint`; `rg "#[0-9a-fA-F]{3,8}" src -g "*.svelte"` → **0**; captura dark/light | — | medio (53 1 sitios): mitigar con `rg` antes/después |
+| **F0 — Tokens** | crear `src/app.css` con `--a-*` (PALETTE §3); importar; sustituir los 531 literales | `src/app.css` (nuevo), `src/routes/+layout.svelte`, 24 `.svelte` | `pnpm check && pnpm lint`; `rg -nP "(?<![{])#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b" src -g "*.svelte"` → **0**; captura dark/light | — | medio (53 1 sitios): mitigar con `rg` antes/después |
 | **F1 — Agent Card** | reemplazar debug card por §4 (15+ campos, capas 0–3, error/loading) | `src/lib/components/AgentCard.svelte`, `src/lib/stores/hud.ts`, `+page.svelte` | `pnpm test` (test de componente: render + vacío + **error**) ; `pnpm check` | F0 | alto (datos WS/REST; H-03 derivado) |
 | **F2 — Mission Rail** | componente nuevo + disolver `overview` | `src/lib/components/MissionRail.svelte` (nuevo), `+page.svelte`, `views.ts` | `pnpm test`; cambiar misión **no** reconecta WS (assert `hud.connected`) | F0/F1 | medio |
 | **F3 — Activity Spine** | ticker + clases de color + `aria-live` | `src/lib/components/ActivitySpine.svelte` (nuevo), `+page.svelte` | `pnpm test`; `doom_loop_detected` → clase `err`; `prefers-reduced-motion` | F0 | bajo |
@@ -661,7 +662,7 @@ Script: OKLCH→sRGB + **APCA-W3 0.0.98G** + **Machado 2009** (severity 1.0) sob
 | **G3** | `pnpm test` | **todo verde**, incluidos los tests de componente nuevos (render + vacío + **error** por view) |
 | **G4** | `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings` | 0 warnings |
 | **G5** | `cargo test --manifest-path src-tauri/Cargo.toml --lib` | verde; incluye **B1/B2/B5/B7** (cada uno feliz + fallo) |
-| **G6** | `rg "#[0-9a-fA-F]{3,8}" src -g "*.svelte"` | **0** (tokens `--a-*` aplicados; sin hex crudo) |
+| **G6** | `rg -nP "(?<![{])#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b" src -g "*.svelte"` | **0** (sin hex crudo; longitudes CSS válidas 3/4/6/8 y `#` no precedido de `{` ⇒ excluye `{#each}` y refs tipo `#10207`; verificado hoy) |
 | **G7** | Capturas **dark/light** de **Mission Rail**, **Activity Spine**, **Approvals Dock** y **1 view** (p.ej. Kanban) | 4 componentes en ambos temas; anillo `:focus-visible` visible |
 | **G8** | `rg "KernelCommand" src/lib` | **0** (la UI no se cablea al dead code) |
 

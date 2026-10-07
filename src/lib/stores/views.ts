@@ -3,14 +3,16 @@
 // HUD is a CSR app that swaps panels in place — the Kernel Bus stream must not
 // remount on navigation.
 //
-// Views arrive in fases (RFC 65 §7): P0 ships overview/+agent/+kanban/
-// +approvals; later fases append cost/health/audit/canvas. `VIEWS` is the one
+// Views arrive in fases (RFC 65 §7): P0 ships +agent/+kanban/+approvals;
+// later fases append cost/health/audit/canvas. `VIEWS` is the one
 // source of truth so the switcher, the palette and hotkeys never drift.
+//
+// RFC 67 §1.11 — `overview` is dissolved: the root axis is the Mission Rail
+// (left) plus the active projection, so it is no longer a view id.
 
 import { writable, type Readable } from 'svelte/store';
 
 export type ViewId =
-  | 'overview'
   | 'agent'
   | 'kanban'
   | 'approvals'
@@ -34,7 +36,6 @@ export interface ViewDef {
 }
 
 export const VIEWS: readonly ViewDef[] = [
-  { id: 'overview', label: 'Overview', key: 'o', fase: 'P0' },
   { id: 'agent', label: 'Agent', key: 'a', fase: 'P0' },
   { id: 'kanban', label: 'Kanban', key: 'k', fase: 'P0' },
   { id: 'approvals', label: 'Approvals', key: 'p', fase: 'P0' },
@@ -49,7 +50,7 @@ export const VIEWS: readonly ViewDef[] = [
   { id: 'mcp', label: 'MCP', key: 'm', fase: 'P1' },
 ];
 
-const initial: ViewId = 'overview';
+const initial: ViewId = 'kanban';
 const { subscribe, set, update } = writable<ViewId>(initial);
 
 export const activeView: Readable<ViewId> & {
@@ -70,6 +71,17 @@ export const activeView: Readable<ViewId> & {
       return done[next] ?? current;
     });
   },
+};
+
+const mission = writable<string | null>(null);
+
+/** The mission selected in the Mission Rail. Selecting a mission is pure
+ *  in-place state and never reconnects the Kernel Bus stream (RFC 67 §2). */
+export const activeMissionId: Readable<string | null> & {
+  set: (id: string | null) => void;
+} = {
+  subscribe: mission.subscribe,
+  set: mission.set,
 };
 
 /** Resolve a hotkey letter to a view id, or null. */

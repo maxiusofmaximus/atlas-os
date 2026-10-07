@@ -40,7 +40,10 @@
   import DemoPane from '$lib/components/DemoPane.svelte';
   import SkillMcpRail from '$lib/components/SkillMcpRail.svelte';
   import ViewSwitcher from '$lib/components/ViewSwitcher.svelte';
-  import { activeView, type ViewId } from '$stores/views';
+  import MissionRail from '$lib/components/MissionRail.svelte';
+  import ActivitySpine from '$lib/components/ActivitySpine.svelte';
+  import ApprovalsDock from '$lib/components/ApprovalsDock.svelte';
+  import { activeView, activeMissionId, type ViewId } from '$stores/views';
   import AvailabilityCard from '$lib/components/AvailabilityCard.svelte';
   import EvalCard from '$lib/components/EvalCard.svelte';
   import SwarmConsole from '$lib/components/SwarmConsole.svelte';
@@ -319,7 +322,6 @@
   // ─── RFC 65 §5 — views, command palette and hotkeys ───
   // Views available today (P0). Later fases append to this list.
   const availableViews: ViewId[] = [
-    'overview',
     'agent',
     'kanban',
     'approvals',
@@ -383,124 +385,142 @@
     }}
   />
 
-  {#if $activeView === 'agent'}
-    <section class="agent">
-      <h2>Agent (live)</h2>
-      <p class="hint">
-        RFC 63 §9 / RFC 65 §3. Step timeline of the capability layer, streamed via the Kernel Bus
-        <code>agent_step</code> event (<code>atlas agent "&lt;task&gt;" --verify</code>).
-      </p>
-      <AgentCard hudUrl={data.hudUrl ?? null} />
-      <DemoPane hudUrl={data.hudUrl ?? null} />
-    </section>
-  {:else if $activeView === 'kanban'}
-    <section class="kanban">
-      <h2>Missions</h2>
-      <p class="hint">
-        RFC 65 §3. Missions as cards across Pending / Running / Done / Failed (<code
-          >GET /tail/missions</code
-        >).
-      </p>
-      <KanbanBoard hudUrl={data.hudUrl ?? null} />
-    </section>
-  {:else if $activeView === 'approvals'}
-    <section class="approvals">
-      <h2>Approvals</h2>
-      <p class="hint">
-        RFC 65 §4 / RFC 24 §6. Pending <code>Confirm</code>-class actions (RFC 18); Approve/Deny fan
-        out a decision on the Kernel Bus to every connected device.
-      </p>
-      <ApprovalQueue hudUrl={data.hudUrl ?? null} />
-    </section>
-  {:else if $activeView === 'cost'}
-    <section class="cost-view">
-      <h2>Cost &amp; Res</h2>
-      <p class="hint">
-        RFC 65 §3. Window totals and per-model spend from <code>model_invocations</code>, cumulative
-        pressure, and the pending provider reset windows from <code>model_resets</code> (RFC 28 §H)
-        via <code>GET /hud/cost</code>.
-      </p>
-      <CostDashboard hudUrl={data.hudUrl ?? null} />
-    </section>
-  {:else if $activeView === 'health'}
-    <section class="health-view">
-      <h2>Health KPIs</h2>
-      <p class="hint">
-        RFC 65 §3. Agent-session telemetry (<code>agent_session_events</code>), capability run
-        states (<code>agent_runs</code>) and swarm-registry states (<code>swarm_agents</code>) via
-        <code>GET /hud/health</code>; supervisor heartbeat liveness from the live
-        <code>agent_heartbeat</code> bus event.
-      </p>
-      <HealthKPIs hudUrl={data.hudUrl ?? null} />
-    </section>
-  {:else if $activeView === 'audit'}
-    <section class="audit-view">
-      <h2>Audit</h2>
-      <p class="hint">
-        RFC 65 §3 / RFC 24 §10. The append-only <code>audit_log</code> chain, newest first, via
-        <code>GET /hud/audit</code>. Hash-chain verification is not implemented yet and is not
-        claimed here.
-      </p>
-      <AuditTimeline hudUrl={data.hudUrl ?? null} />
-    </section>
-  {:else if $activeView === 'canvas'}
-    <section class="canvas-view">
-      <h2>Canvas</h2>
-      <p class="hint">
-        RFC 65 §3 / RFC 28 §C. Persisted mission graph (<code>GET /graph/:id</code>, M15) rendered
-        by <code>GraphView</code>; pick a mission to inspect its nodes and DFA edges.
-      </p>
-      <CanvasView hudUrl={data.hudUrl ?? null} />
-    </section>
-  {:else if $activeView === 'outline'}
-    <section class="outline-view">
-      <h2>Outline</h2>
-      <p class="hint">
-        RFC 65 §3. A plan's roadmap milestones in order with their dependencies (<code
-          >/tail/plans</code
-        >
-        + <code>/payload/plan/:id</code>).
-      </p>
-      <OutlineView hudUrl={data.hudUrl ?? null} />
-    </section>
-  {:else if $activeView === 'timeline'}
-    <section class="timeline-view-page">
-      <h2>Timeline</h2>
-      <p class="hint">
-        RFC 65 §3. Chronological strip of the <code>journal_events</code> stream (<code
-          >GET /hud/journal</code
-        >).
-      </p>
-      <TimelineView hudUrl={data.hudUrl ?? null} />
-    </section>
-  {:else if $activeView === 'worktrees'}
-    <section class="worktrees-view-page">
-      <h2>Worktrees</h2>
-      <p class="hint">
-        RFC 65 §3 / RFC 05 §4. Git worktrees of a repository (<code>GET /hud/worktrees</code>);
-        fail-safe when git is missing or the path is not a repo.
-      </p>
-      <WorktreesView hudUrl={data.hudUrl ?? null} />
-    </section>
-  {:else if $activeView === 'settings'}
-    <section class="settings-view-page">
-      <h2>Settings</h2>
-      <p class="hint">
-        RFC 25 §3.10. Provider API keys live in the <strong>OS keychain</strong> (Windows Credential Manager
-        / macOS Keychain / Linux Secret Service) — never in files, prompts or logs.
-      </p>
-      <SettingsView hudUrl={data.hudUrl ?? null} />
-    </section>
-  {:else if $activeView === 'mcp'}
-    <section class="mcp-view-page">
-      <h2>MCP servers</h2>
-      <p class="hint">
-        RFC 65 §10 / RFC 07. The local MCP catalog (<code>GET /hud/mcp</code>) with the policy the
-        runtime enforces: sandbox (§2), supply chain (§3) and the tool allowlist (§4).
-      </p>
-      <McpView hudUrl={data.hudUrl ?? null} />
-    </section>
-  {:else}
+  <div class="hud-body">
+    <MissionRail
+      hudUrl={data.hudUrl ?? null}
+      activeMissionId={$activeMissionId}
+      onselect={(id) => activeMissionId.set(id)}
+      onnew={() => (paletteOpen = true)}
+    />
+    <div class="hud-center">
+      {#if $activeView === 'agent'}
+        <section class="agent">
+          <h2>Agent (live)</h2>
+          <p class="hint">
+            RFC 63 §9 / RFC 65 §3. Step timeline of the capability layer, streamed via the Kernel
+            Bus
+            <code>agent_step</code> event (<code>atlas agent "&lt;task&gt;" --verify</code>).
+          </p>
+          <AgentCard hudUrl={data.hudUrl ?? null} />
+          <DemoPane hudUrl={data.hudUrl ?? null} />
+        </section>
+      {:else if $activeView === 'kanban'}
+        <section class="kanban">
+          <h2>Missions</h2>
+          <p class="hint">
+            RFC 65 §3. Missions as cards across Pending / Running / Done / Failed (<code
+              >GET /tail/missions</code
+            >).
+          </p>
+          <KanbanBoard hudUrl={data.hudUrl ?? null} />
+        </section>
+      {:else if $activeView === 'approvals'}
+        <section class="approvals">
+          <h2>Approvals</h2>
+          <p class="hint">
+            RFC 65 §4 / RFC 24 §6. Pending <code>Confirm</code>-class actions (RFC 18); Approve/Deny
+            fan out a decision on the Kernel Bus to every connected device.
+          </p>
+          <ApprovalQueue hudUrl={data.hudUrl ?? null} />
+        </section>
+      {:else if $activeView === 'cost'}
+        <section class="cost-view">
+          <h2>Cost &amp; Res</h2>
+          <p class="hint">
+            RFC 65 §3. Window totals and per-model spend from <code>model_invocations</code>,
+            cumulative pressure, and the pending provider reset windows from
+            <code>model_resets</code>
+            (RFC 28 §H) via <code>GET /hud/cost</code>.
+          </p>
+          <CostDashboard hudUrl={data.hudUrl ?? null} />
+        </section>
+      {:else if $activeView === 'health'}
+        <section class="health-view">
+          <h2>Health KPIs</h2>
+          <p class="hint">
+            RFC 65 §3. Agent-session telemetry (<code>agent_session_events</code>), capability run
+            states (<code>agent_runs</code>) and swarm-registry states (<code>swarm_agents</code>)
+            via
+            <code>GET /hud/health</code>; supervisor heartbeat liveness from the live
+            <code>agent_heartbeat</code> bus event.
+          </p>
+          <HealthKPIs hudUrl={data.hudUrl ?? null} />
+        </section>
+      {:else if $activeView === 'audit'}
+        <section class="audit-view">
+          <h2>Audit</h2>
+          <p class="hint">
+            RFC 65 §3 / RFC 24 §10. The append-only <code>audit_log</code> chain, newest first, via
+            <code>GET /hud/audit</code>. Hash-chain verification is not implemented yet and is not
+            claimed here.
+          </p>
+          <AuditTimeline hudUrl={data.hudUrl ?? null} />
+        </section>
+      {:else if $activeView === 'canvas'}
+        <section class="canvas-view">
+          <h2>Canvas</h2>
+          <p class="hint">
+            RFC 65 §3 / RFC 28 §C. Persisted mission graph (<code>GET /graph/:id</code>, M15)
+            rendered by <code>GraphView</code>; pick a mission to inspect its nodes and DFA edges.
+          </p>
+          <CanvasView hudUrl={data.hudUrl ?? null} />
+        </section>
+      {:else if $activeView === 'outline'}
+        <section class="outline-view">
+          <h2>Outline</h2>
+          <p class="hint">
+            RFC 65 §3. A plan's roadmap milestones in order with their dependencies (<code
+              >/tail/plans</code
+            >
+            + <code>/payload/plan/:id</code>).
+          </p>
+          <OutlineView hudUrl={data.hudUrl ?? null} />
+        </section>
+      {:else if $activeView === 'timeline'}
+        <section class="timeline-view-page">
+          <h2>Timeline</h2>
+          <p class="hint">
+            RFC 65 §3. Chronological strip of the <code>journal_events</code> stream (<code
+              >GET /hud/journal</code
+            >).
+          </p>
+          <TimelineView hudUrl={data.hudUrl ?? null} />
+        </section>
+      {:else if $activeView === 'worktrees'}
+        <section class="worktrees-view-page">
+          <h2>Worktrees</h2>
+          <p class="hint">
+            RFC 65 §3 / RFC 05 §4. Git worktrees of a repository (<code>GET /hud/worktrees</code>);
+            fail-safe when git is missing or the path is not a repo.
+          </p>
+          <WorktreesView hudUrl={data.hudUrl ?? null} />
+        </section>
+      {:else if $activeView === 'settings'}
+        <section class="settings-view-page">
+          <h2>Settings</h2>
+          <p class="hint">
+            RFC 25 §3.10. Provider API keys live in the <strong>OS keychain</strong> (Windows Credential
+            Manager / macOS Keychain / Linux Secret Service) — never in files, prompts or logs.
+          </p>
+          <SettingsView hudUrl={data.hudUrl ?? null} />
+        </section>
+      {:else if $activeView === 'mcp'}
+        <section class="mcp-view-page">
+          <h2>MCP servers</h2>
+          <p class="hint">
+            RFC 65 §10 / RFC 07. The local MCP catalog (<code>GET /hud/mcp</code>) with the policy
+            the runtime enforces: sandbox (§2), supply chain (§3) and the tool allowlist (§4).
+          </p>
+          <McpView hudUrl={data.hudUrl ?? null} />
+        </section>
+      {/if}
+    </div>
+    <ActivitySpine hudUrl={data.hudUrl ?? null} onSelect={() => activeView.set('canvas')} />
+  </div>
+
+  <ApprovalsDock hudUrl={data.hudUrl ?? null} />
+
+  <div class="mission-deck">
     <section class="hud-health">
       <h2>HUD Mission Control</h2>
       <p>
@@ -783,7 +803,7 @@
         </form>
       </aside>
     {/if}
-  {/if}
+  </div>
 </main>
 
 <style>
@@ -800,6 +820,21 @@
     max-width: 1100px;
     margin: 0 auto;
     padding: 1.5rem;
+  }
+  .hud-body {
+    display: grid;
+    grid-template-columns: 220px 1fr 280px;
+    gap: 1rem;
+    align-items: start;
+  }
+  .hud-center {
+    min-width: 0;
+  }
+  .mission-deck {
+    margin-top: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
   }
   header {
     display: flex;
@@ -1212,6 +1247,11 @@
   }
 
   /* RFC 65 §11 / RFC 24 §16 — responsive (mobile review). */
+  @media (max-width: 1100px) {
+    .hud-body {
+      grid-template-columns: 1fr;
+    }
+  }
   @media (max-width: 720px) {
     main {
       padding: 0.9rem;
