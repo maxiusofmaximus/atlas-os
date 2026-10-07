@@ -1208,6 +1208,8 @@ FASE 10 (cerrada) ─▶ F0.5 (shell)
 | **G7-b** | **`:?` en vivo** | dark | `HelpOverlay` abierto (tabla RFC 24 §19 completa), foco inicial en **Cerrar**, `aria-modal=true` |
 | **G7-c** | **Tema claro con datos** | light | ≥1 misión en el Rail + ≥1 evento en la Activity Spine + 1 view con filas (Kanban), tokens §3.2 |
 
+**G7 cerrado el 2026-10-07 (Project Lead):** capturas `docs/design/captures/g7a-approvals-dock-dark.png`, `g7b-help-overlay-dark.png` y `g7c-light-with-data.png`, hechas en navegador con **fixtures** (WS y rutas simuladas con Playwright, no datos del backend real): G7-a 2 de 3 aprobaciones seleccionadas con foco visible; G7-b `:` `?` abre `HelpOverlay` con `aria-modal=true` y foco en Cerrar; G7-c tema claro con 3 misiones, 4 eventos y 3 aprobaciones. **Hallazgos abiertos:** (1) el Approvals Dock queda bajo el pliegue en 1366x900 (hay que hacer scroll para ver la cola); (2) la Activity Spine trunca el agente a `builder-`; (3) `EvalCard` y `AvailabilityCard` lanzan excepciones de render ante una respuesta vacía `{}` en lugar de mostrar el estado de error.
+
 **Ya cubierto (G7 parcial):** Cabecera connected/disconnected (dark), Mission Rail, Activity Spine. **Pendiente declarado** en §22.3.
 
 ### 25.6 Orden y dependencias (FASE 12)
