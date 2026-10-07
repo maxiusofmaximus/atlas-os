@@ -1,95 +1,115 @@
-// Atlas OS — tests for the Approvals Dock (RFC 67 §5, lote F4).
-// The dock's pending set is folded from the WS tail in the store
-// (`projectPendingApprovals`, pinned in `hud.test.ts`); this file pins the
-// component itself: it compiles to client + server output without warnings,
-// and its template wires the §5 deliverables (gate vs question channels,
-// Apr/Deny POST to the HUD routes, the H-02 batch honesty, and the states:
-// loading / empty / error / partial / disconnected / unknown).
-//
-// Note: client-side `mount` is out of reach without a new test dependency —
-// under this repo's vitest setup bare `svelte` resolves to the server entry
-// while `.svelte` files compile to the client build (AGENTS.md §4 forbids
-// the extra dependency), so render behaviour is asserted structurally.
-import { describe, it, expect } from 'vitest';
-import { compile } from 'svelte/compiler';
-import fs from 'node:fs';
-import path from 'node:path';
+// @vitest-environment jsdom
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { mount, unmount, type ComponentProps } from 'svelte';
+import type { HudEvent, HudState } from '$stores/hud';
 
-const source = fs.readFileSync(
-  path.join(process.cwd(), 'src/lib/components/ApprovalsDock.svelte'),
-  'utf8',
-);
+const spies = vi.hoisted(() => ({
+  approve: vi.fn(),
+  deny: vi.fn(),
+  connect: vi.fn(),
+  disconnect: vi.fn(),
+}));
 
-describe('ApprovalsDock compile', () => {
-  it('compiles to client output without warnings', () => {
-    const out = compile(source, { generate: 'client', dev: false });
-    expect(out.warnings).toEqual([]);
-    expect(out.js.code).toContain('Approvals Dock');
-  });
-
-  it('compiles to server output without warnings', () => {
-    const out = compile(source, { generate: 'server', dev: false });
-    expect(out.warnings).toEqual([]);
-    expect(out.js.code).toContain('Approvals Dock');
-  });
+vi.mock('$stores/hud', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('$stores/hud')>();
+  const { writable } = await import('svelte/store');
+  const store = writable<HudState>({ connected: true, url: null, events: [] });
+  return {
+    ...actual,
+    hud: Object.assign(store, { connect: spies.connect, disconnect: spies.disconnect }),
+    approveApproval: spies.approve,
+    denyApproval: spies.deny,
+  };
 });
 
-describe('ApprovalsDock render', () => {
-  it('renders the two channels (gate vs question) with distinct aria-live', () => {
-    expect(source).toContain('class="channel gate"');
-    expect(source).toContain('class="channel question"');
-    expect(source).toContain('aria-live="assertive"');
-    expect(source).toContain('aria-live="polite"');
-    expect(source).toContain('function channelOf');
-  });
+import { hud } from '$stores/hud';
+import ApprovalsDock from './ApprovalsDock.svelte';
 
-  it('wires Apr/Deny to the HUD approval routes (RFC 67 §5 acceptance 2)', () => {
-    expect(source).toContain('approveApproval');
-    expect(source).toContain('denyApproval');
-    expect(source).toContain("void answer(p.approval_id, 'approve')");
-    expect(source).toContain("void answer(p.approval_id, 'deny')");
-  });
+type Writable = { set: (value: HudState) => void };
 
-  it('renders the full action row Apr/Deny/Steer/Fork', () => {
-    expect(source).toContain('class="apr"');
-    expect(source).toContain('class="deny"');
-    expect(source).toContain('class="steer"');
-    expect(source).toContain('class="fork"');
-    expect(source).toContain('Apr');
-    expect(source).toContain('Steer');
-    expect(source).toContain('Fork');
-  });
+const setHud = (patch: Partial<HudState>): void =>
+  (hud as unknown as Writable).set({ connected: true, url: null, events: [], ...patch });
 
-  it('carries the H-02 batch honesty (Approve all disabled + explanation)', () => {
-    expect(source).toContain('Approve all');
-    expect(source).toContain('H-02');
-    expect(source).toContain('batch disabled');
-  });
+let seq = 0;
+const approval = (id: string, agent: string, action: string): HudEvent => ({
+  id: `e${seq++}`,
+  ts: '2026-10-06T00:00:00Z',
+  kind: 'approval_request',
+  payload: { approval_id: id, agent_id: agent, action },
 });
 
-describe('ApprovalsDock empty state', () => {
-  it('renders the empty message when nothing is pending', () => {
-    expect(source).toContain('pending.length === 0');
-    expect(source).toContain('No pending approvals.');
-  });
+function render(props: ComponentProps<typeof ApprovalsDock> = {}) {
+  const target = document.createElement('div');
+  document.body.appendChild(target);
+  const component = mount(ApprovalsDock, { target, props });
+  return { target, component };
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  document.body.innerHTML = '';
+  setHud({});
 });
 
-describe('ApprovalsDock error state', () => {
-  it('surfaces a failed POST without dropping the row', () => {
-    expect(source).toContain('class="error"');
-    expect(source).toContain('role="alert"');
-    expect(source).toContain('error = e instanceof Error ? e.message : String(e)');
-  });
-});
+describe('ApprovalsDock behaviour', () => {
+  it('routes a sensitive action to the gate channel and Apr posts approve + onResolved', async () => {
+    spies.approve.mockResolvedValue({
+      approval_id: 'a1',
+      decision: 'approve',
+      user_id: 'operator',
+    });
+    setHud({ events: [approval('a1', 'agent-1', 'network_binding')] });
+    const onResolved = vi.fn();
+    const { target, component } = render({ hudUrl: 'http://hud', onResolved });
 
-describe('ApprovalsDock partial + disconnected + unknown states', () => {
-  it('freezes the dock when the stream is down', () => {
-    expect(source).toContain('class="frozen"');
-    expect(source).toContain('dock frozen');
+    const gate = target.querySelector('.channel.gate');
+    expect(gate).not.toBeNull();
+    expect(gate?.getAttribute('aria-live')).toBe('assertive');
+    expect(gate?.textContent).toContain('network_binding');
+
+    gate?.querySelector<HTMLButtonElement>('.apr')?.click();
+    await vi.waitFor(() => expect(spies.approve).toHaveBeenCalledWith('http://hud', 'a1'));
+    await vi.waitFor(() => expect(onResolved).toHaveBeenCalledWith('a1', 'approve'));
+    await unmount(component);
   });
 
-  it('routes an unclassifiable action to an explicit-decision channel', () => {
-    expect(source).toContain('class="channel unknown"');
-    expect(source).toContain('requires explicit decision');
+  it('routes a non-sensitive action to the async question channel', async () => {
+    setHud({ events: [approval('q1', 'agent-2', 'read_file')] });
+    const { target, component } = render({ hudUrl: 'http://hud' });
+
+    const question = target.querySelector('.channel.question');
+    expect(question).not.toBeNull();
+    expect(question?.getAttribute('aria-live')).toBe('polite');
+    await unmount(component);
+  });
+
+  it('Deny posts the deny route', async () => {
+    spies.deny.mockResolvedValue({ approval_id: 'a3', decision: 'deny', user_id: 'operator' });
+    setHud({ events: [approval('a3', 'agent-4', 'network_binding')] });
+    const { target, component } = render({ hudUrl: 'http://hud' });
+
+    target.querySelector<HTMLButtonElement>('.deny')?.click();
+    await vi.waitFor(() => expect(spies.deny).toHaveBeenCalledWith('http://hud', 'a3'));
+    await unmount(component);
+  });
+
+  it('renders the empty state when nothing is pending', async () => {
+    setHud({ events: [] });
+    const { target, component } = render({ hudUrl: 'http://hud' });
+
+    expect(target.querySelector('.empty')?.textContent).toContain('No pending approvals.');
+    await unmount(component);
+  });
+
+  it('keeps the row and shows the error when the POST fails', async () => {
+    spies.approve.mockRejectedValueOnce(new Error('approve failed'));
+    setHud({ events: [approval('a2', 'agent-3', 'network_binding')] });
+    const { target, component } = render({ hudUrl: 'http://hud' });
+
+    target.querySelector<HTMLButtonElement>('.apr')?.click();
+    await vi.waitFor(() => expect(target.querySelector('.error')).not.toBeNull());
+    expect(target.querySelector('.error')?.textContent).toContain('approve failed');
+    expect(target.querySelector('.channel.gate')).not.toBeNull();
+    await unmount(component);
   });
 });

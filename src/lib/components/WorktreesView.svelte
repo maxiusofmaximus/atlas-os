@@ -38,11 +38,15 @@
 
 <section class="worktrees">
   <header>
-    <h3>Worktrees</h3>
+    <h3>Worktrees <span class="scope">v1</span></h3>
     <button type="button" onclick={() => void refresh()} disabled={loading || !hudUrl}>
       {loading ? 'Loading…' : 'Reload'}
     </button>
   </header>
+
+  <p class="scope-note">
+    v1 — table of git worktrees. A graph view is v2 and is not implemented here.
+  </p>
 
   <label class="repo">
     <span>Repo (defaults to cwd)</span>
@@ -171,5 +175,18 @@
     color: var(--a-err);
     font-size: 0.8rem;
     margin: 0;
+  }
+  .scope {
+    font-size: 0.62rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 999px;
+    border: 1px solid var(--a-border);
+    color: var(--a-text-muted);
+    vertical-align: middle;
+  }
+  .scope-note {
+    margin: 0;
+    font-size: 0.68rem;
+    color: var(--a-text-faint);
   }
 </style>

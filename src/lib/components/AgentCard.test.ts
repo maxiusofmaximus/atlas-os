@@ -1,95 +1,107 @@
-import { describe, it, expect } from 'vitest';
-import { compile } from 'svelte/compiler';
-import fs from 'node:fs';
-import path from 'node:path';
+// @vitest-environment jsdom
+//
+// Atlas OS — behaviour tests for AgentCard (RFC 67 §4, lote F1). Mounts the real
+// component in jsdom, drives the WS store (data/unknown) and the REST tail mock,
+// and asserts the DOM for the data, empty, error and Unknown states plus the
+// Retry callback.
 
-const source = fs.readFileSync(
-  path.join(process.cwd(), 'src/lib/components/AgentCard.svelte'),
-  'utf8',
-);
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { mount, unmount, flushSync, tick } from 'svelte';
+import AgentCard from './AgentCard.svelte';
 
-describe('AgentCard compile', () => {
-  it('compiles to client output without warnings', () => {
-    const out = compile(source, { generate: 'client', dev: false });
-    expect(out.warnings).toEqual([]);
-  });
-
-  it('compiles to server output without warnings', () => {
-    const out = compile(source, { generate: 'server', dev: false });
-    expect(out.warnings).toEqual([]);
-  });
+vi.mock('$stores/hud', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('$stores/hud')>();
+  const { writable } = await import('svelte/store');
+  const store = writable({ connected: true, url: 'http://hud', events: [] as unknown[] });
+  return {
+    ...actual,
+    hud: Object.assign(store, { connect: () => {}, disconnect: () => {} }),
+    fetchTail: vi.fn(),
+  };
 });
 
-describe('AgentCard data wiring (RFC 67 §4)', () => {
-  it('consumes the WS store and the REST tail fallback', () => {
-    expect(source).toContain('$hud.events');
-    expect(source).toContain('fetchTail');
-    expect(source).toContain('agentRunId');
-    expect(source).toContain('projectAgentSteps');
-    expect(source).toContain('agentRunTotals');
-  });
+import { fetchTail, hud, type AgentStepPayload, type HudState } from '$stores/hud';
 
-  it('covers the 15+ field layers 0-3', () => {
-    expect(source).toContain('class="layer-0"');
-    expect(source).toContain('data-layer="2"');
-    expect(source).toContain('data-layer="3"');
-    expect(source).toContain('class="statline"');
-    expect(source).toContain('class="head-meta"');
-    expect(source).toContain('Worked for');
-  });
+const mFetch = vi.mocked(fetchTail);
+const setHud = (hud as unknown as { set: (value: HudState) => void }).set.bind(hud);
 
-  it('renders doom_loop_count, goal_drift and checkpoint', () => {
-    expect(source).toContain('doom_loop');
-    expect(source).toContain('goal_drift');
-    expect(source).toContain('checkpoint');
-  });
+const step: AgentStepPayload = {
+  run_id: 'run-abcdef123456',
+  step: 1,
+  action: 'run_command',
+  observation: 'ok',
+  verdict: 'pass',
+  tokens_in: 5,
+  tokens_out: 7,
+  cost_usd: 0.01,
+};
+
+let target: HTMLElement;
+let app: ReturnType<typeof mount> | null = null;
+
+async function settle(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await tick();
+  flushSync();
+}
+
+beforeEach(() => {
+  target = document.createElement('div');
+  document.body.appendChild(target);
+  vi.clearAllMocks();
+  setHud({ connected: true, url: 'http://hud', events: [] });
 });
 
-describe('AgentCard states (RFC 67 §1.4)', () => {
-  it('renders the loading skeleton', () => {
-    expect(source).toContain('aria-busy');
-    expect(source).toContain('skel');
-    expect(source).toContain('loading');
-  });
-
-  it('renders the error state with Retry', () => {
-    expect(source).toContain('class="error"');
-    expect(source).toContain('Retry');
-    expect(source).toContain('loadError');
-  });
-
-  it('renders the empty state', () => {
-    expect(source).toContain('class="empty"');
-    expect(source).toContain('No agent run yet');
-  });
-
-  it('renders the disconnected and partial states', () => {
-    expect(source).toContain('class="offline"');
-    expect(source).toContain('class="partial"');
-    expect(source).toContain('$hud.connected');
-  });
-
-  it('derives the Unknown status client-side (H-03)', () => {
-    expect(source).toContain('Unknown');
-    expect(source).toContain('HEARTBEAT_STALE_MS');
-    expect(source).toContain('30_000');
-  });
+afterEach(() => {
+  if (app) unmount(app);
+  app = null;
+  target.remove();
 });
 
-describe('AgentCard actions and tokens', () => {
-  it('gates doom_loop actions to Recover/Override/Stop only', () => {
-    expect(source).toContain("status === 'DoomLoop'");
-    expect(source).toContain("'recover', 'override', 'stop'");
+describe('AgentCard', () => {
+  it('renders the agent run from the REST tail when no live run exists', async () => {
+    mFetch.mockResolvedValue([step]);
+    app = mount(AgentCard, { target, props: { hudUrl: 'http://hud' } });
+    await settle();
+    expect(target.textContent).toContain('run-abcdef12');
+    expect(target.textContent).toContain('5↑ / 7↓');
+    expect(target.querySelector('.status')?.textContent).toBe('coding');
   });
 
-  it('wires REST approve/deny and a host event for CLI actions', () => {
-    expect(source).toContain('approveApproval');
-    expect(source).toContain('denyApproval');
-    expect(source).toContain('atlas:agent-action');
+  it('renders the empty state when there is no run', async () => {
+    mFetch.mockResolvedValue([]);
+    app = mount(AgentCard, { target, props: { hudUrl: 'http://hud' } });
+    await settle();
+    expect(target.textContent).toContain('No agent run yet');
   });
 
-  it('uses only design tokens (no literal colours)', () => {
-    expect(source).toContain('var(--a-');
-    expect(/#[0-9a-fA-F]{3,8}\b/.test(source)).toBe(false);
+  it('renders the error state and re-fetches on Retry', async () => {
+    mFetch.mockRejectedValueOnce(new Error('tail down'));
+    app = mount(AgentCard, { target, props: { hudUrl: 'http://hud' } });
+    await settle();
+    expect(target.textContent).toContain('no se pudo cargar el agente');
+    const retry = target.querySelector('.error button');
+    expect(retry).not.toBeNull();
+    mFetch.mockResolvedValueOnce([step]);
+    retry?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await settle();
+    expect(target.textContent).toContain('run-abcdef12');
+  });
+
+  it('derives the Unknown status with a ? glyph when the heartbeat is stale', async () => {
+    const stale = new Date(Date.now() - 60_000).toISOString();
+    setHud({
+      connected: true,
+      url: 'http://hud',
+      events: [
+        { id: '1', ts: stale, kind: 'agent_step', payload: { ...step, verdict: null } },
+        { id: '2', ts: stale, kind: 'agent_heartbeat', payload: { agent_id: 'a1' } },
+      ],
+    });
+    mFetch.mockResolvedValue([]);
+    app = mount(AgentCard, { target, props: { hudUrl: 'http://hud' } });
+    await settle();
+    expect(target.querySelector('.status')?.textContent).toBe('unknown');
+    expect(target.querySelector('.spine')?.textContent).toBe('?');
   });
 });

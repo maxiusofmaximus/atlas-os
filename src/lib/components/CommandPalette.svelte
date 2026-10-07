@@ -27,7 +27,7 @@
     [
       ...VIEWS.map((v) => ({
         label: `Go to ${v.label}`,
-        hint: available.includes(v.id) ? `:${v.key}` : `${v.fase} (not yet)`,
+        hint: available.includes(v.id) ? ':v' : `${v.fase} (not yet)`,
         enabled: available.includes(v.id),
         run: () => activeView.set(v.id),
       })),

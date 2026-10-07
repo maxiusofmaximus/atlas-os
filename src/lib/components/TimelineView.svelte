@@ -14,16 +14,23 @@
   let entries = $state<JournalObserverEntry[]>([]);
   let total = $state(0);
   let error = $state<string | null>(null);
+  let loading = $state(true);
 
   async function refresh(): Promise<void> {
-    if (!hudUrl) return;
+    if (!hudUrl) {
+      loading = false;
+      return;
+    }
     error = null;
+    loading = true;
     try {
       const page = await fetchJournalPage(hudUrl, { limit: 50, offset: 0 });
       entries = page.entries;
       total = page.total;
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
+    } finally {
+      loading = false;
     }
   }
 
@@ -46,8 +53,17 @@
     <span class="count">{entries.length} / {total}</span>
   </header>
 
-  {#if error}
-    <p class="error">Error: {error}</p>
+  {#if loading && entries.length === 0 && !error}
+    <div class="skeleton" aria-busy="true" aria-label="Loading timeline">
+      <span class="skel"></span>
+      <span class="skel"></span>
+      <span class="skel short"></span>
+    </div>
+  {:else if error}
+    <div class="error" role="alert">
+      <span>Error: {error}</span>
+      <button type="button" onclick={() => void refresh()}>Retry</button>
+    </div>
   {:else if entries.length === 0}
     <p class="empty">No journal events yet.</p>
   {:else}
@@ -128,9 +144,35 @@
     font-size: 0.82rem;
     margin: 0;
   }
+  .skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .skel {
+    display: block;
+    height: 0.8rem;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--a-text-faint) 22%, transparent);
+  }
+  .skel.short {
+    width: 60%;
+  }
   .error {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
     color: var(--a-err);
     font-size: 0.8rem;
     margin: 0;
+  }
+  .error button {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.55rem;
+    border-radius: 4px;
+    border: 1px solid var(--a-border-ui);
+    background: var(--a-surface-2);
+    color: var(--a-text);
+    cursor: pointer;
   }
 </style>

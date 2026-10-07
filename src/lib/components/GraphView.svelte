@@ -89,10 +89,18 @@
   </header>
 
   {#if error}
-    <p class="error" role="alert">{error}</p>
+    <div class="error" role="alert">
+      <span>{error}</span>
+      <button type="button" onclick={load}>Retry</button>
+    </div>
   {/if}
 
-  {#if graph}
+  {#if loading && !graph}
+    <div class="skeleton" aria-busy="true" aria-label="Loading graph">
+      <span class="skel"></span>
+      <span class="skel short"></span>
+    </div>
+  {:else if graph}
     <p class="summary">
       {graph.nodes.length} nodes · {graph.edges.length} edges
     </p>
@@ -137,7 +145,7 @@
     {:else}
       <p class="empty">No edges persisted.</p>
     {/if}
-  {:else if !loading && !error}
+  {:else if !error}
     <p class="empty">No graph persisted for this mission yet.</p>
   {/if}
 </section>
@@ -182,8 +190,26 @@
     opacity: 0.5;
   }
   .error {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
     color: var(--graphview-error, var(--a-err));
     margin: 0.5rem 0;
+  }
+  .skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin: 0.4rem 0;
+  }
+  .skel {
+    display: block;
+    height: 0.8rem;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--a-text-faint) 22%, transparent);
+  }
+  .skel.short {
+    width: 60%;
   }
   .summary {
     margin: 0.25rem 0 0.5rem;

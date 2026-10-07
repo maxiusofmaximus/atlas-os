@@ -62,9 +62,20 @@
   </header>
 
   {#if error}
-    <p class="error">Error: {error}</p>
+    <p class="error">
+      Error: {error}
+      <button type="button" class="retry" onclick={() => void refresh()}>Retry</button>
+    </p>
   {:else if !data}
-    <p class="empty">{loading ? 'Loading…' : 'No cost data yet.'}</p>
+    {#if loading}
+      <ul class="skeleton" aria-hidden="true">
+        {#each [0, 1, 2] as n (n)}
+          <li></li>
+        {/each}
+      </ul>
+    {:else}
+      <p class="empty">No cost data yet.</p>
+    {/if}
   {:else}
     <div class="kpis">
       <div class="kpi" data-kpi="cumulative">
@@ -289,5 +300,43 @@
     color: var(--a-err);
     font-size: 0.8rem;
     margin: 0;
+  }
+  .error .retry {
+    margin-left: 0.5rem;
+    background: transparent;
+    border: 1px solid var(--a-border);
+    color: var(--a-primary);
+    border-radius: 4px;
+    font-size: 0.72rem;
+    padding: 0.1rem 0.5rem;
+    cursor: pointer;
+  }
+  .skeleton {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .skeleton li {
+    height: 3.2rem;
+    border-radius: 6px;
+    background: var(--a-surface-2);
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+  @keyframes shimmer {
+    0%,
+    100% {
+      opacity: 0.5;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton li {
+      animation: none;
+    }
   }
 </style>

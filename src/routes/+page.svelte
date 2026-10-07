@@ -25,7 +25,6 @@
   } from '$stores/hud';
   import AutoresearchCard from '$lib/components/AutoresearchCard.svelte';
   import AgentCard from '$lib/components/AgentCard.svelte';
-  import ApprovalQueue from '$lib/components/ApprovalQueue.svelte';
   import KanbanBoard from '$lib/components/KanbanBoard.svelte';
   import CommandPalette from '$lib/components/CommandPalette.svelte';
   import CostDashboard from '$lib/components/CostDashboard.svelte';
@@ -43,7 +42,7 @@
   import MissionRail from '$lib/components/MissionRail.svelte';
   import ActivitySpine from '$lib/components/ActivitySpine.svelte';
   import ApprovalsDock from '$lib/components/ApprovalsDock.svelte';
-  import { activeView, activeMissionId, type ViewId } from '$stores/views';
+  import { activeView, activeMissionId, hotkeyAction, type ViewId } from '$stores/views';
   import AvailabilityCard from '$lib/components/AvailabilityCard.svelte';
   import EvalCard from '$lib/components/EvalCard.svelte';
   import SwarmConsole from '$lib/components/SwarmConsole.svelte';
@@ -319,12 +318,11 @@
     return phaseColor(typeof row.phase === 'string' ? (row.phase as StepPhaseTag) : 'pending');
   }
 
-  // ─── RFC 65 §5 — views, command palette and hotkeys ───
-  // Views available today (P0). Later fases append to this list.
+  // ─── RFC 65 §5 / RFC 24 §19 — views, command palette and hotkeys ───
+  // The catalog is the 10-id model (RFC 67 §1.11). `:` is the leader key: the
+  // next key resolves an action (RFC 24 §19); an unknown key opens the palette.
   const availableViews: ViewId[] = [
-    'agent',
     'kanban',
-    'approvals',
     'cost',
     'health',
     'audit',
@@ -336,6 +334,26 @@
     'mcp',
   ];
   let paletteOpen = $state(false);
+  let leader = $state(false);
+
+  function focusApprovalsDock(): void {
+    const dock = document.querySelector<HTMLElement>('[aria-label="Approvals Dock"]');
+    if (!dock) return;
+    const target = dock.querySelector<HTMLElement>('button, [href], input, [tabindex]');
+    if (target) {
+      target.focus();
+    } else {
+      dock.tabIndex = -1;
+      dock.focus();
+    }
+  }
+
+  function runHotkey(action: ReturnType<typeof hotkeyAction>): void {
+    if (action === 'view') activeView.cycle(1);
+    else if (action === 'approvals') focusApprovalsDock();
+    else if (action === 'new-mission') paletteOpen = true;
+    else if (action === 'demo') activeView.set('canvas');
+  }
 
   function onGlobalKey(e: KeyboardEvent): void {
     const target = e.target as HTMLElement | null;
@@ -343,11 +361,22 @@
       target &&
       (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
     if (typing) return;
+    if (e.key === 'Escape') {
+      paletteOpen = false;
+      leader = false;
+      return;
+    }
+    if (leader) {
+      leader = false;
+      e.preventDefault();
+      const action = hotkeyAction(e.key);
+      if (action) runHotkey(action);
+      else paletteOpen = true;
+      return;
+    }
     if (e.key === ':') {
       e.preventDefault();
-      paletteOpen = true;
-    } else if (e.key === 'Escape') {
-      paletteOpen = false;
+      leader = true;
     }
   }
 
@@ -393,35 +422,18 @@
       onnew={() => (paletteOpen = true)}
     />
     <div class="hud-center">
-      {#if $activeView === 'agent'}
-        <section class="agent">
-          <h2>Agent (live)</h2>
-          <p class="hint">
-            RFC 63 §9 / RFC 65 §3. Step timeline of the capability layer, streamed via the Kernel
-            Bus
-            <code>agent_step</code> event (<code>atlas agent "&lt;task&gt;" --verify</code>).
-          </p>
-          <AgentCard hudUrl={data.hudUrl ?? null} />
-          <DemoPane hudUrl={data.hudUrl ?? null} />
-        </section>
-      {:else if $activeView === 'kanban'}
+      {#if $activeView === 'kanban'}
         <section class="kanban">
           <h2>Missions</h2>
           <p class="hint">
             RFC 65 §3. Missions as cards across Pending / Running / Done / Failed (<code
               >GET /tail/missions</code
-            >).
+            >). The live Agent Card and the demo pane live here (RFC 67 §1.11 — `agent` is no longer
+            a view; `:d` opens the demo).
           </p>
           <KanbanBoard hudUrl={data.hudUrl ?? null} />
-        </section>
-      {:else if $activeView === 'approvals'}
-        <section class="approvals">
-          <h2>Approvals</h2>
-          <p class="hint">
-            RFC 65 §4 / RFC 24 §6. Pending <code>Confirm</code>-class actions (RFC 18); Approve/Deny
-            fan out a decision on the Kernel Bus to every connected device.
-          </p>
-          <ApprovalQueue hudUrl={data.hudUrl ?? null} />
+          <AgentCard hudUrl={data.hudUrl ?? null} />
+          <DemoPane hudUrl={data.hudUrl ?? null} />
         </section>
       {:else if $activeView === 'cost'}
         <section class="cost-view">

@@ -1,88 +1,101 @@
-// Atlas OS — tests for the Activity Spine (RFC 67 §3, lote F3).
-// The spine's projections live in the store; this file pins the component
-// itself: it compiles to client + server output without warnings, and its
-// template wires the §3 deliverables (ticker rows with tone classes, the
-// `aria-live` announcer with throttle, the ⇄ canvas toggle and the six
-// states: loading / empty / error / partial / disconnected / unknown).
-//
-// Note: client-side `mount` is out of reach without a new test dependency —
-// under this repo's vitest setup bare `svelte` resolves to the server entry
-// while `.svelte` files compile to the client build (AGENTS.md §4 forbids
-// the extra dependency), so render behaviour is asserted structurally.
-import { describe, it, expect } from 'vitest';
-import { compile } from 'svelte/compiler';
-import fs from 'node:fs';
-import path from 'node:path';
+// @vitest-environment jsdom
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { mount, unmount, type ComponentProps } from 'svelte';
+import type { HudEvent, HudState } from '$stores/hud';
 
-const source = fs.readFileSync(
-  path.join(process.cwd(), 'src/lib/components/ActivitySpine.svelte'),
-  'utf8',
-);
+const spies = vi.hoisted(() => ({
+  connect: vi.fn(),
+  disconnect: vi.fn(),
+}));
 
-describe('ActivitySpine compile', () => {
-  it('compiles to client output without warnings', () => {
-    const out = compile(source, { generate: 'client', dev: false });
-    expect(out.warnings).toEqual([]);
-    expect(out.js.code).toContain('Activity Spine');
-  });
-
-  it('compiles to server output without warnings', () => {
-    const out = compile(source, { generate: 'server', dev: false });
-    expect(out.warnings).toEqual([]);
-    expect(out.js.code).toContain('Activity Spine');
-  });
+vi.mock('$stores/hud', async () => {
+  const { writable } = await import('svelte/store');
+  const store = writable<HudState>({ connected: false, url: null, events: [] });
+  return {
+    hud: Object.assign(store, {
+      connect: spies.connect,
+      disconnect: spies.disconnect,
+    }),
+  };
 });
 
-describe('ActivitySpine render', () => {
-  it('renders the ticker rows from the WS tail', () => {
-    expect(source).toContain("from '$stores/hud'");
-    expect(source).toContain('$hud.events');
-    expect(source).toContain('class="row-btn tone-{row.tone}"');
-  });
+import { hud } from '$stores/hud';
+import ActivitySpine from './ActivitySpine.svelte';
 
-  it('wires the header live dot and the ⇄ canvas toggle', () => {
-    expect(source).toContain('class:on={connected}');
-    expect(source).toContain('⇄ canvas');
-    expect(source).toContain('aria-pressed={canvasSync}');
-  });
+type Writable = { set: (value: HudState) => void };
 
-  it('maps doom_loop_detected to the err tone (RFC 67 §3 acceptance 1)', () => {
-    expect(source).toContain('doom_loop_detected');
-    expect(source).toContain("return 'err'");
-    expect(source).toContain('.tone-err');
-  });
+const setHud = (patch: Partial<HudState>): void =>
+  (hud as unknown as Writable).set({ connected: false, url: null, events: [], ...patch });
 
-  it('announces politely with a throttle', () => {
-    expect(source).toContain('aria-live="polite"');
-    expect(source).toContain('ANNOUNCE_THROTTLE_MS');
-  });
-
-  it('respects prefers-reduced-motion', () => {
-    expect(source).toContain('prefers-reduced-motion');
-    expect(source).toContain('animation: none');
-  });
+let seq = 0;
+const evt = (kind: string, payload: unknown): HudEvent => ({
+  id: `e${seq++}`,
+  ts: '2026-10-06T00:00:00Z',
+  kind,
+  payload,
 });
 
-describe('ActivitySpine empty state', () => {
-  it('renders the empty message when there are no events', () => {
-    expect(source).toContain('rows.length === 0');
-    expect(source).toContain('Sin actividad todavía');
-  });
+function render(props: ComponentProps<typeof ActivitySpine> = {}) {
+  const target = document.createElement('div');
+  document.body.appendChild(target);
+  const component = mount(ActivitySpine, { target, props });
+  return { target, component };
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  document.body.innerHTML = '';
+  setHud({});
 });
 
-describe('ActivitySpine error state', () => {
-  it('renders the stream-down banner with retry, keeping the last events', () => {
-    expect(source).toContain('class="disconnected"');
-    expect(source).toContain('stream down');
-    expect(source).toContain('function retry');
-    expect(source).toContain('hud.connect(hudUrl)');
-  });
-});
+describe('ActivitySpine behaviour', () => {
+  it('renders a doom_loop_detected event with the err tone', async () => {
+    setHud({
+      connected: true,
+      events: [evt('doom_loop_detected', { agent_id: 'agent-1234', count: 3 })],
+    });
+    const { target, component } = render({ hudUrl: 'http://hud' });
 
-describe('ActivitySpine partial + unknown states', () => {
-  it('flags truncation and unknown event types', () => {
-    expect(source).toContain('showing last');
-    expect(source).toContain("return 'unknown'");
-    expect(source).toContain('unknown event');
+    const row = target.querySelector('.row-btn.tone-err');
+    expect(row).not.toBeNull();
+    expect(row?.textContent).toContain('doom loop detected');
+    await unmount(component);
+  });
+
+  it('renders the empty state when there are no events', async () => {
+    setHud({ connected: true, events: [] });
+    const { target, component } = render();
+
+    expect(target.querySelector('.empty')?.textContent).toContain('Sin actividad todavía');
+    await unmount(component);
+  });
+
+  it('keeps the last events and Retry reconnects when the stream is down', async () => {
+    setHud({
+      connected: false,
+      events: [evt('agent_step', { run_id: 'r1', step: 1, action: 'run_command' })],
+    });
+    const { target, component } = render({ hudUrl: 'http://hud' });
+
+    expect(target.querySelector('.disconnected')).not.toBeNull();
+    expect(target.querySelector('.row-btn')).not.toBeNull();
+
+    target.querySelector<HTMLButtonElement>('.retry')?.click();
+    expect(spies.connect).toHaveBeenCalledWith('http://hud');
+    await unmount(component);
+  });
+
+  it('invokes onSelect with the event when a row is clicked', async () => {
+    setHud({
+      connected: true,
+      events: [evt('agent_step', { run_id: 'r1', step: 1, action: 'run_command' })],
+    });
+    const onSelect = vi.fn();
+    const { target, component } = render({ hudUrl: 'http://hud', onSelect });
+
+    target.querySelector<HTMLButtonElement>('.row-btn')?.click();
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect.mock.calls[0]?.[0]).toMatchObject({ kind: 'agent_step' });
+    await unmount(component);
   });
 });

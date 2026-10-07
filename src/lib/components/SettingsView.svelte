@@ -19,13 +19,18 @@
   let error = $state<string | null>(null);
   let notice = $state<string | null>(null);
   let busy = $state(false);
+  let loading = $state(false);
 
   async function refresh(): Promise<void> {
     if (!hudUrl) return;
+    loading = true;
+    error = null;
     try {
       data = await fetchSecretSlots(hudUrl);
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
+    } finally {
+      loading = false;
     }
   }
 
@@ -42,7 +47,7 @@
     try {
       await postSecret(hudUrl, name, value);
       notice = `Saved “${name}” to the OS keychain.`;
-      value = ''; // never keep the key in the field
+      value = '';
       await refresh();
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
@@ -105,7 +110,15 @@
   {/if}
 
   {#if !data}
-    <p class="empty">Loading…</p>
+    {#if loading}
+      <ul class="skeleton" aria-hidden="true">
+        {#each [0, 1, 2] as n (n)}
+          <li></li>
+        {/each}
+      </ul>
+    {:else}
+      <p class="empty">No secret slots yet.</p>
+    {/if}
   {:else}
     <ul class="slots">
       {#each data.slots as slot (slot.account)}
@@ -227,5 +240,33 @@
     color: var(--a-ok);
     font-size: 0.8rem;
     margin: 0;
+  }
+  .skeleton {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .skeleton li {
+    height: 1.6rem;
+    border-radius: 4px;
+    background: var(--a-surface-2);
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+  @keyframes shimmer {
+    0%,
+    100% {
+      opacity: 0.5;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton li {
+      animation: none;
+    }
   }
 </style>

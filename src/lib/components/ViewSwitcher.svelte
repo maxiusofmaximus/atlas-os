@@ -21,7 +21,7 @@
       class="tab"
       class:active={$activeView === v.id}
       disabled={!enabled}
-      title={enabled ? `${v.label} (:)${v.key}` : `${v.label} — ${v.fase} (not yet)`}
+      title={enabled ? v.label : `${v.label} — ${v.fase} (not yet)`}
       onclick={() => enabled && activeView.set(v.id)}
     >
       {v.label}
