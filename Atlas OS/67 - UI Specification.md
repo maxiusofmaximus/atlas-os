@@ -1,12 +1,12 @@
 # 67 - UI Specification (construible)
 
-**Author:** UI/UX Design agent · **Date:** 2026-10-06 · **Status:** Draft **v3** — backend **cotejado** (`backend-capabilities.md`; §1.7 y §19 **CERRADAS**); views rellenas con `frontend-current-state`; `rfc-vs-code` aplicado; contrato de transición de views (§1.11); **§20 veredictos H-01…H-09**; **§22 plan FASE 10 + gates §22.3**. Fichas del Researcher **en curso** (9 con ficha; las 62 prioridad-A se cuentan cuando el Researcher recalcule `_pending-A.md`). **Sin bloqueos de backend.**
+**Author:** UI/UX Design agent · **Date:** 2026-10-06 · **Status:** Draft **v4** — backend **cotejado** (`backend-capabilities.md`; §1.7 y §19 **CERRADAS**); views rellenas con `frontend-current-state`; `rfc-vs-code` aplicado; contrato de transición de views (§1.11); **§20 veredictos H-01…H-09**; **§22 plan FASE 10 + gates §22.3**; **§23 backlog FASE 11+**. Fichas del Researcher: **132** en `ux-catalog/` (`count.mjs`: **62 [Os] / 55 [Os parcial] / 15 [P]**; 10 de categoría). **Sin bloqueos de backend.**
 **Depends on:** RFC 17 (UI base) · RFC 24 (HUD spec) · RFC 65 (HUD v2 implementación) · RFC 66 (UX Architecture & Design System) · `docs/design/PALETTE.md` (token system) · `docs/design/CONSENSUS_AUDIT.md` · `docs/coordination/PLAN-docs-hardening.md`.
 **Inputs consumidos (estado 2026-10-06):**
-- Researcher `Atlas OS/research/64 - UX reference catalog.md` → **ENTREGADO [O]**: recuento **exacto = 441** (RFC 62 decía "~425"; **no coincide con ningún "320+"**); `tiene_UI` si=376/no=38/parcial=27; **94 en categorías HUD-relevantes** (IDE 29 · terminal 21 · ADE 20 · observabilidad 18 · canvas 5 · kanban/PM 1). Fichas `ux-catalog/*.md` → **6 ENTREGADAS [O]** (`ade-orquestador`, `chat-workspace`, `ide`, `observabilidad`, `terminal`, `_pending-A`); **62 prioridad-A pendientes [P]** (`_pending-A.md §3`).
-- Builder `docs/audit/backend-capabilities.md` → **ENTREGADO [O]** (275 líneas): **41 rutas** (39 montadas + 2 feature-gated), **26 eventos** WS, **34 subcomandos CLI**, **61 tablas**, y **9/9 huecos H-01…H-09 contrastados con `fichero:línea`** ⇒ §1.7/§19/§20 **cerrados** (era `[P]`).
-- Fichas `ux-catalog/` → **ampliadas [O]**: además de las 5 de categoría, **`outline.md`, `settings.md`, `kanban-pm.md`, `canvas.md`** (citadas en §1.12); **62 prioridad-A siguen [P]** (`_pending-A.md`).
-- Builder-2 `docs/audit/frontend-current-state.md` → **ENTREGADO [O]** (276 líneas): `+page.svelte` **1237 líneas**; **24 componentes**; **531 literales de color / 30 hex únicos / `src/app.css` ausente / sin selector dark-light**; **13 views** (`views.ts`); hotkeys **3 operativos / 7 en conflicto / 8 ausentes**; tabla de estados carga/vacío/error por view.
+- Researcher `Atlas OS/research/64 - UX reference catalog.md` → **ENTREGADO [O]**: recuento **exacto = 441** (RFC 62 decía "~425"; **no coincide con ningún "320+"**); `tiene_UI` si=376/no=38/parcial=27; **94 en categorías HUD-relevantes** (IDE 29 · terminal 21 · ADE 20 · observabilidad 18 · canvas 5 · kanban/PM 1). Fichas `ux-catalog/*.md` → **132 [O]** (`count.mjs`: **62 [Os] / 55 [Os parcial] / 15 [P]**; **10 ficheros de categoría** + `_pending-A`/`_funcion-x-referente`).
+- Builder `docs/audit/backend-capabilities.md` → **ENTREGADO [O]** (276 líneas): **41 rutas** (39 montadas + 2 feature-gated), **26 eventos** WS, **34 subcomandos CLI**, **61 tablas**, y **9/9 huecos H-01…H-09 contrastados con `fichero:línea`** ⇒ §1.7/§19/§20 **cerrados** (era `[P]`).
+- Fichas `ux-catalog/` → **132 [O]** (`count.mjs`: **62 [Os] / 55 [Os parcial] / 15 [P]**): **10 ficheros de categoría**, incl. `outline`/`settings`/`kanban-pm`/`canvas` (citadas en §1.12); `_pending-A.md` se recalcula con `count.mjs`.
+- Builder-2 `docs/audit/frontend-current-state.md` → **ENTREGADO [O]** (277 líneas): `+page.svelte` **1237 líneas**; **24 componentes**; **531 literales de color / 30 hex únicos / `src/app.css` ausente / sin selector dark-light**; **13 views** (`views.ts`); hotkeys **3 operativos / 7 en conflicto / 8 ausentes**; tabla de estados carga/vacío/error por view.
 - Builder-3 `docs/audit/rfc-vs-code.md` → **ENTREGADO [O]** (10 discrepancias + 3 de drift). Afectan a UI: **#2 MCP hot-swap NO implementado** · **#3 `WorktreesView` sin grafo (tabla)** · **#7 MCP write+probe SÍ existen** · **#9 hay 13 views, no 8**.
 - **Regla de cierre:** las secciones que dependen de Builder (endpoints/payloads) NO se cierran hasta leer `backend-capabilities.md`.
 
@@ -247,7 +247,7 @@ Resumen [O/I fcs §(f)]: **21/24 con error, 12/24 con loading, 21/24 con vacío*
 ## 2. Mission Rail (navegación raíz)
 
 - **Propósito [R]:** el eje raíz es la **Mission**, no los ficheros (RFC 66 §3/§4). Lista las misiones con su **rollup de estado** y acceso a nuevas.
-- **Decisión de diseño:** rail fijo izquierdo + rollup del estado hijo más severo. — Cita Researcher: `research/ux-catalog/herdr.md` (rollup pane→tab→workspace), `orca.md` (worktree por agente) **[cita ficha Researcher → §1.12]**.
+- **Decisión de diseño:** rail fijo izquierdo + rollup del estado hijo más severo. — Cita Researcher: `docs/design/CONSENSUS_AUDIT.md` §2.1 (Herdr: rollup pane→tab→workspace), §2.2 (Orca: worktree por agente) **[Herdr/Orca no tienen ficha en `ux-catalog/` → §1.12]**.
 - **Datos:** `GET /tail/missions` **[O]** en bootstrap + WS `mission_consolidated`, `mission_locked`, `plan_generated`, `agent_status_changed` (para rollup) **[O]**. Orden por **frecency = HUECO H-01 REAL** [O backend §Cierre: `dir_access`@schema.rs:1502 + `Journal::frecency`@journal/mod.rs:375 existen **para directorios**, sin ruta HUD (`grep frecency src-tauri/src/hud` → 0)]. **UI v1:** orden estable por última actividad; frecency = v2.
 - **Componentes + jerarquía:** `MissionRail` → `NewMissionButton` · `MissionListItem` (spine de color + nombre + `RollupBadge` + contador) · `FilterChips` (status/model/cost/skill — RFC 24 §1) · `ProfileSwitcher` (TopBar).
 - **Estados:**
@@ -272,7 +272,7 @@ Resumen [O/I fcs §(f)]: **21/24 con error, 12/24 con loading, 21/24 con vacío*
 ## 3. Activity Spine (ticker vivo)
 
 - **Propósito [R]:** ver QUÉ está pasando en orden cronológico, escaneable de un vistazo (RFC 24 §11).
-- **Decisión de diseño:** columna derecha (no panel inferior) + color por clase de evento + **sync con Canvas** (OA parcial) — Cita Researcher: `n8n.md` (log anclado + sync selección), `herdr.md` (ticker de estado) **[cita ficha Researcher → §1.12]**.
+- **Decisión de diseño:** columna derecha (no panel inferior) + color por clase de evento + **sync con Canvas** (OA parcial) — Cita Researcher: `n8n.md` (log anclado + sync selección), `docs/design/CONSENSUS_AUDIT.md` §2.1 (Herdr: ticker de estado) **[cita ficha Researcher → §1.12]**.
 - **Datos:** WS `/ws` (todos los eventos) **[O]**; backfill `GET /hud/journal` (paginado) **[O]**; `GET /tail/journal` (últimos N) **[O]**.
 - **Componentes + jerarquía:** `ActivitySpine` → header (`live` dot + `⇄ canvas` toggle) · `EventRow` (icono + actor + texto humano + `ts`) · `LoadMore`.
 - **Clases de color (RFC 24 §11 [O]):** info=muted, success/code-merged=ok, approval/waiting=warn, cost/degradation=warn, doom/goal-drift/error=err, research/learning=violet, steer=info.
@@ -298,7 +298,7 @@ Resumen [O/I fcs §(f)]: **21/24 con error, 12/24 con loading, 21/24 con vacío*
 ## 4. Agent Card (ciudadano de primera clase)
 
 - **Propósito [R]:** representar un run de agente con 15+ campos, en capas de disclosure, con acciones por estado (RFC 24 §3.1).
-- **Decisión de diseño:** disclosure en capas **0–3** (0 = colapso al completar, "Worked for Nm"); spine de estado; barra de acciones gated por estado. — Cita Researcher: `zed.md` (colapso de turno al completar), `orca.md` (estado de worker de 1ª clase), `herdr.md` (estados) **[cita ficha Researcher → §1.12]**.
+- **Decisión de diseño:** disclosure en capas **0–3** (0 = colapso al completar, "Worked for Nm"); spine de estado; barra de acciones gated por estado. — Cita Researcher: `zed.md` (colapso de turno al completar), `docs/design/CONSENSUS_AUDIT.md` §2.3 (Orca: estado de worker de 1ª clase; Herdr: 5 estados) **[cita ficha Researcher → §1.12]**.
 - **Datos:** WS `agent_status_changed, agent_diff, agent_tokens, agent_step, agent_heartbeat, doom_loop_detected, goal_drift_detected, model_swapped, step_phase_changed` **[O]**; `GET /tail/agent_steps` **[O]**; drill-down `GET /payload/:kind/:id`, `GET /hud/journal` **[O]**. Worktree/branch → `GET /hud/worktrees` **[O]**.
 - **Campos (RFC 24 §3.1 [O]):** id/role/model · mission_ref · status · confidence+judgment · files_touched+diff · plan link · evidence links · tokens in/out/cost · tool_calls · skill activa · execution mode · modo_uso · elapsed/eta · last_heartbeat · worktree/branch/dirty · doom_loop_count/goal_drift · checkpoint_id · demo (preview/screenshot).
 - **Componentes + jerarquía:** `AgentCard` → `StatusSpine` + `Header` (role·model·time) + `MissionRef` + `StatLine` + `Layer2 (grid)` + `ConfidenceMeter` + `Tags (skill·mode·uso)` + `Layer0 (turn-collapse)` + `Actions`.
@@ -318,7 +318,7 @@ Resumen [O/I fcs §(f)]: **21/24 con error, 12/24 con loading, 21/24 con vacío*
 ## 5. Approvals Dock (HITL)
 
 - **Propósito [R]:** resolver acciones sensibles sin mezclar niveles (RFC 24 §5, RFC 66 §7).
-- **Decisión de diseño (OA-66-07=(b)):** **dos canales** — *gate* bloqueante vs *pregunta* async [R]. — Cita Researcher: `orca.md` (decision gate vs `ask`) **[cita ficha Researcher → §1.12]**.
+- **Decisión de diseño (OA-66-07=(b)):** **dos canales** — *gate* bloqueante vs *pregunta* async [R]. — Cita Researcher: `docs/design/CONSENSUS_AUDIT.md` §2.4 (Orca: decision gate vs `ask`) **[cita ficha Researcher → §1.12]**.
 - **Datos:** WS `approval_request` / `approval_decision` **[O]**; `POST /hud/approvals/:id/approve` y `/deny` **[O]**. **Batch/scope/pauserule = HUECO H-02 REAL** [O backend §(0.3): solo approve/deny individuales; `reason` se descarta].
 - **Componentes:** `ApprovalsDock` → `GateChannel` (bloqueante) · `QuestionChannel` (async) · `ApprovalRow` (actor + acción + `pattern` + `scope`) · `BatchBar` · `ActionButtons` (`Apr/Deny/Steer/Fork` **[O bus.rs ApprovalDecisionKind]**).
 - **Estados:** *Carga* (skeleton fila) · *Vacío* ("sin aprobaciones") · *Error* (POST falla → fila vuelve + toast err) · *Parcial* (batch con conflictos de fichero → deshabilita "Approve all" + explicar) · *Desconectado* (dock congelado + banner) · *Unknown* (acción no clasificable → requiere decisión humana explícita).
@@ -337,7 +337,7 @@ Resumen [O/I fcs §(f)]: **21/24 con error, 12/24 con loading, 21/24 con vacío*
 ## 6. Command Palette
 
 - **Propósito [R]:** acceso rápido por teclado a acciones y misiones (RFC 24 §19).
-- **Decisión de diseño:** prefijo `:` + fuzzy; **extiende** a acciones de agente; convención declarada como **TUI-style** (no IDE-style) [R]. — Cita Researcher: `vscode.md` (palette con modos), `herdr.md` (prefix/navigate) **[cita ficha Researcher → §1.12]**.
+- **Decisión de diseño:** prefijo `:` + fuzzy; **extiende** a acciones de agente; convención declarada como **TUI-style** (no IDE-style) [R]. — Cita Researcher: `vscode.md` (palette con modos), `docs/design/CONSENSUS_AUDIT.md` §2.8 (Herdr: prefix/navigate) **[cita ficha Researcher → §1.12]**.
 - **Datos:** acciones = **REST reales** (`POST /hud/approvals/:id/{approve,deny}`, `POST /hud/skills/:id/activate`, `POST /hud/mcp/probe`) + navegación de views **[O]**; misiones `GET /tail/missions` **[O]**. **`KernelCommand` NO es contrato (dead code).**
 - **Componentes:** `CommandPalette` → `Input` (con prefijo `:`/`>`/`#`) · `ResultList` (fuzzy) · `ShortcutHint`.
 - **Estados:** *Carga* (—; local) · *Vacío* ("sin resultados para 'x'") · *Error* (comando rechazado → toast) · *Parcial* (entidades no cargadas aún) · *Desconectado* (comandos que requieren backend deshabilitados con razón) · *Unknown* (—).
@@ -419,7 +419,7 @@ Resumen [O/I fcs §(f)]: **21/24 con error, 12/24 con loading, 21/24 con vacío*
 ## 11. Cost & Res (view `cost`)
 
 - **Propósito [R]:** ¿cuánto cuesta y qué recursos gasta? (RFC 24 §6).
-- **Decisión:** coste por agente/misión + VRAM/RAM/throughput + budget; alertas 80%/100%. — Cita Researcher: `hermes.md` (cost/token en status bar), `grafana.md` (dashboards + alerting ligado a panel) **[cita ficha Researcher → §1.12]**.
+- **Decisión:** coste por agente/misión + VRAM/RAM/throughput + budget; alertas 80%/100%. — Cita Researcher: `docs/design/CONSENSUS_AUDIT.md` §1.3 (Hermes [I]: cost/token en status bar), `grafana.md` (dashboards + alerting ligado a panel) **[cita ficha Researcher → §1.12]**.
 - **Datos:** `GET /hud/cost` **[O]**; WS `agent_tokens, cost_threshold_crossed, hardware_snapshot, spend_limit_observed` **[O]**. Budget restante (RFC 19) → en `/hud/cost`? **[P verificar Builder]**.
 - **Componentes:** `CostDashboard` → `CostSparkline` · `ModelBreakdown` · `VramGauge` · `RamGauge` · `ThroughputChart` · `BudgetBar` · `CostAlert`.
 - **Estados:** *Carga* (gauges skeleton) · *Vacío* ("sin uso registrado") · *Error* · *Parcial* (hardware sensor ausente → "n/d") · *Desconectado* · *Unknown* (modelo sin precio → "?" + nota).
@@ -435,7 +435,7 @@ Resumen [O/I fcs §(f)]: **21/24 con error, 12/24 con loading, 21/24 con vacío*
 ## 12. Health KPIs (view `health`)
 
 - **Propósito [R]:** ¿están sanos los subagentes? (RFC 24 §7).
-- **Decisión:** KPIs en una banda + checker status del Validation Engine. — Cita Researcher: `hermes.md` (health WS), `grafana.md` (paneles de estado) **[cita ficha Researcher → §1.12]**.
+- **Decisión:** KPIs en una banda + checker status del Validation Engine. — Cita Researcher: `docs/design/CONSENSUS_AUDIT.md` §1.3 (Hermes [I]: health WS), `grafana.md` (paneles de estado) **[cita ficha Researcher → §1.12]**.
 - **Datos:** `GET /hud/health` **[O]**; `GET /hud/reliability` **[O]**; `GET /hud/availability` **[O]**; `GET /hud/eval/summary` **[O]**; WS `agent_heartbeat, agent_status_changed` **[O]**.
 - **Componentes:** `HealthKPIs` → `AgentHealthRollup` (healthy/degraded/doom) · `AvgConfidence` · `Heartbeat` · `QueueDepth` · `CheckerStatus` (LSP/tsc/vitest/biome) · `JournalWritesPerS` · `HudLatency` · `AvailabilityCard` · `EvalCard`.
 - **Estados:** *Carga* · *Vacío* (no agents) · *Error* · *Parcial* (eval/reliability no disponibles) · *Desconectado* (heartbeat "hace Ns") · *Unknown* (agente sin heartbeat ≥10s → **degraded**, ≥30s → revive (RFC 24 §7 [O])).
@@ -467,7 +467,7 @@ Resumen [O/I fcs §(f)]: **21/24 con error, 12/24 con loading, 21/24 con vacío*
 ## 14. Worktrees (view `worktrees`)
 
 - **Propósito [R]:** ¿en qué branch está cada subagente? (mini-git-graph, RFC 24 §12).
-- **Decisión:** árbol por misión con worktrees como nodos; dirty → color. — Cita Researcher: `orca.md` (worktree por agente), `vibekanban.md` (1 worktree/agente) **[cita ficha Researcher → §1.12]**.
+- **Decisión:** árbol por misión con worktrees como nodos; dirty → color. — Cita Researcher: `docs/design/CONSENSUS_AUDIT.md` §2.2 (Orca: worktree por agente), `vibekanban.md` (1 worktree/agente) **[cita ficha Researcher → §1.12]**.
 - **Datos:** `GET /hud/worktrees` **[O]**; WS `worktree_dirty` **[O]**.
 - **Componentes:** `WorktreesView` → `MissionGraph` (main + ramas) · `WorktreeNode` (path/branch/dirty) · `Actions` (Close/Merge/Compare).
 - **Estados:** *Carga* · *Vacío* ("sin worktrees") · *Error* · *Parcial* (worktree sin branch detectado) · *Desconectado* · *Unknown* (dirty no determinable → "?").
@@ -499,7 +499,7 @@ Resumen [O/I fcs §(f)]: **21/24 con error, 12/24 con loading, 21/24 con vacío*
 ## 16. MCP + Skills
 
 - **Propósito [R]:** catálogo MCP con política (sandbox/supply) + allowlist editable + probe; activación de skills (RFC 24 §8).
-- **Decisión:** editor de allowlist **en sitio**; activación de skill por drop/click; MCP read + probe. — Cita Researcher: `herdr.md`/`hermes.md` (skills/MCP en caliente) **[cita ficha Researcher → §1.12]**.
+- **Decisión:** editor de allowlist **en sitio**; activación de skill por drop/click; MCP read + probe. — Cita Researcher: `docs/design/CONSENSUS_AUDIT.md` §2.1/§1.3 (Herdr; Hermes [I]) **[Herdr/Hermes no tienen ficha en `ux-catalog/` → §1.12]**.
 - **Datos:** `GET /hud/mcp` **[O]**, `POST /hud/mcp/allowlist` **[O]**, `POST /hud/mcp/probe` **[O]**; `POST /hud/skills/:id/activate` **[O server.rs:133]**. WS `skill_activated` **[O]**. (RFC 65 §10.13: `allowed_tools`, `sandbox`, `supply`.)
 - **Componentes:** `McpView` → `McpServerRow` (allowed_tools + sandbox + supply verdict) · `AllowlistEditor` · `ProbeButton` · `SkillMcpRail` (catálogo + activas, drag-drop).
 - **Estados:** *Carga* · *Vacío* ("sin servidores MCP") · *Error* (registro ausente/malformado → `ok:false`+reason **[O]**) · *Parcial* (probe sin conexión) · *Desconectado* · *Unknown* (supply no determinable).
@@ -574,7 +574,7 @@ Script: OKLCH→sRGB + **APCA-W3 0.0.98G** + **Machado 2009** (severity 1.0) sob
 | Builder-2 | `docs/audit/frontend-current-state.md` | **[O entregado]** | ✅ §1.2, §1.5, §1.10 (f)/(g), §1.11, §1.13 |
 | Builder-3 | `docs/audit/rfc-vs-code.md` | **[O entregado]** | ✅ #2 (MCP hot-swap), #3 (Worktrees grafo), #7 (MCP write+probe), #9 (13 views) |
 | Researcher | `Atlas OS/research/64 - UX reference catalog.md` | **[O entregado]** | ✅ recuento **441 / 94** HUD-relevantes |
-| Researcher | `Atlas OS/research/ux-catalog/*.md` | **[O parcial]** | ✅ §1.12 ahora cita **9 fichas** (5 categoría + `outline`/`settings`/`kanban-pm`/`canvas`); **[P] = 62 prioridad-A** |
+| Researcher | `Atlas OS/research/ux-catalog/*.md` | **[O]** | ✅ §1.12 cita fichas reales; `ux-catalog` = **132** (`count.mjs`: **62 [Os] / 55 [Os parcial] / 15 [P]**; 10 de categoría) |
 
 **Correcciones de contrato que el cotejo obligó [O backend]:** (a) **`KernelCommand` = dead code** ⇒ la UI usa **REST**, no comandos kernel; (b) **WS solo-bajada** (cliente→servidor ignorado, ws.rs:33-47) ⇒ acciones por REST; (c) `/hud/approvals` **descarta `reason`** (approvals.rs:64); (d) **ninguna ruta autentica por defecto** (loopback + CORS permissive) ⇒ aviso si `atlas serve --host` (RFC 18); (e) `/graph` y `/atlas-calendar.ics` **feature-gated**.
 
@@ -596,7 +596,7 @@ Script: OKLCH→sRGB + **APCA-W3 0.0.98G** + **Machado 2009** (severity 1.0) sob
 | **H-08** | terminal snapshot | REAL (parcial): `Sandbox::snapshot` existe (f31e6dd) **sin ruta HUD** | Agent Card: `👁 Reason` usa `agent_steps.observation` (v1); snapshot = **v2** | **FASE 11** · puentear `Sandbox::snapshot` → `GET /hud/agent/:run_id/snapshot` |
 | **H-09** | **nueva misión por REST** | REAL: **no hay ruta POST de misiones**; `KernelCommand::NewMissionFromPrompt` es dead code (`core/bus.rs:250`, sin consumidor) | `+ New` ejecuta por **CLI/IPC** (v1) | **FASE 10** · `POST /hud/missions` (`hud/missions.rs`) |
 
-**B. Bloqueados por fichas del Researcher:** **ninguno crítico** — Outline y Settings **ya tienen ficha** (§1.12) ⇒ cerrado. Quedan **62 prioridad-A [P]** (`_pending-A.md`) que no bloquean componentes construibles.
+**B. Bloqueados por fichas del Researcher:** **ninguno** — `ux-catalog/` = **132** fichas (`count.mjs`: **62 [Os] / 55 [Os parcial] / 15 [P]**); `_pending-A.md` se recalcula con `count.mjs`. No bloquean componentes construibles.
 
 **C. Cerrados/corregidos:** MCP hot-swap→v2 (#2); Worktrees grafo→v2 (#3); "8 views"→**13** (§1.11); "dark/light ya existe"→**falso** (§1.2); hotkeys de view→colisión, se retiran (§1.5); `KernelCommand`→dead code (§1.7).
 
@@ -604,6 +604,7 @@ Script: OKLCH→sRGB + **APCA-W3 0.0.98G** + **Machado 2009** (severity 1.0) sob
 
 ## 21. Changelog
 
+- **2026-10-06 v4:** ronda C9/C10/C11. **C9:** recuento de fichas unificado a **132** (`count.mjs`: **62 [Os] / 55 [Os parcial] / 15 [P]**; 10 de categoría) — coherente en Status + §1.2/§19/§20 (eliminadas las cifras contradictorias "6 ENTREGADAS" / "9 con ficha" / "62 prioridad-A"). **C10:** citas `herdr.md`/`orca.md` (y `hermes.md`) sustituidas por **`docs/design/CONSENSUS_AUDIT.md`** (§1.3/§2.x) — no existen en `ux-catalog/` (9 líneas: §2/§3/§4/§5/§6/§7/§8). **C11:** tamaños de audit corregidos a **276** (backend) y **277** (frontend). Nuevo **§23 Backlog FASE 11+** (4 funciones NO-DOCUMENTADAS de `_funcion-x-referente.md`).
 - **2026-10-06 v3.1:** 5ª pasada (correcciones del PL). **Status** de cabecera alineado con §19 (backend cotejado; fichas Researcher **en curso**). §20: huecos **H-01…H-09 (9/9)**; **H-09** como fila con UI v1 + fase. §22.2 **dividido en FASE 10 (B1/B2/B5/B7) y FASE 11 (B3/B4/B6/B8)** por decisión del PL; "Fuera de FASE 10" reducido a v2 real. **§22.3 gates de cierre**.
 - **2026-10-06 v3:** 4ª pasada, **sin bloqueos de backend**. §1.7 **cotejado 1:1** contra `backend-capabilities.md` (41 rutas + handler + payload + test; 26 eventos con payload; `KernelCommand`=dead code). §19 **CERRADA**. §20 con **veredictos H-01…H-09** + resolución UI v1 + cambio de backend exigido. §1.12 cita `outline/settings/kanban-pm/canvas`. Scope corregido a **13 views**. §22 Plan FASE 10. Corregidas 5 referencias a `KernelCommand` en §2/§4/§5/§6.
 - **2026-10-06 v2:** encabezado veraz; §1.10 baseline (fcs); §1.11 transición de las 13 views; §1.12 citas; §1.13 v1/v2; §1.5 hotkeys; ajustes `rfc-vs-code` #2/#3/#7/#9.
@@ -665,6 +666,23 @@ Script: OKLCH→sRGB + **APCA-W3 0.0.98G** + **Machado 2009** (severity 1.0) sob
 | **G8** | `rg "KernelCommand" src/lib` | **0** (la UI no se cablea al dead code) |
 
 **FASE 10 se considera cerrada cuando G1–G8 pasan.** FASE 11 (B3/B4/B6/B8) **no** se inicia hasta entonces.
+
+---
+
+## 23. Backlog FASE 11+ — funciones NO-DOCUMENTADAS detectadas por `_funcion-x-referente.md`
+
+> `_funcion-x-referente.md` (Researcher, pasada 4) detectó **4 funciones** presentes en **≥3 referentes** que **no constan en RFC 24/65/66/67**. **DECISIÓN DEL PROJECT LEAD: no entran en FASE 10.** Se registran aquí para **FASE 11+**; ninguna bloquea FASE 10 ni la UI v1 (§20 degrada como se describe).
+
+| # | Función (NO-DOCUMENTADA) | Referentes con evidencia | Ficha | Lote propuesto | Hueco backend probable |
+|---|---|---|---|---|---|
+| **B-23-1** | **Sesiones que sobreviven reinicios/desconexiones** con *scrollback* + **reattach/resume** | Cate [Os]; tlbx [Os]; GridBash [Os]; CliDeck [Os] | `ade-orquestador.md` | **F11+** — `PtySessionManager` + replay | Persistencia/rehidratación de sesión PTY + **replay de scrollback por WS** al reattach; RFC 19 cubre *checkpoints de misión*, no la UX de reattach |
+| **B-23-2** | **Panel `running/waiting/finished` por agente + aviso/ping cuando requiere respuesta** | Cate [Os]; GridBash [Os]; Herdr [Link→`CONSENSUS_AUDIT` §2.1] | `ade-orquestador.md` | **F11+** — `PanelStatusBadge` + ping | **Notificación/push por panel** (HITL por agente); RFC 24 §16 solo cubre push global |
+| **B-23-3** | **Manifiesto único de agente** (modelos/persona/tools/permisos) **editable en UI** | Jazz [Os]; Smelt [Os]; OpenCastle [Os] | `ade-orquestador.md` | **F11+** — `AgentManifestEditor` | Endpoint **CRUD de un manifiesto de agente** persistido + validación; RFC 06/07 definen skills/MCP, no un manifiesto único por UI |
+| **B-23-4** | **Grid de PTYs multi-pane por agente** (layout físico de terminales) | GridBash [Os]; Cate [Os]; agent-manager/hcom [Os] | `ade-orquestador.md` | **F11+** — `PtyGrid` | **Multiplexado de PTYs** (PTY host + layout server-side); RFC 24 §12 cubre worktrees, no la grid |
+
+**Relacionado (parcial, no es hueco nuevo):** *ack/aprobación en el canal del humano* y *notificaciones* están **parcialmente** cubiertos por **RFC 24 §16** (`_funcion-x-referente.md`).
+
+**Dependencia:** las 4 exigen **backend nuevo** (lote propio en FASE 11+); se priorizan tras validar FASE 10 (§22.3).
 
 
 
