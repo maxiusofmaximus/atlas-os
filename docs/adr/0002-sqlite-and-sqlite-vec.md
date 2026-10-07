@@ -59,12 +59,12 @@ switches to versioned migrations per RFC 24 §10).
 Medido en Windows, `rustc 1.96.0 (ac68faa20 2026-05-25)`, `ort-sys 2.0.0-rc.9`
 (vía `fastembed = "4"`):
 
-| Comando | Resultado |
-|---|---|
-| `cargo check --features fastembed` | ✅ exit 0 — el ICE es de **codegen**, no de *check* |
-| `cargo check --all-features` | ✅ exit 0 |
-| `cargo build --bin atlas --features fastembed` | ❌ **ICE** — `thread 'rustc' panicked … could not compile ort-sys` |
-| `cargo build --bin atlas --features dag_mode,codebase-graph` | ✅ exit 0 |
+| Comando                                                      | Resultado                                                          |
+| ------------------------------------------------------------ | ------------------------------------------------------------------ |
+| `cargo check --features fastembed`                           | ✅ exit 0 — el ICE es de **codegen**, no de _check_                |
+| `cargo check --all-features`                                 | ✅ exit 0                                                          |
+| `cargo build --bin atlas --features fastembed`               | ❌ **ICE** — `thread 'rustc' panicked … could not compile ort-sys` |
+| `cargo build --bin atlas --features dag_mode,codebase-graph` | ✅ exit 0                                                          |
 
 **Conclusión:** `fastembed` **sigue bloqueado** para el build por defecto en
 Windows/rustc 1.96 (el ICE de `ort-sys` es real y sólo aparece al generar código;

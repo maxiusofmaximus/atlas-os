@@ -1,7 +1,7 @@
 # RFC 63 — Agentic Capability Engine (Fase 27)
 
 **Author:** opencode architect agent · **Date:** 2026-10-04
-**Status:** In progress — **12/13 completados**; 1 ítem (el **gate de capacidad 9/13**, model-bound) bloqueado por capacidad del modelo. Ver §12.
+**Status:** In progress — **11/13 completados**; 2 ítems `[~]` (item 9 gate ≥0.10 e item 13 gate ≥0.50), ambos bloqueados por capacidad del modelo. Ver §12.
 **Depends on:** RFC 03 (Engines), RFC 04 (Orchestrator), RFC 05 (Swarm), RFC 13 (Coding), RFC 14 (Validation), RFC 15 (Repair), RFC 18 (Security), RFC 19 (Supervisor), RFC 25 (Stack), RFC 28 §I (terminal-browser), `research/61` (audit), `research/62` (genealogy).
 **Scope:** Cierra la **brecha #1** de la auditoría `61` — la capacidad agéntica end-to-end (Terminal-Bench 2 = **0.000**, F38 agent-mode **0/11**). Añade una **Capa de Capacidad** (tool registry + sandbox de ejecución + verificación de artefactos + instrumentación de tokens/coste) y endurece el bucle agéntico hasta un success-predicate con evidencia. Sin crates obligatorias nuevas; sandbox local por defecto, backends laterales (WSL2/Daytona/E2B) opcionales.
 
@@ -52,7 +52,7 @@ AgentLoop (supervisor FSM)
    │  decide acción
    ▼
 ToolRegistry ──► Tool { name, schema, execute(ctx) -> ToolResult }
-   │   ├── fs.read/write/edit/list/glob/grep
+   │   ├── fs.read/write/edit/list
    │   ├── exec.run(command, timeout, cwd)   ──► Sandbox
    │   ├── code.apply_diff (coding/apply)
    │   ├── web.fetch (RFC 28 §E firecrawl / webfetch) · web.search
@@ -158,7 +158,7 @@ atlas bench terminal-bench --agent atlas --limit 20   # harness de capacidad
 ## 12. Checklist
 
 1. [x] `Tool` trait + `ToolRegistry` (`orchestrator/tools/`): `registry.rs`, `mod.rs`.
-2. [x] Tools `fs.*` (`orchestrator/tools/fs.rs`: read/write/edit/list/glob/grep).
+2. [x] Tools `fs.*` (`orchestrator/tools/fs.rs`: read/write/edit/list).
 3. [x] Tool `exec.run` + trait `Sandbox` + backend `Local` (`orchestrator/sandbox/{mod,local}.rs`).
 4. [x] Backends laterales `Daytona`/`E2B` (`orchestrator/sandbox/{bridge,daytona,e2b}.rs`): bridge CLI genérico con template `{cwd}`/`{cmd}` (env-overridable `ATLAS_{DAYTONA,E2B}_BIN/_TEMPLATE`); `resolve_sandbox` cae a `Local` si el CLI no está (RFC 25 §11, no bundling).
 5. [x] `code.apply_diff` + `web.fetch`/`web.search` + `browse.*` (`tools/code.rs`, `tools/web.rs`, `tools/browse.rs`; RFC 28 §I lateral).

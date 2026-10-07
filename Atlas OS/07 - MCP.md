@@ -123,7 +123,7 @@ Módulo `src-tauri/src/mcp/`:
 CLI: `atlas mcp list | add | remove | probe | call` (reemplaza el stub).
 
 **Verificación (medida):**
-- 35 tests unitarios (`mcp::`) con transporte en memoria + timeout + allowlist; `cargo clippy --all-targets -- -D warnings` limpio.
+- 50 tests unitarios (`mcp::`) con transporte en memoria + timeout + allowlist; `cargo clippy --all-targets -- -D warnings` limpio.
 - **End-to-end en vivo**: `atlas mcp probe context7` hizo spawn real de `pnpm dlx @upstash/context7-mcp@3.2.4`, handshake y `tools/list` (2 tools); `atlas mcp call context7 resolve-library-id --args '{"libraryName":"react","query":"hooks"}'` devolvió datos reales de Context7. La allowlist rechazó `query-docs` (no listada) sin tocar la red.
 
 **Fase 29.1 (parcial) — política de sandbox (§2):** `McpServerConfig::effective_sandbox()` aplica la política §2 (sin firma → `container`; firma conocida → suelo `vuOnly`; nunca degrada una declaración más fuerte) y `sandbox_finding()` la hace visible. `atlas mcp list` muestra política + violación (`[none→container]` y una línea `! …`); `atlas mcp add` avisa al declarar; `atlas mcp probe|call` **avisa por defecto** y **rechaza con `--strict`** (fail-safe, RFC 18) cuando la isolation exigida no es aplicable todavía.

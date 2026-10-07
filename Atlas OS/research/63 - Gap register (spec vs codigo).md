@@ -8,7 +8,7 @@
 >
 > **Reconciliado contra código (2026-10-05):** A2 (claves/llavero), A4 (user modeling) y A5 (skills empaquetadas) están **implementados**; A3 (multicanal) **sigue ausente**. Verificado por búsqueda directa en `src-tauri/src`.
 >
-> **Reconciliado (2026-10-06):** RFC 07 §10 cerrado salvo infra externa — puente `ToolRegistry` (`mcp/bridge.rs`, **sin cambiar el trait `Tool`**), latencia §8 (`ToolResult.duration_ms`), rotación §9, vista HUD MCP + editor de allowlist (RFC 65 §10). M23 `eval_runs` ya **completada** (Phase 22). Vistas HUD 11→13, tests 1359→1383.
+> **Reconciliado (2026-10-06):** RFC 07 §10 cerrado salvo infra externa — puente `ToolRegistry` (`mcp/bridge.rs`, **sin cambiar el trait `Tool`**), latencia §8 (`ToolResult.duration_ms`), rotación §9, vista HUD MCP + editor de allowlist (RFC 65 §10). M23 `eval_runs` ya **completada** (Phase 22). Vistas HUD 11→13, tests 1359→1392.
 
 ---
 
@@ -16,11 +16,12 @@
 
 | Métrica | Valor |
 |---|---|
-| Módulos Rust (`src-tauri/src/*`) | **32** |
-| Subcomandos CLI (`atlas <cmd>`) | **32** |
+| Módulos Rust (`src-tauri/src/*`) | **36** |
+| Subcomandos CLI (`atlas <cmd>`) | **34** |
 | Features Cargo | **22** (5 en el build default; 17 opt-in) |
 | Vistas HUD | **13** (`overview, agent, kanban, approvals, cost, health, audit, canvas, outline, timeline, worktrees, settings, mcp`) |
-| Tests Rust (`cargo test --lib`) | **1383 ok** |
+| Tests Rust (`cargo test --lib`) | **1392 ok** |
+| Tests frontend (vitest) | **116 ok** |
 | Checklists de RFC | **casi todos ✅**; solo RFC 63 tiene 2 parciales (por modelo) |
 
 Esto confirma la tesis del registro: **los checklists verdes ≠ entorno usable.** Abajo están los huecos que los checklists NO capturan.
@@ -37,7 +38,7 @@ Esto confirma la tesis del registro: **los checklists verdes ≠ entorno usable.
 | **A4** | ~~Sin user modeling~~ ✅ **Implementado** | `journal/user_profile.rs` (`user_profile` table + `knowledge_state.gaps_identified`) consumido por `prompt/steps/detect.rs::apply_user_profile` (RFC 23) | ✅ Hecho | — |
 | **A5** | ~~Bundled skills catalog ausente~~ ✅ **Implementado** | `skills/bundled.rs` compila **16** skills vía `include_str!` (`bundled-skills`, default on) | ✅ Hecho | — |
 
-**Nota:** la brecha "HUD = panel de debug" de `research/61 §5.B` **ya está cerrada** por RFC 65 (11 vistas + approvals + agent cards).
+**Nota:** la brecha "HUD = panel de debug" de `research/61 §5.B` **ya está cerrada** por RFC 65 (13 vistas + approvals + agent cards).
 La brecha "runtime muere con el desktop" (`§5.C`) **ya está cerrada** por `atlas serve` (RFC 29 §3.A).
 
 ---
@@ -78,20 +79,18 @@ Build default = `tauri, hud, lsp, cli, bundled-skills`. Estas **no están** salv
 
 ## D. Lo que SÍ existe (para no ser alarmista)
 
-Motores (32 módulos): orchestrator completo (routing/cascade/MoA/cost/backpressure/affinity), supervisor (doom-loop/budget/checkpoints), coding loop (LLM→Diff→apply→verify→repair), validation (12 stages), swarm (worktrees/pool/mailbox/merge), MCP runtime, calendar, toast, domain packs, RFC 65 HUD (11 vistas), journal SQLite (58 tablas), CLI (32 subcomandos), `atlas serve` headless, seguridad (firmas + supply-chain + sandbox types).
+Motores (36 módulos): orchestrator completo (routing/cascade/MoA/cost/backpressure/affinity), supervisor (doom-loop/budget/checkpoints), coding loop (LLM→Diff→apply→verify→repair), validation (11 stages), swarm (worktrees/pool/mailbox/merge), MCP runtime, calendar, toast, domain packs, RFC 65 HUD (13 vistas), journal SQLite (58 tablas), CLI (34 subcomandos), `atlas serve` headless, seguridad (firmas + supply-chain + sandbox types).
 
 ---
 
 ## E. Plan para terminar (ordenado; sin re-loop)
 
 **Camino crítico (desbloquea "entorno de desarrollo usable"):**
-1. ✅ **A2 — Claves/secretos seguros** (keychain) + resolución de key con fallback env. **Implementado (2026-10).**
-2. **A1 — Correr el harness con un modelo real** y subir el baseline (RFC 63 §9 → §13). Requiere un endpoint OpenAI-compatible; la key ya se puede guardar con `atlas secrets set`, así que el bloqueo ahora es **elegir/levantar el modelo**, no Atlas.
-3. **B — Decidir el default build** (activar `fastembed` + `dag_mode`/`codebase-graph`, o dejarlo documentado).
+1. **A1 — Correr el harness con un modelo real** y subir el baseline (RFC 63 §9 → §13). Requiere un endpoint OpenAI-compatible; la key ya se puede guardar con `atlas secrets set`, así que el bloqueo ahora es **elegir/levantar el modelo**, no Atlas. (A2 — claves/llavero — ya ✅; F38 agent-mode corrido **0/11** en `0bf6b0e`.)
+2. **B — Decidir el default build** (activar `fastembed` + `dag_mode`/`codebase-graph`, o dejarlo documentado). ADR 0002: `fastembed` sigue ICEando → no puede ser default; `dag_mode`/`codebase-graph` son activables (+1.1 MB).
 
 **Ampliación de producto (resto):**
-4. **C — sub-fases diferidas**: RFC 07 (supply-chain MCP §3 + `ToolRegistry` bridge), RFC 28 §E items 9-10, RFC 65 diferidos (video/Playwright).
-5. **A3 — gateway multicanal** (requiere decisión de crates/tokens).
-6. **B — decidir el default build** (activar `fastembed`/`dag_mode`, o dejarlo documentado).
+3. **C — sub-fases diferidas**: RFC 07 (isolation real §2 + firma/checksum/Socket §3 + Learning Engine §8/§9; el puente `ToolRegistry` ya ✅), RFC 28 §E items 9-10, RFC 65 diferidos (video/Playwright).
+4. **A3 — gateway multicanal**: núcleo A3.0 ✅ + seam `Channel`/`Dispatcher` ✅; adaptador `teloxide` (feature `multi-channel`, default off) pendiente de decisión.
 
-> Regla anti-loop: no se abre un frente nuevo hasta cerrar el anterior. El frente #1 es **A2**.
+> Regla anti-loop: no se abre un frente nuevo hasta cerrar el anterior. El frente #1 es **A1** (modelo), no Atlas.

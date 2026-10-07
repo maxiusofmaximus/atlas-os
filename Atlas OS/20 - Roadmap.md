@@ -576,7 +576,7 @@ Estos items pasan a Roadmap v2 una vez v1 esté en uso productivo.
   `run_command` (timeout/kill) + `run_agent` genérico (mockeable). CLI `atlas agent <task>`.
   7 tests. **Verificado contra Groq (`gpt-oss-120b`)**: creó `greeting.txt`, vio que `cat`
   fallaba en Windows y se autocorrigió con `type`, verificó → `done`. **F39 CERRADA.**
-- **Siguiente:** re-correr Terminal-Bench con `--agent` (F38) para medir el delta vs 0.000.
+- **F38 hecho:** corrida agent-mode registrada **0/11** en `0bf6b0e` (agent-mode adapter; el gap restante es razonamiento de frontera).
 
 ## Out of scope v2
 - iOS (artemis no lo ha shippado), IDE multi-usuario, modelos propios, hardware dedicado, HTTP registry (v3).

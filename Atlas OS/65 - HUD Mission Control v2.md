@@ -12,14 +12,14 @@
 `src/routes/+page.svelte` renderiza hoy: health WS, audit export, `<AutoresearchCard>`, `<SwarmConsole>`, `<AvailabilityCard>`, `<EvalCard>`, journal tail, `<JournalObserver>` y 11 "tail boxes". Sirve para **operar**, no para **coordinar** un swarm (la promesa de RFC 24 §1: "ver el trabajo de los subagentes como Jira presenta tickets, Cursor demos, Hermes health y n8n un canvas").
 
 Faltan (vs RFC 24):
-- Las **8 views**: Kanban, Canvas, Outline, Timeline, Cost & Res, Health KPIs, Audit, Worktrees.
+- Las **13 views**: Kanban, Canvas, Outline, Timeline, Cost & Res, Health KPIs, Audit, Worktrees, Settings, MCP (+ Overview, Agent).
 - **Approvals queue** multi-dispositivo (batch/scope/pauserule).
 - **Agent card** de 15+ campos (steps, tool calls, evidencia, coste, modelo, worktree).
 - **Demos over diffs** (video/screenshot/preview URL), **skill/MCP drag-drop**, **mobile OIDC**.
 
 ## 2. Objetivos
 
-1. Entregar las **8 views** sobre los datos que ya emite el Kernel Bus + rutas HUD.
+1. Entregar las **13 views** sobre los datos que ya emite el Kernel Bus + rutas HUD.
 2. **Approvals queue** real (RFC 24 §6) con batch/scope/pauserule.
 3. **AgentCard** en vivo que consume `agent_steps`/`tool_invocations` (RFC 63).
 4. **Command palette** + hotkeys `:` (RFC 24 §tabla de atajos).
@@ -58,7 +58,7 @@ Reutiliza lo ya existente (`AutoresearchCard`, `AvailabilityCard`, `EvalCard`, `
 
 ## 6. Design system
 
-Tokens en `src/app.css` (`--bg`, `--panel`, `--text`, `--accent`, `--ok/--warn/--err`), dark/light (selector ya en `+page.svelte`). Tipografía/espaciado consistentes; sin dependencias UI nuevas (Svelte puro) salvo aprobación explícita.
+Tokens en `src/app.css` (`--bg`, `--panel`, `--text`, `--accent`, `--ok/--warn/--err`), dark/light **pendiente** (sin `src/app.css` ni selector de tema en `+page.svelte`; Builder-2 `docs/audit/frontend-current-state.md` §(e)). Tipografía/espaciado consistentes; sin dependencias UI nuevas (Svelte puro) salvo aprobación explícita.
 
 ## 7. Fasing (entrega incremental)
 
@@ -93,7 +93,7 @@ Cada fase es un `ViewSwitcher` que enciende una view sin romper las demás.
 7. [x] `HealthKPIs.svelte` + `AuditTimeline.svelte` (`GET /hud/health`, `GET /hud/audit`).
 8. [x] `CanvasView` (GraphView) + `OutlineView` + `TimelineView` + `WorktreesView` — **P2**.
 9. [x] `DemoPane.svelte` + `GET /hud/demos` (artefact-based: screenshot/file/preview URL) — **P3 MVP**. TTS/Loom video (RFC 24 §9) diferido.
-10. [x] `SkillMcpRail.svelte` + **activación real de skills**: drop → `POST /hud/skills/:id/activate` (`hud/skills.rs` publica `SkillActivated` en el Kernel Bus; 3 tests + svelte-check verde). MCP sigue read-only (stage).
+10. [x] `SkillMcpRail.svelte` + **activación real de skills**: drop → `POST /hud/skills/:id/activate` (`hud/skills.rs` publica `SkillActivated` en el Kernel Bus; 2 tests + svelte-check verde). MCP: catálogo read + editor de allowlist (`POST /hud/mcp/allowlist`) + probe (`POST /hud/mcp/probe`); el hot-swap sigue sin implementar (item 13).
 11. [x] Responsive (`@media` ≤720px) + badge de acceso remoto (`GET /remote/status`; OIDC backend ya en `remote_auth/`). Audit completo de dispositivos diferido.
 12. [x] Tests: vitest por componente (estructural, idiom del repo) + contrato de tipos store. E2E Playwright diferido (§8 lo marca opcional).
 13. [x] `McpView.svelte` (view `mcp`, hotkey `m`) + `GET /hud/mcp` **enriquecido**: cada server incluye `allowed_tools` (§4), `sandbox` declarado/efectivo/enforced/finding (§2) y `supply` (paquete + veredicto + razones, §3). Editor de allowlist **en sitio** (`POST /hud/mcp/allowlist` → `McpRegistry::set_allowed_tools_in_file`: preserva la forma del fichero —`mcp` vs `mcpServers`— y el resto de campos, escritura atómica). **Probe** (`POST /hud/mcp/probe` → conecta y hace `tools/list` real; rechaza un BLOCK de supply §3; chips para añadir a la allowlist sin adivinar nombres). Fail-safe (registro ausente/malformado → `ok:false` + reason). Verificado en vivo (POST/GET/probe contra context7).

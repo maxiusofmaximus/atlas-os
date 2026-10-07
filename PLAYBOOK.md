@@ -6,6 +6,15 @@ harness**, y **hacer que la compuerta de fiabilidad gobierne qué modelo produce
 3/4/6/7 y anteriores) vive en `Atlas OS/20 - Roadmap.md` y el plan de investigación
 en `Atlas OS/research/`.
 
+## Estado (reconciliado con `20 - Roadmap.md` y git, 2026-10-06)
+
+- **F32 MEDIDO** — baseline externo (Terminal-Bench 2): `pass_rate` 0.000, oracle 0.88 (`86b844e`).
+- **F33–F37 CERRADAS** — reliability gate (`0735daf`), coste por `Diff` (`98ea6bc`), apply del `Diff` (`e39edc6`), research evidence (`db75839`), swarm merge (`4248293`). Refs roadmap §503–551.
+- **F38 corrido** — agent-mode adapter + corrida registrada **0/11** (`0bf6b0e`); el gap restante es razonamiento de frontera.
+- **F39 CERRADA** — agent loop verificado contra Groq (roadmap §F39).
+
+> El detalle de estado de F32–F39 es autoritativo en `Atlas OS/20 - Roadmap.md`; este playbook es el **orden de ejecución**, no la fuente de estado.
+
 ## Cómo leer cada ítem
 
 - **DoD** = Definition of Done (criterio objetivo de cierre).

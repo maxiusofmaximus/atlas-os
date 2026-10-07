@@ -13,3 +13,10 @@ app-icon.png
 decision_phase15.md
 session-ses_*.md
 siguiente_paso*.md
+
+# Documentation working files (hand-authored tables)
+docs/audit/
+docs/coordination/
+docs/design/
+docs/TODO.md
+system prompt.md

@@ -474,16 +474,19 @@ DPI scaling: usar rem/px lógicos; probar 125/150% (Windows) **[P]**.
 - **Problema:** RFC 66 eliminó el chat lateral, pero Vibe Kanban mantiene un *Conversation Panel* y el *Agent Panel* de Zed **es** una conversación. [Os]
 - **Opciones:** (a) sin chat (todo card + steer inline); (b) panel de conversación colapsable por agente; (c) híbrido: steer inline + hilo expandible por run.
 - **Recomendación [R]:** (c) — el steer inline cubre el caso común; el hilo completo se abre desde `👁 Reason`.
+- **DECISIÓN (Project Lead, 2026-10-06, delegada por el operador): (c) híbrido.** Steer inline en la card + hilo expandible por run. Sin panel de chat global.
 
 **OA-66-07 — Approvals Dock: *gate* vs *pregunta*.**
 - **Problema:** Orca separa **decision gate** (bloquea la task) de **question** (`ask`, no bloqueante). RFC 66 las une en un solo dock. [Os]
 - **Opciones:** (a) dock único (actual); (b) dos canales (gate bloqueante vs pregunta async); (c) dock único con sub-secciones.
 - **Recomendación [R]:** (b) — el comportamiento difiere (un gate detiene el swarm; una pregunta no).
+- **DECISIÓN (Project Lead, 2026-10-06, delegada por el operador): (b) dos canales.** Gate bloqueante (detiene la task) y pregunta asíncrona (no bloquea), con tratamiento visual y de teclado distintos.
 
 **OA-66-08 — Contexto de ejecución + sesión multi-agente.**
 - **Problema:** Vibe/Orca exponen **worktree/branch/dev-server**; Langfuse agrupa varios agentes en una **session** que alimenta un artefacto. RFC 66 no especifica ninguno. [Os]
 - **Opciones:** (a) Context Rail solo con misión/plan/evidencia (actual); (b) + worktree/branch/dev-server; (c) + sesión multi-agente explícita.
 - **Recomendación [R]:** (b) en v1; (c) como v2 — la Mission ya agrupa agents, pero la *sesión* (varios runs → un artefacto) merece su propio objeto.
+- **DECISIÓN (Project Lead, 2026-10-06, delegada por el operador): (b) en v1, (c) en v2.** Context Rail incluye worktree/branch/dev-server en v1; el objeto *sesión multi-agente* queda para v2.
 
 **FASE 9–10 pendientes:**
 - **FASE 9 (validación):** correr el detector de `impeccable` (los módulos de parseo HTML faltan en esta máquina → fallback regex, solo em-dash advisory), verificación APCA a tamaños reales, simulador CVD, y `accessibility-audit`.

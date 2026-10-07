@@ -359,6 +359,6 @@ Son ortogonales. El Planning Engine puede estar en `AUTONOMOUS` (resource mode) 
 
 ## 12. Estado
 
-- Status: Draft v1
+- Status: implementado (pipeline en `prompt/steps/` + `runner`; §2 9 pasos)
 - Depends on: `02`, `10`, `12`, `14`, `19`, `21`, `24`
 - Cubre explícitamente el pedido del usuario de "suponer que el usuario es tonto y refinar el prompt".

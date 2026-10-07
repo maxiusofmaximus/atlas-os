@@ -20,7 +20,7 @@ Ninguno de los dos ofrece **simultáneamente**:
 5. Health status, cost/token audit, y skills/MCP drag-and-drop en caliente (Hermes).
 6. Approvals queue multi-dispositivo web (Hermes) + campo móvil (Loom) para revisión async.
 7. Audit timeline append-only con hash chaining (estilo block explorer) de cada acción sensible.
-8. Worktrees visuales con mini-git-graph por Mission.
+8. Worktrees visuales (tabla path/branch/state); el mini-git-graph queda **pendiente**.
 9. Execution Mode selector 🕊 / 🤝 / 🛫 / 🚀 (`21`) y **Modo de uso** `ask` / `architect` / `code` / `context` (`23`) — ambos visibles como badges.
 10. Mission consolidated panel que muestra el `PublicUnderstandingVerdict` (`23`) antes de desbloquear el Planning Engine.
 
@@ -279,7 +279,7 @@ Estilo Hermes HUD (https://docs.nousresearch.ai/hermes/overview/). Un panel supe
 
 - **depth queue**: cuántos subagentes en estado `queued` esperando slot.
 - **Heartbeat**: cada subagente publica latido cada 2s. Si falta ≥ 10s → `degraded`. Si falta ≥ 30s → pedir revivir.
-- **Checker status**: verde/amarillo/rojo por cada tool del Validation Engine (`13`).
+- **Checker status**: verde/amarillo/rojo por cada tool del Validation Engine (`14`).
 - **Journal writes/s**: throughput de actividad del Kernel Bus.
 - **Latency HUD**: latencia end-to-end desde evento emit hasta render (objetivo <100ms, ver `17` §10).
 
@@ -287,7 +287,7 @@ Estilo Hermes HUD (https://docs.nousresearch.ai/hermes/overview/). Un panel supe
 
 ## 8. Skill + MCP management en caliente
 
-Drag-and-drop de skills/MCPs a agentes activos, sin restart. Patrones basados en Hermes `hermes bots refresh` y `hermes status` (https://docs.nousresearch.ai/hermes/overview/bots/).
+Drag-and-drop de skills a agentes activos, sin restart (implementado, RFC 65 §10). El hot-swap de **MCP** NO está implementado (catálogo read + editor de allowlist + probe; `hud/mcp.rs`). Patrones basados en Hermes `hermes bots refresh` y `hermes status` (https://docs.nousresearch.ai/hermes/overview/bots/).
 
 ```
 ┌──────────────────────────┬──────────────────────────┐
@@ -415,7 +415,7 @@ La barra vertical es orden cronológico; el usuario puede tocar un row → abre 
 
 ## 12. Worktrees visuales
 
-Para cada Mission: un mini-git-graph local con subagentes como nodos.
+Para cada Mission: un mini-git-graph local con subagentes como nodos (**pendiente**).
 
 ```
 Mission "Auth refactor"
