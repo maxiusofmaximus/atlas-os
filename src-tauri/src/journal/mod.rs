@@ -15,7 +15,6 @@ pub mod frecency;
 #[cfg(feature = "dag_mode")]
 pub mod learning_graphs;
 pub mod learning_rules;
-#[cfg(feature = "dag_mode")]
 pub mod mission_graph;
 pub mod model_invocation;
 pub mod model_resets;
@@ -1722,7 +1721,6 @@ impl Journal {
         agent_events::agent_session_event_type_counts(&conn)
     }
 }
-#[cfg(feature = "dag_mode")]
 pub mod dag_mode_ops;
 
 #[cfg(feature = "toast")]

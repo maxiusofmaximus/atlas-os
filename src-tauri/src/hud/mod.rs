@@ -13,10 +13,10 @@ pub mod cost;
 pub mod demos;
 pub mod eval;
 pub mod export;
-#[cfg(feature = "dag_mode")]
 pub mod graph;
 pub mod health;
 pub mod mcp;
+pub mod missions;
 pub mod observer;
 pub mod reliability;
 pub mod remote_status;

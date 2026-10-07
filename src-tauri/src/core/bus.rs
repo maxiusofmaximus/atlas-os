@@ -232,6 +232,7 @@ pub enum AgentStatus {
     DoomLoop,
     Error,
     Success,
+    Unknown,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -387,5 +388,41 @@ mod tests {
         assert_eq!(json, "\"user\"");
         let back: SwapInitiator = serde_json::from_str(&json).unwrap();
         assert_eq!(back, SwapInitiator::User);
+    }
+
+    #[test]
+    fn agent_status_unknown_roundtrips_through_serde() {
+        let json = serde_json::to_string(&AgentStatus::Unknown).unwrap();
+        assert_eq!(json, "\"unknown\"");
+        let back: AgentStatus = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, AgentStatus::Unknown);
+    }
+
+    #[test]
+    fn agent_status_rejects_unknown_string() {
+        assert!(serde_json::from_str::<AgentStatus>("\"bogus\"").is_err());
+    }
+
+    #[test]
+    fn agent_status_existing_tags_are_stable() {
+        let cases = [
+            (AgentStatus::Queued, "queued"),
+            (AgentStatus::Reading, "reading"),
+            (AgentStatus::Planning, "planning"),
+            (AgentStatus::Coding, "coding"),
+            (AgentStatus::Reviewing, "reviewing"),
+            (AgentStatus::Idle, "idle"),
+            (AgentStatus::Paused, "paused"),
+            (AgentStatus::DoomLoop, "doom_loop"),
+            (AgentStatus::Error, "error"),
+            (AgentStatus::Success, "success"),
+            (AgentStatus::Unknown, "unknown"),
+        ];
+        for (status, tag) in cases {
+            let json = serde_json::to_string(&status).unwrap();
+            assert_eq!(json, format!("\"{tag}\""));
+            let back: AgentStatus = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, status);
+        }
     }
 }

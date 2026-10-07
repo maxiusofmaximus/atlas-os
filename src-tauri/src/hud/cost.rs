@@ -29,6 +29,18 @@ fn pressure_label(p: Pressure) -> &'static str {
     }
 }
 
+/// Read the operator-configured spend ceiling persisted in the profile
+/// directory (`<profile_root>/budget_usd.txt`, RFC 67 §20 H-06). Absent
+/// or unparseable file ⇒ `None` (unlimited); a negative/NaN value is
+/// rejected so the HUD never renders a nonsensical budget.
+fn read_budget_usd(profile_root: &std::path::Path) -> Option<f64> {
+    let raw = std::fs::read_to_string(profile_root.join("budget_usd.txt")).ok()?;
+    raw.trim()
+        .parse::<f64>()
+        .ok()
+        .filter(|b| b.is_finite() && *b >= 0.0)
+}
+
 pub async fn get_cost(
     State(state): State<Arc<AppState>>,
     Query(q): Query<CostQuery>,
@@ -42,6 +54,9 @@ pub async fn get_cost(
         .pending_model_resets(chrono::Utc::now())
         .unwrap_or_default();
     drop(journal);
+
+    let budget_usd = read_budget_usd(&state.profile_root());
+    let remaining = budget_usd.map(|b| b - cumulative_usd);
 
     let pending_json: Vec<serde_json::Value> = pending
         .iter()
@@ -61,6 +76,8 @@ pub async fn get_cost(
         "totals": totals,
         "by_model": by_model,
         "cumulative_usd": cumulative_usd,
+        "budget_usd": budget_usd,
+        "remaining": remaining,
         "pressure": {
             "level": pressure_label(classify_cost(cumulative_usd)),
             "warn_usd": MONITOR_COST_WARN_USD,
@@ -122,5 +139,31 @@ mod tests {
         assert!((v["cumulative_usd"].as_f64().unwrap() - 1.0).abs() < 1e-9);
         assert_eq!(v["pressure"]["level"], "ok");
         assert!(v["pending_resets"].as_array().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn reports_budget_and_remaining_when_configured() {
+        let dir = tempfile::TempDir::new().unwrap();
+        std::fs::write(dir.path().join("budget_usd.txt"), "50.0").unwrap();
+        let journal = crate::journal::Journal::open(dir.path()).unwrap();
+        journal
+            .record_model_invocation(&invocation("a", "m1", "2026-01-01T00:00:01Z", 1.0))
+            .unwrap();
+        let state = Arc::new(AppState::from_journal_in(journal, dir.path().to_path_buf()));
+
+        let Json(v) = get_cost(State(state), Query(CostQuery { window: None })).await;
+        assert!((v["budget_usd"].as_f64().unwrap() - 50.0).abs() < 1e-9);
+        assert!((v["remaining"].as_f64().unwrap() - 49.0).abs() < 1e-9);
+    }
+
+    #[tokio::test]
+    async fn reports_null_budget_when_unconfigured() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let journal = crate::journal::Journal::open(dir.path()).unwrap();
+        let state = Arc::new(AppState::from_journal_in(journal, dir.path().to_path_buf()));
+
+        let Json(v) = get_cost(State(state), Query(CostQuery { window: None })).await;
+        assert!(v["budget_usd"].is_null());
+        assert!(v["remaining"].is_null());
     }
 }

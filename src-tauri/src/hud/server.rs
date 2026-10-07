@@ -143,13 +143,14 @@ pub async fn serve_on(
             "/hud/availability",
             get(super::availability::get_availability),
         )
-        .route("/hud/reliability", get(super::reliability::get_reliability));
+        .route("/hud/reliability", get(super::reliability::get_reliability))
+        .route("/hud/missions", post(super::missions::post_mission));
 
-    // Phase 1.5c §C item 7 — graph read endpoint (RFC 28). Only
-    // mounted when the optional `dag_mode` feature is enabled: the
-    // write side (Planner DAG emitter, Skills graph.toml loader, AST
-    // extractor) is gated behind the same feature.
-    #[cfg(feature = "dag_mode")]
+    // Phase 1.5c §C item 7 — graph read endpoint (RFC 28). Always
+    // mounted: the M15 tables are created unconditionally and the read
+    // side is compiled in every build (RFC 67 §20 H-04). Only the write
+    // side (Planner DAG emitter, Skills graph.toml loader, AST
+    // extractor) is gated behind `dag_mode`.
     let app = app.route("/graph/:mission_id", get(super::graph::get_graph));
 
     // Phase 1.5g §G item 2 — read-only ICS calendar feed (RFC 28). Only

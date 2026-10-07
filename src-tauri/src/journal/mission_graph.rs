@@ -6,8 +6,10 @@
 // modules; this module only projects rows back into the canonical
 // `MissionGraph` shape for the HUD `GET /graph/:mission_id` route.
 //
-// Whole module gated behind `dag_mode` — without the feature there is
-// no write side and therefore nothing to read.
+// The M15 `mission_graph_nodes` / `mission_graph_edges` tables are
+// created unconditionally (schema.rs), so this read side is always
+// compiled; only the write side (Planner DAG emitter, Skills loader,
+// AST extractor) is gated behind `dag_mode`.
 
 use rusqlite::Connection;
 

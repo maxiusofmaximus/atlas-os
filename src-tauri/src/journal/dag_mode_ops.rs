@@ -1,6 +1,5 @@
 use crate::journal::*;
 
-#[cfg(feature = "dag_mode")]
 impl Journal {
     /// Thin wrapper over [`learning_graphs::persist_graph`]. Acquires
     /// the connection lock once and delegates.
@@ -27,8 +26,9 @@ impl Journal {
 
     /// Thin wrapper over [`mission_graph::read_graph`]. Returns the
     /// full persisted graph (nodes+edges) for `mission_id`, or `None`
-    /// when no M15 rows exist for that mission.
-    #[cfg(feature = "dag_mode")]
+    /// when no M15 rows exist for that mission. The M15 tables are
+    /// created unconditionally (schema.rs), so the read side is always
+    /// available; only the write side is gated behind `dag_mode`.
     pub fn read_mission_graph(
         &self,
         mission_id: &str,
@@ -41,9 +41,8 @@ impl Journal {
     /// integration tests. NOT for production use; production callers
     /// go through `skills::graph_loader::instantiate` or
     /// `planning::graph_emitter::plan_to_graph` (caller owns the
-    /// write side). Gated behind `dag_mode` so a non-dag_mode build
-    /// doesn't even see this helper.
-    #[cfg(all(test, feature = "dag_mode"))]
+    /// write side).
+    #[cfg(test)]
     pub fn seed_test_graph_node(
         &self,
         mission_id: &str,
