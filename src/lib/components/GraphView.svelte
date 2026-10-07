@@ -53,24 +53,24 @@
   function provenanceColor(p: Provenance): string {
     switch (p) {
       case 'EXTRACTED':
-        return 'color: var(--graph-prov-extracted, #0a7);';
+        return 'color: var(--graph-prov-extracted, var(--a-ok));';
       case 'INFERRED':
-        return 'color: var(--graph-prov-inferred, #07a);';
+        return 'color: var(--graph-prov-inferred, var(--a-info));';
       case 'AMBIGUOUS':
-        return 'color: var(--graph-prov-ambiguous, #b71);';
+        return 'color: var(--graph-prov-ambiguous, var(--a-err));';
     }
   }
 
   function kindColor(k: NodeKind): string {
     switch (k) {
       case 'mission':
-        return 'background: var(--graph-kind-mission, #1f6feb);';
+        return 'background: var(--graph-kind-mission, var(--a-info));';
       case 'engine_state':
-        return 'background: var(--graph-kind-engine, #6e7681);';
+        return 'background: var(--graph-kind-engine, var(--a-text-faint));';
       case 'skill':
-        return 'background: var(--graph-kind-skill, #8957e5);';
+        return 'background: var(--graph-kind-skill, var(--a-violet));';
       case 'external':
-        return 'background: var(--graph-kind-external, #da3633);';
+        return 'background: var(--graph-kind-external, var(--a-err));';
     }
   }
 
@@ -144,7 +144,7 @@
 
 <style>
   .graphview {
-    border: 1px solid var(--graphview-border, #30363d);
+    border: 1px solid var(--graphview-border, var(--a-border));
     border-radius: 6px;
     padding: 0.75rem 1rem;
     font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
@@ -162,7 +162,7 @@
   }
   .mission-id {
     font-size: 0.75rem;
-    color: var(--graphview-muted, #8b949e);
+    color: var(--graphview-muted, var(--a-text-muted));
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -172,7 +172,7 @@
     font: inherit;
     padding: 2px 10px;
     border-radius: 4px;
-    border: 1px solid var(--graphview-border, #30363d);
+    border: 1px solid var(--graphview-border, var(--a-border));
     background: var(--graphview-btn-bg, transparent);
     color: var(--graphview-fg, inherit);
     cursor: pointer;
@@ -182,12 +182,12 @@
     opacity: 0.5;
   }
   .error {
-    color: var(--graphview-error, #f85149);
+    color: var(--graphview-error, var(--a-err));
     margin: 0.5rem 0;
   }
   .summary {
     margin: 0.25rem 0 0.5rem;
-    color: var(--graphview-muted, #8b949e);
+    color: var(--graphview-muted, var(--a-text-muted));
     font-size: 0.8rem;
   }
   .nodes {
@@ -204,7 +204,7 @@
     gap: 6px;
     padding: 2px 8px;
     border-radius: 4px;
-    color: #fff;
+    color: var(--a-bg);
     font-size: 0.75rem;
   }
   .node .kind {
@@ -217,7 +217,7 @@
     font-weight: 600;
   }
   .node .prove {
-    background: rgba(0, 0, 0, 0.35);
+    background: var(--a-shadow);
     padding: 1px 5px;
     border-radius: 3px;
     font-size: 0.6rem;
@@ -232,14 +232,14 @@
   .edges td {
     text-align: left;
     padding: 2px 6px;
-    border-bottom: 1px solid var(--graphview-border, #21262d);
+    border-bottom: 1px solid var(--graphview-border, var(--a-surface-2));
   }
   .edges td.num {
     text-align: right;
     font-variant-numeric: tabular-nums;
   }
   .empty {
-    color: var(--graphview-muted, #8b949e);
+    color: var(--graphview-muted, var(--a-text-muted));
     font-style: italic;
     margin: 0.25rem 0;
   }

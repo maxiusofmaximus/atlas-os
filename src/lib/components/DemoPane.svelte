@@ -92,9 +92,9 @@
 
 <style>
   .demo-pane {
-    border: 1px solid #21262d;
+    border: 1px solid var(--a-surface-2);
     border-radius: 6px;
-    background: #161b22;
+    background: var(--a-surface);
     padding: 0.75rem 1rem;
     display: flex;
     flex-direction: column;
@@ -112,12 +112,12 @@
   .note {
     margin: 0;
     font-size: 0.72rem;
-    color: #8b949e;
+    color: var(--a-text-muted);
   }
   button {
     background: transparent;
-    border: 1px solid #30363d;
-    color: #8b949e;
+    border: 1px solid var(--a-border);
+    color: var(--a-text-muted);
     border-radius: 4px;
     font-size: 0.74rem;
     padding: 0.15rem 0.6rem;
@@ -132,8 +132,8 @@
     gap: 0.5rem;
   }
   .card {
-    background: #0d1117;
-    border: 1px solid #21262d;
+    background: var(--a-bg);
+    border: 1px solid var(--a-surface-2);
     border-radius: 5px;
     padding: 0.5rem 0.6rem;
     display: flex;
@@ -147,11 +147,11 @@
     gap: 0.5rem;
   }
   .kind {
-    color: #79c0ff;
+    color: var(--a-info);
     font-weight: 600;
   }
   .run {
-    color: #6e7681;
+    color: var(--a-text-faint);
     font-family: 'SF Mono', Consolas, monospace;
   }
   .verified {
@@ -159,17 +159,17 @@
     font-size: 0.66rem;
   }
   .verified[data-ok='yes'] {
-    color: #56d364;
+    color: var(--a-ok);
   }
   .verified[data-ok='no'] {
-    color: #d29922;
+    color: var(--a-warn);
   }
   .path {
-    color: #c9d1d9;
+    color: var(--a-text);
     word-break: break-all;
   }
   .sha {
-    color: #6e7681;
+    color: var(--a-text-faint);
     font-family: 'SF Mono', Consolas, monospace;
     font-size: 0.66rem;
   }
@@ -178,7 +178,7 @@
     background: transparent;
     border: 0;
     padding: 0;
-    color: #58a6ff;
+    color: var(--a-info);
     text-decoration: none;
     cursor: pointer;
     font: inherit;
@@ -187,12 +187,12 @@
     text-decoration: underline;
   }
   .empty {
-    color: #8b949e;
+    color: var(--a-text-muted);
     font-size: 0.82rem;
     margin: 0;
   }
   .error {
-    color: #f85149;
+    color: var(--a-err);
     font-size: 0.8rem;
     margin: 0;
   }

@@ -66,9 +66,9 @@
 
 <style>
   .timeline-view {
-    border: 1px solid #21262d;
+    border: 1px solid var(--a-surface-2);
     border-radius: 6px;
-    background: #161b22;
+    background: var(--a-surface);
     padding: 0.75rem 1rem;
     display: flex;
     flex-direction: column;
@@ -85,7 +85,7 @@
   }
   .count {
     font-size: 0.78rem;
-    color: #6e7681;
+    color: var(--a-text-faint);
   }
   .rays {
     list-style: none;
@@ -101,35 +101,35 @@
     gap: 0.6rem;
     padding: 0.2rem 0;
     font-size: 0.74rem;
-    border-left: 1px solid #30363d;
+    border-left: 1px solid var(--a-border);
   }
   .dot {
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: #58a6ff;
+    background: var(--a-info);
     margin-left: -4px;
   }
   .ray-ts {
     font-family: 'SF Mono', Consolas, monospace;
-    color: #6e7681;
+    color: var(--a-text-faint);
   }
   .ray-kind {
-    color: #79c0ff;
+    color: var(--a-info);
   }
   .ray-payload {
-    color: #8b949e;
+    color: var(--a-text-muted);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .empty {
-    color: #8b949e;
+    color: var(--a-text-muted);
     font-size: 0.82rem;
     margin: 0;
   }
   .error {
-    color: #f85149;
+    color: var(--a-err);
     font-size: 0.8rem;
     margin: 0;
   }

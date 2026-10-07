@@ -146,16 +146,16 @@
 
 <style>
   .spend-limit-card {
-    border: 1px solid #f85149;
+    border: 1px solid var(--a-err);
     border-radius: 6px;
-    background: #161b22;
+    background: var(--a-surface);
     padding: 0.75rem 1rem;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
   }
   .spend-limit-card[data-error-type='spend_limit'] {
-    border-color: #f0883e;
+    border-color: var(--a-warn);
   }
   .spend-limit-card header {
     display: flex;
@@ -164,10 +164,10 @@
   .spend-limit-card h3 {
     margin: 0;
     font-size: 1rem;
-    color: #f85149;
+    color: var(--a-err);
   }
   .spend-limit-card[data-error-type='spend_limit'] h3 {
-    color: #f0883e;
+    color: var(--a-warn);
   }
   .meta {
     display: grid;
@@ -177,7 +177,7 @@
   }
   .meta dt {
     font-size: 0.7rem;
-    color: #6e7681;
+    color: var(--a-text-faint);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
@@ -192,22 +192,22 @@
   }
   .actions button {
     padding: 0.4rem 0.9rem;
-    background: #21262d;
-    color: #c9d1d9;
-    border: 1px solid #30363d;
+    background: var(--a-surface-2);
+    color: var(--a-text);
+    border: 1px solid var(--a-border);
     border-radius: 4px;
     cursor: pointer;
     font-size: 0.85rem;
   }
   .actions button:hover:not(:disabled) {
-    background: #30363d;
+    background: var(--a-border);
   }
   .actions button:disabled {
     opacity: 0.55;
     cursor: not-allowed;
   }
   .error {
-    color: #f85149;
+    color: var(--a-err);
     font-size: 0.8rem;
     margin: 0;
   }

@@ -146,9 +146,9 @@
 
 <style>
   .cost {
-    border: 1px solid #21262d;
+    border: 1px solid var(--a-surface-2);
     border-radius: 6px;
-    background: #161b22;
+    background: var(--a-surface);
     padding: 0.75rem 1rem;
     display: flex;
     flex-direction: column;
@@ -166,13 +166,13 @@
   .cost h4 {
     margin: 0.4rem 0 0 0;
     font-size: 0.82rem;
-    color: #79c0ff;
+    color: var(--a-info);
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
   .count {
     font-size: 0.78rem;
-    color: #6e7681;
+    color: var(--a-text-faint);
   }
   .window-picker {
     display: inline-flex;
@@ -180,17 +180,17 @@
   }
   .window-picker button {
     background: transparent;
-    border: 1px solid #30363d;
-    color: #8b949e;
+    border: 1px solid var(--a-border);
+    color: var(--a-text-muted);
     border-radius: 4px;
     font-size: 0.72rem;
     padding: 0.1rem 0.45rem;
     cursor: pointer;
   }
   .window-picker button.active {
-    color: #58a6ff;
-    border-color: #58a6ff;
-    background: rgba(88, 166, 255, 0.12);
+    color: var(--a-info);
+    border-color: var(--a-info);
+    background: color-mix(in srgb, var(--a-info) 12%, transparent);
   }
   .kpis {
     display: grid;
@@ -198,8 +198,8 @@
     gap: 0.6rem;
   }
   .kpi {
-    background: #0d1117;
-    border: 1px solid #21262d;
+    background: var(--a-bg);
+    border: 1px solid var(--a-surface-2);
     border-radius: 5px;
     padding: 0.5rem 0.6rem;
     display: flex;
@@ -208,24 +208,24 @@
   }
   .kpi-label {
     font-size: 0.7rem;
-    color: #8b949e;
+    color: var(--a-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
   .kpi-value {
     font-family: 'SF Mono', Consolas, monospace;
     font-size: 1rem;
-    color: #c9d1d9;
+    color: var(--a-text);
   }
   .kpi-value[data-level='warn'] {
-    color: #d29922;
+    color: var(--a-warn);
   }
   .kpi-value[data-level='critical'] {
-    color: #f85149;
+    color: var(--a-err);
   }
   .kpi-sub {
     font-size: 0.68rem;
-    color: #6e7681;
+    color: var(--a-text-faint);
   }
   table.models {
     width: 100%;
@@ -236,10 +236,10 @@
   table.models td {
     text-align: left;
     padding: 0.25rem 0.4rem;
-    border-bottom: 1px solid #21262d;
+    border-bottom: 1px solid var(--a-surface-2);
   }
   table.models th {
-    color: #8b949e;
+    color: var(--a-text-muted);
     font-weight: 500;
     font-size: 0.68rem;
     text-transform: uppercase;
@@ -251,10 +251,10 @@
   }
   .model-id {
     font-family: 'SF Mono', Consolas, monospace;
-    color: #79c0ff;
+    color: var(--a-info);
   }
   .provider {
-    color: #8b949e;
+    color: var(--a-text-muted);
   }
   .resets {
     list-style: none;
@@ -271,22 +271,22 @@
     gap: 0.5rem;
   }
   .reset-kind {
-    color: #d29922;
+    color: var(--a-warn);
   }
   .reset-code {
-    color: #6e7681;
+    color: var(--a-text-faint);
   }
   .resets time {
-    color: #8b949e;
+    color: var(--a-text-muted);
     margin-left: auto;
   }
   .empty {
-    color: #8b949e;
+    color: var(--a-text-muted);
     font-size: 0.82rem;
     margin: 0;
   }
   .error {
-    color: #f85149;
+    color: var(--a-err);
     font-size: 0.8rem;
     margin: 0;
   }

@@ -142,7 +142,7 @@
       <svg class="spark" viewBox="0 0 120 32" preserveAspectRatio="none" aria-hidden="true">
         <path
           d={sparkline(candidates, snapshot.baseline_metric)}
-          stroke="#58a6ff"
+          stroke="var(--a-info)"
           fill="none"
           stroke-width="1.5"
         />
@@ -172,9 +172,9 @@
 
 <style>
   .autoresearch-card {
-    border: 1px solid #21262d;
+    border: 1px solid var(--a-surface-2);
     border-radius: 6px;
-    background: #161b22;
+    background: var(--a-surface);
     padding: 0.75rem 1rem;
     display: flex;
     flex-direction: column;
@@ -193,34 +193,34 @@
     font-size: 0.78rem;
     padding: 0.1rem 0.5rem;
     border-radius: 999px;
-    color: #8b949e;
-    background: #21262d;
+    color: var(--a-text-muted);
+    background: var(--a-surface-2);
   }
   .outcome.tag-running {
-    color: #58a6ff;
-    background: rgba(88, 166, 255, 0.12);
+    color: var(--a-info);
+    background: color-mix(in srgb, var(--a-info) 12%, transparent);
   }
   .outcome.tag-improved {
-    color: #56d364;
-    background: rgba(86, 211, 100, 0.12);
+    color: var(--a-ok);
+    background: color-mix(in srgb, var(--a-ok) 12%, transparent);
   }
   .outcome.tag-plateau {
-    color: #f0883e;
-    background: rgba(240, 136, 62, 0.12);
+    color: var(--a-warn);
+    background: color-mix(in srgb, var(--a-warn) 12%, transparent);
   }
   .outcome.tag-timeout {
-    color: #d29922;
-    background: rgba(210, 153, 34, 0.12);
+    color: var(--a-warn);
+    background: color-mix(in srgb, var(--a-warn) 12%, transparent);
   }
   .outcome.tag-aborted {
-    color: #f85149;
-    background: rgba(248, 81, 73, 0.12);
+    color: var(--a-err);
+    background: color-mix(in srgb, var(--a-err) 12%, transparent);
   }
   .outcome.tag-idle {
-    color: #6e7681;
+    color: var(--a-text-faint);
   }
   .empty {
-    color: #8b949e;
+    color: var(--a-text-muted);
     font-size: 0.85rem;
   }
   .metrics {
@@ -231,7 +231,7 @@
   }
   .metrics dt {
     font-size: 0.72rem;
-    color: #6e7681;
+    color: var(--a-text-faint);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
@@ -241,17 +241,17 @@
     font-size: 0.9rem;
   }
   .metrics dd.better {
-    color: #56d364;
+    color: var(--a-ok);
   }
   .progress {
     height: 6px;
-    background: #0d1117;
+    background: var(--a-bg);
     border-radius: 3px;
     overflow: hidden;
   }
   .progress .bar {
     height: 100%;
-    background: #58a6ff;
+    background: var(--a-info);
     transition: width 200ms ease-out;
   }
   .spark {
@@ -263,11 +263,11 @@
   .cmd {
     margin: 0;
     font-size: 0.78rem;
-    color: #8b949e;
+    color: var(--a-text-muted);
   }
   .cmd code {
-    color: #c9d1d9;
-    background: #0d1117;
+    color: var(--a-text);
+    background: var(--a-bg);
     padding: 0.1rem 0.3rem;
     border-radius: 3px;
   }
@@ -277,22 +277,22 @@
   }
   .actions button {
     padding: 0.4rem 0.9rem;
-    background: #21262d;
-    color: #c9d1d9;
-    border: 1px solid #30363d;
+    background: var(--a-surface-2);
+    color: var(--a-text);
+    border: 1px solid var(--a-border);
     border-radius: 4px;
     cursor: pointer;
     font-size: 0.85rem;
   }
   .actions button:hover:not(:disabled) {
-    background: #30363d;
+    background: var(--a-border);
   }
   .actions button:disabled {
     opacity: 0.55;
     cursor: not-allowed;
   }
   .error {
-    color: #f85149;
+    color: var(--a-err);
     font-size: 0.8rem;
     margin: 0;
   }

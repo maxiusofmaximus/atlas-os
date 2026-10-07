@@ -103,9 +103,9 @@
 
 <style>
   .outline {
-    border: 1px solid #21262d;
+    border: 1px solid var(--a-surface-2);
     border-radius: 6px;
-    background: #161b22;
+    background: var(--a-surface);
     padding: 0.75rem 1rem;
     display: flex;
     flex-direction: column;
@@ -122,9 +122,9 @@
     font-size: 1rem;
   }
   select {
-    background: #0d1117;
-    color: #c9d1d9;
-    border: 1px solid #30363d;
+    background: var(--a-bg);
+    color: var(--a-text);
+    border: 1px solid var(--a-border);
     border-radius: 4px;
     padding: 0.25rem 0.4rem;
     font-size: 0.78rem;
@@ -142,32 +142,32 @@
     display: flex;
     align-items: baseline;
     gap: 0.6rem;
-    background: #0d1117;
-    border: 1px solid #21262d;
+    background: var(--a-bg);
+    border: 1px solid var(--a-surface-2);
     border-radius: 5px;
     padding: 0.35rem 0.5rem;
     font-size: 0.82rem;
   }
   .idx {
     font-family: 'SF Mono', Consolas, monospace;
-    color: #6e7681;
+    color: var(--a-text-faint);
     min-width: 1.2rem;
   }
   .ms-label {
-    color: #c9d1d9;
+    color: var(--a-text);
   }
   .deps {
     margin-left: auto;
     font-size: 0.68rem;
-    color: #d29922;
+    color: var(--a-warn);
   }
   .empty {
-    color: #8b949e;
+    color: var(--a-text-muted);
     font-size: 0.82rem;
     margin: 0;
   }
   .error {
-    color: #f85149;
+    color: var(--a-err);
     font-size: 0.8rem;
     margin: 0;
   }

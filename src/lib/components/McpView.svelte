@@ -222,9 +222,9 @@
 
 <style>
   .mcp {
-    border: 1px solid #21262d;
+    border: 1px solid var(--a-surface-2);
     border-radius: 6px;
-    background: #161b22;
+    background: var(--a-surface);
     padding: 0.75rem 1rem;
     display: flex;
     flex-direction: column;
@@ -241,8 +241,8 @@
   }
   button {
     background: transparent;
-    border: 1px solid #30363d;
-    color: #8b949e;
+    border: 1px solid var(--a-border);
+    color: var(--a-text-muted);
     border-radius: 4px;
     font-size: 0.74rem;
     padding: 0.15rem 0.6rem;
@@ -257,13 +257,13 @@
     flex-direction: column;
     gap: 0.2rem;
     font-size: 0.7rem;
-    color: #8b949e;
+    color: var(--a-text-muted);
   }
   .repo input,
   .tools-input {
-    background: #0d1117;
-    color: #c9d1d9;
-    border: 1px solid #30363d;
+    background: var(--a-bg);
+    color: var(--a-text);
+    border: 1px solid var(--a-border);
     border-radius: 4px;
     padding: 0.3rem 0.5rem;
     font-family: 'SF Mono', Consolas, monospace;
@@ -278,7 +278,7 @@
     gap: 0.6rem;
   }
   .server {
-    border: 1px solid #21262d;
+    border: 1px solid var(--a-surface-2);
     border-radius: 4px;
     padding: 0.5rem 0.6rem;
     display: flex;
@@ -293,40 +293,40 @@
   }
   .name {
     font-weight: 600;
-    color: #c9d1d9;
+    color: var(--a-text);
   }
   .tag {
     font-size: 0.66rem;
-    border: 1px solid #30363d;
+    border: 1px solid var(--a-border);
     border-radius: 999px;
     padding: 0.05rem 0.45rem;
-    color: #8b949e;
+    color: var(--a-text-muted);
   }
   .tag.off {
-    color: #d29922;
-    border-color: #6b4f14;
+    color: var(--a-warn);
+    border-color: var(--a-warn);
   }
   .tag.ok {
-    color: #3fb950;
-    border-color: #1f5a2a;
+    color: var(--a-ok);
+    border-color: var(--a-ok);
   }
   .tag.warn {
-    color: #d29922;
-    border-color: #6b4f14;
+    color: var(--a-warn);
+    border-color: var(--a-warn);
   }
   .tag.bad {
-    color: #f85149;
-    border-color: #6b1f1f;
+    color: var(--a-err);
+    border-color: var(--a-err);
   }
   .cmd code {
     font-family: 'SF Mono', Consolas, monospace;
     font-size: 0.72rem;
-    color: #79c0ff;
+    color: var(--a-info);
     word-break: break-all;
   }
   .finding {
     font-size: 0.72rem;
-    color: #d29922;
+    color: var(--a-warn);
   }
   .edit {
     display: flex;
@@ -335,7 +335,7 @@
   }
   .edit-label {
     font-size: 0.66rem;
-    color: #8b949e;
+    color: var(--a-text-muted);
   }
   .edit-row {
     display: flex;
@@ -352,42 +352,42 @@
   .tool {
     font-family: 'SF Mono', Consolas, monospace;
     font-size: 0.7rem;
-    background: #0d1117;
-    border: 1px solid #30363d;
+    background: var(--a-bg);
+    border: 1px solid var(--a-border);
     border-radius: 4px;
     padding: 0.1rem 0.4rem;
-    color: #c9d1d9;
+    color: var(--a-text);
   }
   .tool.add {
     cursor: pointer;
   }
   .tool.add:hover {
-    border-color: #58a6ff;
-    color: #79c0ff;
+    border-color: var(--a-info);
+    color: var(--a-info);
   }
   .tool.add.on {
-    border-color: #1f5a2a;
-    color: #3fb950;
+    border-color: var(--a-ok);
+    color: var(--a-ok);
   }
   .empty-tools {
     font-size: 0.72rem;
-    color: #8b949e;
+    color: var(--a-text-muted);
   }
   .notice {
-    color: #3fb950;
+    color: var(--a-ok);
     font-size: 0.78rem;
     margin: 0;
   }
   .reason {
-    color: #d29922;
+    color: var(--a-warn);
   }
   .empty {
-    color: #8b949e;
+    color: var(--a-text-muted);
     font-size: 0.82rem;
     margin: 0;
   }
   .error {
-    color: #f85149;
+    color: var(--a-err);
     font-size: 0.8rem;
     margin: 0;
   }

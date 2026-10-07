@@ -81,9 +81,9 @@
 
 <style>
   .model-ready-card {
-    border: 1px solid #56d364;
+    border: 1px solid var(--a-ok);
     border-radius: 6px;
-    background: #161b22;
+    background: var(--a-surface);
     padding: 0.75rem 1rem;
     display: flex;
     flex-direction: column;
@@ -96,21 +96,21 @@
   .model-ready-card h3 {
     margin: 0;
     font-size: 1rem;
-    color: #56d364;
+    color: var(--a-ok);
   }
   .body {
     margin: 0;
     font-size: 0.9rem;
-    color: #c9d1d9;
+    color: var(--a-text);
   }
   .body code {
     font-family: 'SF Mono', Consolas, monospace;
-    color: #58a6ff;
+    color: var(--a-info);
   }
   .meta {
     margin: 0;
     font-size: 0.75rem;
-    color: #6e7681;
+    color: var(--a-text-faint);
   }
   .actions {
     display: flex;
@@ -118,22 +118,22 @@
   }
   .actions button {
     padding: 0.4rem 0.9rem;
-    background: #21262d;
-    color: #c9d1d9;
-    border: 1px solid #30363d;
+    background: var(--a-surface-2);
+    color: var(--a-text);
+    border: 1px solid var(--a-border);
     border-radius: 4px;
     cursor: pointer;
     font-size: 0.85rem;
   }
   .actions button:hover:not(:disabled) {
-    background: #30363d;
+    background: var(--a-border);
   }
   .actions button:disabled {
     opacity: 0.55;
     cursor: not-allowed;
   }
   .error {
-    color: #f85149;
+    color: var(--a-err);
     font-size: 0.8rem;
     margin: 0;
   }

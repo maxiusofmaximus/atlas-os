@@ -118,9 +118,9 @@
 
 <style>
   .eval-card {
-    border: 1px solid #21262d;
+    border: 1px solid var(--a-surface-2);
     border-radius: 6px;
-    background: #161b22;
+    background: var(--a-surface);
     padding: 0.75rem 1rem;
     display: flex;
     flex-direction: column;
@@ -139,15 +139,15 @@
     font-size: 0.78rem;
     padding: 0.1rem 0.5rem;
     border-radius: 999px;
-    color: #58a6ff;
-    background: rgba(88, 166, 255, 0.12);
+    color: var(--a-info);
+    background: color-mix(in srgb, var(--a-info) 12%, transparent);
   }
   .tag.idle {
-    color: #6e7681;
-    background: #21262d;
+    color: var(--a-text-faint);
+    background: var(--a-surface-2);
   }
   .empty {
-    color: #8b949e;
+    color: var(--a-text-muted);
     font-size: 0.85rem;
     margin: 0;
   }
@@ -159,7 +159,7 @@
   }
   .metrics dt {
     font-size: 0.72rem;
-    color: #6e7681;
+    color: var(--a-text-faint);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
@@ -169,10 +169,10 @@
     font-size: 0.95rem;
   }
   .metrics dd.good {
-    color: #56d364;
+    color: var(--a-ok);
   }
   .metrics dd.bad {
-    color: #f85149;
+    color: var(--a-err);
   }
   .kinds {
     display: flex;
@@ -182,14 +182,14 @@
   }
   .kinds .label {
     font-size: 0.72rem;
-    color: #6e7681;
+    color: var(--a-text-faint);
     text-transform: uppercase;
   }
   .kind {
     font-family: 'SF Mono', Consolas, monospace;
     font-size: 0.78rem;
-    color: #f0883e;
-    background: rgba(240, 136, 62, 0.12);
+    color: var(--a-warn);
+    background: color-mix(in srgb, var(--a-warn) 12%, transparent);
     padding: 0.05rem 0.4rem;
     border-radius: 4px;
   }
@@ -202,14 +202,14 @@
   .groups td {
     text-align: left;
     padding: 0.2rem 0.4rem;
-    border-bottom: 1px solid #21262d;
+    border-bottom: 1px solid var(--a-surface-2);
   }
   .groups th {
-    color: #6e7681;
+    color: var(--a-text-faint);
     font-weight: 500;
   }
   .error {
-    color: #f85149;
+    color: var(--a-err);
     font-size: 0.8rem;
     margin: 0;
   }

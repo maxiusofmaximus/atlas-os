@@ -168,9 +168,9 @@
 
 <style>
   .rail {
-    border: 1px solid #21262d;
+    border: 1px solid var(--a-surface-2);
     border-radius: 6px;
-    background: #161b22;
+    background: var(--a-surface);
     padding: 0.75rem 1rem;
     display: flex;
     flex-direction: column;
@@ -188,14 +188,14 @@
   .rail h4 {
     margin: 0 0 0.3rem 0;
     font-size: 0.78rem;
-    color: #79c0ff;
+    color: var(--a-info);
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
   button {
     background: transparent;
-    border: 1px solid #30363d;
-    color: #8b949e;
+    border: 1px solid var(--a-border);
+    color: var(--a-text-muted);
     border-radius: 4px;
     font-size: 0.74rem;
     padding: 0.15rem 0.6rem;
@@ -207,13 +207,13 @@
     gap: 0.6rem;
   }
   .col {
-    background: #0d1117;
-    border: 1px solid #21262d;
+    background: var(--a-bg);
+    border: 1px solid var(--a-surface-2);
     border-radius: 5px;
     padding: 0.5rem 0.6rem;
   }
   .count {
-    color: #6e7681;
+    color: var(--a-text-faint);
     font-size: 0.7rem;
   }
   ul {
@@ -236,10 +236,10 @@
     cursor: grabbing;
   }
   .name {
-    color: #c9d1d9;
+    color: var(--a-text);
   }
   .ver {
-    color: #6e7681;
+    color: var(--a-text-faint);
     font-family: 'SF Mono', Consolas, monospace;
     font-size: 0.68rem;
   }
@@ -248,37 +248,37 @@
     font-size: 0.64rem;
     padding: 0 0.3rem;
     border-radius: 3px;
-    background: #21262d;
-    color: #8b949e;
+    background: var(--a-surface-2);
+    color: var(--a-text-muted);
   }
   .badge.ok {
-    color: #56d364;
+    color: var(--a-ok);
   }
   .badge.sandbox {
-    color: #d29922;
+    color: var(--a-warn);
   }
   .badge[data-on='yes'] {
-    color: #56d364;
+    color: var(--a-ok);
   }
   .dropzone {
-    border: 1px dashed #30363d;
+    border: 1px dashed var(--a-border);
     border-radius: 5px;
     padding: 0.5rem;
     text-align: center;
     font-size: 0.76rem;
-    color: #8b949e;
+    color: var(--a-text-muted);
     transition:
       border-color 0.15s,
       background 0.15s;
   }
   .dropzone.over {
-    border-color: #58a6ff;
-    background: rgba(88, 166, 255, 0.08);
+    border-color: var(--a-info);
+    background: color-mix(in srgb, var(--a-info) 8%, transparent);
   }
   .dropzone.staged {
     border-style: solid;
-    border-color: #56d364;
-    color: #c9d1d9;
+    border-color: var(--a-ok);
+    color: var(--a-text);
   }
   .clear {
     margin-left: 0.4rem;
@@ -287,20 +287,20 @@
   .activate-msg {
     margin: 0.4rem 0 0 0;
     font-size: 0.7rem;
-    color: #56d364;
+    color: var(--a-ok);
   }
   .note {
     margin: 0;
     font-size: 0.68rem;
-    color: #6e7681;
+    color: var(--a-text-faint);
   }
   .empty {
-    color: #8b949e;
+    color: var(--a-text-muted);
     font-size: 0.74rem;
     margin: 0;
   }
   .error {
-    color: #f85149;
+    color: var(--a-err);
     font-size: 0.8rem;
     margin: 0;
   }

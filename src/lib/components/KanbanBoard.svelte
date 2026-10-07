@@ -105,9 +105,9 @@
 
 <style>
   .kanban {
-    border: 1px solid #21262d;
+    border: 1px solid var(--a-surface-2);
     border-radius: 6px;
-    background: #161b22;
+    background: var(--a-surface);
     padding: 0.75rem 1rem;
     display: flex;
     flex-direction: column;
@@ -124,10 +124,10 @@
   }
   .count {
     font-size: 0.78rem;
-    color: #6e7681;
+    color: var(--a-text-faint);
   }
   .empty {
-    color: #8b949e;
+    color: var(--a-text-muted);
     font-size: 0.85rem;
     margin: 0;
   }
@@ -137,8 +137,8 @@
     gap: 0.6rem;
   }
   .column {
-    background: #0d1117;
-    border: 1px solid #21262d;
+    background: var(--a-bg);
+    border: 1px solid var(--a-surface-2);
     border-radius: 5px;
     padding: 0.5rem;
     min-height: 3rem;
@@ -148,32 +148,32 @@
     align-items: center;
     gap: 0.4rem;
     font-size: 0.75rem;
-    color: #8b949e;
+    color: var(--a-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     margin-bottom: 0.4rem;
   }
   .col-count {
     margin-left: auto;
-    color: #6e7681;
+    color: var(--a-text-faint);
   }
   .dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #6e7681;
+    background: var(--a-text-faint);
   }
   .dot.pending {
-    background: #6e7681;
+    background: var(--a-text-faint);
   }
   .dot.running {
-    background: #58a6ff;
+    background: var(--a-info);
   }
   .dot.done {
-    background: #56d364;
+    background: var(--a-ok);
   }
   .dot.failed {
-    background: #f85149;
+    background: var(--a-err);
   }
   .cards {
     list-style: none;
@@ -184,8 +184,8 @@
     gap: 0.35rem;
   }
   .card {
-    background: #161b22;
-    border: 1px solid #21262d;
+    background: var(--a-surface);
+    border: 1px solid var(--a-surface-2);
     border-radius: 4px;
     padding: 0.4rem 0.5rem;
     display: flex;
@@ -194,19 +194,19 @@
   }
   .card-label {
     font-size: 0.82rem;
-    color: #c9d1d9;
+    color: var(--a-text);
   }
   .card-id {
     font-family: 'SF Mono', Consolas, monospace;
     font-size: 0.68rem;
-    color: #6e7681;
+    color: var(--a-text-faint);
   }
   .card-status {
     font-size: 0.68rem;
-    color: #8b949e;
+    color: var(--a-text-muted);
   }
   .error {
-    color: #f85149;
+    color: var(--a-err);
     font-size: 0.8rem;
     margin: 0;
   }

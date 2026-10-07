@@ -35,30 +35,30 @@
     display: flex;
     gap: 0.25rem;
     align-items: center;
-    border-bottom: 1px solid #21262d;
+    border-bottom: 1px solid var(--a-surface-2);
     padding: 0 0 0.4rem 0;
     flex-wrap: wrap;
   }
   .tab {
     background: transparent;
     border: 1px solid transparent;
-    color: #8b949e;
+    color: var(--a-text-muted);
     font-size: 0.85rem;
     padding: 0.25rem 0.75rem;
     border-radius: 6px;
     cursor: pointer;
   }
   .tab:hover:not(:disabled) {
-    color: #c9d1d9;
-    background: #21262d;
+    color: var(--a-text);
+    background: var(--a-surface-2);
   }
   .tab.active {
-    color: #58a6ff;
-    background: rgba(88, 166, 255, 0.12);
-    border-color: rgba(88, 166, 255, 0.35);
+    color: var(--a-info);
+    background: color-mix(in srgb, var(--a-info) 12%, transparent);
+    border-color: color-mix(in srgb, var(--a-info) 35%, transparent);
   }
   .tab:disabled {
-    color: #484f58;
+    color: var(--a-text-faint);
     cursor: not-allowed;
   }
   .fase {
@@ -66,6 +66,6 @@
     margin-left: 0.3rem;
     padding: 0 0.25rem;
     border-radius: 3px;
-    background: #21262d;
+    background: var(--a-surface-2);
   }
 </style>

@@ -86,9 +86,9 @@
 
 <style>
   .avail-card {
-    border: 1px solid #21262d;
+    border: 1px solid var(--a-surface-2);
     border-radius: 6px;
-    background: #161b22;
+    background: var(--a-surface);
     padding: 0.75rem 1rem;
     display: flex;
     flex-direction: column;
@@ -107,23 +107,23 @@
     font-size: 0.78rem;
     padding: 0.1rem 0.5rem;
     border-radius: 999px;
-    color: #8b949e;
-    background: #21262d;
+    color: var(--a-text-muted);
+    background: var(--a-surface-2);
   }
   .state.tag-run {
-    color: #56d364;
-    background: rgba(86, 211, 100, 0.12);
+    color: var(--a-ok);
+    background: color-mix(in srgb, var(--a-ok) 12%, transparent);
   }
   .state.tag-wait {
-    color: #f0883e;
-    background: rgba(240, 136, 62, 0.12);
+    color: var(--a-warn);
+    background: color-mix(in srgb, var(--a-warn) 12%, transparent);
   }
   .state.tag-blocked {
-    color: #f85149;
-    background: rgba(248, 81, 73, 0.12);
+    color: var(--a-err);
+    background: color-mix(in srgb, var(--a-err) 12%, transparent);
   }
   .state.tag-off {
-    color: #6e7681;
+    color: var(--a-text-faint);
   }
   .metrics {
     display: grid;
@@ -133,7 +133,7 @@
   }
   .metrics dt {
     font-size: 0.72rem;
-    color: #6e7681;
+    color: var(--a-text-faint);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
@@ -145,16 +145,16 @@
   .cmd {
     margin: 0;
     font-size: 0.78rem;
-    color: #8b949e;
+    color: var(--a-text-muted);
   }
   .cmd code {
-    color: #c9d1d9;
-    background: #0d1117;
+    color: var(--a-text);
+    background: var(--a-bg);
     padding: 0.1rem 0.3rem;
     border-radius: 3px;
   }
   .error {
-    color: #f85149;
+    color: var(--a-err);
     font-size: 0.8rem;
     margin: 0;
   }

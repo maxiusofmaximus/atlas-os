@@ -189,9 +189,9 @@
 
 <style>
   .journal-observer {
-    border: 1px solid var(--journal-border, #30363d);
+    border: 1px solid var(--journal-border, var(--a-border));
     border-radius: 6px;
-    background: var(--journal-bg, #161b22);
+    background: var(--journal-bg, var(--a-surface));
     padding: 0.75rem 1rem;
     display: flex;
     flex-direction: column;
@@ -219,15 +219,15 @@
   .filter button,
   .pager button {
     padding: 0.3rem 0.6rem;
-    background: #21262d;
-    color: #c9d1d9;
-    border: 1px solid #30363d;
+    background: var(--a-surface-2);
+    color: var(--a-text);
+    border: 1px solid var(--a-border);
     border-radius: 4px;
     cursor: pointer;
     font-size: 0.75rem;
   }
   .journal-observer button:hover:not(:disabled) {
-    background: #30363d;
+    background: var(--a-border);
   }
   .journal-observer button:disabled {
     opacity: 0.55;
@@ -243,12 +243,12 @@
     flex-direction: column;
     gap: 0.2rem;
     font-size: 0.7rem;
-    color: var(--journal-muted, #8b949e);
+    color: var(--journal-muted, var(--a-text-muted));
   }
   .filter input {
-    background: #0d1117;
-    color: #c9d1d9;
-    border: 1px solid #30363d;
+    background: var(--a-bg);
+    color: var(--a-text);
+    border: 1px solid var(--a-border);
     border-radius: 4px;
     padding: 0.3rem 0.5rem;
     font-family: 'Fira Code', 'JetBrains Mono', monospace;
@@ -256,20 +256,20 @@
   }
   .applied-kind {
     font-size: 0.7rem;
-    color: #79c0ff;
+    color: var(--a-info);
   }
   .error {
-    color: #f85149;
+    color: var(--a-err);
     font-size: 0.75rem;
     margin: 0;
   }
   .empty {
-    color: var(--journal-muted, #8b949e);
+    color: var(--journal-muted, var(--a-text-muted));
     font-size: 0.85rem;
     margin: 0;
   }
   .empty code {
-    background: #0d1117;
+    background: var(--a-bg);
     padding: 0.1rem 0.3rem;
     border-radius: 3px;
   }
@@ -282,7 +282,7 @@
   .entries td {
     text-align: left;
     padding: 0.25rem 0.5rem;
-    border-bottom: 1px solid #21262d;
+    border-bottom: 1px solid var(--a-surface-2);
     vertical-align: top;
   }
   .entries td.num {
@@ -293,17 +293,17 @@
   .ts {
     font-family: 'Fira Code', monospace;
     font-size: 0.7rem;
-    color: var(--journal-muted, #8b949e);
+    color: var(--journal-muted, var(--a-text-muted));
     white-space: nowrap;
   }
   .kind {
-    color: #79c0ff;
+    color: var(--a-info);
   }
   .toggle {
     padding: 0.15rem 0.5rem;
     background: transparent;
-    color: #8b949e;
-    border: 1px solid #30363d;
+    color: var(--a-text-muted);
+    border: 1px solid var(--a-border);
     border-radius: 4px;
     cursor: pointer;
     font-size: 0.7rem;
@@ -311,8 +311,8 @@
   .entries pre {
     margin: 0.3rem 0 0 0;
     padding: 0.4rem 0.5rem;
-    background: #0d1117;
-    border: 1px solid #21262d;
+    background: var(--a-bg);
+    border: 1px solid var(--a-surface-2);
     border-radius: 4px;
     font-size: 0.7rem;
     white-space: pre-wrap;
@@ -331,13 +331,13 @@
     align-items: center;
     gap: 0.3rem;
     font-size: 0.7rem;
-    color: var(--journal-muted, #8b949e);
+    color: var(--journal-muted, var(--a-text-muted));
     margin-right: auto;
   }
   .page-size select {
-    background: #0d1117;
-    color: #c9d1d9;
-    border: 1px solid #30363d;
+    background: var(--a-bg);
+    color: var(--a-text);
+    border: 1px solid var(--a-border);
     border-radius: 4px;
     padding: 0.25rem 0.4rem;
     font-size: 0.75rem;

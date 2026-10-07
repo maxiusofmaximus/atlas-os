@@ -127,9 +127,9 @@
 
 <style>
   .settings {
-    border: 1px solid #21262d;
+    border: 1px solid var(--a-surface-2);
     border-radius: 6px;
-    background: #161b22;
+    background: var(--a-surface);
     padding: 0.75rem 1rem;
     display: flex;
     flex-direction: column;
@@ -146,7 +146,7 @@
   }
   .hint {
     margin: 0;
-    color: #8b949e;
+    color: var(--a-text-muted);
     font-size: 0.76rem;
   }
   .key-form {
@@ -160,12 +160,12 @@
     flex-direction: column;
     gap: 0.2rem;
     font-size: 0.7rem;
-    color: #8b949e;
+    color: var(--a-text-muted);
   }
   input {
-    background: #0d1117;
-    color: #c9d1d9;
-    border: 1px solid #30363d;
+    background: var(--a-bg);
+    color: var(--a-text);
+    border: 1px solid var(--a-border);
     border-radius: 4px;
     padding: 0.3rem 0.5rem;
     font-family: 'SF Mono', Consolas, monospace;
@@ -174,8 +174,8 @@
   }
   button {
     background: transparent;
-    border: 1px solid #30363d;
-    color: #8b949e;
+    border: 1px solid var(--a-border);
+    color: var(--a-text-muted);
     border-radius: 4px;
     font-size: 0.74rem;
     padding: 0.28rem 0.7rem;
@@ -186,8 +186,8 @@
     cursor: not-allowed;
   }
   button.del {
-    color: #f85149;
-    border-color: #f8514955;
+    color: var(--a-err);
+    border-color: color-mix(in srgb, var(--a-err) 33%, transparent);
     margin-left: auto;
   }
   .slots {
@@ -205,26 +205,26 @@
     font-size: 0.76rem;
   }
   .slots code {
-    color: #79c0ff;
+    color: var(--a-info);
   }
   .state {
-    color: #8b949e;
+    color: var(--a-text-muted);
   }
   .state.present {
-    color: #3fb950;
+    color: var(--a-ok);
   }
   .empty {
-    color: #8b949e;
+    color: var(--a-text-muted);
     font-size: 0.82rem;
     margin: 0;
   }
   .error {
-    color: #f85149;
+    color: var(--a-err);
     font-size: 0.8rem;
     margin: 0;
   }
   .notice {
-    color: #3fb950;
+    color: var(--a-ok);
     font-size: 0.8rem;
     margin: 0;
   }

@@ -125,7 +125,7 @@
   .overlay {
     position: fixed;
     inset: 0;
-    background: rgba(1, 4, 9, 0.6);
+    background: var(--a-overlay);
     display: flex;
     justify-content: center;
     align-items: flex-start;
@@ -134,19 +134,19 @@
   }
   .palette {
     width: min(560px, 92vw);
-    background: #161b22;
-    border: 1px solid #30363d;
+    background: var(--a-surface);
+    border: 1px solid var(--a-border);
     border-radius: 8px;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 12px 40px var(--a-shadow);
     overflow: hidden;
   }
   .search {
     width: 100%;
     box-sizing: border-box;
-    background: #0d1117;
+    background: var(--a-bg);
     border: none;
-    border-bottom: 1px solid #30363d;
-    color: #c9d1d9;
+    border-bottom: 1px solid var(--a-border);
+    color: var(--a-text);
     font-size: 1rem;
     padding: 0.75rem 1rem;
     outline: none;
@@ -165,7 +165,7 @@
     align-items: center;
     background: transparent;
     border: none;
-    color: #c9d1d9;
+    color: var(--a-text);
     font-size: 0.9rem;
     padding: 0.5rem 0.75rem;
     border-radius: 5px;
@@ -173,15 +173,15 @@
     text-align: left;
   }
   .cmd.selected {
-    background: rgba(88, 166, 255, 0.15);
+    background: color-mix(in srgb, var(--a-info) 15%, transparent);
   }
   .hint {
-    color: #6e7681;
+    color: var(--a-text-faint);
     font-size: 0.78rem;
     font-family: 'SF Mono', Consolas, monospace;
   }
   .empty {
-    color: #6e7681;
+    color: var(--a-text-faint);
     font-size: 0.85rem;
     padding: 0.75rem 1rem;
   }

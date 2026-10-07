@@ -78,9 +78,9 @@
 
 <style>
   .audit {
-    border: 1px solid #21262d;
+    border: 1px solid var(--a-surface-2);
     border-radius: 6px;
-    background: #161b22;
+    background: var(--a-surface);
     padding: 0.75rem 1rem;
     display: flex;
     flex-direction: column;
@@ -97,7 +97,7 @@
   }
   .count {
     font-size: 0.78rem;
-    color: #6e7681;
+    color: var(--a-text-faint);
   }
   .timeline {
     list-style: none;
@@ -112,39 +112,39 @@
     display: flex;
     gap: 0.6rem;
     align-items: baseline;
-    border-bottom: 1px solid #21262d;
+    border-bottom: 1px solid var(--a-surface-2);
     padding: 0.2rem 0;
   }
   .seq {
-    color: #6e7681;
+    color: var(--a-text-faint);
     font-family: 'SF Mono', Consolas, monospace;
     min-width: 3.5rem;
   }
   .timeline time {
-    color: #8b949e;
+    color: var(--a-text-muted);
     font-family: 'SF Mono', Consolas, monospace;
   }
   .actor {
-    color: #d2a8ff;
+    color: var(--a-violet);
   }
   .action {
-    color: #79c0ff;
+    color: var(--a-info);
   }
   .payload {
     margin-left: auto;
-    color: #6e7681;
+    color: var(--a-text-faint);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     max-width: 40%;
   }
   .empty {
-    color: #8b949e;
+    color: var(--a-text-muted);
     font-size: 0.82rem;
     margin: 0;
   }
   .error {
-    color: #f85149;
+    color: var(--a-err);
     font-size: 0.8rem;
     margin: 0;
   }

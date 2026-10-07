@@ -82,9 +82,9 @@
 
 <style>
   .approval-queue {
-    border: 1px solid #21262d;
+    border: 1px solid var(--a-surface-2);
     border-radius: 6px;
-    background: #161b22;
+    background: var(--a-surface);
     padding: 0.75rem 1rem;
     display: flex;
     flex-direction: column;
@@ -103,15 +103,15 @@
     font-size: 0.75rem;
     padding: 0.05rem 0.5rem;
     border-radius: 999px;
-    background: #21262d;
-    color: #6e7681;
+    background: var(--a-surface-2);
+    color: var(--a-text-faint);
   }
   .badge.pending {
-    color: #d29922;
-    background: rgba(210, 153, 34, 0.15);
+    color: var(--a-warn);
+    background: color-mix(in srgb, var(--a-warn) 15%, transparent);
   }
   .empty {
-    color: #8b949e;
+    color: var(--a-text-muted);
     font-size: 0.85rem;
     margin: 0;
   }
@@ -128,7 +128,7 @@
     justify-content: space-between;
     align-items: center;
     gap: 0.5rem;
-    border: 1px solid #21262d;
+    border: 1px solid var(--a-surface-2);
     border-radius: 5px;
     padding: 0.4rem 0.6rem;
   }
@@ -140,11 +140,11 @@
   .action {
     font-family: 'SF Mono', Consolas, monospace;
     font-size: 0.82rem;
-    color: #f0883e;
+    color: var(--a-warn);
   }
   .ids {
     font-size: 0.68rem;
-    color: #6e7681;
+    color: var(--a-text-faint);
   }
   .actions {
     display: flex;
@@ -158,21 +158,21 @@
     cursor: pointer;
   }
   .approve {
-    color: #56d364;
-    background: rgba(86, 211, 100, 0.12);
-    border-color: rgba(86, 211, 100, 0.35);
+    color: var(--a-ok);
+    background: color-mix(in srgb, var(--a-ok) 12%, transparent);
+    border-color: color-mix(in srgb, var(--a-ok) 35%, transparent);
   }
   .deny {
-    color: #f85149;
-    background: rgba(248, 81, 73, 0.12);
-    border-color: rgba(248, 81, 73, 0.35);
+    color: var(--a-err);
+    background: color-mix(in srgb, var(--a-err) 12%, transparent);
+    border-color: color-mix(in srgb, var(--a-err) 35%, transparent);
   }
   button:disabled {
     opacity: 0.5;
     cursor: wait;
   }
   .error {
-    color: #f85149;
+    color: var(--a-err);
     font-size: 0.8rem;
     margin: 0;
   }

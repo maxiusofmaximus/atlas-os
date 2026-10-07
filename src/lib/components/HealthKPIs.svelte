@@ -157,9 +157,9 @@
 
 <style>
   .health {
-    border: 1px solid #21262d;
+    border: 1px solid var(--a-surface-2);
     border-radius: 6px;
-    background: #161b22;
+    background: var(--a-surface);
     padding: 0.75rem 1rem;
     display: flex;
     flex-direction: column;
@@ -177,19 +177,19 @@
   .health h4 {
     margin: 0.4rem 0 0 0;
     font-size: 0.82rem;
-    color: #79c0ff;
+    color: var(--a-info);
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
   .heartbeat {
     font-size: 0.72rem;
-    color: #8b949e;
+    color: var(--a-text-muted);
   }
   .heartbeat[data-live='yes'] {
-    color: #56d364;
+    color: var(--a-ok);
   }
   .heartbeat[data-live='no'] {
-    color: #d29922;
+    color: var(--a-warn);
   }
   .kpis {
     display: grid;
@@ -197,8 +197,8 @@
     gap: 0.6rem;
   }
   .kpi {
-    background: #0d1117;
-    border: 1px solid #21262d;
+    background: var(--a-bg);
+    border: 1px solid var(--a-surface-2);
     border-radius: 5px;
     padding: 0.5rem 0.6rem;
     display: flex;
@@ -207,18 +207,18 @@
   }
   .kpi-label {
     font-size: 0.7rem;
-    color: #8b949e;
+    color: var(--a-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
   .kpi-value {
     font-family: 'SF Mono', Consolas, monospace;
     font-size: 1rem;
-    color: #c9d1d9;
+    color: var(--a-text);
   }
   .kpi-sub {
     font-size: 0.68rem;
-    color: #6e7681;
+    color: var(--a-text-faint);
   }
   .breakdowns {
     display: grid;
@@ -226,8 +226,8 @@
     gap: 0.6rem;
   }
   .breakdown {
-    background: #0d1117;
-    border: 1px solid #21262d;
+    background: var(--a-bg);
+    border: 1px solid var(--a-surface-2);
     border-radius: 5px;
     padding: 0.5rem 0.6rem;
   }
@@ -247,13 +247,13 @@
   }
   .bar-label {
     font-family: 'SF Mono', Consolas, monospace;
-    color: #79c0ff;
+    color: var(--a-info);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .bar-count {
-    color: #8b949e;
+    color: var(--a-text-muted);
   }
   .events {
     list-style: none;
@@ -270,26 +270,26 @@
     align-items: baseline;
   }
   .events time {
-    color: #6e7681;
+    color: var(--a-text-faint);
     font-family: 'SF Mono', Consolas, monospace;
   }
   .evt-type {
-    color: #79c0ff;
+    color: var(--a-info);
   }
   .evt-agent {
-    color: #8b949e;
+    color: var(--a-text-muted);
   }
   .evt-pane {
     margin-left: auto;
-    color: #6e7681;
+    color: var(--a-text-faint);
   }
   .empty {
-    color: #8b949e;
+    color: var(--a-text-muted);
     font-size: 0.8rem;
     margin: 0.2rem 0 0 0;
   }
   .error {
-    color: #f85149;
+    color: var(--a-err);
     font-size: 0.8rem;
     margin: 0;
   }
