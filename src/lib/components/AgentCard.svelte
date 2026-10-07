@@ -13,6 +13,8 @@
     type AgentStepPayload,
     type HudEvent,
   } from '$stores/hud';
+  import TaskAnnotations from './TaskAnnotations.svelte';
+  import SandboxSnapshot from './SandboxSnapshot.svelte';
 
   type AgentStatusTag =
     | 'Queued'
@@ -66,6 +68,7 @@
   let loadError = $state(false);
   let expanded = $state(false);
   let layer3 = $state(false);
+  let extra = $state(false);
   let actionNote = $state<string | null>(null);
   let now = $state(Date.now());
 
@@ -447,6 +450,21 @@
               {/each}
             </ol>
           </div>
+        {/if}
+
+        {#if runId && hudUrl}
+          <button
+            type="button"
+            class="ghost layer-toggle"
+            aria-expanded={extra}
+            onclick={() => (extra = !extra)}
+          >
+            {extra ? 'Hide notes & frame' : 'Notes & frame'}
+          </button>
+          {#if extra}
+            <TaskAnnotations {hudUrl} taskId={runId} />
+            <SandboxSnapshot {hudUrl} {runId} />
+          {/if}
         {/if}
       {/if}
     </article>

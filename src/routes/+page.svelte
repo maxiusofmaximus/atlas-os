@@ -44,7 +44,13 @@
   import ApprovalsDock from '$lib/components/ApprovalsDock.svelte';
   import AppHeader from '$lib/components/AppHeader.svelte';
   import HelpOverlay from '$lib/components/HelpOverlay.svelte';
-  import { activeView, activeMissionId, hotkeyAction, type ViewId } from '$stores/views';
+  import {
+    activeView,
+    activeMissionId,
+    hotkeyAction,
+    newMissionOpen,
+    type ViewId,
+  } from '$stores/views';
   import AvailabilityCard from '$lib/components/AvailabilityCard.svelte';
   import EvalCard from '$lib/components/EvalCard.svelte';
   import SwarmConsole from '$lib/components/SwarmConsole.svelte';
@@ -370,7 +376,7 @@
     else if (action === 'approvals') focusApprovalsDock();
     else if (action === 'mission') focusMissionRail();
     else if (action === 'help') helpOpen = true;
-    else if (action === 'new-mission') paletteOpen = true;
+    else if (action === 'new-mission') newMissionOpen.set(true);
     else if (action === 'demo') activeView.set('canvas');
   }
 
@@ -431,7 +437,6 @@
       hudUrl={data.hudUrl ?? null}
       activeMissionId={$activeMissionId}
       onselect={(id) => activeMissionId.set(id)}
-      onnew={() => (paletteOpen = true)}
     />
     <div class="hud-center">
       {#if $activeView === 'kanban'}

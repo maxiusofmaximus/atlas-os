@@ -91,3 +91,48 @@ export const HOTKEYS: Readonly<Record<string, HotkeyAction>> = {
 export function hotkeyAction(key: string): HotkeyAction | null {
   return HOTKEYS[key.toLowerCase()] ?? null;
 }
+
+export type MissionSort = 'recent' | 'frecency';
+
+const SORT_KEY = 'atlas.missionSort';
+
+function readStoredSort(): MissionSort {
+  try {
+    return localStorage.getItem(SORT_KEY) === 'frecency' ? 'frecency' : 'recent';
+  } catch {
+    return 'recent';
+  }
+}
+
+function writeStoredSort(v: MissionSort): void {
+  try {
+    localStorage.setItem(SORT_KEY, v);
+  } catch {
+    /* ignore */
+  }
+}
+
+const sortStore = writable<MissionSort>(readStoredSort());
+
+/** Mission Rail ordering (RFC 67 §20 H-01). UI-only state, persisted to
+ *  localStorage — never a backend setting. */
+export const missionSort: Readable<MissionSort> & {
+  set: (v: MissionSort) => void;
+  toggle: () => void;
+} = {
+  subscribe: sortStore.subscribe,
+  set(v: MissionSort) {
+    writeStoredSort(v);
+    sortStore.set(v);
+  },
+  toggle() {
+    sortStore.update((current) => {
+      const next: MissionSort = current === 'recent' ? 'frecency' : 'recent';
+      writeStoredSort(next);
+      return next;
+    });
+  },
+};
+
+/** The `+ New` / `:n` inline mission form visibility (RFC 67 §24.5). */
+export const newMissionOpen = writable<boolean>(false);

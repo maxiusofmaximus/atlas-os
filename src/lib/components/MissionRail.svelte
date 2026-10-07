@@ -1,14 +1,14 @@
 <script lang="ts">
-  import { hud, fetchMissions, type MissionRow } from '$stores/hud';
+  import { hud, fetchMissionSort, createMission, type MissionRow } from '$stores/hud';
+  import { missionSort, newMissionOpen } from '$stores/views';
 
   interface Props {
     hudUrl: string | null;
     activeMissionId?: string | null;
     onselect?: (missionId: string) => void;
-    onnew?: () => void;
   }
 
-  const { hudUrl, activeMissionId = null, onselect, onnew }: Props = $props();
+  const { hudUrl, activeMissionId = null, onselect }: Props = $props();
 
   type Severity = 'err' | 'warn' | 'info' | 'ok' | 'faint' | 'muted';
 
@@ -38,8 +38,15 @@
   let loading = $state(false);
   let error = $state<string | null>(null);
   let navEl: HTMLElement | undefined = $state();
+  let prompt = $state('');
+  let creating = $state(false);
+  let createError = $state<string | null>(null);
 
-  async function load(url: string | null, silent = false): Promise<void> {
+  async function load(
+    url: string | null,
+    sort: 'recent' | 'frecency',
+    silent = false,
+  ): Promise<void> {
     if (!url) {
       missions = [];
       loading = false;
@@ -49,12 +56,38 @@
     if (!silent) loading = true;
     error = null;
     try {
-      missions = await fetchMissions(url);
+      const res = await fetchMissionSort(url, sort);
+      missions = res.missions;
       loading = false;
     } catch (err) {
       missions = [];
       loading = false;
       error = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  async function submitNew(e: SubmitEvent): Promise<void> {
+    e.preventDefault();
+    const value = prompt.trim();
+    if (!value) {
+      createError = 'prompt must not be empty';
+      return;
+    }
+    if (!hudUrl) {
+      createError = 'no HUD URL yet';
+      return;
+    }
+    creating = true;
+    createError = null;
+    try {
+      await createMission(hudUrl, value);
+      prompt = '';
+      newMissionOpen.set(false);
+      await load(hudUrl, $missionSort);
+    } catch (err) {
+      createError = err instanceof Error ? err.message : String(err);
+    } finally {
+      creating = false;
     }
   }
 
@@ -81,8 +114,9 @@
   const REFRESH_MS = 4000;
 
   $effect(() => {
-    void load(hudUrl);
-    const timer = setInterval(() => void load(hudUrl, true), REFRESH_MS);
+    const sort = $missionSort;
+    void load(hudUrl, sort);
+    const timer = setInterval(() => void load(hudUrl, sort, true), REFRESH_MS);
     return () => clearInterval(timer);
   });
 </script>
@@ -90,8 +124,49 @@
 <nav class="mission-rail" data-region="mission-rail" aria-label="Missions" bind:this={navEl}>
   <header class="rail-head">
     <h2>Missions</h2>
-    <button class="new" type="button" onclick={() => onnew?.()}>+ New</button>
+    <button class="new" type="button" onclick={() => newMissionOpen.set(true)}>+ New</button>
   </header>
+
+  <div class="rail-sort" role="group" aria-label="Mission order">
+    <button
+      class="sort"
+      type="button"
+      aria-pressed={$missionSort === 'recent'}
+      onclick={() => missionSort.set('recent')}
+    >
+      Recent
+    </button>
+    <button
+      class="sort"
+      type="button"
+      aria-pressed={$missionSort === 'frecency'}
+      onclick={() => missionSort.set('frecency')}
+    >
+      Frequency
+    </button>
+  </div>
+
+  {#if $newMissionOpen}
+    <form class="new-form" onsubmit={submitNew}>
+      <input
+        class="new-prompt"
+        placeholder="Describe the mission…"
+        bind:value={prompt}
+        disabled={creating}
+      />
+      <div class="new-actions">
+        <button type="submit" disabled={creating}>{creating ? 'Creating…' : 'Create'}</button>
+        <button
+          type="button"
+          onclick={() => {
+            newMissionOpen.set(false);
+            createError = null;
+          }}>Cancel</button
+        >
+      </div>
+      {#if createError}<p class="new-error" role="alert">{createError}</p>{/if}
+    </form>
+  {/if}
 
   <p class="conn" data-state={$hud.connected ? 'online' : 'offline'}>
     <span class="dot" aria-hidden="true"></span>
@@ -106,11 +181,13 @@
     </ul>
   {:else if error}
     <p class="error">
-      no se pudo cargar misiones · <button type="button" onclick={() => load(hudUrl)}>Retry</button>
+      no se pudo cargar misiones ·
+      <button type="button" onclick={() => load(hudUrl, $missionSort)}>Retry</button>
     </p>
   {:else if missions.length === 0}
     <p class="empty">
-      Sin misiones. <button type="button" onclick={() => onnew?.()}>+ New Mission</button>
+      Sin misiones.
+      <button type="button" onclick={() => newMissionOpen.set(true)}>+ New Mission</button>
     </p>
   {:else}
     <ul class="missions">
@@ -309,5 +386,68 @@
   .empty button:focus-visible {
     outline: 2px solid var(--a-focus);
     outline-offset: 2px;
+  }
+  .rail-sort {
+    display: flex;
+    gap: 0.25rem;
+  }
+  .sort {
+    flex: 1;
+    background: transparent;
+    border: 1px solid var(--a-border);
+    border-radius: 6px;
+    color: var(--a-text-muted);
+    font-size: 0.68rem;
+    padding: 0.15rem 0.4rem;
+    cursor: pointer;
+  }
+  .sort[aria-pressed='true'] {
+    color: var(--a-primary);
+    border-color: var(--a-primary);
+  }
+  .sort:focus-visible,
+  .new-form input:focus-visible,
+  .new-form button:focus-visible {
+    outline: 2px solid var(--a-focus);
+    outline-offset: 2px;
+  }
+  .new-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    border: 1px solid var(--a-border);
+    border-radius: 6px;
+    padding: 0.4rem;
+  }
+  .new-prompt {
+    background: var(--a-bg);
+    color: var(--a-text);
+    border: 1px solid var(--a-border);
+    border-radius: 4px;
+    padding: 0.3rem 0.45rem;
+    font-size: 0.74rem;
+  }
+  .new-actions {
+    display: flex;
+    gap: 0.3rem;
+  }
+  .new-actions button {
+    flex: 1;
+    background: transparent;
+    border: 1px solid var(--a-border-ui);
+    border-radius: 6px;
+    color: var(--a-primary);
+    cursor: pointer;
+    font-size: 0.72rem;
+    padding: 0.15rem 0.4rem;
+  }
+  .new-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .new-error {
+    margin: 0;
+    color: var(--a-err);
+    font-size: 0.7rem;
   }
 </style>

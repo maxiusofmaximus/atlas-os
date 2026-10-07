@@ -604,6 +604,7 @@ Script: OKLCH→sRGB + **APCA-W3 0.0.98G** + **Machado 2009** (severity 1.0) sob
 
 ## 21. Changelog
 
+- **2026-10-06 v4.4:** nuevo **§25 FASE 12** (frontend de B3/B4/B6/B8 + cierre de G7): lotes **F11-a** (aprobaciones en lote, Builder-3) · **F11-b** (anotaciones de tarea, Builder-2) · **F11-c** (snapshot del sandbox, Builder-2) · **F11-d** (frecuencia + creación de misión, Builder) — cada uno con wireframe, estados (incl. **conflicto 409**), **copy ES/EN**, hotkeys, criterios verificables y deps; **§25.5** lista exacta de **capturas G7 que faltan** (Approvals Dock real, `:?` en vivo, tema claro con datos) con el estado a reproducir. Nota explícita: no contradice §20.
 - **2026-10-06 v4.3:** **§23 desarrollado**: cada función del backlog FASE 11+ (sesiones scrollback/reattach, ping por panel, manifiesto de agente, grid de PTYs) con **referentes [Os] + ficha**, **wireframe textual**, **estados**, **hueco backend + rutas propuestas**, **criterios de aceptación verificables** y **orden de lotes F11-1…F11-4 con dependencias** (§23.5). **§22.3** añade **G9** (cada ruta HUD nueva: test feliz+fallo y presente en `backend-capabilities.md`); cierre FASE 10 pasa a **G1–G9** (G7 en curso).
 - **2026-10-06 v4.2:** nuevo **§24 Cabecera y shell** (construible): regiones del shell (§24.1, RFC 66 §5.2), identidad Calm Instrumentation en la cabecera (§24.2, RFC 66 §9.1 + PALETTE §3), contenido con dato real (§24.3), **estados de conexión** color+glifo+label (§24.4), **leader `:`** con `:v :a :n :m :d :?` y comportamiento exacto de `:m` (foco Mission Rail) y `:?` (help overlay, `Esc` cierra) (§24.5), markup Svelte esperado (§24.6), tokens (§24.7) y **criterios de aceptación C1–C10** (§24.8). Añadido lote **F0.5** (§22.1) y **G7** ampliado a la cabecera (§22.3).
 - **2026-10-06 v4.1:** **G6** (§22.3) corregido: la regex `#[0-9a-fA-F]{3,8}` daba falsos positivos con `{#each}` (41) y con refs tipo `#10207`; sustituida por `rg -nP "(?<![{])#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b" src -g "*.svelte"` (**0** hoy, verificado ejecutándolo). Alineada la misma regex en la aceptación de **F0** (§22.1).
@@ -1025,6 +1026,206 @@ FASE 10 (cerrada) ─▶ F0.5 (shell)
 ### 24.9 Añadido a §22.1 (lote) y changelog
 - **§22.1:** añadir fila **F0.5 — Cabecera y shell** (deps F0; habilita §24; `:m/:?` → F5).
 - **§22.3 G7:** las capturas dark/light deben incluir **la cabecera** (estados connected/disconnected).
+
+---
+
+## 25. FASE 12 — Frontend de B3/B4/B6/B8 + cierre de G7 [R — construible]
+
+> **Qué:** la UI que consume los lotes backend **FASE 11** (**B3/B4/B6/B8**, §22.2) y cierra **G7** (§22.3). **Nota explícita §20:** §25 **no cambia ningún veredicto de §20**; materializa lo que §20 dejó como **v2** (H-02 batch · H-01 frecency · H-05 task-comments · H-08 snapshot) — los builders pueden seguir §20 tal cual. **Única precisión:** F11-d cubre además la **creación de misión** (H-09 / **B7**, backend **FASE 10**), que pasa de CLI/IPC (v1 §20) a **REST**.
+
+**Mapa de lotes:**
+
+| Lote | Función | Backend | Hueco | Dueño | §20 → FASE 12 |
+|---|---|---|---|---|---|
+| **F11-a** | Aprobaciones en lote (Dock) | **B3** | H-02 | **Builder-3** | batch = v2 → batch |
+| **F11-b** | Anotaciones de tarea | **B8** | H-05 | **Builder-2** | task-comments = v2 → task |
+| **F11-c** | Snapshot del sandbox | **B6** | H-08 | **Builder-2** | snapshot = v2 → snapshot |
+| **F11-d** | Frecuencia + creación de misión | **B4** (+**B7**) | H-01 (+H-09) | **Builder** | frecency = v2 → frecency; `+New` CLI/IPC → REST |
+
+### 25.1 F11-a — Aprobaciones en lote en el Dock [Builder-3] ← B3 (H-02)
+
+**Wireframe textual:**
+```
+┌ Approvals Dock ───────────────── [x] sel.  [Apr selec (2)] [Deny selec (2)] ┐
+│ [x] ● AgentX  create src/auth/session.go   [APR][DENY][STEER]               │
+│ [x] ◐ AgentY  run tests (scope: module)    [APR][DENY]                      │
+│ [ ] ○ AgentZ  delete tmp/cache             [APR][DENY]                      │
+│ ── Motivo (opcional, se guarda en audit) [____________________] ──          │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Estados:** `loading` (cargando cola) · `vacío` (sin pendientes) · `error` (procesar falla → `Retry`) · `parcial` (parte aprobada, parte en conflicto) · **`conflicto 409`** (una aprobación ya resuelta por otro canal). Glifo + label, nunca solo-color.
+
+**UX copy (ES / EN):**
+
+| Contexto | ES | EN |
+|---|---|---|
+| Selección | `2 seleccionadas` | `2 selected` |
+| Aprobar lote | `Aprobar seleccionadas (2)` | `Approve selected (2)` |
+| Denegar lote | `Denegar seleccionadas (2)` | `Deny selected (2)` |
+| Motivo | `Motivo (opcional) — se guarda en el audit` | `Reason (optional) — saved to audit` |
+| Loading | `Procesando 2…` | `Processing 2…` |
+| Parcial | `1 de 2 aprobadas · 1 en conflicto` | `1 of 2 approved · 1 conflicted` |
+| Conflicto 409 | `Conflicto: ya fue resuelta por otra sesión` | `Conflict: already resolved by another session` |
+| Vacío | `Sin aprobaciones pendientes` | `No pending approvals` |
+| Error | `No se pudieron procesar: reintentar` | `Couldn't process: retry` |
+
+**Hotkeys (dentro del Dock):** `Space` marca/desmarca fila · `Shift+A` selecciona todo · `a` aprueba selección · `r` deniega selección · `Esc` limpia selección. (Global `:a` = foco al Dock, RFC 24 §19 — sin colisión.)
+
+**Criterios de aceptación:**
+| # | Criterio | Verificación |
+|---|---|---|
+| C-25-a.1 | Selección múltiple + `Apr selec` llama `POST /hud/approvals/batch` | `pnpm test` (`ApprovalsDock.test.ts`) |
+| C-25-a.2 | `reason` se envía y **persiste** | test: payload incluye `reason`; assert audit |
+| C-25-a.3 | **409** → estado `conflicto` con copy ES/EN; el resto no se pierde | test con respuesta 409 |
+| C-25-a.4 | Parcial muestra `n de m` | test mixto |
+| C-25-a.5 | Sin hex crudo | §22.3 G6 = 0 |
+
+**Deps:** **B3** (backend) + **F4** (Dock) + F0/F5 (tokens/hotkeys).
+
+### 25.2 F11-b — Anotaciones de tarea [Builder-2] ← B8 (H-05)
+
+**Wireframe textual:**
+```
+┌ Outline ▸ Task: "add refresh token" ─────────────────────────┐
+│ 💬 2 comentarios                                              │
+│  • [rev] falta rotación…                       14:20          │
+│  • [me]  añade test de expiración              14:22          │
+│ ── [ Comentar…                                        ] ──    │
+└───────────────────────────────────────────────────────────────┘
+```
+
+**Estados:** `loading` · `vacío` (`Sin comentarios en esta tarea`) · `error` (guardar falla) · `parcial` (antes solo a nivel diff; ahora task) · **`conflicto 409`** (el comentario cambió en el servidor).
+
+**UX copy (ES / EN):**
+
+| Contexto | ES | EN |
+|---|---|---|
+| Vacío | `Sin comentarios en esta tarea` | `No comments on this task` |
+| Acción | `Comentar` | `Comment` |
+| Placeholder | `Escribe un comentario para el agente…` | `Write a comment for the agent…` |
+| Loading | `Guardando…` | `Saving…` |
+| Conflicto 409 | `El comentario cambió; recarga para ver la versión actual` | `Comment changed; reload to see the current version` |
+| Error | `No se pudo guardar el comentario` | `Couldn't save the comment` |
+
+**Hotkeys:** `c` (task seleccionada en Outline) abre el compositor — global `:c` = "Comment on selected" (RFC 24 §19). `Cmd/Ctrl+Enter` envía.
+
+**Criterios:**
+| # | Criterio | Verificación |
+|---|---|---|
+| C-25-b.1 | Crear/listar comentario de **task** (no solo diff) | `pnpm test` (`TaskComments.test.ts`) |
+| C-25-b.2 | Round-trip vía `task_annotations` | `cargo test … hud::annotate` (feliz; fallo: body vacío → 422) |
+| C-25-b.3 | 409 muestra copy y **no pierde el texto** | test con 409 |
+| C-25-b.4 | Sin hex crudo | §22.3 G6 = 0 |
+
+**Deps:** **B8** + F6–F9 (Outline) + F0/F5.
+
+### 25.3 F11-c — Snapshot del sandbox [Builder-2] ← B6 (H-08)
+
+**Wireframe textual:**
+```
+┌ Agent Card ▸ 👁 Reason ──────────────────────────────┐
+│ [steps] [snapshot]   ← tabs dentro de 👁 Reason       │
+│ ┌ snapshot @run r-12 (last 40 lines) ─────────────┐  │
+│ │ $ cargo test --quiet                             │  │
+│ │ ... 3 passed ...                                 │  │
+│ └──────────────────────────────────────────────────┘  │
+└───────────────────────────────────────────────────────┘
+```
+
+**Estados:** `loading` (`Capturando snapshot…`) · `vacío` (`Sin snapshot disponible`) · **`error 404`** (`Sin sandbox para este run`) · `parcial` (últimas N líneas). *(Sin 409 — es lectura.)*
+
+**UX copy (ES / EN):**
+
+| Contexto | ES | EN |
+|---|---|---|
+| Loading | `Capturando snapshot…` | `Capturing snapshot…` |
+| Vacío | `Sin snapshot disponible` | `No snapshot available` |
+| 404 | `Sin sandbox para este run` | `No sandbox for this run` |
+| Parcial | `Snapshot parcial (últimas N líneas)` | `Partial snapshot (last N lines)` |
+| Error | `No se pudo obtener el snapshot: reintentar` | `Couldn't fetch the snapshot: retry` |
+
+**Hotkeys:** `👁 Reason` ya existe (Agent Card); tab `snapshot` con `←/→`. Acción global propuesta **`:k`** (**nueva** en RFC 24 §19 — requiere aprobación del PL; si no, solo botón).
+
+**Criterios:**
+| # | Criterio | Verificación |
+|---|---|---|
+| C-25-c.1 | Tab `snapshot` muestra el frame del sandbox | `pnpm test` (`AgentCard.snapshot.test.ts`) |
+| C-25-c.2 | 404 → copy "Sin sandbox…", no rompe la card | test con 404 |
+| C-25-c.3 | Fallback a `agent_steps.observation` si no hay snapshot | test |
+| C-25-c.4 | Sin hex crudo | §22.3 G6 = 0 |
+
+**Deps:** **B6** + **F1** (Agent Card) + F0.
+
+### 25.4 F11-d — Frecuencia + creación de misión [Builder] ← B4 (H-01) + B7 (H-09)
+
+**Wireframe textual:**
+```
+┌ Mission Rail ─────────────── [orden: Frecuentes ▾] ┐
+│ ● auth-refactor   3× hoy                            │
+│ ◐ dashboard-fix   1× hoy                            │
+│ [+ New Mission]                                     │
+└─────────────────────────────────────────────────────┘
+┌ New Mission ──────────────────────────── [Crear] ──┐
+│ Prompt [ fix the flaky auth test…                ]  │
+│ (vacío ⇒ error inline)                              │
+└─────────────────────────────────────────────────────┘
+```
+
+**Estados:** `loading` · `vacío` (rail sin misiones → CTA) · `error` (crear falla) · `parcial` (frecency sin datos → orden estable) · **`conflicto 400`** (prompt vacío → validación inline). *(409 no aplica; el 400 de prompt vacío es el fallo de B7.)*
+
+**UX copy (ES / EN):**
+
+| Contexto | ES | EN |
+|---|---|---|
+| Orden | `Frecuentes` / `Recientes` | `Frequent` / `Recent` |
+| Loading (crear) | `Creando misión…` | `Creating mission…` |
+| Prompt vacío (400) | `El prompt no puede estar vacío` | `Prompt can't be empty` |
+| Éxito | `Misión creada` | `Mission created` |
+| Error | `No se pudo crear la misión: reintentar` | `Couldn't create the mission: retry` |
+| Parcial | `Frecuencia no disponible: orden por actividad` | `Frequency unavailable: ordered by activity` |
+
+**Hotkeys:** `:n` nueva misión (RFC 24 §19) · `:m` foco al rail (§24.5). Toggle de orden **sin hotkey** (control en el Rail).
+
+**Criterios:**
+| # | Criterio | Verificación |
+|---|---|---|
+| C-25-d.1 | Toggle Frecuentes/Recientes llama `?sort=frecency` | `pnpm test` (`MissionRail.test.ts`) |
+| C-25-d.2 | `+ New` crea misión vía `POST /hud/missions` (**REST**) | test: POST con prompt → 201 |
+| C-25-d.3 | Prompt vacío → 400 → copy inline; no crea | test con 400 |
+| C-25-d.4 | Frecency sin datos → orden estable + copy parcial | test |
+| C-25-d.5 | Sin hex crudo | §22.3 G6 = 0 |
+
+**Deps:** **B4** + **B7** + **F2** (Mission Rail) + F0/F5.
+
+### 25.5 Cierre de G7 — capturas que faltan (estado a reproducir)
+
+> G7 (§22.3) está **parcial**. Faltan exactamente **3** capturas:
+
+| # | Captura | Tema | Estado a reproducir |
+|---|---|---|---|
+| **G7-a** | **Approvals Dock con aprobación real** | dark | cola con ≥1 `approval_request` real por WS (`pending`), 1 fila seleccionada, botones `Apr selec` activos; `:focus-visible` visible en la fila |
+| **G7-b** | **`:?` en vivo** | dark | `HelpOverlay` abierto (tabla RFC 24 §19 completa), foco inicial en **Cerrar**, `aria-modal=true` |
+| **G7-c** | **Tema claro con datos** | light | ≥1 misión en el Rail + ≥1 evento en la Activity Spine + 1 view con filas (Kanban), tokens §3.2 |
+
+**Ya cubierto (G7 parcial):** Cabecera connected/disconnected (dark), Mission Rail, Activity Spine. **Pendiente declarado** en §22.3.
+
+### 25.6 Orden y dependencias (FASE 12)
+
+```
+B3 ─▶ F11-a (Builder-3)      B8 ─▶ F11-b (Builder-2)
+B6 ─▶ F11-c (Builder-2)      B4+B7 ─▶ F11-d (Builder)
+            └──────────────► G7-a / G7-b / G7-c (cierre)
+```
+
+| Lote | Deps backend | Deps frontend | Dueño |
+|---|---|---|---|
+| F11-a | B3 | F4, F0/F5 | **Builder-3** |
+| F11-b | B8 | F6–F9, F0/F5 | **Builder-2** |
+| F11-c | B6 | F1, F0 | **Builder-2** |
+| F11-d | B4, B7 | F2, F0/F5 | **Builder** |
+
+> **Nota §20 (explícita):** §25 **no contradice §20** — convierte a FASE 12 lo que §20 dejó como **v2** (H-01/H-02/H-05/H-08). Si un builder ya construyó el placeholder de §20, **no hay que rehacer**: §25 solo activa el camino REST cuando el backend lande.
 
 
 

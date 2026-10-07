@@ -1094,6 +1094,65 @@ export async function fetchMissions(hudUrl: string): Promise<MissionRow[]> {
   return fetchTail<MissionRow>(hudUrl, 'missions');
 }
 
+// ═══════════════ RFC 67 §20 H-01/H-09 — missions (sort + create) ═══════════════
+//
+// Mirrors `hud/missions.rs`: `GET /hud/missions?sort=recent|frecency` returns
+// `{ sort, count, missions: [{ id, label, status, frecency }] }`; `POST
+// /hud/missions` `{ prompt }` returns `201 { mission_id, status }` or
+// `400 { error }`.
+
+export type MissionSort = 'recent' | 'frecency';
+
+export interface MissionSortRow extends MissionRow {
+  frecency: number;
+}
+
+export interface MissionsResponse {
+  sort: string;
+  count: number;
+  missions: MissionSortRow[];
+}
+
+export async function fetchMissionSort(
+  hudUrl: string,
+  sort: MissionSort,
+): Promise<MissionsResponse> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const res = await fetch(`${trimmed}/hud/missions?sort=${encodeURIComponent(sort)}`);
+  if (!res.ok) {
+    throw new Error(`HUD missions failed: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as MissionsResponse;
+}
+
+export interface CreateMissionResponse {
+  mission_id: string;
+  status: string;
+}
+
+export async function createMission(
+  hudUrl: string,
+  prompt: string,
+): Promise<CreateMissionResponse> {
+  const trimmed = hudUrl.replace(/\/$/, '');
+  const res = await fetch(`${trimmed}/hud/missions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt }),
+  });
+  if (!res.ok) {
+    let message = `HUD mission create failed: ${res.status} ${res.statusText}`;
+    try {
+      const body = (await res.json()) as { error?: string };
+      if (body.error) message = body.error;
+    } catch {
+      /* keep the status-based message */
+    }
+    throw new Error(message);
+  }
+  return (await res.json()) as CreateMissionResponse;
+}
+
 // ═══════════════ RFC 65 §3/§4 — Approvals queue (RFC 24 §6) ═══════════════
 //
 // Mirrors `BusEventKind::ApprovalRequest` (tag `approval_request`) and
