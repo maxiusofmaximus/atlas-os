@@ -312,6 +312,11 @@
     color: var(--a-primary);
     border-color: color-mix(in srgb, var(--a-primary) 40%, transparent);
   }
+  .canvas-toggle:focus-visible,
+  .retry:focus-visible {
+    outline: 2px solid var(--a-focus);
+    outline-offset: 2px;
+  }
   .disconnected {
     display: flex;
     align-items: center;

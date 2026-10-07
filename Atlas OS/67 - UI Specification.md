@@ -604,6 +604,7 @@ Script: OKLCH→sRGB + **APCA-W3 0.0.98G** + **Machado 2009** (severity 1.0) sob
 
 ## 21. Changelog
 
+- **2026-10-06 v4.2:** nuevo **§24 Cabecera y shell** (construible): regiones del shell (§24.1, RFC 66 §5.2), identidad Calm Instrumentation en la cabecera (§24.2, RFC 66 §9.1 + PALETTE §3), contenido con dato real (§24.3), **estados de conexión** color+glifo+label (§24.4), **leader `:`** con `:v :a :n :m :d :?` y comportamiento exacto de `:m` (foco Mission Rail) y `:?` (help overlay, `Esc` cierra) (§24.5), markup Svelte esperado (§24.6), tokens (§24.7) y **criterios de aceptación C1–C10** (§24.8). Añadido lote **F0.5** (§22.1) y **G7** ampliado a la cabecera (§22.3).
 - **2026-10-06 v4.1:** **G6** (§22.3) corregido: la regex `#[0-9a-fA-F]{3,8}` daba falsos positivos con `{#each}` (41) y con refs tipo `#10207`; sustituida por `rg -nP "(?<![{])#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b" src -g "*.svelte"` (**0** hoy, verificado ejecutándolo). Alineada la misma regex en la aceptación de **F0** (§22.1).
 - **2026-10-06 v4:** ronda C9/C10/C11. **C9:** recuento de fichas unificado a **132** (`count.mjs`: **62 [Os] / 55 [Os parcial] / 15 [P]**; 10 de categoría) — coherente en Status + §1.2/§19/§20 (eliminadas las cifras contradictorias "6 ENTREGADAS" / "9 con ficha" / "62 prioridad-A"). **C10:** citas `herdr.md`/`orca.md` (y `hermes.md`) sustituidas por **`docs/design/CONSENSUS_AUDIT.md`** (§1.3/§2.x) — no existen en `ux-catalog/` (9 líneas: §2/§3/§4/§5/§6/§7/§8). **C11:** tamaños de audit corregidos a **276** (backend) y **277** (frontend). Nuevo **§23 Backlog FASE 11+** (4 funciones NO-DOCUMENTADAS de `_funcion-x-referente.md`).
 - **2026-10-06 v3.1:** 5ª pasada (correcciones del PL). **Status** de cabecera alineado con §19 (backend cotejado; fichas Researcher **en curso**). §20: huecos **H-01…H-09 (9/9)**; **H-09** como fila con UI v1 + fase. §22.2 **dividido en FASE 10 (B1/B2/B5/B7) y FASE 11 (B3/B4/B6/B8)** por decisión del PL; "Fuera de FASE 10" reducido a v2 real. **§22.3 gates de cierre**.
@@ -622,6 +623,7 @@ Script: OKLCH→sRGB + **APCA-W3 0.0.98G** + **Machado 2009** (severity 1.0) sob
 | Lote | Qué | Archivos | Criterio de aceptación | Deps | Riesgo |
 |---|---|---|---|---|---|
 | **F0 — Tokens** | crear `src/app.css` con `--a-*` (PALETTE §3); importar; sustituir los 531 literales | `src/app.css` (nuevo), `src/routes/+layout.svelte`, 24 `.svelte` | `pnpm check && pnpm lint`; `rg -nP "(?<![{])#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b" src -g "*.svelte"` → **0**; captura dark/light | — | medio (53 1 sitios): mitigar con `rg` antes/después |
+| **F0.5 — Cabecera y shell** | §24: `TopBar` con identidad + versión + misión activa + bus + leader hint; `HelpOverlay` (`:?`) | `src/lib/components/AppHeader.svelte` (nuevo), `HelpOverlay.svelte` (nuevo), `src/routes/+page.svelte` | `pnpm test` (`AppHeader.test.ts`: C1–C10 §24.8); `pnpm check`; G6 = 0 | F0 | bajo (`:m/:?` se cablean en F5; foco de `:m` depende de F2) |
 | **F1 — Agent Card** | reemplazar debug card por §4 (15+ campos, capas 0–3, error/loading) | `src/lib/components/AgentCard.svelte`, `src/lib/stores/hud.ts`, `+page.svelte` | `pnpm test` (test de componente: render + vacío + **error**) ; `pnpm check` | F0 | alto (datos WS/REST; H-03 derivado) |
 | **F2 — Mission Rail** | componente nuevo + disolver `overview` | `src/lib/components/MissionRail.svelte` (nuevo), `+page.svelte`, `views.ts` | `pnpm test`; cambiar misión **no** reconecta WS (assert `hud.connected`) | F0/F1 | medio |
 | **F3 — Activity Spine** | ticker + clases de color + `aria-live` | `src/lib/components/ActivitySpine.svelte` (nuevo), `+page.svelte` | `pnpm test`; `doom_loop_detected` → clase `err`; `prefers-reduced-motion` | F0 | bajo |
@@ -663,7 +665,7 @@ Script: OKLCH→sRGB + **APCA-W3 0.0.98G** + **Machado 2009** (severity 1.0) sob
 | **G4** | `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings` | 0 warnings |
 | **G5** | `cargo test --manifest-path src-tauri/Cargo.toml --lib` | verde; incluye **B1/B2/B5/B7** (cada uno feliz + fallo) |
 | **G6** | `rg -nP "(?<![{])#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b" src -g "*.svelte"` | **0** (sin hex crudo; longitudes CSS válidas 3/4/6/8 y `#` no precedido de `{` ⇒ excluye `{#each}` y refs tipo `#10207`; verificado hoy) |
-| **G7** | Capturas **dark/light** de **Mission Rail**, **Activity Spine**, **Approvals Dock** y **1 view** (p.ej. Kanban) | 4 componentes en ambos temas; anillo `:focus-visible` visible |
+| **G7** | Capturas **dark/light** de **Cabecera** (connected/disconnected), **Mission Rail**, **Activity Spine**, **Approvals Dock** y **1 view** (p.ej. Kanban) | 5 componentes en ambos temas; anillo `:focus-visible` visible |
 | **G8** | `rg "KernelCommand" src/lib` | **0** (la UI no se cablea al dead code) |
 
 **FASE 10 se considera cerrada cuando G1–G8 pasan.** FASE 11 (B3/B4/B6/B8) **no** se inicia hasta entonces.
@@ -684,6 +686,172 @@ Script: OKLCH→sRGB + **APCA-W3 0.0.98G** + **Machado 2009** (severity 1.0) sob
 **Relacionado (parcial, no es hueco nuevo):** *ack/aprobación en el canal del humano* y *notificaciones* están **parcialmente** cubiertos por **RFC 24 §16** (`_funcion-x-referente.md`).
 
 **Dependencia:** las 4 exigen **backend nuevo** (lote propio en FASE 11+); se priorizan tras validar FASE 10 (§22.3).
+
+---
+
+## 24. Cabecera y shell [R — construible]
+
+> **Qué:** el *frame* de la app — el `TopBar` (cabecera) y las regiones del shell que lo rodean — con identidad **Calm Instrumentation**, estados de conexión, y el **leader `:`** con sus acciones. **Fuentes:** layout RFC 66 **§5.2**; identidad RFC 66 **§9.1**; tokens `docs/design/PALETTE.md` **§3.1/§3.2** (medidos **[O]**); hotkeys canónicas RFC 24 **§19** (`?` → `:?`, ver §24.5); estado real del bus **[O `hud.ts`]**. Sin hex crudo (G6 §22.3).
+
+### 24.1 Shell — regiones [O RFC 66 §5.2]
+
+```
+┌───────────────────────────────────────────────────────────────────────────┐
+│ TOP BAR  Atlas OS v0.1.1 · Mission: <id> · ● connected · : :v :a :n :m :d :?│  ← §24.2–24.5
+├──────────────┬──────────────────────────────────────────────┬──────────────┤
+│ MISSION RAIL │  VIEW BAR  [Kanban][Canvas][Outline][…]       │ ACTIVITY     │
+│ (izq)        │  + lienzo de la proyección activa             │ SPINE (der)  │
+│ [+ New]      │                                               │ (ticker)     │
+├──────────────┴──────────────────────────────────────────────┴──────────────┤
+│ APPROVALS DOCK (inferior, colapsable)                                       │
+│ STATUS BAR (modo · conf · VRAM · $ · alertas)                               │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+- **Regiones:** `header[role=banner]` (TopBar) · `nav[data-region=mission-rail]` · `main` (View Bar + lienzo) · `aside[data-region=activity-spine]` · `region[data-region=approvals-dock]` · `footer[role=contentinfo]` (StatusBar).
+- **La cabecera NO es el StatusBar.** El `TopBar` lleva **identidad + contexto global** (§24.3); el `StatusBar` lleva **señales** (modo/conf/VRAM/coste/alertas, RFC 66 §5.2). No duplicar (Calmness, RFC 66 §5.10).
+
+### 24.2 Identidad "Calm Instrumentation" en la cabecera [R RFC 66 §9.1]
+
+| Regla | Aplicación en la cabecera |
+|---|---|
+| Neutro de-carbón, no azul-GitHub | fondo `--a-surface` + hairline inferior `--a-border`; texto `--a-text` |
+| **Un solo acento** = teal señal | `--a-primary` **solo** en: marca (spine 3px), leader `:` activo, foco. **Nunca** como color de estado |
+| Mono = hechos de máquina | versión, `<id>` de misión, URL del bus → `font-family: var(--a-mono)` |
+| Sans = prosa humana | `Atlas OS`, "Mission:", labels de estado |
+| Estado = color + glifo + label | ver §24.4 (regla anti-CVD, §1.3) |
+
+### 24.3 Contenido de la cabecera (orden y dato real)
+
+| # | Elemento | Dato / fuente **[O]** | Token |
+|---|---|---|---|
+| 1 | **Marca** | texto `Atlas OS` + spine teal 3px | `--a-text` + `--a-primary` |
+| 2 | **Versión** | `v{import.meta.env.VITE_OC_VERSION ?? version}` — `package.json` = **0.1.1** | `--a-text-muted` (mono) |
+| 3 | **Misión activa** | `$activeMissionId` (`views.ts`); dot de rollup (§4) | `--a-text` (id, mono) + color de rollup |
+| 4 | **Estado del bus** | `$hud.connected` + `$hud.url` (`hud.ts:26`) | ver §24.4 |
+| 5 | **Remote** (condicional) | `remote.local_only` → `local-only` \| `remote` (+ OIDC/bearer) — ya existe **[O `+page.svelte:392-404`]** | `--a-text-muted` |
+| 6 | **Leader hint `:`** | leyenda estática de acciones | `kbd`: `--a-text-faint`; `:` activo `--a-primary` |
+
+> **Real hoy [O]:** `+page.svelte` ya renderiza (1) `Atlas OS`, (2) `v{VITE_OC_VERSION ?? '0.1.0'}` y (5) remote; **faltan** (3) misión activa en cabecera, (4) bus en cabecera (hoy está abajo en `.mission-deck`) y (6) leader hint. v1 = subir (3)/(4) al `TopBar` + añadir (6).
+
+### 24.4 Estados de conexión (bus WS) — color + glifo + label
+
+| Estado | Condición | Token | Glifo | Label | Comportamiento |
+|---|---|---|---|---|---|
+| **connected** | `$hud.connected === true` | `--a-ok` | `●` (lleno) | `connected` | datos vivos; sin banner |
+| **reconnecting** [R] | WS cerró con backoff activo (`hud.ts` 1 s→10 s) | `--a-warn` | `◐` | `reconnecting…` | banner sutil; datos **congelados** + `ts` |
+| **disconnected** | `$hud.connected === false`, sin timer | `--a-err` | `○` (hueco) | `disconnected` | banner **"sin conexión — reconectando"** + timestamp del último frame (§1.4) |
+| **unknown** | sin primer frame / no clasificable | `--a-text-faint` | `?` | `unknown` | nunca inventa estado (§1.4) |
+
+> **[O] real:** el store expone `{ connected, url, events }`; `reconnecting` es **derivado** (timer pendiente) → si no se puede derivar, se añade al store en F1 [R]. El label actual (`connected`/`disconnected`) se **conserva**; solo se le suma glifo + token.
+
+### 24.5 Leader `:` — acciones y comportamiento exacto
+
+**Modelo:** `:` = leader. Pulsarlo **abre la Command Palette** (`CommandPalette.svelte`, ya existe **[O]**); la **segunda tecla** ejecuta la acción. El hint de la cabecera (6) es **decorativo** (`aria-hidden="true"`); la ayuda real es `:?`.
+
+| Acción | Efecto | Estado v1 |
+|---|---|---|
+| `:v` | abre **View Switcher** (cambiar view: Kanban/Canvas/Outline/Timeline/Cost/Health/Audit/Worktrees/Settings/MCP) | cablear (F5) |
+| `:a` | **foco al Approvals Dock** (`[data-region=approvals-dock]`) | cablear (F5) |
+| `:n` | **nueva misión** (abre `NewMissionButton`) | cablear (F5) |
+| `:m` | **foco a Mission Rail** — ver abajo | cablear (F5) |
+| `:d` | **Show Demo** (`DemoPane`) | cablear (F5) |
+| `:?` | **panel de ayuda** — ver abajo | cablear (F5) |
+
+> **Reconciliación RFC 24 §19:** la tabla canónica usa `?` sin leader; bajo el modelo leader se **normaliza a `:?`** (y `?` suelto queda como **alias**). Los hotkeys de view de `views.ts` se retiran (§1.5/§1.11).
+
+**`:m` — foco a Mission Rail (exacto):**
+1. **No** abre la palette; **no** cambia de view.
+2. Mueve el **foco DOM** al contenedor `[data-region=mission-rail]` (roving `tabindex`): foco a la misión **activa**; si no hay activa → primera; si el rail está vacío → foco a `[+ New]`.
+3. **Scroll-into-view** del item enfocado.
+4. Anuncia por `aria-live="polite"`: `"Mission Rail. <n> misiones. Foco en <id>."`
+5. `:focus-visible` visible en el item (anillo §1.5).
+
+**`:?` — panel de ayuda (exacto):**
+1. Abre un **overlay** `role="dialog" aria-modal="true"` con la **tabla de hotkeys** (RFC 24 §19 completa, `:?` incluido).
+2. **Foco atrapado** dentro del panel; foco inicial en el botón **Cerrar** (`aria-label="Cerrar (Esc)"`).
+3. **`Esc` cierra** y **devuelve el foco** al elemento que invocó el panel.
+4. Clic en el *scrim* cierra; `Tab` cicla solo dentro.
+5. `prefers-reduced-motion`: sin animación de entrada.
+
+### 24.6 Markup esperado (Svelte 5, runes) — sin hex
+
+```svelte
+<!-- AppHeader.svelte — RFC 67 §24 -->
+<header class="app-header" role="banner">
+  <span class="brand">
+    <span class="brand-mark" aria-hidden="true"></span>
+    <h1 class="brand-name">Atlas OS</h1>
+    <span class="brand-version">v{version}</span>
+  </span>
+
+  <span class="active-mission" data-state={mission ? 'set' : 'none'}>
+    <span class="rollup-dot" data-state={rollup} aria-hidden="true"></span>
+    <span class="mission-label">Mission:</span>
+    <code class="mission-id">{mission?.id ?? '—'}</code>
+  </span>
+
+  <span class="bus" data-state={busState} role="status" aria-live="polite">
+    <span class="glyph" aria-hidden="true">{busGlyph}</span>
+    <span class="label">{busLabel}</span>
+  </span>
+
+  {#if remote}
+    <span class="remote" data-state={remote.local_only ? 'local' : 'remote'}>
+      {remote.local_only ? 'local-only' : 'remote'}
+    </span>
+  {/if}
+
+  <span class="leader-hint" aria-hidden="true">
+    <kbd class="leader">:</kbd>
+    <kbd>:v</kbd><kbd>:a</kbd><kbd>:n</kbd><kbd>:m</kbd><kbd>:d</kbd><kbd>:?</kbd>
+  </span>
+</header>
+
+<!-- HelpOverlay.svelte -->
+{#if open}
+  <div class="help-scrim" onclick={close}></div>
+  <div class="help-panel" role="dialog" aria-modal="true" aria-labelledby="help-title"
+       tabindex="-1" bind:this={panelEl} onkeydown={trapFocus}>
+    <header><h2 id="help-title">Atajos</h2>
+      <button class="close" aria-label="Cerrar (Esc)" onclick={close}>✕</button></header>
+    <table><!-- filas RFC 24 §19: :m :v :a :n :f :s :d :r :p :x :c :e :o :t :? --></table>
+  </div>
+{/if}
+```
+
+### 24.7 Tokens usados (dark `§3.1`; light `§3.2` — vía `var()`, nunca hex)
+
+| Elemento | Token |
+|---|---|
+| fondo cabecera / hairline | `--a-surface` / `--a-border` |
+| marca / `Atlas OS` | `--a-text` + `--a-primary` (spine 3px) |
+| versión / `Mission:` / labels | `--a-text-muted` (versión, mono) |
+| id de misión / URL bus | `--a-text` + `--a-mono` |
+| bus `connected`/`reconnecting`/`disconnected`/`unknown` | `--a-ok` / `--a-warn` / `--a-err` / `--a-text-faint` |
+| `kbd` leader | `--a-text-faint`; `:` activo `--a-primary` |
+| anillo foco | `--a-focus` 2px + offset 2px (§1.5) |
+
+### 24.8 Criterios de aceptación (verificables)
+
+| # | Criterio | Verificación |
+|---|---|---|
+| C1 | Cabecera renderiza marca, versión, misión activa, bus y leader hint | `pnpm test` (`AppHeader.test.ts`: los 6 campos presentes) |
+| C2 | Versión = `v` + `package.json.version` (**0.1.1**) | test lee `package.json` y compara |
+| C3 | `$hud.connected=false` ⇒ `[data-state=disconnected]` **y** banner "sin conexión — reconectando" con `ts` | test con store `connected:false` |
+| C4 | `:m` enfoca el Mission Rail (no palette, no cambia view) | test teclado: tras `:m`, `document.activeElement` ⊂ `[data-region=mission-rail]`; `activeView` sin cambios |
+| C5 | `:?` abre `role=dialog[aria-modal=true]` con la tabla RFC 24 §19; `Esc` cierra y **restaura foco** | test: abre → assert dialog; `Esc` → assert cerrado + foco previo |
+| C6 | `:v/:a/:n/:d` disparan su acción | test por acción |
+| C7 | `:focus-visible` = anillo `--a-focus` 2px/offset 2px | assert estilo computado |
+| C8 | **Sin hex crudo** | `rg -nP "(?<![{])#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b" src -g "*.svelte"` → **0** (G6 §22.3) |
+| C9 | `prefers-reduced-motion` ⇒ sin pulse en el dot del bus | media query + captura |
+| C10 | A11y: `role=banner`; bus `role=status aria-live=polite`; leader-hint `aria-hidden=true` | assert atributos |
+
+**Lote/deps:** **F0.5 — Cabecera y shell** (nuevo; tras **F0** tokens). El *comportamiento* de `:m/:?` se cablea en **F5** (leader map); el foco de `:m` depende de **F2** (Mission Rail). v1.
+
+### 24.9 Añadido a §22.1 (lote) y changelog
+- **§22.1:** añadir fila **F0.5 — Cabecera y shell** (deps F0; habilita §24; `:m/:?` → F5).
+- **§22.3 G7:** las capturas dark/light deben incluir **la cabecera** (estados connected/disconnected).
 
 
 

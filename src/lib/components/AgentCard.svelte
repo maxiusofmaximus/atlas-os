@@ -327,7 +327,7 @@
       <span>no se pudo cargar el agente</span>
       <button type="button" onclick={() => void refreshTail()}>Retry</button>
     </div>
-  {:else if !runId}
+  {:else if !runId || steps.length === 0}
     <p class="empty">
       No agent run yet. Try <code>atlas agent "&lt;task&gt;" --verify</code>.
     </p>

@@ -61,6 +61,10 @@
     color: var(--a-text-faint);
     cursor: not-allowed;
   }
+  .tab:focus-visible {
+    outline: 2px solid var(--a-focus);
+    outline-offset: 2px;
+  }
   .fase {
     font-size: 0.62rem;
     margin-left: 0.3rem;

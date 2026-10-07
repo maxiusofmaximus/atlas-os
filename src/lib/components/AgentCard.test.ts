@@ -104,4 +104,30 @@ describe('AgentCard', () => {
     expect(target.querySelector('.status')?.textContent).toBe('unknown');
     expect(target.querySelector('.spine')?.textContent).toBe('?');
   });
+
+  it('shows the empty state (not success/Worked) when a run id has no steps (D3)', async () => {
+    setHud({
+      connected: true,
+      url: 'http://hud',
+      events: [
+        {
+          id: '1',
+          ts: new Date().toISOString(),
+          kind: 'agent_step',
+          payload: { run_id: 'run-abcdef123456' },
+        },
+        {
+          id: '2',
+          ts: new Date().toISOString(),
+          kind: 'agent_status_changed',
+          payload: { agent_id: 'a1', status: 'success' },
+        },
+      ],
+    });
+    mFetch.mockResolvedValue([]);
+    app = mount(AgentCard, { target, props: { hudUrl: 'http://hud' } });
+    await settle();
+    expect(target.textContent).toContain('No agent run yet');
+    expect(target.textContent).not.toContain('Worked for');
+  });
 });

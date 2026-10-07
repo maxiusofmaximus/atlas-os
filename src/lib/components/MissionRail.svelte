@@ -39,14 +39,14 @@
   let error = $state<string | null>(null);
   let navEl: HTMLElement | undefined = $state();
 
-  async function load(url: string | null): Promise<void> {
+  async function load(url: string | null, silent = false): Promise<void> {
     if (!url) {
       missions = [];
       loading = false;
       error = 'no HUD URL yet';
       return;
     }
-    loading = true;
+    if (!silent) loading = true;
     error = null;
     try {
       missions = await fetchMissions(url);
@@ -78,12 +78,16 @@
     }
   }
 
+  const REFRESH_MS = 4000;
+
   $effect(() => {
     void load(hudUrl);
+    const timer = setInterval(() => void load(hudUrl, true), REFRESH_MS);
+    return () => clearInterval(timer);
   });
 </script>
 
-<nav class="mission-rail" aria-label="Missions" bind:this={navEl}>
+<nav class="mission-rail" data-region="mission-rail" aria-label="Missions" bind:this={navEl}>
   <header class="rail-head">
     <h2>Missions</h2>
     <button class="new" type="button" onclick={() => onnew?.()}>+ New</button>
@@ -299,5 +303,11 @@
     cursor: pointer;
     font-size: 0.72rem;
     padding: 0.1rem 0.4rem;
+  }
+  .new:focus-visible,
+  .error button:focus-visible,
+  .empty button:focus-visible {
+    outline: 2px solid var(--a-focus);
+    outline-offset: 2px;
   }
 </style>

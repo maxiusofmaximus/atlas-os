@@ -79,7 +79,7 @@
   }
 </script>
 
-<section class="approvals-dock" aria-label="Approvals Dock">
+<section class="approvals-dock" data-region="approvals-dock" aria-label="Approvals Dock">
   <header>
     <h3>Approvals</h3>
     <span class="badge" class:pending={pending.length > 0}>{pending.length}</span>
@@ -399,6 +399,11 @@
   .buttons button:disabled {
     opacity: 0.45;
     cursor: not-allowed;
+  }
+  .buttons button:focus-visible,
+  .approve-all:focus-visible {
+    outline: 2px solid var(--a-focus);
+    outline-offset: 2px;
   }
   .batch {
     display: flex;

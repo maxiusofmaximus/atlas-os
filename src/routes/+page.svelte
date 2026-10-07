@@ -42,6 +42,8 @@
   import MissionRail from '$lib/components/MissionRail.svelte';
   import ActivitySpine from '$lib/components/ActivitySpine.svelte';
   import ApprovalsDock from '$lib/components/ApprovalsDock.svelte';
+  import AppHeader from '$lib/components/AppHeader.svelte';
+  import HelpOverlay from '$lib/components/HelpOverlay.svelte';
   import { activeView, activeMissionId, hotkeyAction, type ViewId } from '$stores/views';
   import AvailabilityCard from '$lib/components/AvailabilityCard.svelte';
   import EvalCard from '$lib/components/EvalCard.svelte';
@@ -335,9 +337,10 @@
   ];
   let paletteOpen = $state(false);
   let leader = $state(false);
+  let helpOpen = $state(false);
 
   function focusApprovalsDock(): void {
-    const dock = document.querySelector<HTMLElement>('[aria-label="Approvals Dock"]');
+    const dock = document.querySelector<HTMLElement>('[data-region="approvals-dock"]');
     if (!dock) return;
     const target = dock.querySelector<HTMLElement>('button, [href], input, [tabindex]');
     if (target) {
@@ -348,9 +351,25 @@
     }
   }
 
+  function focusMissionRail(): void {
+    const rail = document.querySelector<HTMLElement>('[data-region="mission-rail"]');
+    if (!rail) return;
+    const current = rail.querySelector<HTMLElement>('.item[aria-current="true"]');
+    const first = rail.querySelector<HTMLElement>('.item');
+    const newBtn = rail.querySelector<HTMLElement>('.new');
+    const target = current ?? first ?? newBtn ?? rail;
+    if (target === rail) rail.tabIndex = -1;
+    target.focus();
+    if (typeof target.scrollIntoView === 'function') {
+      target.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
   function runHotkey(action: ReturnType<typeof hotkeyAction>): void {
     if (action === 'view') activeView.cycle(1);
     else if (action === 'approvals') focusApprovalsDock();
+    else if (action === 'mission') focusMissionRail();
+    else if (action === 'help') helpOpen = true;
     else if (action === 'new-mission') paletteOpen = true;
     else if (action === 'demo') activeView.set('canvas');
   }
@@ -363,6 +382,7 @@
     if (typing) return;
     if (e.key === 'Escape') {
       paletteOpen = false;
+      helpOpen = false;
       leader = false;
       return;
     }
@@ -387,21 +407,11 @@
 </script>
 
 <main>
-  <header>
-    <h1>Atlas OS</h1>
-    <span class="version">v{import.meta.env.VITE_OC_VERSION ?? '0.1.0'}</span>
-    {#if remote}
-      <span
-        class="remote"
-        data-state={remote.local_only ? 'local' : 'remote'}
-        title={remote.oidc_issuer ?? 'no OIDC issuer configured'}
-      >
-        {remote.local_only ? 'local-only' : 'remote'}
-        {#if remote.oidc_configured}· OIDC{/if}
-        {#if remote.token_configured}· bearer{/if}
-      </span>
-    {/if}
-  </header>
+  <AppHeader
+    version={import.meta.env.VITE_OC_VERSION ?? '0.1.0'}
+    mission={$activeMissionId ? { id: $activeMissionId, rollup: 'none' } : null}
+    {remote}
+  />
 
   <ViewSwitcher available={availableViews} />
 
@@ -413,6 +423,8 @@
       if (a === 'refresh') window.location.reload();
     }}
   />
+
+  <HelpOverlay open={helpOpen} onclose={() => (helpOpen = false)} />
 
   <div class="hud-body">
     <MissionRail
@@ -527,7 +539,9 @@
         </section>
       {/if}
     </div>
-    <ActivitySpine hudUrl={data.hudUrl ?? null} onSelect={() => activeView.set('canvas')} />
+    <aside data-region="activity-spine">
+      <ActivitySpine hudUrl={data.hudUrl ?? null} onSelect={() => activeView.set('canvas')} />
+    </aside>
   </div>
 
   <ApprovalsDock hudUrl={data.hudUrl ?? null} />
@@ -853,14 +867,6 @@
     align-items: baseline;
     gap: 1rem;
     margin-bottom: 1.5rem;
-  }
-  h1 {
-    font-size: 1.6rem;
-    margin: 0;
-  }
-  .version {
-    opacity: 0.6;
-    font-family: 'Fira Code', monospace;
   }
   section {
     margin-bottom: 2rem;
@@ -1232,18 +1238,6 @@
   .drawer-form button:disabled {
     opacity: 0.55;
     cursor: not-allowed;
-  }
-  .remote {
-    font-size: 0.72rem;
-    border-radius: 999px;
-    padding: 0.05rem 0.5rem;
-    border: 1px solid var(--a-border);
-    color: var(--a-text-muted);
-    font-family: 'Fira Code', monospace;
-  }
-  .remote[data-state='remote'] {
-    color: var(--a-info);
-    border-color: var(--a-info);
   }
   .skill-mcp {
     margin-top: 1rem;

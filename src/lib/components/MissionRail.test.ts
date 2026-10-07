@@ -5,7 +5,7 @@
 // the Kernel Bus stream.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { mount, unmount, tick } from 'svelte';
+import { mount, unmount, flushSync, tick } from 'svelte';
 import MissionRail from './MissionRail.svelte';
 
 async function settle(): Promise<void> {
@@ -76,6 +76,46 @@ describe('MissionRail', () => {
     await settle();
     expect(document.body.textContent).toContain('no se pudo cargar misiones');
     expect(document.body.textContent).toContain('Retry');
+    unmount(c);
+  });
+
+  it('refreshes on a light poll so a mission created later appears (D1)', async () => {
+    vi.useFakeTimers();
+    try {
+      let rows: Array<{ id: string; label: string; status: string }> = [
+        { id: 'm1', label: 'First', status: 'running' },
+      ];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(
+          async () =>
+            ({ ok: true, status: 200, statusText: 'OK', json: async () => rows }) as Response,
+        ),
+      );
+      const c = mount(MissionRail, { target: document.body, props: { hudUrl: 'http://hud' } });
+      await vi.advanceTimersByTimeAsync(0);
+      flushSync();
+      expect(document.body.textContent).toContain('First');
+      rows = [...rows, { id: 'm2', label: 'Second', status: 'received' }];
+      await vi.advanceTimersByTimeAsync(4000);
+      flushSync();
+      expect(document.body.textContent).toContain('Second');
+      unmount(c);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('exposes the mission-rail region with focusable items (:m target, C4)', async () => {
+    stubFetch(() => [{ id: 'm1', label: 'Fix bug', status: 'running' }]);
+    const c = mount(MissionRail, { target: document.body, props: { hudUrl: 'http://hud' } });
+    await settle();
+    const rail = document.querySelector('[data-region="mission-rail"]');
+    expect(rail).not.toBeNull();
+    const item = rail?.querySelector<HTMLElement>('.item');
+    expect(item).not.toBeNull();
+    item?.focus();
+    expect(document.activeElement).toBe(item);
     unmount(c);
   });
 });

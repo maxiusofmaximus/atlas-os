@@ -16,6 +16,7 @@
   --a-err: #fd7273;
   --a-violet: #b39ef2;
   --a-focus: var(--a-primary);
+  --a-mono: 'SF Mono', Consolas, 'JetBrains Mono', monospace;
   --a-shadow: rgb(0 0 0 / 50%);
   --a-overlay: rgb(8 8 12 / 60%);
 }
