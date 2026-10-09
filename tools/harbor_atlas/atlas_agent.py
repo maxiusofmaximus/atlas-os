@@ -49,12 +49,12 @@ class AtlasAgent(BaseInstalledAgent):
         if mode == "pipeline":
             # Orchestrated: mission (force-lock) → plan → execute --coding --apply.
             command = (
-                "ID=$(atlas --profile " + profile + " mission new --force "
+                "ID=$(atlas --profile " + profile + " -vv mission new --force "
                 + prompt
                 + " | awk '/^mission /{print $2; exit}') && "
-                'atlas --profile ' + profile + ' plan "$ID" && '
+                'atlas --profile ' + profile + ' -vv plan "$ID" && '
                 "for i in 1 2 3 4 5; do "
-                'atlas --profile ' + profile + ' execute --coding --apply --root . "$ID" && break; '
+                'atlas --profile ' + profile + ' -vv execute --coding --apply --root . "$ID" && break; '
                 'echo "execute attempt $i failed (transient?), retrying in $((i*10))s"; '
                 "sleep $((i*10)); "
                 "done"
@@ -64,12 +64,25 @@ class AtlasAgent(BaseInstalledAgent):
             # Retry the whole loop on a transient provider error (rate-limit).
             command = (
                 "for i in 1 2 3 4 5; do "
-                "atlas --profile " + profile + " agent --root . --max-steps 40 " + prompt
+                "atlas --profile " + profile + " -vv agent --root . --max-steps 40 " + prompt
                 + ' && break; '
                 'echo "agent attempt $i failed (transient?), retrying in $((i*15))s"; '
                 "sleep $((i*15)); "
                 "done"
             )
+        # Rescue journal/audit (and, through the tee below, the agent's -vv trace)
+        # into Harbor's convention dir /logs/artifacts so they survive the trial,
+        # in BOTH modes.
+        command = (
+            command
+            + "; mkdir -p /logs/artifacts; "
+            "atlas --profile " + profile + " journal -n 80 > /logs/artifacts/journal.txt 2>&1 || true; "
+            "atlas --profile " + profile + " audit -n 80 > /logs/artifacts/audit.txt 2>&1 || true"
+        )
+        tee = os.environ.get("ATLAS_AGENT_TEE", "/logs/artifacts/atlas_agent.log").strip()
+        if tee:
+            q = shlex.quote(tee)
+            command = "mkdir -p \"$(dirname " + q + ")\"; { " + command + " ; } 2>&1 | tee " + q
         await self.exec_as_agent(environment, command=command)
 
     def populate_context_post_run(self, context: AgentContext) -> None:
