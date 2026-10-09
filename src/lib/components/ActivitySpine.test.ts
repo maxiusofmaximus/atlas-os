@@ -98,4 +98,20 @@ describe('ActivitySpine behaviour', () => {
     expect(onSelect.mock.calls[0]?.[0]).toMatchObject({ kind: 'agent_step' });
     await unmount(component);
   });
+
+  it('shows the full agent id (not the old truncation) with the id as a tooltip', async () => {
+    const fullId = 'builder-1234567890abcdef';
+    setHud({
+      connected: true,
+      events: [evt('agent_status_changed', { agent_id: fullId, status: 'coding' })],
+    });
+    const { target, component } = render({ hudUrl: 'http://hud' });
+
+    const actor = target.querySelector<HTMLElement>('.actor');
+    expect(actor).not.toBeNull();
+    expect(actor?.textContent).toBe(fullId);
+    expect(actor?.textContent).not.toBe('builder-');
+    expect(actor?.getAttribute('title')).toBe(fullId);
+    await unmount(component);
+  });
 });

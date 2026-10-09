@@ -257,7 +257,7 @@
             onkeydown={(e) => onRowKey(e, i)}
           >
             <span class="glyph" aria-hidden="true">{row.glyph}</span>
-            <span class="actor">{shortId(row.actor)}</span>
+            <span class="actor" title={row.actor}>{row.actor}</span>
             <span class="text">{row.text}</span>
             <span class="ts">{row.evt.ts}</span>
           </button>
@@ -386,6 +386,10 @@
     font-family: 'SF Mono', Consolas, monospace;
     font-size: 0.68rem;
     color: var(--a-text-faint);
+    max-width: 14rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .text {
     overflow: hidden;

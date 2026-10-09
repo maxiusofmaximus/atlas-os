@@ -5,6 +5,7 @@ Modelo: `longcat-2.5-preview-free` · agente: `harbor_atlas.atlas_agent:AtlasAge
 Base URL = env-file (`https://opencode.ai/zen/go/v1`); clave inyectada por `--ae` y redactada en `jobs/<job>/**/config.json`.
 
 ## Progreso
+
 - 12:35 `calib-longcat-2.5-preview-free-20261008-123322` completed=0/89 running=2 pass1.0=0 pass_rate=0.000 errored=0 rewards={} exceptions={}
 - 12:37 `calib-longcat-2.5-preview-free-20261008-123322` completed=0/89 running=2 pass1.0=0 pass_rate=0.000 errored=0 rewards={} exceptions={}
 - 13:08 `calib-longcat-2.5-preview-free-20261008-123322` completed=1/89 running=2 pass1.0=0 pass_rate=0.000 errored=1 rewards={'0.0': 1} exceptions={'AgentTimeoutError': 1}
@@ -63,4 +64,5 @@ Base URL = env-file (`https://opencode.ai/zen/go/v1`); clave inyectada por `--ae
 - **Secreto**: clave redactada (`REDACTED`) en 89 `config.json`; `LEAK=NO`.
 
 ### Tareas aprobadas (24)
+
 `constraints-scheduling, crack-7z-hash, db-wal-recovery, distribution-search, fix-code-vulnerability, git-leak-recovery, git-multibranch, hf-model-inference, kv-store-grpc, large-scale-text-editing, log-summary-date-ranges, mcmc-sampling-stan, modernize-scientific-stack, multi-source-data-merger, nginx-request-logging, openssl-selfsigned-cert, portfolio-optimization, prove-plus-comm, pypi-server, rstan-to-pystan, sparql-university, sqlite-db-truncate, sqlite-with-gcov, vulnerable-secret`

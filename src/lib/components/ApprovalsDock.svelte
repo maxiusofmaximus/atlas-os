@@ -403,6 +403,9 @@
 
 <style>
   .approvals-dock {
+    position: sticky;
+    bottom: 0;
+    z-index: 40;
     border: 1px solid var(--a-border);
     border-radius: 6px;
     background: var(--a-surface);

@@ -16,6 +16,27 @@
   let data = $state<EvalSummaryResponse | null>(null);
   let error = $state<string | null>(null);
 
+  const view = $derived(isEvalSummary(data) ? data : null);
+  const incomplete = $derived(data !== null && view === null);
+
+  function isEvalSummary(value: unknown): value is EvalSummaryResponse {
+    if (!value || typeof value !== 'object') return false;
+    const summary = (value as { summary?: unknown }).summary;
+    const groups = (value as { groups?: unknown }).groups;
+    if (!summary || typeof summary !== 'object' || !Array.isArray(groups)) return false;
+    const s = summary as Record<string, unknown>;
+    return (
+      typeof s.runs === 'number' &&
+      typeof s.total === 'number' &&
+      typeof s.passed === 'number' &&
+      typeof s.pass_rate === 'number' &&
+      typeof s.tokens_per_solved === 'number' &&
+      typeof s.cost_per_solved === 'number' &&
+      !!s.failure_kinds &&
+      typeof s.failure_kinds === 'object'
+    );
+  }
+
   async function refresh(): Promise<void> {
     if (!hudUrl) return;
     error = null;
@@ -44,8 +65,10 @@
 <section class="eval-card">
   <header>
     <h3>Evaluation</h3>
-    {#if data}
-      <span class="tag">{data.summary.runs} runs</span>
+    {#if view}
+      <span class="tag">{view.summary.runs} runs</span>
+    {:else if incomplete}
+      <span class="tag idle">incomplete</span>
     {:else}
       <span class="tag idle">idle</span>
     {/if}
@@ -53,45 +76,42 @@
 
   {#if error}
     <p class="error">Error: {error}</p>
-  {:else if !data || data.summary.total === 0}
-    <p class="empty">
-      No eval data yet. Try <code>atlas eval run golden</code> or
-      <code>atlas eval import &lt;job-dir&gt;</code>.
-    </p>
-  {:else}
+  {:else if incomplete}
+    <p class="empty">The HUD returned an incomplete eval summary (missing fields).</p>
+  {:else if view && view.summary.total > 0}
     <dl class="metrics">
       <div>
         <dt>pass rate</dt>
         <dd
-          class={data.summary.pass_rate >= 0.8 ? 'good' : data.summary.pass_rate < 0.5 ? 'bad' : ''}
+          class={view.summary.pass_rate >= 0.8 ? 'good' : view.summary.pass_rate < 0.5 ? 'bad' : ''}
         >
-          {pct(data.summary.pass_rate)}
+          {pct(view.summary.pass_rate)}
         </dd>
       </div>
       <div>
         <dt>tokens/solved</dt>
-        <dd>{num(Math.round(data.summary.tokens_per_solved))}</dd>
+        <dd>{num(Math.round(view.summary.tokens_per_solved))}</dd>
       </div>
       <div>
         <dt>$ / solved</dt>
-        <dd>${data.summary.cost_per_solved.toFixed(4)}</dd>
+        <dd>${view.summary.cost_per_solved.toFixed(4)}</dd>
       </div>
       <div>
         <dt>cases</dt>
-        <dd>{data.summary.passed}/{data.summary.total}</dd>
+        <dd>{view.summary.passed}/{view.summary.total}</dd>
       </div>
     </dl>
 
-    {#if Object.keys(data.summary.failure_kinds).length > 0}
+    {#if Object.keys(view.summary.failure_kinds).length > 0}
       <div class="kinds">
         <span class="label">failure kinds:</span>
-        {#each Object.entries(data.summary.failure_kinds) as [kind, n] (kind)}
+        {#each Object.entries(view.summary.failure_kinds) as [kind, n] (kind)}
           <span class="kind">{kind} · {n}</span>
         {/each}
       </div>
     {/if}
 
-    {#if data.groups.length > 1}
+    {#if view.groups.length > 1}
       <table class="groups">
         <thead>
           <tr>
@@ -102,7 +122,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each data.groups as g (g.key)}
+          {#each view.groups as g (g.key)}
             <tr>
               <td><code>{g.key}</code></td>
               <td>{pct(g.summary.pass_rate)}</td>
@@ -113,6 +133,11 @@
         </tbody>
       </table>
     {/if}
+  {:else}
+    <p class="empty">
+      No eval data yet. Try <code>atlas eval run golden</code> or
+      <code>atlas eval import &lt;job-dir&gt;</code>.
+    </p>
   {/if}
 </section>
 

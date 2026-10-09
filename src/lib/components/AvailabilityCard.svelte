@@ -16,6 +16,19 @@
   let data = $state<AvailabilityResponse | null>(null);
   let error = $state<string | null>(null);
 
+  const view = $derived(isAvailability(data) ? data : null);
+  const incomplete = $derived(data !== null && view === null);
+
+  function isAvailability(value: unknown): value is AvailabilityResponse {
+    if (!value || typeof value !== 'object') return false;
+    const o = value as Record<string, unknown>;
+    if (typeof o.enabled !== 'boolean') return false;
+    const policy = o.policy;
+    if (!policy || typeof policy !== 'object') return false;
+    const p = policy as Record<string, unknown>;
+    return typeof p.eta_ms === 'number' && typeof p.weight_threshold === 'number';
+  }
+
   async function refresh(): Promise<void> {
     if (!hudUrl) return;
     error = null;
@@ -34,15 +47,14 @@
 
   type Tone = 'run' | 'wait' | 'blocked' | 'off';
 
-  function tone(d: AvailabilityResponse | null): Tone {
-    if (!d || !d.enabled) return 'off';
+  function tone(d: AvailabilityResponse): Tone {
+    if (!d.enabled) return 'off';
     if (d.availability === 'RunNow') return 'run';
     if (d.availability === 'Blocked') return 'blocked';
     return 'wait';
   }
 
-  function label(d: AvailabilityResponse | null): string {
-    if (!d) return 'loading…';
+  function label(d: AvailabilityResponse): string {
     if (!d.enabled) return 'disabled';
     if (d.availability === 'RunNow') return 'RUN NOW';
     if (d.availability === 'Blocked') return 'BLOCKED';
@@ -51,36 +63,43 @@
     }
     return 'unknown';
   }
+
+  const currentTone = $derived(view ? tone(view) : 'off');
+  const stateLabel = $derived(view ? label(view) : incomplete ? 'no data' : 'loading…');
 </script>
 
-<section class="avail-card" data-tone={tone(data)}>
+<section class="avail-card" data-tone={currentTone}>
   <header>
     <h3>Proactive turn</h3>
-    <span class="state tag-{tone(data)}">{label(data)}</span>
+    <span class={`state tag-${currentTone}`}>{stateLabel}</span>
   </header>
 
   {#if error}
     <p class="error">Error: {error}</p>
-  {:else if data}
+  {:else if incomplete}
+    <p class="empty">The HUD returned an incomplete availability response (missing fields).</p>
+  {:else if view}
     <dl class="metrics">
       <div>
         <dt>eta</dt>
-        <dd>{Math.round(data.policy.eta_ms / 60000)} min</dd>
+        <dd>{Math.round(view.policy.eta_ms / 60000)} min</dd>
       </div>
       <div>
         <dt>weight ≥</dt>
-        <dd>{data.policy.weight_threshold.toFixed(2)}</dd>
+        <dd>{view.policy.weight_threshold.toFixed(2)}</dd>
       </div>
       <div>
         <dt>pending</dt>
-        <dd>{data.pending_mission ? data.pending_mission.slice(0, 8) : '—'}</dd>
+        <dd>{view.pending_mission ? view.pending_mission.slice(0, 8) : '—'}</dd>
       </div>
     </dl>
-    {#if data.pending_mission}
+    {#if view.pending_mission}
       <p class="cmd">
-        <span class="label">next mission:</span> <code>{data.pending_mission}</code>
+        <span class="label">next mission:</span> <code>{view.pending_mission}</code>
       </p>
     {/if}
+  {:else}
+    <p class="empty">Loading availability…</p>
   {/if}
 </section>
 
@@ -152,6 +171,11 @@
     background: var(--a-bg);
     padding: 0.1rem 0.3rem;
     border-radius: 3px;
+  }
+  .empty {
+    color: var(--a-text-muted);
+    font-size: 0.85rem;
+    margin: 0;
   }
   .error {
     color: var(--a-err);
